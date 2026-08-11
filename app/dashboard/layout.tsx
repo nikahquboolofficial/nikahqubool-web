@@ -68,10 +68,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     shortlistedCount: 0
   });
 
-  // 📱 MOBILE BOTTOM NAV VISIBILITY RULES:
+  // 📱 MOBILE BOTTOM NAV VISIBILITY RULES: HIDDEN ON /profile, /membership, /find-match, AND ACTIVE MOBILE CHAT
   const isMobileBottomNavVisible = 
     pathname !== '/dashboard/profile' && 
     pathname !== '/dashboard/membership' && 
+    !pathname.startsWith('/dashboard/find-match') &&
     !(pathname.startsWith('/dashboard/messages') && isChatOpenOnMobile);
 
   useEffect(() => {
@@ -224,7 +225,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       {/* MAIN CANVAS */}
       <main className="flex-1 w-full pb-20 lg:pb-0">{children}</main>
 
-      {/* MOBILE BOTTOM DOCK: Hidden on /profile, /membership, and active chat */}
+      {/* MOBILE BOTTOM DOCK: Hidden on /profile, /membership, /find-match, and active chat */}
       {isMobileBottomNavVisible && (
         <DashboardBottomNav 
           unreadCount={unreadTotal}
