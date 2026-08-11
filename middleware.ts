@@ -16,10 +16,23 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Public pages list (Sabhi users ke liye accessible)
+  const publicRoutes = [
+    '/',
+    '/about-us',
+    '/contact-us',
+    '/faq',
+    '/privacy-policy',
+    '/safety-tips',
+    '/terms-conditions'
+  ];
+
+  const isPublicRoute = publicRoutes.includes(pathname);
+
   // 2. CASE 1: Agar Token nahi hai (User Unauthenticated hai)
   if (!token) {
-    // Agar user '/' ke alawa kisi aurprotected page par hai toh use '/' par bhej do
-    if (pathname !== '/') {
+    // Agar user Public Route ke ALOWA kisi protected page (e.g. /dashboard) par jaane ki koshish kare toh use '/' bhej do
+    if (!isPublicRoute) {
       return NextResponse.redirect(new URL('/', request.url));
     }
     return NextResponse.next();
@@ -29,12 +42,12 @@ export function middleware(request: NextRequest) {
   const isDone = isProfileCompleted === '1' || isProfileCompleted === 'true';
 
   if (!isDone) {
-    // Profile complete nahi hai ('0' ya false) -> User ko sirf '/complete-profile' par rehna chahiye
+    // Profile complete nahi hai -> User ko sirf '/complete-profile' par rehna chahiye
     if (pathname !== '/complete-profile') {
       return NextResponse.redirect(new URL('/complete-profile', request.url));
     }
   } else {
-    // Profile complete hai ('1' ya true) -> Agar user '/' ya '/complete-profile' par hai, toh use '/dashboard' bhejo
+    // Profile complete hai -> Agar user '/' ya '/complete-profile' par hai, toh use '/dashboard' bhejo
     if (pathname === '/' || pathname === '/complete-profile') {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }

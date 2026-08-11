@@ -1,305 +1,214 @@
 "use client";
 import { useEffect, useState, useRef } from 'react';
-import axios from 'axios';
-import { Search, MessageSquare, Sparkles, UserPlus } from 'lucide-react';
+import { Search, MessageSquare, Sparkles } from 'lucide-react';
 import * as signalR from '@microsoft/signalr';
+import { useRouter } from 'next/navigation';
+import { fetchChatInboxApi, markChatReadApi, SIGNALR_HUB_URL } from '@/lib/api';
 
 export default function InboxList({ onSelectUser, selectedId }: any) {
+  const router = useRouter();
   const [chats, setChats] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const selectedIdRef = useRef(selectedId); 
-  const BASE_URL = "https://crm.altawafumrah.com";
 
   useEffect(() => {
     selectedIdRef.current = selectedId;
   }, [selectedId]);
 
-  // --- SESSION HELPERS ---
-  const getSession = () => {
-    if (typeof window !== "undefined") {
-      const session = localStorage.getItem('user_session');
-      if (session) {
-        try { return JSON.parse(session); } catch (e) { /* ignore */ }
-      }
-      const value = `; ${document.cookie}`;
-      const parts = value.split(`; user_token=`);
-      if (parts.length === 2) {
-        const token = parts.pop()?.split(';').shift();
-        if (token) {
-          try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            const userId = payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] || payload.sub;
-            return { userId: userId ? Number(userId) : null, token };
-          } catch (e) { /* ignore */ }
-        }
-      }
+  const getCookie = (name: string): string | null => {
+    if (typeof document === "undefined") return null;
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+      const val = parts.pop()?.split(';').shift();
+      return val ?? null;
     }
     return null;
   };
 
-  const getToken = () => {
-    const session = getSession();
-    return session ? session.token : null;
-  };
+  const getToken = (): string | null => getCookie("user_token");
 
-  // --- TIME FORMATTING ---
   const formatChatTime = (dateString: string) => {
     if (!dateString) return "";
-    let messageDate: Date;
-    if (dateString.includes('T')) {
-      try {
-        const [datePart, timePart] = dateString.split('T');
-        const [year, month, day] = datePart.split('-').map(Number);
-        const [hour, minute, second] = timePart.split('.')[0].split(':').map(Number);
-        messageDate = new Date(year, month - 1, day, hour, minute, second || 0);
-      } catch (e) {
-        messageDate = new Date(dateString);
-      }
-    } else {
-      messageDate = new Date(dateString);
-    }
-
+    const messageDate = new Date(dateString);
     const now = new Date();
-    const diffInMs = now.getTime() - messageDate.getTime();
-    const diffInMins = Math.floor(diffInMs / (1000 * 60));
+    const isToday = messageDate.toDateString() === now.toDateString();
 
-    if (diffInMins < 1 && diffInMs >= -15000) return "Just now";
-
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const startOfYesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-    const msgDateOnly = new Date(messageDate.getFullYear(), messageDate.getMonth(), messageDate.getDate());
-
-    if (msgDateOnly.getTime() === startOfToday.getTime()) {
+    if (isToday) {
       return messageDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
     }
-    if (msgDateOnly.getTime() === startOfYesterday.getTime()) return "Yesterday";
-
-    const day = String(messageDate.getDate()).padStart(2, '0');
-    const month = String(messageDate.getMonth() + 1).padStart(2, '0');
-    const year = String(messageDate.getFullYear()).slice(-2);
-    return `${day}/${month}/${year}`;
+    return messageDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' });
   };
-
-  useEffect(() => {
-    const session = getSession();
-    if (session && session.userId) {
-      setCurrentUserId(Number(session.userId));
-    }
-  }, []);
 
   const fetchInbox = async () => {
-    const session = getSession();
-    if (!session || !session.userId) return;
-    try {
-      const res = await axios.get(`${BASE_URL}/api/Chat/inbox/${session.userId}`, {
-        headers: { Authorization: `Bearer ${session.token}` }
-      });
-      const data = res.data?.data || res.data || [];
-      setChats(data);
-    } catch (err) { 
-      console.error("Inbox fetch error:", err); 
+    const token = getToken();
+    if (!token) {
+      router.push('/');
+      return;
+    }
+
+    const res = await fetchChatInboxApi(1, 20, token);
+    if (res.isUnauthorized) {
+      router.push('/');
+      return;
+    }
+    if (res.success && res.data) {
+      setChats(res.data?.data ?? res.data ?? []);
     }
   };
 
-  // SIGNALR REAL-TIME LISTENER
   useEffect(() => {
-    if (!currentUserId) return;
+    const token = getToken();
+    if (!token) {
+      router.push('/');
+      return;
+    }
+
+    let isMounted = true;
     fetchInbox();
 
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${BASE_URL}/chatHub?userId=${currentUserId}`, {
-        accessTokenFactory: () => getToken() || ""
+      .withUrl(SIGNALR_HUB_URL, {
+        accessTokenFactory: () => token,
+        skipNegotiation: true,
+        transport: signalR.HttpTransportType.WebSockets
       })
       .withAutomaticReconnect()
       .build();
 
+    connection.on("ReceiveMessage", (senderId, messageText) => {
+      const incomingSenderId = Number(senderId);
+
+      setChats((prevChats) => {
+        const index = prevChats.findIndex(c => (c.userId ?? c.UserId) === incomingSenderId);
+        const isOpen = selectedIdRef.current === incomingSenderId;
+
+        if (index !== -1) {
+          const updated = [...prevChats];
+          const target = { ...updated[index] };
+          target.lastMessage = messageText;
+          target.lastMessageTime = new Date().toISOString();
+          if (!isOpen) {
+            target.unreadCount = (target.unreadCount ?? target.UnreadCount ?? 0) + 1;
+          }
+          updated.splice(index, 1);
+          return [target, ...updated];
+        } else {
+          fetchInbox();
+          return prevChats;
+        }
+      });
+    });
+
+    connection.on("UserStatusChanged", (userId, isOnline) => {
+      setChats(prev => prev.map(c => ((c.userId ?? c.UserId) === Number(userId) ? { ...c, isOnline: Boolean(isOnline) } : c)));
+    });
+
     connection.start()
       .then(() => {
-        connection.on("ReceiveMessage", (senderId, messageText) => {
-          const incomingSenderId = Number(senderId);
-
-          setChats((prevChats) => {
-            const existingChatIndex = prevChats.findIndex(c => (c.userId ?? c.UserId) === incomingSenderId);
-            const isChatCurrentlyOpen = selectedIdRef.current === incomingSenderId;
-
-            const localNow = new Date();
-            const offset = localNow.getTimezoneOffset() * 60000;
-            const localISOTime = new Date(localNow.getTime() - offset).toISOString().slice(0, -1);
-
-            if (existingChatIndex !== -1) {
-              const updatedChats = [...prevChats];
-              const targetChat = { ...updatedChats[existingChatIndex] };
-
-              targetChat.lastMessage = messageText;
-              targetChat.lastMessageTime = localISOTime; 
-
-              if (!isChatCurrentlyOpen) {
-                targetChat.unreadCount = (targetChat.unreadCount || targetChat.UnreadCount || 0) + 1;
-              }
-
-              updatedChats.splice(existingChatIndex, 1);
-              return [targetChat, ...updatedChats];
-            } else {
-              fetchInbox();
-              return prevChats;
-            }
-          });
-        });
-
-        connection.on("UserStatusChanged", (userId, isOnline) => {
-          const targetUserId = Number(userId);
-          setChats((prevChats) => 
-            prevChats.map(c => ((c.userId ?? c.UserId) === targetUserId ? { ...c, isOnline: isOnline } : c))
-          );
-        });
+        if (!isMounted) connection.stop().catch(() => {});
       })
-      .catch(err => console.error("Inbox SignalR Error:", err));
+      .catch(err => {
+        if (isMounted) console.error("SignalR Inbox Error:", err);
+      });
 
     return () => {
+      isMounted = false;
       connection.off("ReceiveMessage");
       connection.off("UserStatusChanged");
-      connection.stop();
+      if (connection.state === signalR.HubConnectionState.Connected) {
+        connection.stop().catch(() => {});
+      }
     };
-  }, [currentUserId]);
+  }, [router]);
 
   const handleChatClick = async (chat: any) => {
     const targetUserId = chat.userId ?? chat.UserId;
     onSelectUser(chat);
 
-    const currentUnread = chat.unreadCount ?? chat.UnreadCount ?? 0;
-    if (currentUnread > 0) {
-      setChats(prevChats =>
-        prevChats.map(c => ((c.userId ?? c.UserId) === targetUserId ? { ...c, unreadCount: 0, UnreadCount: 0 } : c))
-      );
-
-      try {
-        const token = getToken();
-        await axios.post(`${BASE_URL}/api/Chat/mark-read`, null, {
-          params: { senderId: targetUserId, receiverId: currentUserId },
-          headers: { Authorization: `Bearer ${token}` }
-        });
-      } catch (err) { 
-        console.error("Mark read API error:", err); 
-      }
+    const unread = chat.unreadCount ?? chat.UnreadCount ?? 0;
+    if (unread > 0) {
+      setChats(prev => prev.map(c => ((c.userId ?? c.UserId) === targetUserId ? { ...c, unreadCount: 0, UnreadCount: 0 } : c)));
+      const token = getToken();
+      markChatReadApi(targetUserId, token).catch(err => console.error("Mark read error:", err));
     }
   };
 
-  const filteredChats = chats.filter(chat => {
-    const name = chat.fullName ?? chat.FullName ?? "";
-    return name.toLowerCase().includes(searchTerm.toLowerCase());
-  });
-
-  if (!currentUserId) {
-    return <div className="flex h-full items-center justify-center text-slate-400 font-semibold bg-white">Loading Inbox...</div>;
-  }
+  const filteredChats = chats.filter(c => (c.fullName ?? c.FullName ?? "").toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="flex flex-col h-full bg-white md:bg-[#FDF2F5]/30">
-      
-      {/* HEADER */}
-      <div className="flex-none p-5 md:p-6 bg-white/90 backdrop-blur-xl border-b border-pink-50 sticky top-0 z-20">
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h2 className="text-2xl font-black italic text-[#D2136E] uppercase tracking-tighter leading-none">Messages</h2>
-            <p className="text-[10px] font-bold text-slate-400 uppercase mt-1 tracking-widest flex items-center gap-1">
-              <Sparkles size={10} className="text-pink-400" /> Recent Conversations
-            </p>
-          </div>
-          <div className="bg-pink-50 p-2 rounded-xl text-[#D2136E] hidden md:block">
+    <div className="flex flex-col h-full bg-white border-r-2 border-rose-100 selection:bg-[#870c3f] selection:text-white">
+      <div className="p-5 border-b-2 border-rose-100 bg-white">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-serif font-extrabold uppercase tracking-tight text-slate-900">Messages</h2>
+          <div className="bg-rose-50 p-2.5 rounded-2xl text-[#870c3f] border-2 border-rose-200 shadow-xs">
             <MessageSquare size={20} />
           </div>
         </div>
-
-        {/* SEARCH BAR */}
-        <div className="relative group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#D2136E] transition-colors" size={18} />
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           <input 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search conversations..." 
-            className="w-full bg-gray-50/50 border border-pink-100 py-3.5 pl-12 pr-4 rounded-[22px] text-sm font-semibold outline-none focus:bg-white focus:ring-4 focus:ring-pink-100/50 transition-all shadow-sm" 
+            placeholder="Search chat..." 
+            className="w-full bg-slate-50 border-2 border-rose-100 py-3 pl-11 pr-4 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-[#870c3f]/20 transition-all placeholder-slate-400" 
           />
         </div>
       </div>
 
-      {/* SCROLLABLE LIST */}
-      <div className="flex-1 overflow-y-auto no-scrollbar p-3 space-y-3">
-        {filteredChats.length > 0 ? (
-          filteredChats.map((chat) => {
-            const uId = chat.userId ?? chat.UserId;
-            const fName = chat.fullName ?? chat.FullName ?? "Member";
-            const lastMsg = chat.lastMessage ?? chat.LastMessage;
-            const lastTime = chat.lastMessageTime ?? chat.LastMessageTime;
-            const unread = chat.unreadCount ?? chat.UnreadCount ?? 0;
-            const isSelected = selectedId === uId;
+      <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-white">
+        {filteredChats.map((chat) => {
+          const uId = chat.userId ?? chat.UserId;
+          const fName = chat.fullName ?? chat.FullName ?? "User";
+          const lastMsg = chat.lastMessage ?? chat.LastMessage ?? "Start a conversation...";
+          const lastTime = chat.lastMessageTime ?? chat.LastMessageTime;
+          const unread = chat.unreadCount ?? chat.UnreadCount ?? 0;
+          const isSelected = selectedId === uId;
+          const isUserOnline = Boolean(chat.isOnline ?? chat.IsOnline);
+          const pUrl = chat.photoUrl ?? chat.PhotoUrl ?? `https://ui-avatars.com/api/?name=${encodeURIComponent(fName)}&background=FFF0F3&color=870c3f&bold=true`;
 
-            return (
-              <div 
-                key={uId} 
-                onClick={() => handleChatClick(chat)}
-                className={`flex items-center gap-4 p-4 rounded-[28px] cursor-pointer transition-all duration-300 relative overflow-hidden group ${
-                  isSelected 
-                  ? 'bg-white shadow-[0_15px_35px_rgba(210,19,110,0.08)] border border-pink-100 scale-[1.02]' 
-                  : 'hover:bg-white/70 border border-transparent hover:shadow-md'
-                }`}
-              >
-                <div className="relative flex-shrink-0">
-                  <img 
-                    src={`https://ui-avatars.com/api/?name=${encodeURIComponent(fName)}&background=FDF2F5&color=D2136E&bold=true&font-size=0.4`} 
-                    className="w-14 h-14 rounded-[22px] shadow-sm relative z-10 border border-white object-cover" 
-                    alt="avatar"
-                  />
-                  {chat.isOnline && (
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full z-20 shadow-sm animate-pulse"></div>
-                  )}
-                </div>
-
-                <div className="flex-1 min-w-0 z-10">
-                  <div className="flex justify-between items-center mb-0.5">
-                    <h4 className="text-[14px] font-black italic uppercase text-slate-800 truncate tracking-tight">{fName}</h4>
-                    <span className="text-[9px] font-black text-slate-400 uppercase italic whitespace-nowrap">
-                      {formatChatTime(lastTime)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className={`text-[12px] truncate ${unread > 0 ? "text-[#D2136E] font-black" : "text-slate-400 font-medium"}`}>
-                      {lastMsg || "Start a conversation..."}
-                    </p>
-                    {unread > 0 && (
-                      <span className="bg-[#D2136E] text-white text-[9px] font-black h-5 min-w-[20px] px-1.5 rounded-full flex items-center justify-center shadow-lg shadow-pink-200">
-                        {unread}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {isSelected && (
-                  <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#D2136E]"></div>
+          return (
+            <div 
+              key={uId} 
+              onClick={() => handleChatClick(chat)}
+              className={`flex items-center gap-3.5 p-3.5 rounded-2xl cursor-pointer transition-all ${
+                isSelected 
+                  ? 'bg-rose-50/70 border-2 border-rose-200 shadow-sm' 
+                  : 'hover:bg-slate-50 border-2 border-transparent'
+              }`}
+            >
+              <div className="relative">
+                <img 
+                  src={pUrl} 
+                  className="w-12 h-12 rounded-2xl object-cover border-2 border-rose-200 shadow-xs" 
+                  alt="avatar"
+                />
+                {isUserOnline && (
+                  <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full shadow-xs" />
                 )}
               </div>
-            );
-          })
-        ) : (
-          <div className="flex flex-col items-center justify-center py-20 px-6 text-center h-full">
-            <div className="w-24 h-24 bg-white rounded-[35px] shadow-xl shadow-pink-100/50 flex items-center justify-center mb-6 border border-pink-50 relative">
-               <div className="absolute -top-2 -right-2 bg-pink-500 text-white p-1.5 rounded-full animate-bounce shadow-lg">
-                  <Sparkles size={14} />
-               </div>
-               <UserPlus size={40} className="text-pink-100" />
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-xs font-serif font-extrabold uppercase text-slate-900 truncate">{fName}</h4>
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
+                    {formatChatTime(lastTime)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between mt-1">
+                  <p className={`text-[11px] truncate ${unread > 0 ? "text-[#870c3f] font-black" : "text-slate-500 font-semibold"}`}>
+                    {lastMsg}
+                  </p>
+                  {unread > 0 && (
+                    <span className="bg-[#870c3f] text-white text-[10px] font-black h-5 min-w-[20px] px-1.5 rounded-full flex items-center justify-center shadow-xs">
+                      {unread}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
-            <h3 className="text-lg font-black italic text-slate-700 uppercase tracking-tighter">Quiet Here...</h3>
-            <p className="text-[11px] font-bold text-slate-400 uppercase mt-2 leading-relaxed tracking-widest max-w-[200px]">
-              Find your soulmate and start a beautiful journey today!
-            </p>
-          </div>
-        )}
+          );
+        })}
       </div>
-
-      <style jsx global>{`
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-      `}</style>
     </div>
   );
 }

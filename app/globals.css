@@ -1,26 +1,55 @@
 @import "tailwindcss";
 
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* 🤍 Clean Pure White Canvas */
+  --bg-page: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-subtle: #FFF0F3;
+  --bg-showcase: #FDE2E8;
+
+  /* 💖 Glowing Soft Pink Accents */
+  --color-primary: #E6396E;       /* Soft Vibrant Glowing Pink */
+  --color-primary-hover: #D81B60; /* Soft Deep Pink Hover */
+  --color-accent: #C2185B;        /* Elegant Berry Accent */
+
+  /* 🖋️ Clean Dark Slate Typography */
+  --text-main: #1E1B24;   /* Charcoal Slate */
+  --text-muted: #7E788A;  /* Soft Muted Gray */
+  --text-gold: #E6396E;   /* Soft Pink Text */
+  
+  /* 🪄 Transparent Outlines for Smooth Rounded Cards */
+  --border-theme: transparent; 
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-page: var(--bg-page);
+  --color-card: var(--bg-card);
+  --color-subtle: var(--bg-subtle);
+  --color-showcase: var(--bg-showcase);
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-accent: var(--color-accent);
+  --color-main: var(--text-main);
+  --color-muted: var(--text-muted);
+  --color-goldText: var(--text-gold);
+  --color-borderTheme: var(--border-theme);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* 🤍 Pure Clean White Background */
+  background: #FFFFFF;
+  color: var(--text-main);
+}
+
+.border-borderTheme {
+  border-color: var(--border-theme) !important;
+}
+
+/* 💖 Softer Glowing Buttons & Floating Cards */
+.shadow-md {
+  box-shadow: 0 8px 22px -4px rgba(230, 57, 110, 0.18) !important;
+}
+.shadow-xl, .shadow-2xl {
+  box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.08) !important;
 }

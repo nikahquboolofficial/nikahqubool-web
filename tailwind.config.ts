@@ -9,8 +9,19 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        'rose-premium': '#e11d48',
-        'deep-berry': '#5b071c',
+        page: 'var(--bg-page)',
+        card: 'var(--bg-card)',
+        subtle: 'var(--bg-subtle)',
+        showcase: 'var(--bg-showcase)',
+        primary: {
+          DEFAULT: 'var(--color-primary)',
+          hover: 'var(--color-primary-hover)',
+        },
+        accent: 'var(--color-accent)',
+        main: 'var(--text-main)',
+        muted: 'var(--text-muted)',
+        goldText: 'var(--text-gold)',
+        borderTheme: 'var(--border-theme)',
       },
     },
   },
