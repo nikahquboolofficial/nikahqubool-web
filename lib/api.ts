@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://localhost:7204/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://crm.altawafumrah.com/api";
 
 // ⚡ Dynamic SignalR Hub URL
 export const SIGNALR_HUB_URL = API_BASE_URL.replace(/\/api\/?$/, '') + "/chatHub";
