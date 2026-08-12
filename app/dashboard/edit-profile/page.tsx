@@ -1,290 +1,320 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
-  User, MapPin, Briefcase, GraduationCap, Heart, 
-  Users, Moon, PenLine, X, Save, ShieldCheck, 
-  Camera, Check, Utensils, Calendar, Gem, 
-  ChevronDown as LucideChevronDown, Sparkles
+  ArrowLeft, User, GraduationCap, Users, 
+  Moon, Heart, Save, Loader2
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { toast, Toaster } from 'sonner';
+import { fetchProfileDetailsApi, updateProfileApi } from '@/lib/api';
 
-// --- Sub-Components ---
+export default function DynamicEditProfilePage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [activeSection, setActiveSection] = useState<'basic' | 'education' | 'family' | 'religious' | 'partner'>('basic');
 
-// 1. Photo Edit Module
-const ProfilePhotoModule = ({ img, isVerified }: { img: string, isVerified: boolean }) => (
-  <div className="relative shrink-0 group">
-    <div className="w-36 h-36 md:w-48 md:h-48 rounded-[40px] overflow-hidden border-[6px] border-[#870c3f] ring-4 ring-[#870c3f]/10 shadow-xl bg-slate-100">
-      <img src={img} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="Profile" />
-    </div>
-    <div className="absolute inset-3 rounded-[32px] bg-[#870c3f]/70 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm cursor-pointer z-10 text-white">
-       <Camera size={26} className="text-amber-300 mb-1"/>
-       <span className="text-[10px] font-black uppercase tracking-wider">Edit Photo</span>
-    </div>
-    {isVerified && (
-      <div className="absolute -bottom-2 -right-2 bg-emerald-600 text-white p-3 rounded-2xl border-4 border-white shadow-md">
-        <ShieldCheck size={20} />
-      </div>
-    )}
-  </div>
-);
+  // Form Fields State
+  const [formData, setFormData] = useState<any>({
+    fullName: '',
+    email: '',
+    gender: 'Female',
+    age: 24,
+    height: '5ft 4in',
+    highestDegree: '',
+    collegeName: '',
+    employmentSector: '',
+    designation: '',
+    annualIncome: '',
+    fatherOccupation: '',
+    motherOccupation: '',
+    totalBrothers: 0,
+    totalSisters: 0,
+    namazHabit: 'Regular',
+    partnerExpectations: '',
+    minAge: 20,
+    maxAge: 35,
+    preferredEducation: 'Graduate'
+  });
 
-// 2. Input Field Component
-const EditInputField = ({ label, value, type = "text", placeholder = "", isMAX = false }: any) => (
-  <div className={`space-y-1.5 flex-1 ${isMAX ? 'md:col-span-2 lg:col-span-3' : 'min-w-[200px]'}`}>
-    <label className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider ml-1">{label}</label>
-    {type === 'textarea' ? (
-        <textarea defaultValue={value} placeholder={placeholder} rows={isMAX ? 4 : 3} className="w-full bg-slate-50/80 border-2 border-slate-300 rounded-2xl px-5 py-4 text-sm font-semibold text-slate-900 focus:bg-white focus:border-[#870c3f] focus:ring-4 focus:ring-[#870c3f]/10 outline-none transition-all resize-none shadow-xs"/>
-    ) : (
-        <input type={type} defaultValue={value} placeholder={placeholder} className="w-full bg-slate-50/80 border-2 border-slate-300 rounded-2xl px-5 py-3.5 text-sm font-semibold text-slate-900 focus:bg-white focus:border-[#870c3f] focus:ring-4 focus:ring-[#870c3f]/10 outline-none transition-all shadow-xs" />
-    )}
-  </div>
-);
-
-// 3. Select Field Component
-const EditSelectField = ({ label, value, options }: any) => (
-  <div className="space-y-1.5 flex-1 min-w-[200px]">
-    <label className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider ml-1">{label}</label>
-    <div className="relative">
-      <select defaultValue={value} className="w-full bg-slate-50/80 border-2 border-slate-300 rounded-2xl px-5 py-3.5 text-sm font-semibold text-slate-900 appearance-none focus:bg-white focus:border-[#870c3f] focus:ring-4 focus:ring-[#870c3f]/10 outline-none cursor-pointer transition-all shadow-xs">
-        {options.map((opt: string) => <option key={opt} value={opt} className="bg-white text-slate-900">{opt}</option>)}
-      </select>
-      <LucideChevronDown size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-    </div>
-  </div>
-);
-
-// 4. Info View Row
-const InfoRow = ({ label, value, isMAX = false }: { label: string, value: any, isMAX?: boolean }) => (
-  <div className={`flex flex-col gap-1 ${isMAX ? 'col-span-2 md:col-span-3' : ''}`}>
-    <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">{label}</span>
-    <span className={`font-bold text-slate-900 ${isMAX ? 'text-xs leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-200' : 'text-sm'}`}>{value || "Not filled"}</span>
-  </div>
-);
-
-export default function CompleteEditProfilePage() {
-  const [editingSection, setEditingSection] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-
-  const startEditing = (sectionId: string) => setEditingSection(sectionId);
-  const stopEditing = () => setEditingSection(null);
-
-  const handleSave = (sectionId: string) => {
-    setIsSaving(true);
-    setTimeout(() => {
-      setIsSaving(false);
-      setEditingSection(null);
-    }, 1200);
+  const getCookie = (name: string) => {
+    if (typeof document === "undefined") return null;
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    return parts.length === 2 ? parts.pop()?.split(';').shift() : null;
   };
 
-  const EditableSectionCard = ({ id, title, icon: Icon, children }: any) => {
-    const isEditing = editingSection === id;
-    return (
-      <motion.div layout className="bg-white rounded-3xl border-2 border-rose-100 shadow-xl overflow-hidden transition-all">
-        <div className="p-6 md:p-10">
-          <div className="flex items-center justify-between mb-8 border-b-2 border-slate-100 pb-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3.5 bg-rose-50 rounded-2xl text-[#870c3f] border border-rose-200 shadow-xs">
-                <Icon size={22} />
-              </div>
-              <h2 className="text-xl font-extrabold text-slate-900 font-serif tracking-tight">{title}</h2>
-            </div>
-            <div className="flex items-center gap-2">
-              {isEditing ? (
-                <>
-                  <button 
-                    type="button"
-                    onClick={stopEditing} 
-                    className="p-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl border-2 border-slate-300 transition-all cursor-pointer"
-                  >
-                    <X size={18} />
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => handleSave(id)} 
-                    disabled={isSaving} 
-                    className="p-3 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white rounded-2xl shadow-md border border-rose-300/30 hover:scale-105 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
-                  >
-                    {isSaving ? <div className="w-5 h-5 border-2 border-white border-t-transparent animate-spin rounded-full" /> : <Save size={18} className="text-amber-300" />}
-                  </button>
-                </>
-              ) : (
-                <button 
-                  type="button"
-                  onClick={() => startEditing(id)} 
-                  className="p-3 bg-rose-50 hover:bg-rose-100 text-[#870c3f] rounded-2xl border-2 border-rose-200 transition-all shadow-xs cursor-pointer flex items-center gap-2 font-bold text-xs"
-                >
-                  <PenLine size={16} />
-                  <span className="hidden sm:inline">Edit</span>
-                </button>
-              )}
-            </div>
-          </div>
-          <AnimatePresence mode="wait">
-            <motion.div 
-              key={isEditing ? 'edit' : 'view'}
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -5 }}
-              className={isEditing ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5" : "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-y-8 gap-x-6"}
-            >
-              {children(isEditing)}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-      </motion.div>
-    );
+  const getToken = useCallback(() => getCookie("user_token"), []);
+
+  const loadUserData = useCallback(async () => {
+    const token = getToken();
+    if (!token) {
+      router.push('/');
+      return;
+    }
+
+    setLoading(true);
+    let userId = 0;
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("user_details");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          userId = parsed.userId || parsed.UserId || parsed.id;
+        } catch (e) {}
+      }
+    }
+
+    const res = await fetchProfileDetailsApi(userId > 0 ? userId : 0, token);
+    if (res.success && res.data) {
+      const p = res.data.profile || res.data.Profile || res.data;
+      const pref = res.data.preferences || res.data.Preferences || {};
+
+      setFormData((prev: any) => ({
+        ...prev,
+        fullName: p.fullName || p.FullName || '',
+        email: p.email || p.Email || '',
+        gender: p.gender || p.Gender || 'Female',
+        age: p.age || p.Age || 24,
+        height: p.height || p.Height || '5ft 4in',
+        highestDegree: p.highestDegree || p.education || '',
+        collegeName: p.collegeName || '',
+        employmentSector: p.employmentSector || '',
+        designation: p.designation || p.profession || '',
+        annualIncome: p.annualIncome || '',
+        fatherOccupation: p.fatherOccupation || '',
+        motherOccupation: p.motherOccupation || '',
+        totalBrothers: p.totalBrothers || 0,
+        totalSisters: p.totalSisters || 0,
+        namazHabit: p.namazHabit || 'Regular',
+        partnerExpectations: p.partnerExpectations || pref.partnerExpectations || '',
+        minAge: pref.minAge || 20,
+        maxAge: pref.maxAge || 35,
+        preferredEducation: pref.preferredEducation || 'Graduate'
+      }));
+    }
+
+    setLoading(false);
+  }, [getToken, router]);
+
+  useEffect(() => {
+    loadUserData();
+  }, [loadUserData]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev: any) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const token = getToken();
+    if (!token) return;
+
+    setSaving(true);
+    const fd = new FormData();
+    Object.keys(formData).forEach((key) => {
+      if (formData[key] !== null && formData[key] !== undefined) {
+        fd.append(key, String(formData[key]));
+      }
+    });
+
+    const res = await updateProfileApi(fd, token);
+    setSaving(false);
+
+    if (res.success) {
+      toast.success("Profile updated successfully!");
+      router.push('/dashboard/my-profile');
+    } else {
+      toast.error(res.message || "Failed to update profile.");
+    }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 pb-24 selection:bg-[#870c3f] selection:text-white">
-      <div className="max-w-[1400px] mx-auto px-4 py-8 md:py-12 space-y-8">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-28 pt-4 selection:bg-[#870c3f] selection:text-white">
+      <Toaster position="top-center" richColors duration={2000} />
+
+      <div className="max-w-2xl mx-auto px-4 space-y-5">
         
-        {/* HERO HEADER */}
-        <div className="bg-white rounded-3xl md:rounded-[40px] p-8 md:p-12 border-2 border-rose-100 shadow-xl flex flex-col md:flex-row gap-10 items-center overflow-hidden relative">
-          <div className="absolute -top-10 -right-10 opacity-5 pointer-events-none text-[#870c3f]">
-             <Gem size={280} />
+        {/* HEADER BAR */}
+        <div className="bg-white rounded-3xl p-4 border-2 border-rose-100 shadow-xl flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={() => router.back()} className="p-2 rounded-2xl bg-rose-50 hover:bg-rose-100 text-[#870c3f] border-2 border-rose-200 transition-colors cursor-pointer">
+              <ArrowLeft size={18} />
+            </button>
+            <div>
+              <h1 className="text-base font-serif font-extrabold uppercase tracking-tight text-slate-900">
+                Edit My Profile
+              </h1>
+              <p className="text-[10px] font-semibold text-slate-500">Update your details selectively</p>
+            </div>
           </div>
-          <ProfilePhotoModule img="https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=400" isVerified={true} />
-          <div className="flex-1 text-center md:text-left space-y-5 z-10">
-              <div className="flex flex-wrap justify-center md:justify-start items-center gap-3">
-                 <h1 className="text-3xl md:text-4xl font-extrabold font-serif text-slate-900 leading-none">Maazni Sheikh</h1>
-                 <span className="bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-wider shadow-md border border-rose-300/30">
-                   Member ID: PR-992834
-                 </span>
-              </div>
-              <div className="flex flex-wrap justify-center md:justify-start gap-4 text-slate-600 font-bold text-sm">
-                 <span className="flex items-center gap-1.5 bg-slate-100 px-3.5 py-1.5 rounded-full border border-slate-200">
-                   <MapPin size={16} className="text-[#870c3f]" /> Bareilly, Uttar Pradesh
-                 </span>
-                 <span className="flex items-center gap-1.5 bg-rose-50 px-3.5 py-1.5 rounded-full border border-rose-200 text-[#870c3f]">
-                   <Calendar size={16} className="text-amber-500" /> Account Created: 12 Aug 2025
-                 </span>
-              </div>
-          </div>
+
+          <button 
+            type="submit" 
+            form="edit-profile-form" 
+            disabled={saving} 
+            className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white font-black text-xs uppercase tracking-wider shadow-md hover:brightness-110 flex items-center gap-1.5 cursor-pointer border border-rose-300/30"
+          >
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+            <span>Save</span>
+          </button>
         </div>
 
-        <div className="max-w-6xl mx-auto space-y-8">
-          {/* BASIC DETAILS */}
-          <EditableSectionCard id="basic" title="Basic Information" icon={User}>
-            {(isEdit: boolean) => isEdit ? (
-              <>
-                <EditSelectField label="Profile Created For" value="Self" options={['Self', 'Son', 'Daughter', 'Brother', 'Sister', 'Friend']} />
-                <EditInputField label="Date of Birth" type="date" value="1998-05-15" />
-                <EditSelectField label="Height" value="5ft 6in" options={['5ft 5in', '5ft 6in', '5ft 7in']} />
-                <EditInputField label="Weight" value="65kg" />
-                <EditSelectField label="Complexion" value="Fair" options={['Very Fair', 'Fair', 'Wheatish', 'Dark']} />
-                <EditSelectField label="Marital Status" value="Never Married" options={['Never Married', 'Divorced', 'Widowed']} />
-                <EditInputField label="Mother Tongue" value="Urdu" />
-                <EditInputField label="Sect" value="Sunni" />
-                <EditInputField label="Caste" value="Sheikh" />
-                <EditInputField label="Maslak" value="Deobandi" />
-              </>
-            ) : (
-              <>
-                <InfoRow label="Created For" value="Self" />
-                <InfoRow label="DOB" value="15 May 1998" />
-                <InfoRow label="Height / Weight" value="5ft 6in, 65kg" />
-                <InfoRow label="Complexion" value="Fair" />
-                <InfoRow label="Marital Status" value="Never Married" />
-                <InfoRow label="Language" value="Urdu" />
-                <InfoRow label="Sect / Caste" value="Sunni, Sheikh" />
-                <InfoRow label="Maslak" value="Deobandi" />
-              </>
-            )}
-          </EditableSectionCard>
-
-          {/* LOCATION DETAILS */}
-          <EditableSectionCard id="location" title="Location" icon={MapPin}>
-            {(isEdit: boolean) => isEdit ? (
-              <>
-                <EditSelectField label="Current State" value="Uttar Pradesh" options={['Delhi', 'Uttar Pradesh']} />
-                <EditInputField label="Current City" value="Bareilly" />
-                <EditSelectField label="Native State" value="Bihar" options={['Delhi', 'Bihar']} />
-                <EditInputField label="Native City" value="Patna" />
-              </>
-            ) : (
-              <>
-                <InfoRow label="Current Location" value="Bareilly, Uttar Pradesh" />
-                <InfoRow label="Native Place" value="Patna, Bihar" />
-              </>
-            )}
-          </EditableSectionCard>
-
-          {/* CAREER */}
-          <EditableSectionCard id="career" title="Education & Career" icon={GraduationCap}>
-            {(isEdit: boolean) => isEdit ? (
-              <>
-                <EditInputField label="Highest Degree" value="M.Tech" />
-                <EditInputField label="College Name" value="IIT" />
-                <EditSelectField label="Sector" value="Private" options={['Private', 'Government', 'Business']} />
-                <EditInputField label="Designation" value="Senior Developer" />
-                <EditInputField label="Annual Income" value="12L - 15L" />
-                <EditInputField label="Occupation Details" type="textarea" value="I work as a Lead Web Developer..." isMAX={true} />
-              </>
-            ) : (
-              <>
-                <InfoRow label="Degree" value="M.Tech" />
-                <InfoRow label="College" value="IIT" />
-                <InfoRow label="Sector" value="Private Sector" />
-                <InfoRow label="Designation" value="Senior Developer" />
-                <InfoRow label="Income" value="12L - 15L" />
-                <InfoRow label="Work Details" value="I work as a Lead Web Developer at solutions Inc." isMAX={true} />
-              </>
-            )}
-          </EditableSectionCard>
-
-          {/* FAMILY */}
-          <EditableSectionCard id="family" title="Family Background" icon={Users}>
-            {(isEdit: boolean) => isEdit ? (
-              <>
-                <EditSelectField label="Family Type" value="Nuclear" options={['Nuclear', 'Joint']} />
-                <EditSelectField label="Family Values" value="Moderate" options={['Traditional', 'Moderate', 'Liberal']} />
-                <EditSelectField label="Family Status" value="Middle Class" options={['Middle Class', 'Upper Middle']} />
-                <EditInputField label="Father's Job" value="Retired" />
-                <EditInputField label="Mother's Job" value="Homemaker" />
-                <EditInputField label="Total Brothers" type="number" value="2" />
-                <EditInputField label="Married Brothers" type="number" value="1" />
-                <EditInputField label="Total Sisters" type="number" value="1" />
-                <EditInputField label="Married Sisters" type="number" value="0" />
-                <EditInputField label="About Family" type="textarea" value="Simple family, respectful." isMAX={true} />
-              </>
-            ) : (
-              <>
-                <InfoRow label="Family Type" value="Nuclear, Moderate" />
-                <InfoRow label="Family Status" value="Middle Class" />
-                <InfoRow label="Parents" value="F: Retired, M: Homemaker" />
-                <InfoRow label="Siblings" value="Brothers: 2 (1 Married), Sisters: 1 (0 Married)" />
-                <InfoRow label="Family Summary" value="Simple family with religious values and respectful environment." isMAX={true} />
-              </>
-            )}
-          </EditableSectionCard>
-
-          {/* LIFESTYLE & PREFERENCES */}
-          <EditableSectionCard id="lifestyle" title="Lifestyle & Preferences" icon={Utensils}>
-            {(isEdit: boolean) => isEdit ? (
-              <>
-                <EditSelectField label="Diet Type" value="Non-Veg" options={['Veg', 'Non-Veg', 'Eggetarian']} />
-                <EditSelectField label="Smoke Habit" value="No" options={['No', 'Occasional', 'Yes']} />
-                <EditSelectField label="Drink Habit" value="No" options={['No']} />
-                <EditSelectField label="Can Cook?" value="Yes" options={['Yes', 'No']} />
-                <EditInputField label="Hobbies" type="textarea" value="Coding, Traveling" />
-                <EditInputField label="Interests" type="textarea" value="New Tech" />
-                <EditInputField label="Partner Expectations" type="textarea" value="Looking for someone kind..." isMAX={true} />
-                <EditSelectField label="Photo Privacy" value="All Members" options={['All Members', 'Verified Members', 'Only Matches']} />
-              </>
-            ) : (
-              <>
-                <InfoRow label="Diet & Cooking" value="Non-Veg, Can Cook: Yes" />
-                <InfoRow label="Habits" value="Smoke: No, Drink: No" />
-                <InfoRow label="Hobbies / Interests" value="Coding, Traveling, Tech Trends" />
-                <InfoRow label="Photo Privacy" value="All Registered Members" />
-                <InfoRow label="Partner Expectations" value="Looking for someone who is educated, understanding, and kind-hearted." isMAX={true} />
-              </>
-            )}
-          </EditableSectionCard>
+        {/* 🌟 COMPACT PLAIN BLACK TABS FOR MOBILE FIX */}
+        <div className="bg-white rounded-2xl p-1.5 border-2 border-rose-100 shadow-xs grid grid-cols-5 gap-1 text-[11px] font-black uppercase text-center">
+          {[
+            { id: 'basic', label: 'Basic' },
+            { id: 'education', label: 'Edu/Career' },
+            { id: 'family', label: 'Family' },
+            { id: 'religious', label: 'Religion' },
+            { id: 'partner', label: 'Partner' },
+          ].map((sec) => (
+            <button
+              key={sec.id}
+              type="button"
+              onClick={() => setActiveSection(sec.id as any)}
+              className={`py-2 rounded-xl transition-all cursor-pointer truncate ${
+                activeSection === sec.id
+                  ? 'bg-slate-950 text-white font-black shadow-xs'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold'
+              }`}
+            >
+              {sec.label}
+            </button>
+          ))}
         </div>
+
+        {/* EDIT FORM CONTAINER */}
+        <form id="edit-profile-form" onSubmit={handleSaveProfile} className="bg-white rounded-3xl p-5 border-2 border-rose-100 shadow-xl space-y-4">
+          
+          {loading ? (
+            <div className="py-14 text-center text-[#870c3f]">
+              <Loader2 size={36} className="animate-spin mx-auto mb-2" />
+              <span className="text-xs font-black uppercase tracking-wider text-slate-500">Loading Profile Details...</span>
+            </div>
+          ) : (
+            <>
+              {/* 1. BASIC INFO */}
+              {activeSection === 'basic' && (
+                <div className="space-y-3.5">
+                  <h3 className="text-xs font-black uppercase text-[#870c3f] tracking-wider border-b pb-1.5">Basic Details</h3>
+                  
+                  <InputField label="Full Name" name="fullName" value={formData.fullName} onChange={handleChange} />
+                  <InputField label="Email Address" name="email" type="email" value={formData.email} onChange={handleChange} />
+                  
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <InputField label="Age (Years)" name="age" type="number" value={formData.age} onChange={handleChange} />
+                    <InputField label="Height" name="height" value={formData.height} onChange={handleChange} placeholder="e.g. 5ft 5in" />
+                  </div>
+                </div>
+              )}
+
+              {/* 2. EDUCATION & CAREER */}
+              {activeSection === 'education' && (
+                <div className="space-y-3.5">
+                  <h3 className="text-xs font-black uppercase text-[#870c3f] tracking-wider border-b pb-1.5">Education & Career</h3>
+                  
+                  <InputField label="Highest Qualification" name="highestDegree" value={formData.highestDegree} onChange={handleChange} placeholder="e.g. B.Tech / MBA" />
+                  <InputField label="College / University" name="collegeName" value={formData.collegeName} onChange={handleChange} />
+                  
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <InputField label="Profession / Designation" name="designation" value={formData.designation} onChange={handleChange} />
+                    <InputField label="Annual Income" name="annualIncome" value={formData.annualIncome} onChange={handleChange} placeholder="e.g. 8 LPA" />
+                  </div>
+                </div>
+              )}
+
+              {/* 3. FAMILY DETAILS */}
+              {activeSection === 'family' && (
+                <div className="space-y-3.5">
+                  <h3 className="text-xs font-black uppercase text-[#870c3f] tracking-wider border-b pb-1.5">Family Details</h3>
+                  
+                  <InputField label="Father's Work" name="fatherOccupation" value={formData.fatherOccupation} onChange={handleChange} />
+                  <InputField label="Mother's Work" name="motherOccupation" value={formData.motherOccupation} onChange={handleChange} />
+                  
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <InputField label="Total Brothers" name="totalBrothers" type="number" value={formData.totalBrothers} onChange={handleChange} />
+                    <InputField label="Total Sisters" name="totalSisters" type="number" value={formData.totalSisters} onChange={handleChange} />
+                  </div>
+                </div>
+              )}
+
+              {/* 4. RELIGIOUS HABITS */}
+              {activeSection === 'religious' && (
+                <div className="space-y-3.5">
+                  <h3 className="text-xs font-black uppercase text-[#870c3f] tracking-wider border-b pb-1.5">Religion & Lifestyle</h3>
+                  
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Namaz Habit</label>
+                    <select name="namazHabit" value={formData.namazHabit} onChange={handleChange} className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-2.5 text-xs font-bold outline-none focus:border-[#870c3f]">
+                      <option value="Regular">Regular 5 Times</option>
+                      <option value="Jummah Only">Jummah Only</option>
+                      <option value="Occasionally">Occasionally</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* 5. PARTNER PREFERENCE */}
+              {activeSection === 'partner' && (
+                <div className="space-y-3.5">
+                  <h3 className="text-xs font-black uppercase text-[#870c3f] tracking-wider border-b pb-1.5">Partner Preferences</h3>
+                  
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <InputField label="Min Age" name="minAge" type="number" value={formData.minAge} onChange={handleChange} />
+                    <InputField label="Max Age" name="maxAge" type="number" value={formData.maxAge} onChange={handleChange} />
+                  </div>
+
+                  <InputField label="Preferred Education" name="preferredEducation" value={formData.preferredEducation} onChange={handleChange} />
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Partner Expectations</label>
+                    <textarea 
+                      name="partnerExpectations" 
+                      rows={3} 
+                      value={formData.partnerExpectations} 
+                      onChange={handleChange} 
+                      placeholder="Describe what kind of partner you want..." 
+                      className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-3.5 text-xs font-bold outline-none focus:border-[#870c3f]"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-3 border-t border-slate-100 flex justify-end">
+                <button 
+                  type="submit" 
+                  disabled={saving} 
+                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 hover:brightness-110 flex items-center justify-center gap-2 cursor-pointer border border-rose-300/30"
+                >
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  <span>Save Changes</span>
+                </button>
+              </div>
+            </>
+          )}
+
+        </form>
+
       </div>
+    </div>
+  );
+}
+
+function InputField({ label, name, value, onChange, type = "text", placeholder }: any) {
+  return (
+    <div className="space-y-1 text-left">
+      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{label}</label>
+      <input 
+        type={type} 
+        name={name} 
+        value={value || ''} 
+        onChange={onChange} 
+        placeholder={placeholder} 
+        className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-2.5 text-xs font-bold text-slate-900 outline-none focus:border-[#870c3f]" 
+      />
     </div>
   );
 }

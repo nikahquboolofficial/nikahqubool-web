@@ -3,7 +3,7 @@
 import React from 'react';
 import { 
   Heart, Star, Lock, Check, X, MessageCircle, 
-  MapPin, GraduationCap, Briefcase, Camera, Loader2, CheckCircle2
+  MapPin, GraduationCap, Briefcase, Loader2, CheckCircle2, Crown
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -25,12 +25,10 @@ export default function ProfileCard({
   onInitiateChat 
 }: ProfileCardProps) {
 
-  // 🔒 UNIFIED PHOTO PRIVACY CONTROL & FIELDS FROM SP
+  // 🔒 PHOTO PRIVACY CONTROL
   const rawPrivacy = profile.photoPrivacy || profile.PhotoPrivacy || 'All Members';
   const privacyClean = String(rawPrivacy).toLowerCase().replace(/\s+/g, '');
   const isUserPaid = Boolean(profile.isCurrentUserPaid ?? profile.IsCurrentUserPaid);
-  
-  const hasRequestedPhoto = Boolean(profile.hasRequestedPhoto ?? profile.HasRequestedPhoto);
   
   const isSpHidden = (profile.isPhotoHidden !== undefined)
     ? Boolean(profile.isPhotoHidden)
@@ -40,9 +38,6 @@ export default function ProfileCard({
           (privacyClean.includes('premium') && !isUserPaid) ||
           (privacyClean.includes('onlyapproved') || privacyClean.includes('protected'))
         );
-
-  // 📸 PHOTO REQUEST STATUS & DIRECTION NORMALIZATION
-  const interactionTypeRaw = String(profile.interactionType || profile.InteractionType || profile.requestType || profile.RequestType || '').toUpperCase();
 
   const rawPhotoReqStatus = String(
     profile.photoRequestStatus || 
@@ -54,14 +49,6 @@ export default function ProfileCard({
     ''
   ).toUpperCase();
 
-  const cleanActiveTab = activeTab.toLowerCase();
-  const isPhotoReqTab = Boolean(
-    cleanActiveTab.includes('photo') || 
-    cleanActiveTab.includes('gallery')
-  );
-
-  const isPhotoReqSent = hasRequestedPhoto || rawPhotoReqStatus === 'SENTPENDING' || rawPhotoReqStatus.includes('SENT');
-
   const isPhotoApproved = 
     rawPhotoReqStatus === 'ACCEPTED' || 
     rawPhotoReqStatus.includes('APPROVE') || 
@@ -69,31 +56,27 @@ export default function ProfileCard({
 
   const isPhotoHidden = !isPhotoApproved && isSpHidden;
 
-  const isPhotoReqReceived = 
-    !isPhotoReqSent && 
-    !isPhotoApproved && (
-      isPhotoReqTab ||
-      rawPhotoReqStatus === 'RECEIVEDPENDING' ||
-      rawPhotoReqStatus.includes('RECEIVED') || 
-      Boolean(profile.isPhotoRequestReceived ?? profile.IsPhotoRequestReceived) ||
-      Boolean(profile.hasPhotoRequestFromUser ?? profile.HasPhotoRequestFromUser) ||
-      (interactionTypeRaw === 'PHOTO_REQUEST' && (rawPhotoReqStatus === 'PENDING' || rawPhotoReqStatus === 'RECEIVED'))
-    );
+  // 🌟 VERIFIED & PREMIUM BADGE FLAGS
+  const isVerified = Boolean(profile.isVerified ?? profile.IsVerified);
+  const isPremium = Boolean(profile.isPremium ?? profile.IsPremium ?? profile.isCurrentUserPaid ?? profile.IsCurrentUserPaid);
 
-  // ❤️ INTEREST STATUS & DIRECTION NORMALIZATION
+  // 🟢 ONLINE STATUS FLAG
+  const isOnline = Boolean(profile.isOnline ?? profile.IsOnline ?? profile.online ?? profile.Online);
+
+  // ❤️ INTEREST STATUS
+  const cleanActiveTab = activeTab.toLowerCase();
   const rawInterestStatus = String(profile.interestStatus || profile.InterestStatus || 'None').toUpperCase();
-  const interestStatus = profile.interestStatus || profile.InterestStatus || 'None';
 
   const isInterestSent = 
     rawInterestStatus === 'SENTPENDING' || 
     rawInterestStatus.includes('SENT') ||
-    (cleanActiveTab.includes('sent') && !isPhotoReqTab);
+    (cleanActiveTab.includes('sent'));
 
   const isInterestReceived = 
     !isInterestSent && (
       rawInterestStatus === 'RECEIVEDPENDING' || 
       rawInterestStatus.includes('RECEIVED') || 
-      (cleanActiveTab === 'requests' && !isPhotoReqTab)
+      (cleanActiveTab === 'requests')
     );
 
   const isConnected = rawInterestStatus === 'ACCEPTED' || Boolean(profile.isCanChat ?? profile.IsCanChat);
@@ -112,7 +95,7 @@ export default function ProfileCard({
       animate={{ opacity: 1, y: 0 }}
       className="bg-white rounded-3xl overflow-hidden border-2 border-rose-100 shadow-xl hover:shadow-2xl hover:border-rose-300 transition-all duration-300 flex flex-col group relative selection:bg-[#870c3f] selection:text-white"
     >
-      {/* 🖼️ HERO PHOTO CONTAINER */}
+      {/* 🖼️ HERO PHOTO CONTAINER (Nikah Forever Mobile App Aesthetic) */}
       <div 
         className="relative w-full aspect-[4/4.8] bg-slate-950 overflow-hidden cursor-pointer" 
         onClick={(e) => {
@@ -124,119 +107,72 @@ export default function ProfileCard({
           src={photo} 
           alt={profile.fullName}
           className={`w-full h-full object-cover object-top transition-all duration-700 group-hover:scale-105 ${
-            (isPhotoHidden || isPhotoReqReceived) ? 'blur-xl scale-110 opacity-60' : ''
+            isPhotoHidden ? 'blur-xl scale-110 opacity-60' : ''
           }`}
           onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }}
         />
 
-        {/* 🔒 PHOTO OVERLAY */}
-        {(isPhotoHidden || isPhotoReqReceived) && (
+        {/* 🔒 PHOTO LOCKED BADGE (No Request Access button on Card Image) */}
+        {isPhotoHidden && (
           <div 
-            onClick={(e) => e.stopPropagation()}
-            className="absolute inset-0 bg-slate-950/75 backdrop-blur-md z-30 flex flex-col items-center justify-center p-4 pb-14 text-center text-white space-y-2.5"
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewProfile(profile.userId);
+            }}
+            className="absolute inset-0 bg-slate-950/70 backdrop-blur-md z-30 flex flex-col items-center justify-center p-4 text-center text-white space-y-2"
           >
             <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center border border-white/20 shadow-md">
-              {isPhotoReqReceived ? <Camera size={22} className="text-amber-300" /> : <Lock size={22} className="text-amber-300" />}
+              <Lock size={22} className="text-amber-300" />
             </div>
-            
-            <span className="font-extrabold text-xs uppercase tracking-wider text-amber-300">
-              {isPhotoReqReceived ? 'PHOTO ACCESS REQUESTED' : 'PHOTO PROTECTED'}
+            <span className="font-black text-xs uppercase tracking-wider text-amber-300">
+              PHOTO PROTECTED
             </span>
-            
-            <span className="text-[11px] text-rose-100 max-w-[200px] font-semibold leading-tight">
-              {isPhotoReqReceived ? `${profile.fullName || 'Member'} requested to view your photos` : rawPrivacy}
+            <span className="text-[10px] text-rose-100 font-bold">
+              View Profile to Request Access
             </span>
-
-            {/* 📸 RECEIVER SIDE ONLY: APPROVE / DECLINE BUTTONS ON PHOTO */}
-            {isPhotoReqReceived ? (
-              <div className="flex items-center gap-3 pt-1">
-                <motion.button 
-                  type="button"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    onInteraction(profile.userId, 'PHOTO_REQUEST', 'ACCEPTED');
-                  }}
-                  disabled={actionLoading}
-                  className="w-11 h-11 rounded-full bg-[#e6f7ec] hover:bg-[#d1fae5] text-[#16a34a] border-2 border-emerald-400 flex items-center justify-center cursor-pointer shadow-lg active:scale-95 transition-all"
-                  aria-label="Approve Photo Access"
-                  title="Approve Photo Access"
-                >
-                  {actionLoading ? (
-                    <Loader2 size={20} className="animate-spin text-[#16a34a]" />
-                  ) : (
-                    <Check size={22} className="text-[#16a34a] stroke-[3]" />
-                  )}
-                </motion.button>
-
-                <motion.button 
-                  type="button"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    onInteraction(profile.userId, 'PHOTO_REQUEST', 'DECLINED');
-                  }}
-                  disabled={actionLoading}
-                  className="w-11 h-11 rounded-full bg-[#fde8e8] hover:bg-[#ffe4e6] text-[#f43f5e] border-2 border-rose-400 flex items-center justify-center cursor-pointer shadow-lg active:scale-95 transition-all"
-                  aria-label="Decline Photo Access"
-                  title="Decline Photo Access"
-                >
-                  <X size={22} className="text-[#f43f5e] stroke-[3]" />
-                </motion.button>
-              </div>
-            ) : isPhotoReqSent ? (
-              <button 
-                type="button"
-                disabled={true}
-                className="mt-1 px-4 py-1.5 rounded-full bg-amber-500/90 text-white text-[10px] font-black uppercase tracking-wider shadow-md flex items-center gap-1.5 cursor-not-allowed opacity-90 border border-amber-300/30"
-              >
-                <Check size={12} className="stroke-[3]" /> Request Sent ✓
-              </button>
-            ) : (
-              <motion.button 
-                type="button"
-                whileHover={{ scale: 1.08 }}
-                whileTap={{ scale: 0.92 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  onInteraction(profile.userId, 'PHOTO_REQUEST', 'PENDING');
-                }}
-                disabled={actionLoading}
-                className="mt-1 px-5 py-2 rounded-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white text-[10px] font-black uppercase tracking-wider shadow-md transition-all flex items-center gap-1.5 cursor-pointer border border-rose-300/30"
-              >
-                {actionLoading ? <Loader2 size={12} className="animate-spin" /> : <Camera size={12} />} Request Access
-              </motion.button>
-            )}
           </div>
         )}
 
-        {/* 🌟 VERIFIED BADGE */}
-        {(!isPhotoHidden && !isPhotoReqReceived) && (
-          <div className="absolute top-3 left-3 z-40 flex items-center gap-1.5">
-            {profile.isVerified && (
-              <span className="bg-emerald-600/95 backdrop-blur-md text-white text-[10px] font-black px-3 py-1 rounded-full flex items-center gap-1 shadow-md uppercase border border-emerald-400/30">
-                <CheckCircle2 size={13} className="fill-emerald-400 text-slate-900" /> VERIFIED
-              </span>
-            )}
-          </div>
-        )}
+        {/* 🟢 TOP BADGES: ONLINE & VERIFIED & PREMIUM */}
+        <div className="absolute top-3 inset-x-3 z-40 flex items-center justify-between pointer-events-none">
+          {/* LEFT: ONLINE BADGE */}
+          {isOnline ? (
+            <span className="bg-slate-950/80 backdrop-blur-md text-emerald-400 text-[10px] font-black px-3 py-1 rounded-full flex items-center gap-1.5 shadow-md border border-emerald-400/40 uppercase tracking-wider">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span className="w-2 h-2 rounded-full bg-emerald-400 absolute" />
+              <span className="ml-2">Online</span>
+            </span>
+          ) : <div />}
+
+          {/* RIGHT: PREMIUM BADGE */}
+          {isPremium && (
+            <span className="bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 text-[10px] font-black px-2.5 py-1 rounded-full flex items-center gap-1 shadow-md border border-amber-300 uppercase tracking-wider">
+              <Crown size={12} className="fill-slate-950 text-slate-950" /> VIP
+            </span>
+          )}
+        </div>
 
         {/* GRADIENT OVERLAY */}
         <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent pointer-events-none z-35" />
 
-        {/* NAME & QUICK SUMMARY */}
+        {/* NAME, AGE, VERIFIED ICON & LOCATION */}
         <div className="absolute bottom-3.5 inset-x-4 z-40 text-white pointer-events-none">
           <h3 className="font-serif font-extrabold text-lg uppercase tracking-tight flex items-center gap-1.5 text-white">
-            {profile.fullName || 'Member'}, {displayAge}
+            <span className="truncate">{profile.fullName || 'Member'}, {displayAge}</span>
+            {isVerified && (
+              <span title="Verified Profile" className="flex-shrink-0">
+                <CheckCircle2 size={17} className="fill-emerald-500 text-slate-950" />
+              </span>
+            )}
+            {isPremium && (
+              <span title="VIP Premium Member" className="flex-shrink-0">
+                <Crown size={16} className="fill-amber-400 text-amber-400" />
+              </span>
+            )}
           </h3>
           <p className="text-[11px] font-bold text-rose-200 flex items-center gap-1 mt-0.5 uppercase tracking-wider">
-            <MapPin size={13} className="text-amber-400" />
-            <span>{city ? `${city}, ` : ''}{state || 'Location N/A'}</span>
+            <MapPin size={13} className="text-amber-400 flex-shrink-0" />
+            <span className="truncate">{city ? `${city}, ` : ''}{state || 'Location N/A'}</span>
           </p>
         </div>
       </div>
@@ -258,7 +194,7 @@ export default function ProfileCard({
           </div>
         </div>
 
-        {/* 🔴 ACTION BUTTONS ROW */}
+        {/* 🔴 NATIVE APP ACTION BUTTONS ROW */}
         <div className="pt-3 border-t-2 border-slate-100 flex items-center justify-around gap-2 px-1">
           
           {/* 1. ❤️ INTEREST PROPOSAL ACCEPT / DECLINE OR SEND BUTTONS */}

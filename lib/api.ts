@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://crm.altawafumrah.com/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://localhost:7204/api";
 
 // ⚡ Dynamic SignalR Hub URL
 export const SIGNALR_HUB_URL = API_BASE_URL.replace(/\/api\/?$/, '') + "/chatHub";
@@ -467,6 +467,27 @@ export const fetchActiveSubscriptionApi = async (token: string | null | undefine
     return { success: true, data: data?.data || data };
   } catch (error) {
     return { success: false, message: "Failed to fetch active subscription." };
+  }
+};
+
+// 🔒 Protected: Fetch Subscription Payment History
+export const fetchSubscriptionHistoryApi = async (token: string | null | undefined) => {
+  if (!token) return { success: false, isUnauthorized: true, message: "Unauthorized token" };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/Subscription/history`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      }
+    });
+
+    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
+    const data = await res.json();
+    return { success: true, data: data?.data || data };
+  } catch (error) {
+    return { success: false, message: "Failed to fetch payment history." };
   }
 };
 

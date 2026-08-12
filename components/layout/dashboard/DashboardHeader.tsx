@@ -5,8 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
   Bell, MessageSquare, ChevronDown, User, 
-  LogOut, Edit3, Search, Menu, Crown, Sparkles, Eye, Bookmark,
-  Heart, Send, Inbox, Lock, Flame, CheckCircle2
+  LogOut, Edit3, Search, Menu, Crown, CheckCircle2, HeartHandshake, Settings
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -24,31 +23,15 @@ export default function DashboardHeader({
 }: HeaderProps) {
   const pathname = usePathname();
 
-  // UNIQUE MATRIMONY CONNECTION GROUPS WITH DESCRIPTIONS
-  const connectionGroups = {
-    myProposals: [
-      { label: 'Interests Expressed', desc: 'Profiles where you expressed interest', path: '/dashboard/interests-sent', icon: Send },
-      { label: 'Saved Favorites', desc: 'Bookmarks saved for later review', path: '/dashboard/shortlisted-by-me', icon: Bookmark },
-      { label: 'Photo Access Sent', desc: 'Private photo requests you made', path: '/dashboard/gallery-requests', icon: Lock },
-      { label: 'Recently Viewed', desc: 'Profiles you recently inspected', path: '/dashboard/profiles-viewed', icon: Eye },
-    ],
-    receivedProposals: [
-      { label: 'Incoming Interests', desc: 'Members looking to connect with you', path: '/dashboard/interests-received', icon: Inbox },
-      { label: 'Photo Access Requests', desc: 'Members requesting your photo unlock', path: '/dashboard/gallery-requests-received', icon: Sparkles },
-      { label: 'Profile Visitors', desc: 'Members who checked your profile', path: '/dashboard/viewed-my-profile', icon: Flame },
-      { label: 'Saved By Members', desc: 'Members who bookmarked your profile', path: '/dashboard/shortlisted-me', icon: Heart },
-    ]
-  };
-
   return (
     <header className="h-16 md:h-20 bg-white/95 backdrop-blur-xl border-b-2 border-rose-100 sticky top-0 z-[100] px-4 md:px-8 flex items-center justify-between shadow-md shadow-rose-950/5 text-slate-900 selection:bg-[#870c3f] selection:text-white">
       
-      {/* BRAND & MOBILE TOGGLE */}
+      {/* BRAND LOGO: PAKIZA RISHTE ON LEFT */}
       <div className="flex items-center gap-3">
         <button 
           type="button"
           onClick={onOpenMobileMenu} 
-          className="lg:hidden p-2.5 text-slate-700 hover:text-[#870c3f] hover:bg-rose-50 rounded-2xl transition-all cursor-pointer border border-slate-200"
+          className="lg:hidden p-2 text-slate-700 hover:text-[#870c3f] hover:bg-rose-50 rounded-2xl transition-all cursor-pointer border border-slate-200"
           aria-label="Open Navigation Menu"
         >
           <Menu size={22} />
@@ -73,6 +56,14 @@ export default function DashboardHeader({
           Dashboard
         </Link>
 
+        {/* ACTIVITY CENTER LINK */}
+        <Link 
+          href="/dashboard/activity" 
+          className={`text-xs font-black uppercase tracking-wider transition-all py-2 border-b-2 flex items-center gap-1.5 ${pathname.startsWith('/dashboard/activity') ? 'text-[#870c3f] border-[#870c3f]' : 'text-slate-700 hover:text-[#870c3f] border-transparent'}`}
+        >
+          <HeartHandshake size={16} className="text-[#870c3f]" /> Activity
+        </Link>
+
         <Link 
           href="/dashboard/find-match" 
           className={`text-xs font-black uppercase tracking-wider transition-all py-2 border-b-2 flex items-center gap-1.5 ${pathname.startsWith('/dashboard/find-match') ? 'text-[#870c3f] border-[#870c3f]' : 'text-slate-700 hover:text-[#870c3f] border-transparent'}`}
@@ -80,80 +71,18 @@ export default function DashboardHeader({
           <Search size={16} className="text-amber-500" /> Find Matches
         </Link>
 
-        {/* 🌟 UNIQUE RISHTA CONNECTIONS MEGA DROPDOWN */}
-        <div className="group h-full flex items-center relative cursor-pointer">
-          <button className="text-xs font-black uppercase tracking-wider text-slate-700 group-hover:text-[#870c3f] flex items-center gap-1.5 transition-colors py-4">
-            Connections <ChevronDown size={14} className="group-hover:rotate-180 transition-transform duration-200" />
-          </button>
-          
-          <div className="absolute top-[100%] left-[-180px] pt-2 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-300 z-[110]">
-            <div className="w-[640px] bg-white shadow-2xl rounded-3xl border-t-4 border-[#870c3f] p-7 grid grid-cols-2 gap-6 border-2 border-rose-100 backdrop-blur-xl text-slate-800">
-              
-              {/* MY OUTBOUND ACTIVITIES */}
-              <div>
-                <h5 className="text-[11px] font-black text-[#870c3f] uppercase tracking-widest mb-4 flex items-center gap-2 border-b-2 border-slate-100 pb-2.5">
-                  <Send size={15} /> My Expressed Interest
-                </h5>
-                <ul className="space-y-2">
-                  {connectionGroups.myProposals.map((item, i) => {
-                    const Icon = item.icon;
-                    return (
-                      <li key={i}>
-                        <Link 
-                          href={item.path} 
-                          className="p-3 rounded-2xl hover:bg-rose-50/60 transition-all flex items-start gap-3 group/link block border border-transparent hover:border-rose-200"
-                        >
-                          <div className="p-2 rounded-xl bg-rose-50 text-[#870c3f] group-hover/link:bg-[#870c3f] group-hover/link:text-white border border-rose-200 transition-all shadow-xs">
-                            <Icon size={16} />
-                          </div>
-                          <div>
-                            <span className="text-xs font-black text-slate-900 group-hover/link:text-[#870c3f] block uppercase">{item.label}</span>
-                            <span className="text-[10px] font-bold text-slate-500 block">{item.desc}</span>
-                          </div>
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-
-              {/* INBOUND RESPONSES */}
-              <div className="border-l-2 border-slate-100 pl-6">
-                <h5 className="text-[11px] font-black text-[#870c3f] uppercase tracking-widest mb-4 flex items-center gap-2 border-b-2 border-slate-100 pb-2.5">
-                  <Inbox size={15} /> Responses To Me
-                </h5>
-                <ul className="space-y-2">
-                  {connectionGroups.receivedProposals.map((item, i) => {
-                    const Icon = item.icon;
-                    return (
-                      <li key={i}>
-                        <Link 
-                          href={item.path} 
-                          className="p-3 rounded-2xl hover:bg-rose-50/60 transition-all flex items-start gap-3 group/link block border border-transparent hover:border-rose-200"
-                        >
-                          <div className="p-2 rounded-xl bg-rose-50 text-amber-600 group-hover/link:bg-[#870c3f] group-hover/link:text-white border border-rose-200 transition-all shadow-xs">
-                            <Icon size={16} />
-                          </div>
-                          <div>
-                            <span className="text-xs font-black text-slate-900 group-hover/link:text-[#870c3f] block uppercase">{item.label}</span>
-                            <span className="text-[10px] font-bold text-slate-500 block">{item.desc}</span>
-                          </div>
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-
-            </div>
-          </div>
-        </div>
-
         <Link 
           href="/dashboard/messages" 
           className={`text-xs font-black uppercase tracking-wider transition-all py-2 border-b-2 ${pathname.startsWith('/dashboard/messages') ? 'text-[#870c3f] border-[#870c3f]' : 'text-slate-700 hover:text-[#870c3f] border-transparent'}`}
         >
           Messages
+        </Link>
+
+        <Link 
+          href="/dashboard/my-profile" 
+          className={`text-xs font-black uppercase tracking-wider transition-all py-2 border-b-2 ${pathname.startsWith('/dashboard/my-profile') ? 'text-[#870c3f] border-[#870c3f]' : 'text-slate-700 hover:text-[#870c3f] border-transparent'}`}
+        >
+          My Profile
         </Link>
 
         <Link 
@@ -174,7 +103,7 @@ export default function DashboardHeader({
           <MessageSquare size={20} />
         </Link>
         
-        {/* 🔔 100% DYNAMIC NOTIFICATION BELL BADGE */}
+        {/* 🔔 NOTIFICATION BELL BADGE SHOWING TOTAL UNREAD COUNT */}
         <button 
           type="button"
           onClick={onOpenNotifications} 
@@ -207,8 +136,9 @@ export default function DashboardHeader({
                   </span>
                </div>
                <div className="space-y-1">
-                  <Link href="/dashboard/profile" className="flex items-center gap-2.5 p-3 text-xs font-black text-slate-800 hover:bg-rose-50 hover:text-[#870c3f] rounded-xl transition-all"><User size={16} className="text-[#870c3f]" /> View My Profile</Link>
-                  <Link href="/complete-profile" className="flex items-center gap-2.5 p-3 text-xs font-black text-slate-800 hover:bg-rose-50 hover:text-[#870c3f] rounded-xl transition-all"><Edit3 size={16} className="text-[#870c3f]" /> Edit My Profile</Link>
+                  <Link href="/dashboard/my-profile" className="flex items-center gap-2.5 p-3 text-xs font-black text-slate-800 hover:bg-rose-50 hover:text-[#870c3f] rounded-xl transition-all"><User size={16} className="text-[#870c3f]" /> My Profile</Link>
+                  <Link href="/complete-profile" className="flex items-center gap-2.5 p-3 text-xs font-black text-slate-800 hover:bg-rose-50 hover:text-[#870c3f] rounded-xl transition-all"><Edit3 size={16} className="text-[#870c3f]" /> Edit Profile</Link>
+                  <Link href="/dashboard/settings" className="flex items-center gap-2.5 p-3 text-xs font-black text-slate-800 hover:bg-rose-50 hover:text-[#870c3f] rounded-xl transition-all"><Settings size={16} className="text-[#870c3f]" /> Account Settings</Link>
                   <Link href="/dashboard/membership" className="flex items-center gap-2.5 p-3 text-xs font-black text-slate-800 hover:bg-rose-50 hover:text-[#870c3f] rounded-xl transition-all"><Crown size={16} className="text-amber-500" /> My Plan & Balance</Link>
                   <div className="h-0.5 bg-slate-100 my-1 mx-2" />
                   <button type="button" onClick={handleLogout} className="w-full text-left flex items-center gap-2.5 p-3 text-xs font-black text-rose-700 hover:bg-rose-50 rounded-xl cursor-pointer transition-all"><LogOut size={16} /> Logout Account</button>

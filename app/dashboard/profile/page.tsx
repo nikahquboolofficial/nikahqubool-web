@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation';
 import { 
   ArrowLeft, MoreVertical, Info, Phone, GraduationCap, 
   Users, Moon, Sparkles, Heart, CheckCircle2, Lock, 
-  Camera, Flag, Ban, Check, X, Star, MessageCircle, Loader2,
-  ChevronLeft, ChevronRight, MapPin, ShieldCheck
+  Flag, Ban, Star, MessageCircle, Loader2, ChevronLeft, ChevronRight, Crown, Camera
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
@@ -23,7 +22,6 @@ export default function MobileFixedProfileDetailPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [showThreeDotMenu, setShowThreeDotMenu] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
 
   const getCookie = (name: string) => {
     if (typeof document === "undefined") return null;
@@ -33,14 +31,6 @@ export default function MobileFixedProfileDetailPage() {
   };
 
   const getToken = useCallback(() => getCookie("user_token"), []);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 80);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   const loadProfileDetails = useCallback(async (showFullLoader: boolean = true) => {
     const token = getToken();
@@ -142,6 +132,12 @@ export default function MobileFixedProfileDetailPage() {
           ...prev,
           isShortlisted: status === 'ACTIVE'
         }));
+      } else if (type === 'PHOTO_REQUEST') {
+        setProfileData((prev: any) => ({
+          ...prev,
+          hasRequestedPhoto: true,
+          photoRequestStatus: 'SentPending'
+        }));
       }
 
       loadProfileDetails(false);
@@ -194,11 +190,10 @@ export default function MobileFixedProfileDetailPage() {
 
   if (!profileData) return null;
 
-  const allPhotos = gallery.length > 0 ? gallery : [{ photoUrl: profileData.mainPhotoUrl || '/placeholder.png' }];
+  const allPhotos = gallery.length > 0 ? gallery : [{ photoUrl: profileData.mainPhotoUrl || profileData.photoUrl || '/placeholder.png' }];
   const interestStatus = profileData.interestStatus;
   const fullName = profileData.fullName || "Member Profile";
 
-  // 🔒 PHOTO PRIVACY LOCK CHECK
   const rawPrivacy = profileData.photoPrivacy || profileData.PhotoPrivacy || 'All Members';
   const privacyClean = String(rawPrivacy).toLowerCase().replace(/\s+/g, '');
   const isUserPaid = Boolean(profileData.isCurrentUserPaid ?? profileData.IsCurrentUserPaid);
@@ -210,201 +205,163 @@ export default function MobileFixedProfileDetailPage() {
     || (privacyClean.includes('onlyapproved') && !hasRequestedPhoto)
     || (privacyClean.includes('protected') && !hasRequestedPhoto);
 
-  const currentPhotoSrc = allPhotos[activePhotoIndex]?.photoUrl || profileData.mainPhotoUrl || '/placeholder.png';
+  const isPhotoReqSent = hasRequestedPhoto || String(profileData.photoRequestStatus).toUpperCase().includes('SENT');
+
+  const isVerified = Boolean(profileData.isVerified ?? profileData.IsVerified);
+  const isPremium = Boolean(profileData.isPremium ?? profileData.IsPremium ?? profileData.isCurrentUserPaid);
+  const currentPhotoSrc = allPhotos[activePhotoIndex]?.photoUrl || profileData.mainPhotoUrl || profileData.photoUrl || '/placeholder.png';
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 w-full relative selection:bg-[#870c3f] selection:text-white">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 w-full relative selection:bg-[#870c3f] selection:text-white pb-28">
       <Toaster position="top-center" richColors duration={2000} />
 
-      {/* ================================================================= */}
-      {/* 📱 MOBILE VIEW ONLY (lg:hidden) */}
-      {/* ================================================================= */}
-      <div className="block lg:hidden">
-        {/* PARALLAX MOBILE HEADER */}
-        <div className={`fixed top-0 left-0 right-0 z-[60] py-3.5 px-4 flex items-center justify-between transition-all duration-300 ${
-          scrolled 
-            ? 'bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white shadow-md' 
-            : 'bg-gradient-to-b from-black/70 via-black/30 to-transparent text-white'
-        }`}>
-          <button type="button" onClick={() => router.back()} className="p-1.5 hover:bg-white/20 rounded-full transition-colors cursor-pointer">
-            <ArrowLeft size={22} />
+      {/* TOP HEADER */}
+      <div className="bg-white border-b-2 border-rose-100 sticky top-0 z-[60] py-3.5 px-4 md:px-8 flex items-center justify-between shadow-xs">
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={() => router.back()} className="p-2 hover:bg-rose-50 rounded-2xl text-[#870c3f] border border-rose-200 transition-colors cursor-pointer">
+            <ArrowLeft size={20} />
           </button>
-          
-          <h1 className={`text-base font-serif font-extrabold uppercase tracking-wide truncate max-w-[220px] transition-opacity duration-300 ${
-            scrolled ? 'opacity-100' : 'opacity-0'
-          }`}>
-            {fullName}
-          </h1>
-
-          <div className="relative">
-            <button type="button" onClick={() => setShowThreeDotMenu(!showThreeDotMenu)} className="p-1.5 hover:bg-white/20 rounded-full transition-colors cursor-pointer">
-              <MoreVertical size={22} />
-            </button>
-
-            <AnimatePresence>
-              {showThreeDotMenu && (
-                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-2xl border-2 border-rose-100 p-2 z-[70] text-slate-800">
-                  <button type="button" disabled={actionLoading} onClick={(e) => handleInteraction(e, 'REPORT', 'PENDING')} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold hover:bg-rose-50 hover:text-[#870c3f] transition-all cursor-pointer">
-                    <Flag size={15} /> Report Profile
-                  </button>
-                  <button type="button" disabled={actionLoading} onClick={handleBlockUser} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-all cursor-pointer">
-                    <Ban size={15} /> Block User
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+          <div>
+            <h1 className="text-sm md:text-base font-serif font-extrabold uppercase tracking-wide text-slate-900 flex items-center gap-1.5">
+              <span>{fullName}</span>
+              {isVerified && <CheckCircle2 size={16} className="fill-emerald-500 text-white" />}
+              {isPremium && <Crown size={15} className="fill-amber-400 text-amber-400" />}
+            </h1>
+            <p className="text-[10px] font-black text-rose-700 uppercase">PR-{profileData.userId}</p>
           </div>
         </div>
 
-        {/* HERO MOBILE PHOTO */}
-        <div className="relative w-full h-[390px] bg-slate-950 overflow-hidden">
-          <img src={currentPhotoSrc} className={`w-full h-full object-cover object-top transition-all duration-500 ${isPhotoHidden ? 'blur-xl scale-110 opacity-60' : ''}`} alt={fullName} onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }} />
+        <div className="relative">
+          <button type="button" onClick={() => setShowThreeDotMenu(!showThreeDotMenu)} className="p-2 hover:bg-rose-50 text-slate-700 rounded-full transition-colors cursor-pointer border border-slate-200">
+            <MoreVertical size={20} />
+          </button>
 
-          {isPhotoHidden && (
-            <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md z-[20] flex flex-col items-center justify-center p-6 text-center text-white space-y-3">
-              <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center border border-white/20 shadow-md">
-                <Lock size={30} className="text-amber-300" />
-              </div>
-              <h4 className="font-extrabold text-sm uppercase tracking-wider">Photo Privacy Protected</h4>
-              <button type="button" disabled={actionLoading} onClick={(e) => handleInteraction(e, 'PHOTO_REQUEST', 'PENDING')} className="px-6 py-2.5 rounded-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white text-xs font-black uppercase shadow-lg border border-rose-300/30">Request Access</button>
-            </div>
-          )}
-
-          {!isPhotoHidden && allPhotos.length > 1 && (
-            <>
-              <button type="button" onClick={() => setActivePhotoIndex((prev) => (prev > 0 ? prev - 1 : allPhotos.length - 1))} className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/50 text-white flex items-center justify-center z-20">
-                <ChevronLeft size={20} />
-              </button>
-              <button type="button" onClick={() => setActivePhotoIndex((prev) => (prev < allPhotos.length - 1 ? prev + 1 : 0))} className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/50 text-white flex items-center justify-center z-20">
-                <ChevronRight size={20} />
-              </button>
-            </>
-          )}
-        </div>
-
-        {/* OVERLAPPING MOBILE CONTENT CARDS */}
-        <div className="-mt-8 relative z-10 bg-slate-50 rounded-t-[36px] px-4 pt-5 pb-32 space-y-5">
-          <ProfileDetailsSection 
-            fullName={fullName} 
-            profileData={profileData} 
-            contactData={contactData} 
-            preferences={preferences} 
-            interestStatus={interestStatus} 
-            actionLoading={actionLoading} 
-            handleUnlockContact={handleUnlockContact} 
-            handleInteraction={handleInteraction} 
-          />
-        </div>
-
-        {/* FIXED MOBILE BOTTOM ACTION BAR */}
-        {interestStatus !== 'ReceivedPending' && (
-          <div className="fixed bottom-0 left-0 right-0 z-[9990] bg-white/95 backdrop-blur-xl border-t-2 border-rose-100 p-3.5 shadow-2xl">
-            <div className="flex items-center justify-between gap-3">
-              {interestStatus === 'Accepted' ? (
-                <button type="button" onClick={handleInitiateChat} className="flex-1 py-3.5 rounded-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-rose-900/20 border border-rose-300/30">
-                  <MessageCircle size={16} className="text-amber-300" /> CHAT NOW
+          <AnimatePresence>
+            {showThreeDotMenu && (
+              <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-2xl border-2 border-rose-100 p-2 z-[70] text-slate-800">
+                <button type="button" disabled={actionLoading} onClick={(e) => handleInteraction(e, 'REPORT', 'PENDING')} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold hover:bg-rose-50 hover:text-[#870c3f] transition-all cursor-pointer">
+                  <Flag size={15} /> Report Profile
                 </button>
-              ) : interestStatus === 'SentPending' ? (
-                <div className="flex-1 py-3.5 rounded-full bg-emerald-50 text-emerald-700 font-extrabold text-xs uppercase text-center flex items-center justify-center gap-1.5 border-2 border-emerald-200">
-                  <CheckCircle2 size={16} /> INTEREST SENT ✓
-                </div>
-              ) : (
-                <button type="button" disabled={actionLoading} onClick={(e) => handleInteraction(e, 'INTEREST', 'PENDING')} className="flex-1 py-3.5 rounded-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 flex items-center justify-center gap-2 border border-rose-300/30">
-                  <Heart size={16} className="fill-amber-300 text-amber-300" /> EXPRESS INTEREST
+                <button type="button" disabled={actionLoading} onClick={handleBlockUser} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-all cursor-pointer">
+                  <Ban size={15} /> Block User
                 </button>
-              )}
-
-              <button type="button" disabled={actionLoading} onClick={(e) => handleInteraction(e, 'SHORTLIST', profileData.isShortlisted ? 'REMOVED' : 'ACTIVE')} className={`p-3.5 rounded-full border-2 transition-all ${profileData.isShortlisted ? 'bg-[#870c3f] text-white border-[#870c3f] shadow-md' : 'bg-rose-50 text-[#870c3f] border-rose-200'}`}>
-                <Star size={18} className={profileData.isShortlisted ? 'fill-amber-300 text-amber-300' : ''} />
-              </button>
-            </div>
-          </div>
-        )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
-      {/* ================================================================= */}
-      {/* 💻 DESKTOP VIEW ONLY (hidden lg:block) */}
-      {/* ================================================================= */}
-      <div className="hidden lg:block max-w-7xl mx-auto px-8 py-10">
-        <div className="grid grid-cols-12 gap-8">
-          
-          {/* LEFT 4-COLUMNS: STICKY PHOTO & QUICK ACTION CARD */}
-          <div className="col-span-4 space-y-6 sticky top-24 h-fit">
-            <div className="bg-white rounded-3xl p-6 border-2 border-rose-100 shadow-xl space-y-5">
-              
-              {/* DESKTOP PHOTO CONTAINER */}
-              <div className="relative w-full aspect-[4/5] rounded-2xl overflow-hidden bg-slate-950 shadow-inner">
-                <img src={currentPhotoSrc} className={`w-full h-full object-cover object-top ${isPhotoHidden ? 'blur-xl scale-110 opacity-60' : ''}`} alt={fullName} />
-                
-                {isPhotoHidden && (
-                  <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md z-[20] flex flex-col items-center justify-center p-6 text-center text-white space-y-3">
-                    <Lock size={34} className="text-amber-300 mx-auto" />
-                    <h4 className="font-extrabold text-sm uppercase tracking-wider">Photo Protected</h4>
-                    <button type="button" disabled={actionLoading} onClick={(e) => handleInteraction(e, 'PHOTO_REQUEST', 'PENDING')} className="px-5 py-2.5 rounded-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white text-xs font-black uppercase shadow-md border border-rose-300/30">Request Access</button>
-                  </div>
-                )}
+      <div className="max-w-5xl mx-auto px-4 md:px-8 pt-6 space-y-6">
+        
+        {/* 🖼️ ELEGANT UN-CROPPED HERO PHOTO GALLERY CONTAINER */}
+        <div className="bg-white rounded-3xl p-4 md:p-6 border-2 border-rose-100 shadow-xl space-y-4">
+          <div className="relative w-full aspect-[4/4.5] max-h-[520px] bg-slate-950 rounded-2xl overflow-hidden shadow-md">
+            <img 
+              src={currentPhotoSrc} 
+              className={`w-full h-full object-contain bg-slate-950 transition-all duration-500 ${isPhotoHidden ? 'blur-xl opacity-60 scale-105' : ''}`} 
+              alt={fullName} 
+              onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }} 
+            />
 
-                {!isPhotoHidden && allPhotos.length > 1 && (
-                  <>
-                    <button type="button" onClick={() => setActivePhotoIndex((prev) => (prev > 0 ? prev - 1 : allPhotos.length - 1))} className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center">
-                      <ChevronLeft size={18} />
-                    </button>
-                    <button type="button" onClick={() => setActivePhotoIndex((prev) => (prev < allPhotos.length - 1 ? prev + 1 : 0))} className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center">
-                      <ChevronRight size={18} />
-                    </button>
-                  </>
-                )}
-              </div>
-
-              {/* NAME & SUMMARY */}
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-2xl font-serif font-extrabold text-slate-900 uppercase">{fullName}</h2>
-                  {profileData.isVerified && <CheckCircle2 size={20} className="text-emerald-500 fill-emerald-500 text-white shrink-0" />}
+            {/* 🔒 PHOTO PRIVACY OVERLAY */}
+            {isPhotoHidden && (
+              <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md z-[20] flex flex-col items-center justify-center p-6 text-center text-white space-y-3">
+                <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center border border-white/20 shadow-md">
+                  <Lock size={26} className="text-amber-300" />
                 </div>
-                <p className="text-xs font-black text-[#870c3f] uppercase tracking-wider">ID: PR-{profileData.userId}</p>
-              </div>
+                <h4 className="font-extrabold text-sm uppercase tracking-wider text-amber-300">Photo Access Protected</h4>
+                <p className="text-xs text-rose-100 max-w-xs font-medium">
+                  Photos are private according to member privacy settings.
+                </p>
 
-              {/* DESKTOP ACTION BUTTONS */}
-              <div className="pt-3 border-t-2 border-slate-100 flex items-center gap-3">
-                {interestStatus === 'Accepted' ? (
-                  <button type="button" onClick={handleInitiateChat} className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-rose-900/20 border border-rose-300/30">
-                    <MessageCircle size={16} className="text-amber-300" /> CHAT NOW
-                  </button>
-                ) : interestStatus === 'SentPending' ? (
-                  <div className="flex-1 py-3.5 rounded-2xl bg-emerald-50 text-emerald-700 font-extrabold text-xs uppercase text-center flex items-center justify-center gap-1.5 border-2 border-emerald-200">
-                    <CheckCircle2 size={16} /> INTEREST SENT ✓
+                {/* SIMPLE CLEAN PHOTO REQUEST BUTTON */}
+                {isPhotoReqSent ? (
+                  <div className="px-5 py-2.5 rounded-full bg-amber-500/90 text-white font-black text-xs uppercase tracking-wider shadow-md border border-amber-300/30">
+                    Request Access Sent ✓
                   </div>
                 ) : (
-                  <button type="button" disabled={actionLoading} onClick={(e) => handleInteraction(e, 'INTEREST', 'PENDING')} className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 flex items-center justify-center gap-2 cursor-pointer border border-rose-300/30">
-                    <Heart size={16} className="fill-amber-300 text-amber-300" /> EXPRESS INTEREST
+                  <button 
+                    type="button" 
+                    disabled={actionLoading} 
+                    onClick={(e) => handleInteraction(e, 'PHOTO_REQUEST', 'PENDING')} 
+                    className="px-6 py-2.5 rounded-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white text-xs font-black uppercase tracking-wider shadow-lg border border-rose-300/30 flex items-center gap-2 cursor-pointer"
+                  >
+                    {actionLoading ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+                    <span>Request Photo Access</span>
                   </button>
                 )}
-
-                <button type="button" disabled={actionLoading} onClick={(e) => handleInteraction(e, 'SHORTLIST', profileData.isShortlisted ? 'REMOVED' : 'ACTIVE')} className={`p-3.5 rounded-2xl border-2 transition-all ${profileData.isShortlisted ? 'bg-[#870c3f] text-white border-[#870c3f] shadow-md' : 'bg-rose-50 text-[#870c3f] border-rose-200'}`}>
-                  <Star size={18} className={profileData.isShortlisted ? 'fill-amber-300 text-amber-300' : ''} />
-                </button>
               </div>
+            )}
 
+            {!isPhotoHidden && allPhotos.length > 1 && (
+              <>
+                <button type="button" onClick={() => setActivePhotoIndex((prev) => (prev > 0 ? prev - 1 : allPhotos.length - 1))} className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 text-white flex items-center justify-center cursor-pointer hover:bg-black/80">
+                  <ChevronLeft size={20} />
+                </button>
+                <button type="button" onClick={() => setActivePhotoIndex((prev) => (prev < allPhotos.length - 1 ? prev + 1 : 0))} className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 text-white flex items-center justify-center cursor-pointer hover:bg-black/80">
+                  <ChevronRight size={20} />
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* PHOTO THUMBNAILS (UP TO 3+ PHOTOS) */}
+          {!isPhotoHidden && allPhotos.length > 1 && (
+            <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pt-1">
+              {allPhotos.map((p, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setActivePhotoIndex(idx)}
+                  className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all cursor-pointer flex-shrink-0 ${
+                    activePhotoIndex === idx ? 'border-[#870c3f] scale-105 shadow-md' : 'border-slate-200 opacity-60'
+                  }`}
+                >
+                  <img src={p.photoUrl} alt="Thumbnail" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }} />
+                </button>
+              ))}
             </div>
-          </div>
-
-          {/* RIGHT 8-COLUMNS: ALL DETAILED INFORMATION CARDS */}
-          <div className="col-span-8 space-y-6">
-            <ProfileDetailsSection 
-              fullName={fullName} 
-              profileData={profileData} 
-              contactData={contactData} 
-              preferences={preferences} 
-              interestStatus={interestStatus} 
-              actionLoading={actionLoading} 
-              handleUnlockContact={handleUnlockContact} 
-              handleInteraction={handleInteraction} 
-            />
-          </div>
-
+          )}
         </div>
+
+        {/* 📋 PROFILE DETAILS SECTION (NO IMAGE OVERLAP) */}
+        <ProfileDetailsSection 
+          fullName={fullName} 
+          profileData={profileData} 
+          contactData={contactData} 
+          preferences={preferences} 
+          interestStatus={interestStatus} 
+          actionLoading={actionLoading} 
+          handleUnlockContact={handleUnlockContact} 
+          handleInteraction={handleInteraction} 
+        />
+
       </div>
+
+      {/* 🔴 BOTTOM FIXED ACTION DOCK */}
+      {interestStatus !== 'ReceivedPending' && (
+        <div className="fixed bottom-0 left-0 right-0 z-[9990] bg-white/95 backdrop-blur-xl border-t-2 border-rose-100 p-3.5 shadow-2xl">
+          <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+            {interestStatus === 'Accepted' ? (
+              <button type="button" onClick={handleInitiateChat} className="flex-1 py-3.5 rounded-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-rose-900/20 border border-rose-300/30 cursor-pointer">
+                <MessageCircle size={16} className="text-amber-300" /> CHAT NOW
+              </button>
+            ) : interestStatus === 'SentPending' ? (
+              <div className="flex-1 py-3.5 rounded-full bg-emerald-50 text-emerald-700 font-extrabold text-xs uppercase text-center flex items-center justify-center gap-1.5 border-2 border-emerald-200">
+                <CheckCircle2 size={16} /> INTEREST SENT ✓
+              </div>
+            ) : (
+              <button type="button" disabled={actionLoading} onClick={(e) => handleInteraction(e, 'INTEREST', 'PENDING')} className="flex-1 py-3.5 rounded-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 flex items-center justify-center gap-2 border border-rose-300/30 cursor-pointer">
+                <Heart size={16} className="fill-amber-300 text-amber-300" /> EXPRESS INTEREST
+              </button>
+            )}
+
+            <button type="button" disabled={actionLoading} onClick={(e) => handleInteraction(e, 'SHORTLIST', profileData.isShortlisted ? 'REMOVED' : 'ACTIVE')} className={`p-3.5 rounded-full border-2 transition-all cursor-pointer ${profileData.isShortlisted ? 'bg-[#870c3f] text-white border-[#870c3f] shadow-md' : 'bg-rose-50 text-[#870c3f] border-rose-200'}`}>
+              <Star size={18} className={profileData.isShortlisted ? 'fill-amber-300 text-amber-300' : ''} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* SUBSCRIPTION MODAL */}
       <AnimatePresence>
@@ -426,21 +383,18 @@ export default function MobileFixedProfileDetailPage() {
   );
 }
 
-// 🔴 SHARED REUSABLE PROFILE SECTIONS
 function ProfileDetailsSection({ fullName, profileData, contactData, preferences, interestStatus, actionLoading, handleUnlockContact, handleInteraction }: any) {
   return (
     <div className="space-y-5">
-      {/* ℹ️ 1. BASIC INFORMATION CARD */}
       <SectionCard icon={Info} title="Basic Information">
         <BulletRow label="Name" value={fullName} />
-        <BulletRow label="Age | Gender" value={`${profileData.age} Yrs | ${profileData.gender}`} />
+        <BulletRow label="Age | Gender" value={`${profileData.age} Yrs | ${profileData.gender || 'Female'}`} />
         <BulletRow label="Marital Status" value={profileData.maritalStatus || 'Never Married'} />
-        <BulletRow label="Caste" value={`${profileData.sect} / ${profileData.caste || 'General'}`} />
-        <BulletRow label="Height" value={profileData.height} />
-        <BulletRow label="Any Disability" value={profileData.physicalStatus || 'No'} />
+        <BulletRow label="Caste / Sect" value={`${profileData.sect || 'Sunni'} / ${profileData.caste || 'General'}`} />
+        <BulletRow label="Height" value={profileData.height || '5ft 5in'} />
+        <BulletRow label="Disability Status" value={profileData.physicalStatus || 'None'} />
       </SectionCard>
 
-      {/* 📞 2. CONTACT DETAILS CARD */}
       <SectionCard icon={Phone} title="Contact Details">
         {contactData ? (
           <>
@@ -466,16 +420,14 @@ function ProfileDetailsSection({ fullName, profileData, contactData, preferences
         )}
       </SectionCard>
 
-      {/* 🎓 3. EDUCATION & CAREER CARD */}
       <SectionCard icon={GraduationCap} title="Education & Career">
-        <BulletRow label="Highest Education" value={profileData.highestDegree || 'Graduate'} />
-        <BulletRow label="College/Institute" value={profileData.collegeName || 'Not Disclosed'} />
+        <BulletRow label="Highest Education" value={profileData.highestDegree || profileData.education || 'Graduate'} />
+        <BulletRow label="College / University" value={profileData.collegeName || 'Not Disclosed'} />
         <BulletRow label="Employed In" value={profileData.employmentSector || 'Private Sector'} />
-        <BulletRow label="Occupation" value={profileData.designation || profileData.occupationDetails || 'Business / Professional'} />
+        <BulletRow label="Profession" value={profileData.designation || profileData.profession || 'Professional'} />
         <BulletRow label="Annual Income" value={profileData.annualIncome || 'Confidential'} />
       </SectionCard>
 
-      {/* 👨👩👦 4. FAMILY STRUCTURE CARD */}
       <SectionCard icon={Users} title="Family Details">
         <BulletRow label="Family Type" value={profileData.familyType || 'Nuclear'} />
         <BulletRow label="Family Status" value={profileData.familyStatus || 'Middle Class'} />
@@ -484,7 +436,6 @@ function ProfileDetailsSection({ fullName, profileData, contactData, preferences
         <BulletRow label="Brothers / Sisters" value={`${profileData.totalBrothers || 0} Bros / ${profileData.totalSisters || 0} Sis`} />
       </SectionCard>
 
-      {/* 🕌 5. RELIGIOUS BACKGROUND CARD */}
       <SectionCard icon={Moon} title="Religious Background">
         <BulletRow label="Religion" value="Islam" />
         <BulletRow label="Sect" value={profileData.sect || 'Sunni'} />
@@ -493,7 +444,6 @@ function ProfileDetailsSection({ fullName, profileData, contactData, preferences
         <BulletRow label="Quran Reading" value="Yes" />
       </SectionCard>
 
-      {/* 💍 6. PARTNER PREFERENCES CARD */}
       {preferences && (
         <SectionCard icon={Sparkles} title="Partner Preferences">
           <BulletRow label="Age Range" value={`${preferences.minAge || 18} to ${preferences.maxAge || 30} Yrs`} />
@@ -504,11 +454,10 @@ function ProfileDetailsSection({ fullName, profileData, contactData, preferences
         </SectionCard>
       )}
 
-      {/* 🟢 INLINE PROPOSAL RESPONSE NOTICE */}
       {interestStatus === 'ReceivedPending' && (
         <div className="bg-white rounded-3xl p-6 shadow-xl border-2 border-rose-100 text-center space-y-4">
           <p className="text-xs font-bold text-slate-800">
-            <span className="text-[#870c3f] font-black">{fullName}</span> expressed an interest on you.
+            <span className="text-[#870c3f] font-black">{fullName}</span> sent you a proposal.
           </p>
           <div className="flex items-center gap-3">
             <button 
@@ -517,7 +466,7 @@ function ProfileDetailsSection({ fullName, profileData, contactData, preferences
               onClick={(e) => handleInteraction(e, 'INTEREST', 'ACCEPTED')}
               className="flex-1 py-3.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider shadow-md active:scale-95 transition-all cursor-pointer"
             >
-              ACCEPT
+              ACCEPT PROPOSAL
             </button>
             <button 
               type="button"
@@ -525,7 +474,7 @@ function ProfileDetailsSection({ fullName, profileData, contactData, preferences
               onClick={(e) => handleInteraction(e, 'INTEREST', 'DECLINED')}
               className="flex-1 py-3.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-black text-xs uppercase tracking-wider shadow-md active:scale-95 transition-all cursor-pointer"
             >
-              REJECT
+              DECLINE
             </button>
           </div>
         </div>

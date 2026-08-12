@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Search, SlidersHorizontal, X, ChevronRight,
   MapPin, Briefcase, GraduationCap, Users2, Star, Check, Heart, Loader2,
-  Crown, Lock, RotateCcw, CheckCircle2, Eye, Sparkles
+  Crown, Lock, RotateCcw, CheckCircle2, Eye, Sparkles, ArrowLeft
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
@@ -160,13 +160,22 @@ export default function FindMatchesPage() {
       {/* --- STICKY TOP HEADER --- */}
       <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-xl border-b-2 border-rose-100 px-4 py-3.5 shadow-md shadow-rose-950/5">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <span className="font-extrabold font-serif text-lg text-slate-900 uppercase tracking-tight">Find Matches</span>
-            {!isUserPaid && (
-              <span className="px-3 py-1 rounded-full bg-rose-50 text-[#870c3f] text-[10px] font-black uppercase border border-rose-200 flex items-center gap-1 shadow-xs">
-                <Sparkles size={11} className="text-amber-500" /> Free Plan
-              </span>
-            )}
+          <div className="flex items-center gap-3">
+            <button 
+              type="button" 
+              onClick={() => router.back()} 
+              className="p-2 hover:bg-rose-50 rounded-2xl text-[#870c3f] border-2 border-rose-200 transition-colors cursor-pointer"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold font-serif text-lg text-slate-900 uppercase tracking-tight">Find Matches</span>
+              {!isUserPaid && (
+                <span className="px-3 py-1 rounded-full bg-rose-50 text-[#870c3f] text-[10px] font-black uppercase border border-rose-200 flex items-center gap-1 shadow-xs">
+                  <Sparkles size={11} className="text-amber-500" /> Free Plan
+                </span>
+              )}
+            </div>
           </div>
 
           <button 

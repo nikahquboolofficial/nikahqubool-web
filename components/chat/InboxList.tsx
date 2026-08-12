@@ -1,12 +1,14 @@
 "use client";
 import { useEffect, useState, useRef } from 'react';
-import { Search, MessageSquare, Sparkles } from 'lucide-react';
-import * as signalR from '@microsoft/signalr';
+import { Search, MessageSquare, UserX } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { fetchChatInboxApi, markChatReadApi, SIGNALR_HUB_URL } from '@/lib/api';
+import { useSignalR } from '@/context/SignalRContext';
+import { fetchChatInboxApi, markChatReadApi, blockUserApiCall } from '@/lib/api';
 
 export default function InboxList({ onSelectUser, selectedId }: any) {
   const router = useRouter();
+  const { connection, onlineUsers } = useSignalR();
+
   const [chats, setChats] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const selectedIdRef = useRef(selectedId); 
@@ -19,10 +21,7 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
     if (typeof document === "undefined") return null;
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) {
-      const val = parts.pop()?.split(';').shift();
-      return val ?? null;
-    }
+    if (parts.length === 2) return parts.pop()?.split(';').shift() ?? null;
     return null;
   };
 
@@ -33,55 +32,29 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
     const messageDate = new Date(dateString);
     const now = new Date();
     const isToday = messageDate.toDateString() === now.toDateString();
-
-    if (isToday) {
-      return messageDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-    }
+    if (isToday) return messageDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
     return messageDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' });
   };
 
   const fetchInbox = async () => {
     const token = getToken();
-    if (!token) {
-      router.push('/');
-      return;
-    }
-
-    const res = await fetchChatInboxApi(1, 20, token);
-    if (res.isUnauthorized) {
-      router.push('/');
-      return;
-    }
+    if (!token) return;
+    const res = await fetchChatInboxApi(1, 30, token);
     if (res.success && res.data) {
       setChats(res.data?.data ?? res.data ?? []);
     }
   };
 
+  useEffect(() => { fetchInbox(); }, []);
+
   useEffect(() => {
-    const token = getToken();
-    if (!token) {
-      router.push('/');
-      return;
-    }
+    if (!connection) return;
 
-    let isMounted = true;
-    fetchInbox();
-
-    const connection = new signalR.HubConnectionBuilder()
-      .withUrl(SIGNALR_HUB_URL, {
-        accessTokenFactory: () => token,
-        skipNegotiation: true,
-        transport: signalR.HttpTransportType.WebSockets
-      })
-      .withAutomaticReconnect()
-      .build();
-
-    connection.on("ReceiveMessage", (senderId, messageText) => {
+    const handleReceiveMessage = (senderId: any, messageText: string) => {
       const incomingSenderId = Number(senderId);
-
       setChats((prevChats) => {
-        const index = prevChats.findIndex(c => (c.userId ?? c.UserId) === incomingSenderId);
-        const isOpen = selectedIdRef.current === incomingSenderId;
+        const index = prevChats.findIndex(c => Number(c.userId ?? c.UserId) === incomingSenderId);
+        const isOpen = Number(selectedIdRef.current) === incomingSenderId;
 
         if (index !== -1) {
           const updated = [...prevChats];
@@ -98,29 +71,11 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
           return prevChats;
         }
       });
-    });
-
-    connection.on("UserStatusChanged", (userId, isOnline) => {
-      setChats(prev => prev.map(c => ((c.userId ?? c.UserId) === Number(userId) ? { ...c, isOnline: Boolean(isOnline) } : c)));
-    });
-
-    connection.start()
-      .then(() => {
-        if (!isMounted) connection.stop().catch(() => {});
-      })
-      .catch(err => {
-        if (isMounted) console.error("SignalR Inbox Error:", err);
-      });
-
-    return () => {
-      isMounted = false;
-      connection.off("ReceiveMessage");
-      connection.off("UserStatusChanged");
-      if (connection.state === signalR.HubConnectionState.Connected) {
-        connection.stop().catch(() => {});
-      }
     };
-  }, [router]);
+
+    connection.on("ReceiveMessage", handleReceiveMessage);
+    return () => { connection.off("ReceiveMessage", handleReceiveMessage); };
+  }, [connection]);
 
   const handleChatClick = async (chat: any) => {
     const targetUserId = chat.userId ?? chat.UserId;
@@ -130,7 +85,33 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
     if (unread > 0) {
       setChats(prev => prev.map(c => ((c.userId ?? c.UserId) === targetUserId ? { ...c, unreadCount: 0, UnreadCount: 0 } : c)));
       const token = getToken();
-      markChatReadApi(targetUserId, token).catch(err => console.error("Mark read error:", err));
+      markChatReadApi(targetUserId, token).catch(() => {});
+    }
+  };
+
+  // 🔓 INSTANT INBOX UNBLOCK HANDLER
+  const handleUnblockUser = async (e: React.MouseEvent, chat: any) => {
+    e.stopPropagation(); // Chat select prevent karta hai
+    const targetUserId = chat.userId ?? chat.UserId;
+    const token = getToken();
+    if (!token) return;
+
+    const res = await blockUserApiCall(targetUserId, token);
+    if (res.success) {
+      setChats(prev => prev.map(c => {
+        if ((c.userId ?? c.UserId) === targetUserId) {
+          return {
+            ...c,
+            isBlockedByMe: false,
+            IsBlockedByMe: false,
+            isBlocked: false,
+            IsBlocked: false
+          };
+        }
+        return c;
+      }));
+    } else {
+      alert(res.message ?? "Failed to unblock user.");
     }
   };
 
@@ -138,49 +119,59 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
 
   return (
     <div className="flex flex-col h-full bg-white border-r-2 border-rose-100 selection:bg-[#870c3f] selection:text-white">
-      <div className="p-5 border-b-2 border-rose-100 bg-white">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-serif font-extrabold uppercase tracking-tight text-slate-900">Messages</h2>
-          <div className="bg-rose-50 p-2.5 rounded-2xl text-[#870c3f] border-2 border-rose-200 shadow-xs">
-            <MessageSquare size={20} />
+      <div className="p-4 border-b border-rose-100 bg-white">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xl font-serif font-extrabold uppercase tracking-tight text-slate-900">Messages</h2>
+          <div className="bg-rose-50 p-2 rounded-2xl text-[#870c3f] border border-rose-200 shadow-xs">
+            <MessageSquare size={18} />
           </div>
         </div>
         <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           <input 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search chat..." 
-            className="w-full bg-slate-50 border-2 border-rose-100 py-3 pl-11 pr-4 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-[#870c3f]/20 transition-all placeholder-slate-400" 
+            className="w-full bg-slate-50 border border-rose-100 py-2.5 pl-10 pr-4 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-[#870c3f]/20 transition-all placeholder-slate-400" 
           />
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-white">
+      <div className="flex-1 min-h-0 overflow-y-auto p-2.5 space-y-1.5 bg-white">
         {filteredChats.map((chat) => {
-          const uId = chat.userId ?? chat.UserId;
+          const uId = Number(chat.userId ?? chat.UserId);
           const fName = chat.fullName ?? chat.FullName ?? "User";
           const lastMsg = chat.lastMessage ?? chat.LastMessage ?? "Start a conversation...";
           const lastTime = chat.lastMessageTime ?? chat.LastMessageTime;
           const unread = chat.unreadCount ?? chat.UnreadCount ?? 0;
-          const isSelected = selectedId === uId;
-          const isUserOnline = Boolean(chat.isOnline ?? chat.IsOnline);
+          const isSelected = Number(selectedId) === uId;
+          const isUserOnline = onlineUsers[uId] ? onlineUsers[uId].isOnline : Boolean(chat.isOnline ?? chat.IsOnline);
+
+          // 🎯 INSTAGRAM / FACEBOOK STYLE BLOCK PREVIEW TEXT
+          const isBlockedByMe = Boolean(chat.isBlockedByMe ?? chat.IsBlockedByMe);
+          const isBlockedByOther = Boolean(chat.isBlockedByOther ?? chat.IsBlockedByOther);
+          const isBlocked = Boolean(chat.isBlocked ?? chat.IsBlocked);
+          
+          let displayPreview = lastMsg;
+          if (isBlockedByMe) displayPreview = "You blocked this user";
+          else if (isBlockedByOther || isBlocked) displayPreview = "User unavailable";
+
           const pUrl = chat.photoUrl ?? chat.PhotoUrl ?? `https://ui-avatars.com/api/?name=${encodeURIComponent(fName)}&background=FFF0F3&color=870c3f&bold=true`;
 
           return (
             <div 
               key={uId} 
               onClick={() => handleChatClick(chat)}
-              className={`flex items-center gap-3.5 p-3.5 rounded-2xl cursor-pointer transition-all ${
+              className={`flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all ${
                 isSelected 
-                  ? 'bg-rose-50/70 border-2 border-rose-200 shadow-sm' 
-                  : 'hover:bg-slate-50 border-2 border-transparent'
+                  ? 'bg-rose-50/80 border border-rose-200 shadow-xs' 
+                  : 'hover:bg-slate-50 border border-transparent'
               }`}
             >
-              <div className="relative">
+              <div className="relative flex-shrink-0">
                 <img 
                   src={pUrl} 
-                  className="w-12 h-12 rounded-2xl object-cover border-2 border-rose-200 shadow-xs" 
+                  className="w-11 h-11 rounded-2xl object-cover border border-rose-200 shadow-xs" 
                   alt="avatar"
                 />
                 {isUserOnline && (
@@ -194,12 +185,29 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
                     {formatChatTime(lastTime)}
                   </span>
                 </div>
-                <div className="flex items-center justify-between mt-1">
-                  <p className={`text-[11px] truncate ${unread > 0 ? "text-[#870c3f] font-black" : "text-slate-500 font-semibold"}`}>
-                    {lastMsg}
+                
+                <div className="flex items-center justify-between mt-1 gap-2">
+                  <p className={`text-[11px] truncate flex-1 ${
+                    (isBlockedByMe || isBlockedByOther || isBlocked)
+                      ? "text-rose-500 font-bold italic"
+                      : unread > 0 ? "text-[#870c3f] font-black" : "text-slate-500 font-semibold"
+                  }`}>
+                    {displayPreview}
                   </p>
-                  {unread > 0 && (
-                    <span className="bg-[#870c3f] text-white text-[10px] font-black h-5 min-w-[20px] px-1.5 rounded-full flex items-center justify-center shadow-xs">
+
+                  {/* 🔓 DIRECT UNBLOCK BUTTON IN INBOX ITEM */}
+                  {isBlockedByMe && (
+                    <button 
+                      type="button"
+                      onClick={(e) => handleUnblockUser(e, chat)}
+                      className="text-[10px] font-black text-[#870c3f] bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2 py-0.5 rounded-full transition-all flex items-center gap-1 cursor-pointer shrink-0 shadow-2xs"
+                    >
+                      <UserX size={11} /> Unblock
+                    </button>
+                  )}
+
+                  {unread > 0 && !isBlockedByMe && !isBlockedByOther && !isBlocked && (
+                    <span className="bg-[#870c3f] text-white text-[10px] font-black h-5 min-w-[20px] px-1.5 rounded-full flex items-center justify-center shadow-xs shrink-0">
                       {unread}
                     </span>
                   )}
