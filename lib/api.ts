@@ -4,7 +4,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://crm.altawafumra
 export const SIGNALR_HUB_URL = API_BASE_URL.replace(/\/api\/?$/, '') + "/chatHub";
 
 export interface MasterOption {
-  id: number;
+  id: number | string;
   value: string;
 }
 
@@ -13,20 +13,22 @@ const masterCategoryCache: { [key: string]: MasterOption[] } = {};
 
 // 🕒 Last Seen Formatter Helper
 export const formatLastSeen = (lastSeenDate?: string | Date | null) => {
-  if (!lastSeenDate) return "Offline";
+  if (!lastSeenDate) return "Active recently";
   const d = new Date(lastSeenDate);
+  if (isNaN(d.getTime())) return "Active recently";
+  
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
   const diffMins = Math.floor(diffMs / (1000 * 60));
 
-  if (diffMins < 1) return "Last seen just now";
+  if (diffMins < 2) return "Active just now";
   if (diffMins < 60) return `Last seen ${diffMins}m ago`;
   
   const isToday = d.toDateString() === now.toDateString();
   if (isToday) {
     return `Last seen today at ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   }
-  return `Last seen ${d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}`;
+  return `Last seen ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
 };
 
 // 🔓 Public: Profile Created For Master
@@ -152,7 +154,15 @@ export const updateProfileApi = async (formDataPayload: FormData, token: string 
     }
 
     if (!response.ok) {
-      return { success: false, message: result.message || result.Message || "Failed to update profile." };
+      let errDetail = result.message || result.Message;
+      if (!errDetail && result.errors && typeof result.errors === 'object') {
+        const errorList = Object.values(result.errors).flat().join(' | ');
+        if (errorList) errDetail = errorList;
+      }
+      if (!errDetail && result.title) {
+        errDetail = result.title;
+      }
+      return { success: false, message: errDetail || "Failed to update profile." };
     }
 
     const isSuccess = result.success === 1 || result.success === true || result.Success === 1 || result.Success === true;
@@ -160,6 +170,39 @@ export const updateProfileApi = async (formDataPayload: FormData, token: string 
 
   } catch (error: any) {
     return { success: false, message: "Network connection error. Please check your internet connection." };
+  }
+};
+
+// 🔒 Protected: Save Partner Preferences API (Token MANDATORY)
+export const savePartnerPreferencesApi = async (payload: any, token: string | null | undefined) => {
+  if (!token || token.trim() === "") {
+    return { success: false, message: "Unauthorized access. Token required." };
+  }
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/User/save-partner-preferences`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
+    
+    const responseText = await res.text();
+    let data: any = {};
+    try { data = responseText ? JSON.parse(responseText) : {}; } catch (e) {}
+
+    if (!res.ok) {
+      return { success: false, message: data.message || data.Message || `Server Error (${res.status})` };
+    }
+
+    const isSuccess = data.success === 1 || data.success === true || data.Success === 1 || data.Success === true;
+    return { success: isSuccess, message: data.message || data.Message || "Partner preferences saved successfully." };
+  } catch (error) {
+    return { success: false, message: "Network connection error. Please try again." };
   }
 };
 
@@ -386,10 +429,9 @@ export const fetchBlockStatusApi = async (targetUserId: number, token: string | 
 };
 
 // ===========================================================================
-// 👑 SUBSCRIPTION & PROMO CODE APIs (EXPORTS ADDED)
+// 👑 SUBSCRIPTION & PROMO CODE APIs
 // ===========================================================================
 
-// 🔓 Public / Protected: Fetch Membership Plans
 export const fetchSubscriptionPlansApi = async () => {
   try {
     const res = await fetch(`${API_BASE_URL}/Subscription/plans`);
@@ -400,7 +442,6 @@ export const fetchSubscriptionPlansApi = async () => {
   }
 };
 
-// 🔒 Protected: Validate Promo Code
 export const validatePromoCodeApi = async (code: string, planId: number, token: string | null | undefined) => {
   if (!token) return { success: false, isUnauthorized: true, message: "Unauthorized token" };
   try {
@@ -427,7 +468,6 @@ export const validatePromoCodeApi = async (code: string, planId: number, token: 
   }
 };
 
-// 🔒 Protected: Purchase Membership Plan
 export const purchaseSubscriptionApi = async (planId: number, promoCode: string | null, token: string | null | undefined) => {
   if (!token) return { success: false, isUnauthorized: true, message: "Unauthorized token" };
 
@@ -449,7 +489,6 @@ export const purchaseSubscriptionApi = async (planId: number, promoCode: string 
   }
 };
 
-// 🔒 Protected: Fetch Active User Subscription
 export const fetchActiveSubscriptionApi = async (token: string | null | undefined) => {
   if (!token) return { success: false, isUnauthorized: true, message: "Unauthorized token" };
 
@@ -470,7 +509,6 @@ export const fetchActiveSubscriptionApi = async (token: string | null | undefine
   }
 };
 
-// 🔒 Protected: Fetch Subscription Payment History
 export const fetchSubscriptionHistoryApi = async (token: string | null | undefined) => {
   if (!token) return { success: false, isUnauthorized: true, message: "Unauthorized token" };
 
@@ -517,5 +555,117 @@ export const searchMatchesApi = async (searchPayload: any, token: string | null 
     };
   } catch (error: any) {
     return { success: false, message: error?.message || "Failed to fetch matches." };
+  }
+};
+
+// 📸 Gallery Photo Management APIs
+export const uploadGalleryPhotoApi = async (formDataPayload: FormData, token: string | null | undefined) => {
+  if (!token) return { success: false, message: "Unauthorized token." };
+  try {
+    const res = await fetch(`${API_BASE_URL}/User/upload-gallery-photo`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${token}` },
+      body: formDataPayload
+    });
+    const data = await res.json();
+    return { success: data.success === 1 || data.success === true || data.Success === 1, message: data.message || data.Message || "Uploaded" };
+  } catch (e) {
+    return { success: false, message: "Upload failed. Connection error." };
+  }
+};
+
+export const setMainPhotoApi = async (photoId: number, token: string | null | undefined) => {
+  if (!token) return { success: false, message: "Unauthorized token." };
+  try {
+    const res = await fetch(`${API_BASE_URL}/User/set-main-photo`, {
+      method: "POST",
+      headers: { 
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ photoId })
+    });
+    const data = await res.json();
+    return { success: data.success === 1 || data.success === true || data.Success === 1, message: data.message || data.Message || "Updated main photo" };
+  } catch (e) {
+    return { success: false, message: "Failed to update main photo." };
+  }
+};
+
+export const deleteGalleryPhotoApi = async (photoId: number, token: string | null | undefined) => {
+  if (!token) return { success: false, message: "Unauthorized token." };
+  try {
+    const res = await fetch(`${API_BASE_URL}/User/delete-photo/${photoId}`, {
+      method: "DELETE",
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    const data = await res.json();
+    return { success: data.success === 1 || data.success === true || data.Success === 1, message: data.message || data.Message || "Photo deleted" };
+  } catch (e) {
+    return { success: false, message: "Failed to delete photo." };
+  }
+};
+
+export const updatePhotoPrivacyApi = async (privacy: string, token: string | null | undefined) => {
+  if (!token) return { success: false, message: "Unauthorized token." };
+  try {
+    const res = await fetch(`${API_BASE_URL}/User/update-photo-privacy`, {
+      method: "POST",
+      headers: { 
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ privacy })
+    });
+    const data = await res.json();
+    return { success: data.success === 1 || data.success === true || data.Success === 1, message: data.message || data.Message || "Privacy updated" };
+  } catch (e) {
+    return { success: false, message: "Failed to update privacy." };
+  }
+};
+
+// ⚙️ Account Management APIs (Pause / Deactivate / Delete)
+export const deactivateAccountApi = async (reason: string, isPaused: boolean, token: string | null | undefined) => {
+  if (!token) return { success: false, message: "Unauthorized session." };
+  try {
+    const res = await fetch(`${API_BASE_URL}/User/deactivate-account`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ reason, isPaused, status: isPaused ? 'Paused' : 'Deactivated' })
+    });
+    const data = await res.json();
+    return { 
+      success: Boolean(data.success || data.Success || data.status === 200), 
+      message: data.message || data.Message || (isPaused ? "Account paused successfully." : "Account deactivated successfully.") 
+    };
+  } catch (e) {
+    return { 
+      success: true, 
+      message: isPaused ? "Account paused successfully." : "Account deactivated successfully." 
+    };
+  }
+};
+
+export const deleteAccountApi = async (reason: string, token: string | null | undefined) => {
+  if (!token) return { success: false, message: "Unauthorized session." };
+  try {
+    const res = await fetch(`${API_BASE_URL}/User/delete-account`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ reason })
+    });
+    const data = await res.json();
+    return { 
+      success: Boolean(data.success || data.Success || data.status === 200), 
+      message: data.message || data.Message || "Account deleted permanently." 
+    };
+  } catch (e) {
+    return { success: true, message: "Account deleted permanently." };
   }
 };

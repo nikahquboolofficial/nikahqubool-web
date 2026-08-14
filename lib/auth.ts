@@ -7,6 +7,12 @@ export const setAuthCookies = (result: any) => {
 
   document.cookie = `user_token=${result.token}; expires=${expires}; path=/; SameSite=Lax; Secure`;
   document.cookie = `is_profile_completed=${profileCompletedVal}; expires=${expires}; path=/; SameSite=Lax; Secure`;
+
+  if (typeof window !== "undefined" && result) {
+    try {
+      localStorage.setItem("user_details", JSON.stringify(result));
+    } catch (e) {}
+  }
 };
 
 export const handleAuthSuccessRedirect = (result: any, router: any) => {

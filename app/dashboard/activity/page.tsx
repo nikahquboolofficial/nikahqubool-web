@@ -228,63 +228,37 @@ function ActivityPageContent() {
 
       <style jsx global>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-5">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 space-y-3 pt-2">
         
-        {/* HEADER BAR */}
-        <div className="bg-white rounded-3xl p-5 border-2 border-rose-100 shadow-xl flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <button 
-              type="button"
-              onClick={() => router.push('/dashboard')} 
-              className="p-2.5 rounded-2xl bg-rose-50 hover:bg-rose-100 text-[#870c3f] border-2 border-rose-200 transition-all cursor-pointer shadow-xs"
-            >
-              <ArrowLeft size={20} />
-            </button>
-            <div>
-              <h1 className="text-lg sm:text-xl font-serif font-extrabold uppercase text-slate-900 tracking-tight">
-                Activity Center
-              </h1>
-              <p className="text-xs font-semibold text-slate-500">
-                Track all your proposals, visits, photo requests, and views
-              </p>
-            </div>
-          </div>
+        {/* 🌟 LEVEL 1: MAIN CATEGORY TABS (Clean Compact Pill Buttons, No Outer Patti) */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+          {mainCategories.map((cat) => {
+            const Icon = cat.icon;
+            const isActive = activeCat === cat.id;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => handleCatChange(cat.id)}
+                className={`px-3.5 py-1.5 rounded-full text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all duration-200 flex-shrink-0 cursor-pointer whitespace-nowrap active:scale-95 ${
+                  isActive 
+                    ? 'bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white font-black shadow-md shadow-rose-900/20 border border-rose-300/30' 
+                    : 'bg-white hover:bg-rose-50/80 text-slate-700 font-bold border border-slate-200/80 shadow-xs'
+                }`}
+              >
+                <Icon size={13} className={isActive ? 'text-amber-300 fill-amber-300' : 'text-[#870c3f]'} />
+                <span>{cat.label}</span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* 🌟 LEVEL 1: MAIN CATEGORY TABS (App Native Pill Style) */}
-        <div className="bg-white/90 backdrop-blur-xl border-2 border-rose-100 rounded-3xl p-2.5 shadow-xl shadow-rose-950/5">
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
-            {mainCategories.map((cat) => {
-              const Icon = cat.icon;
-              const isActive = activeCat === cat.id;
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => handleCatChange(cat.id)}
-                  className={`px-5 py-3 rounded-2xl text-xs uppercase tracking-wider flex items-center gap-2.5 transition-all duration-300 flex-shrink-0 cursor-pointer ${
-                    isActive 
-                      ? 'bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white font-black shadow-lg shadow-rose-900/25 scale-[1.03] border border-rose-300/30' 
-                      : 'bg-rose-50/60 hover:bg-rose-100/80 text-slate-700 font-extrabold border border-rose-200/60'
-                  }`}
-                >
-                  <Icon size={16} className={isActive ? 'text-amber-300 fill-amber-300' : 'text-[#870c3f]'} />
-                  <span>{cat.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 🌟 LEVEL 2: SECONDARY NESTED SUB-TABS (Renders below selected category) */}
+        {/* 🌟 LEVEL 2: SECONDARY NESTED SUB-TABS (Compact Pills, No Outer Patti) */}
         {currentSubTabs.length > 1 && (
-          <motion.div 
-            initial={{ opacity: 0, y: -5 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-rose-50/80 border-2 border-rose-200/80 rounded-2xl p-1.5 flex items-center gap-2 overflow-x-auto no-scrollbar max-w-xl mx-auto"
-          >
+          <div className="flex items-center justify-center gap-2 overflow-x-auto no-scrollbar py-0.5">
             {currentSubTabs.map((sub) => {
               const SubIcon = sub.icon;
               const isSubActive = activeSubTab === sub.id;
@@ -294,23 +268,23 @@ function ActivityPageContent() {
                   key={sub.id}
                   type="button"
                   onClick={() => handleSubTabChange(sub.id)}
-                  className={`flex-1 py-2.5 px-4 rounded-xl text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 font-black transition-all cursor-pointer whitespace-nowrap ${
+                  className={`py-1 px-3.5 rounded-full text-[11px] uppercase tracking-wider flex items-center justify-center gap-1.5 font-black transition-all cursor-pointer whitespace-nowrap active:scale-95 ${
                     isSubActive 
-                      ? 'bg-white text-[#870c3f] shadow-md border border-rose-200 scale-[1.02]' 
-                      : 'text-slate-600 hover:text-[#870c3f]'
+                      ? 'bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white shadow-xs border border-rose-300/30' 
+                      : 'bg-rose-50/80 text-slate-700 hover:bg-rose-100 border border-rose-200/60'
                   }`}
                 >
-                  <SubIcon size={14} className={isSubActive ? 'text-[#870c3f]' : 'text-slate-400'} />
+                  <SubIcon size={12} className={isSubActive ? 'text-amber-300' : 'text-[#870c3f]'} />
                   <span>{sub.label}</span>
                   {cnt > 0 && (
-                    <span className="px-2 py-0.2 rounded-full text-[9px] font-black bg-[#870c3f] text-white">
+                    <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${isSubActive ? 'bg-white text-[#870c3f]' : 'bg-[#870c3f] text-white'}`}>
                       {cnt}
                     </span>
                   )}
                 </button>
               );
             })}
-          </motion.div>
+          </div>
         )}
 
         {/* PROFILES GRID */}

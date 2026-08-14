@@ -1,11 +1,12 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Heart, Star, Lock, Check, X, MessageCircle, 
   MapPin, GraduationCap, Briefcase, Loader2, CheckCircle2, Crown
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { getOptimizedImageUrl } from '@/lib/imageUtils';
 
 export interface ProfileCardProps {
   profile: any;
@@ -24,6 +25,21 @@ export default function ProfileCard({
   onViewProfile,
   onInitiateChat 
 }: ProfileCardProps) {
+
+  // 💖 LOCAL FLOATING HEARTS ANIMATION
+  const [localHearts, setLocalHearts] = useState<{ id: number; x: number; y: number }[]>([]);
+
+  const triggerLocalHearts = () => {
+    const newHearts = Array.from({ length: 6 }).map((_, i) => ({
+      id: Date.now() + i,
+      x: (Math.random() - 0.5) * 80,
+      y: (Math.random() - 0.5) * 30,
+    }));
+    setLocalHearts(prev => [...prev, ...newHearts]);
+    setTimeout(() => {
+      setLocalHearts(prev => prev.filter(h => !newHearts.some(nh => nh.id === h.id)));
+    }, 1500);
+  };
 
   // 🔒 PHOTO PRIVACY CONTROL
   const rawPrivacy = profile.photoPrivacy || profile.PhotoPrivacy || 'All Members';
@@ -82,7 +98,8 @@ export default function ProfileCard({
   const isConnected = rawInterestStatus === 'ACCEPTED' || Boolean(profile.isCanChat ?? profile.IsCanChat);
   const isShortlisted = Boolean(profile.isShortlisted ?? profile.IsShortlisted);
 
-  const photo = profile.photoUrl || profile.PhotoUrl || profile.mainPhotoUrl || profile.MainPhotoUrl || '/placeholder.png';
+  const rawPhoto = profile.mainPhotoUrl || profile.MainPhotoUrl || profile.photoUrl || profile.PhotoUrl;
+  const photo = getOptimizedImageUrl(rawPhoto);
   const state = profile.stateName || profile.StateName || profile.currentStateName || profile.CurrentStateName || '';
   const city = profile.cityName || profile.CityName || profile.currentCityName || profile.CurrentCityName || '';
   const edu = profile.education || profile.Education || profile.highestDegree || profile.HighestDegree || 'Education N/A';
@@ -111,27 +128,6 @@ export default function ProfileCard({
           }`}
           onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }}
         />
-
-        {/* 🔒 PHOTO LOCKED BADGE (No Request Access button on Card Image) */}
-        {isPhotoHidden && (
-          <div 
-            onClick={(e) => {
-              e.stopPropagation();
-              onViewProfile(profile.userId);
-            }}
-            className="absolute inset-0 bg-slate-950/70 backdrop-blur-md z-30 flex flex-col items-center justify-center p-4 text-center text-white space-y-2"
-          >
-            <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center border border-white/20 shadow-md">
-              <Lock size={22} className="text-amber-300" />
-            </div>
-            <span className="font-black text-xs uppercase tracking-wider text-amber-300">
-              PHOTO PROTECTED
-            </span>
-            <span className="text-[10px] text-rose-100 font-bold">
-              View Profile to Request Access
-            </span>
-          </div>
-        )}
 
         {/* 🟢 TOP BADGES: ONLINE & VERIFIED & PREMIUM */}
         <div className="absolute top-3 inset-x-3 z-40 flex items-center justify-between pointer-events-none">
@@ -194,8 +190,31 @@ export default function ProfileCard({
           </div>
         </div>
 
+        {/* 💖 LOCAL RISING HEARTS OVERLAY */}
+        <div className="absolute inset-0 pointer-events-none z-50 overflow-hidden">
+          <AnimatePresence>
+            {localHearts.map((heart) => (
+              <motion.div
+                key={heart.id}
+                initial={{ opacity: 1, y: '75%', x: `calc(50% + ${heart.x}px)`, scale: 0.5, rotate: 0 }}
+                animate={{ 
+                  opacity: [1, 1, 0], 
+                  y: '15%', 
+                  x: `calc(50% + ${heart.x * 1.6}px)`, 
+                  scale: [0.5, 1.4, 1.8],
+                  rotate: [0, -15, 15, 0]
+                }}
+                transition={{ duration: 1.5, ease: "easeOut" }}
+                className="absolute text-[#870c3f] drop-shadow-[0_4px_10px_rgba(135,12,63,0.5)]"
+              >
+                <Heart size={32} className="fill-[#870c3f] text-[#870c3f]" />
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+
         {/* 🔴 NATIVE APP ACTION BUTTONS ROW */}
-        <div className="pt-3 border-t-2 border-slate-100 flex items-center justify-around gap-2 px-1">
+        <div className="pt-3 border-t-2 border-slate-100 flex items-center justify-around gap-2 px-1 relative z-20">
           
           {/* 1. ❤️ INTEREST PROPOSAL ACCEPT / DECLINE OR SEND BUTTONS */}
           {isInterestReceived ? (
@@ -207,6 +226,7 @@ export default function ProfileCard({
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
+                  triggerLocalHearts();
                   onInteraction(profile.userId, 'INTEREST', 'ACCEPTED');
                 }}
                 disabled={actionLoading}
@@ -247,6 +267,7 @@ export default function ProfileCard({
                 e.stopPropagation();
                 e.preventDefault();
                 if (!isInterestSent && !isConnected) {
+                  triggerLocalHearts();
                   onInteraction(profile.userId, 'INTEREST', 'PENDING');
                 }
               }}
@@ -270,7 +291,7 @@ export default function ProfileCard({
           )}
 
           {/* 2. 💬 CHAT BUTTON */}
-          {isConnected && (
+          {onInitiateChat && (
             <motion.button 
               type="button"
               whileHover={{ scale: 1.12, y: -2 }}
@@ -278,12 +299,12 @@ export default function ProfileCard({
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
-                if (onInitiateChat) onInitiateChat(profile);
+                onInitiateChat(profile);
               }}
               disabled={actionLoading}
-              className="w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-900 text-white border-2 border-slate-700 shadow-md flex items-center justify-center cursor-pointer active:scale-95"
-              aria-label="Initiate Chat"
-              title="Chat Now"
+              className="w-12 h-12 rounded-full bg-slate-900 hover:bg-[#870c3f] text-white border-2 border-slate-700 shadow-md flex items-center justify-center cursor-pointer active:scale-95 transition-colors"
+              aria-label="Direct Message"
+              title="Send Message"
             >
               <MessageCircle size={22} className="fill-white text-white" />
             </motion.button>

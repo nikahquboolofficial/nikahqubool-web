@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Search, MessageSquare, User, HeartHandshake } from 'lucide-react';
+import { LayoutDashboard, Search, MessageSquare, HeartHandshake } from 'lucide-react';
+import { getOptimizedImageUrl } from '@/lib/imageUtils';
 
 interface BottomNavProps {
   unreadCount?: number;
@@ -16,16 +17,16 @@ export default function DashboardBottomNav({ unreadCount = 0 }: BottomNavProps) 
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("user_details");
+      const stored = localStorage.getItem("user_details") || localStorage.getItem("user_session");
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
-          const photo = parsed.photoUrl || parsed.PhotoUrl || parsed.mainPhotoUrl || '/placeholder.png';
-          setUserPhoto(photo);
+          const rawPhoto = parsed.mainPhotoUrl || parsed.photoUrl || parsed.PhotoUrl || '/placeholder.png';
+          setUserPhoto(getOptimizedImageUrl(rawPhoto));
         } catch (e) {}
       }
     }
-  }, []);
+  }, [pathname]);
 
   const isHome = pathname === '/dashboard';
   const isActivity = pathname.startsWith('/dashboard/activity');
@@ -89,7 +90,7 @@ export default function DashboardBottomNav({ unreadCount = 0 }: BottomNavProps) 
           <span className="text-[9px] uppercase tracking-wider font-black mt-1">Chats</span>
         </Link>
 
-        {/* 5. PROFILE (MATCHING SCREENSHOT 1 & 3 - DIRECT ROUTE TO /dashboard/my-profile) */}
+        {/* 5. PROFILE */}
         <Link 
           href="/dashboard/my-profile" 
           className={`flex flex-col items-center justify-center py-1.5 px-3 rounded-2xl transition-all duration-300 ${
@@ -98,8 +99,13 @@ export default function DashboardBottomNav({ unreadCount = 0 }: BottomNavProps) 
               : 'text-slate-600 font-extrabold hover:text-[#870c3f]'
           }`}
         >
-          <div className="w-5.5 h-5.5 rounded-full border-2 border-[#870c3f] overflow-hidden bg-white flex items-center justify-center shadow-xs">
-            <img src={userPhoto} alt="Me" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }} />
+          <div className="w-6 h-6 rounded-full border-2 border-[#870c3f] overflow-hidden bg-white flex items-center justify-center shadow-xs">
+            <img 
+              src={userPhoto} 
+              alt="Me" 
+              className="w-full h-full object-cover object-top" 
+              onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }} 
+            />
           </div>
           <span className="text-[9px] uppercase tracking-wider font-black mt-1">Profile</span>
         </Link>

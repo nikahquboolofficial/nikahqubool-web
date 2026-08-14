@@ -38,11 +38,10 @@ export function SignalRProvider({ children }: { children: React.ReactNode }) {
     // 🔒 Robust SignalR Setup (Clean Handshake & Suppressed Console Error Spam)
     const conn = new signalR.HubConnectionBuilder()
       .withUrl(SIGNALR_HUB_URL, {
-        accessTokenFactory: () => token,
-        transport: signalR.HttpTransportType.WebSockets
+        accessTokenFactory: () => token
       })
       .configureLogging(signalR.LogLevel.None) // Prevents console.error dumping on 1006 auto-reconnects
-      .withAutomaticReconnect([0, 1000, 3000, 5000, 10000])
+      .withAutomaticReconnect([0, 1000, 2000, 5000, 10000])
       .build();
 
     conn.on("UserStatusChanged", (userId: number | string, status: boolean, lastSeen?: string | Date) => {

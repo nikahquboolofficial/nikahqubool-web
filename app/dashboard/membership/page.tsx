@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Check, Star, Crown, ShieldCheck, Zap, 
-  Heart, CheckCircle2, Sparkles, Tag, ArrowRight,
+  Heart, CheckCircle2, Sparkles, Tag, ArrowRight, ArrowLeft,
   CheckCircle, AlertCircle, Trash2, Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -170,8 +170,26 @@ export default function MembershipPage() {
         )}
       </AnimatePresence>
 
+      {/* TOP INLINE HEADER WITH BACK ARROW */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-2">
+        <div className="flex items-center gap-3 border-b border-slate-200 pb-2">
+          <button 
+            type="button" 
+            onClick={() => router.back()} 
+            className="flex p-2 hover:bg-rose-50 text-[#870c3f] rounded-full transition-colors cursor-pointer"
+            aria-label="Back"
+            title="Go Back"
+          >
+            <ArrowLeft size={22} className="stroke-[2.5]" />
+          </button>
+          <h1 className="text-xl font-extrabold tracking-tight text-slate-900">
+            VIP Membership Plans
+          </h1>
+        </div>
+      </div>
+
       {/* ROYAL HERO BANNER */}
-      <div className="bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white py-16 md:py-24 px-6 text-center relative shadow-xl overflow-hidden border-b-2 border-rose-100">
+      <div className="bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white py-12 md:py-20 px-6 text-center relative shadow-xl overflow-hidden border-b-2 border-rose-100">
         <div className="absolute top-0 left-1/4 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-amber-400/15 rounded-full blur-3xl pointer-events-none" />
 

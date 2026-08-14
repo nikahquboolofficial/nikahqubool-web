@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import { fetchDashboardApi, handleInteractionApiCall } from '@/lib/api';
 import ProfileCard from '@/components/dashboard/ProfileCard';
+import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
 
 export default function VIPCleanDashboardPage() {
   const router = useRouter();
@@ -180,13 +181,22 @@ export default function VIPCleanDashboardPage() {
   };
 
   const handleInitiateChat = (profile: any) => {
-    const isPaid = Boolean(profile.isCurrentUserPaid ?? profile.IsCurrentUserPaid ?? isCurrentUserPaid);
-    
+    let isPaid = Boolean(profile.isCurrentUserPaid ?? profile.IsCurrentUserPaid ?? isCurrentUserPaid);
+    if (!isPaid && typeof window !== "undefined") {
+      const stored = localStorage.getItem("user_details") || localStorage.getItem("user_session");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          isPaid = Boolean(parsed.isPaid ?? parsed.IsPaid ?? parsed.isCurrentUserPaid ?? parsed.IsCurrentUserPaid);
+        } catch (e) {}
+      }
+    }
+
     if (isPaid) {
       sessionStorage.setItem('active_chat_target', JSON.stringify({
-        userId: profile.userId,
-        fullName: profile.fullName,
-        photoUrl: profile.photoUrl || profile.mainPhotoUrl || ''
+        userId: profile.userId || profile.UserId,
+        fullName: profile.fullName || profile.FullName,
+        photoUrl: profile.photoUrl || profile.mainPhotoUrl || profile.PhotoUrl || ''
       }));
       router.push('/dashboard/messages');
     } else {
@@ -329,44 +339,10 @@ export default function VIPCleanDashboardPage() {
       </div>
 
       {/* 👑 VIP PREMIUM SUBSCRIPTION MODAL */}
-      <AnimatePresence>
-        {showSubscriptionModal && (
-          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }} 
-              animate={{ scale: 1, opacity: 1 }} 
-              exit={{ scale: 0.9, opacity: 0 }} 
-              className="bg-white rounded-3xl max-w-sm w-full p-7 text-center shadow-2xl border-2 border-rose-100 text-slate-800 space-y-5"
-            >
-              <div className="w-16 h-16 bg-rose-50 text-amber-500 rounded-full flex items-center justify-center mx-auto border-2 border-rose-200 shadow-xs">
-                <Crown size={32} />
-              </div>
-              <div>
-                <h3 className="text-lg font-serif font-extrabold uppercase text-slate-900">Upgrade to Premium</h3>
-                <p className="text-slate-500 text-xs font-semibold mt-1 leading-relaxed">
-                  Direct messaging & instant chat are exclusive features for Premium members.
-                </p>
-              </div>
-              <div className="flex flex-col gap-2.5 pt-1">
-                <button 
-                  type="button"
-                  onClick={() => router.push('/dashboard/membership')} 
-                  className="w-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 cursor-pointer border border-rose-300/30"
-                >
-                  View Membership Plans
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => setShowSubscriptionModal(false)} 
-                  className="w-full bg-slate-100 text-slate-600 hover:bg-slate-200 py-3 rounded-2xl font-bold text-xs uppercase cursor-pointer"
-                >
-                  Maybe Later
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <SubscriptionModal 
+        isOpen={showSubscriptionModal} 
+        onClose={() => setShowSubscriptionModal(false)} 
+      />
 
     </div>
   );

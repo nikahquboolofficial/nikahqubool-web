@@ -11,6 +11,7 @@ import {
   blockUserApiCall, 
   formatLastSeen
 } from '@/lib/api';
+import { getOptimizedImageUrl } from '@/lib/imageUtils';
 
 const QUICK_EMOJIS = ["❤️", "😂", "🔥", "👍", "😍", "😊", "🙏", "🎉", "😭", "😮", "💖", "✨"];
 
@@ -92,6 +93,30 @@ export default function ChatWindow({
     };
 
     loadData();
+
+    // ⚡ 3-SECOND REALTIME BACKUP POLLING FOR INSTANT MESSAGE DELIVERY
+    const interval = setInterval(async () => {
+      const res = await fetchChatHistoryApi(receiverId, 1, 100, token);
+      if (res.success && res.data) {
+        const rawData = res.data?.data ?? res.data ?? [];
+        const formatted = rawData.map((m: any, idx: number) => ({
+          uniqueKey: `hist-${m.messageId ?? m.MessageId ?? idx}`,
+          messageId: m.messageId ?? m.MessageId,
+          senderId: m.senderId ?? m.SenderId, 
+          text: m.messageText ?? m.MessageText, 
+          timestamp: new Date(m.sentAt ?? m.SentAt ?? Date.now()),
+          isRead: (m.isRead === 1 || m.isRead === true || m.IsRead === 1 || m.IsRead === true) ? 1 : 0
+        }));
+        setMessages(prev => {
+          const currentIds = prev.map(p => p.messageId).join(',');
+          const newIds = formatted.map(f => f.messageId).join(',');
+          if (currentIds === newIds) return prev;
+          return formatted;
+        });
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
   }, [receiverId]);
 
   useEffect(() => {
@@ -173,6 +198,13 @@ export default function ChatWindow({
     setMessages(prev => [...prev, optimisticMsg]);
     scrollToBottom("smooth");
 
+    // ⚡ SignalR Instant Broadcast Event
+    if (connection && connection.state === "Connected") {
+      try {
+        connection.invoke("SendMessage", Number(receiverId), currentMsgText).catch(() => {});
+      } catch (e) {}
+    }
+
     const res = await sendChatMessageApi(Number(receiverId), currentMsgText, "Text", token);
     if (res.success && res.data) {
       const realId = res.data?.messageId ?? res.data?.MessageId;
@@ -220,26 +252,27 @@ export default function ChatWindow({
   };
 
   const isBlocked = blockStatus.isBlockedByMe || blockStatus.isBlockedByOther;
-  const displayAvatar = photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName ?? 'User')}&background=FFF0F3&color=870c3f&bold=true`;
+  const displayAvatar = photoUrl ? getOptimizedImageUrl(photoUrl) : `https://ui-avatars.com/api/?name=${encodeURIComponent(userName ?? 'User')}&background=FFF0F3&color=870c3f&bold=true`;
 
   return (
     <div className="flex flex-col h-full w-full bg-[#efeae2]/30 relative overflow-hidden selection:bg-[#870c3f] selection:text-white">
       
-      {/* TOP HEADER */}
-      <div className="flex-none bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] p-3 sm:p-3.5 flex items-center gap-3 text-white shadow-md z-20 border-b border-rose-900/20">
+      {/* 📌 WHATSAPP-STYLE STICKY TOP HEADER */}
+      <div className="shrink-0 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] p-3 sm:p-3.5 flex items-center gap-3 text-white shadow-md z-30 border-b border-rose-900/20">
         <button onClick={onBack} className="p-2 hover:bg-white/15 rounded-2xl transition-colors cursor-pointer md:hidden">
           <ArrowLeft size={20} />
         </button>
 
         <div onClick={handleViewProfile} className="flex items-center gap-3 group cursor-pointer">
-          <div className="relative">
+          <div className="relative shrink-0 w-10 h-10 md:w-11 md:h-11">
             <img 
               src={displayAvatar} 
-              className="w-10 h-10 md:w-11 md:h-11 rounded-2xl shadow-sm border-2 border-white/40 object-cover group-hover:scale-105 transition-transform" 
+              className="w-10 h-10 md:w-11 md:h-11 rounded-full shadow-sm border-2 border-white/40 object-cover object-top group-hover:scale-105 transition-transform shrink-0" 
               alt="avatar"
+              onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }}
             />
             {isOnline && (
-              <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-400 border-2 border-[#870c3f] rounded-full z-20 shadow-sm animate-pulse" />
+              <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-400 border-2 border-[#870c3f] rounded-full z-20 shadow-sm animate-pulse" />
             )}
           </div>
 
@@ -283,11 +316,11 @@ export default function ChatWindow({
         </div>
       </div>
 
-      {/* MESSAGES AREA */}
+      {/* 📜 MESSAGES SCROLL AREA (ONLY MESSAGES SCROLL, HEADER & INPUT REMAIN FIXED) */}
       <div 
         ref={scrollRef} 
         onScroll={handleScroll}
-        className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 space-y-6 bg-[#fbf8f5]"
+        className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 space-y-6 bg-[#fbf8f5] scroll-smooth"
       >
         {Object.keys(groupedMessages).map(dateKey => (
           <div key={dateKey} className="space-y-3">
@@ -358,8 +391,8 @@ export default function ChatWindow({
         </div>
       )}
 
-      {/* INPUT PANEL WITH INSTAGRAM STYLE BLOCK NOTICE */}
-      <div className="flex-none p-3.5 bg-white border-t border-rose-100 z-30">
+      {/* 📌 WHATSAPP-STYLE STICKY BOTTOM INPUT PANEL */}
+      <div className="shrink-0 p-3.5 bg-white border-t border-rose-100 z-30 shadow-lg">
         {isBlocked ? (
           <div className="p-3 bg-rose-50 rounded-2xl text-center border border-rose-200">
             <p className="text-xs font-extrabold text-slate-600 uppercase tracking-wide">

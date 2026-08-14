@@ -10,6 +10,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { toast, Toaster } from 'sonner';
 import { searchMatchesApi, handleInteractionApiCall } from '@/lib/api';
+import ProfileCard from '@/components/dashboard/ProfileCard';
+import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
 
 // MASTER OPTIONS LIST
 const MARITAL_STATUS_OPTIONS = ["Never Married", "Awaiting Divorce", "Divorced", "Widowed", "Separated"];
@@ -147,6 +149,30 @@ export default function FindMatchesPage() {
     router.push('/dashboard/profile');
   };
 
+  const handleInitiateChat = (user: any) => {
+    let isPaid = Boolean(user.isCurrentUserPaid ?? user.IsCurrentUserPaid ?? isUserPaid);
+    if (!isPaid && typeof window !== "undefined") {
+      const stored = localStorage.getItem("user_details") || localStorage.getItem("user_session");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          isPaid = Boolean(parsed.isPaid ?? parsed.IsPaid ?? parsed.isCurrentUserPaid ?? parsed.IsCurrentUserPaid);
+        } catch (e) {}
+      }
+    }
+
+    if (isPaid) {
+      sessionStorage.setItem('active_chat_target', JSON.stringify({
+        userId: user.userId || user.UserId,
+        fullName: user.fullName || user.FullName,
+        photoUrl: user.photoUrl || user.mainPhotoUrl || user.PhotoUrl || ''
+      }));
+      router.push('/dashboard/messages');
+    } else {
+      setShowUpgradeModal(true);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-32 selection:bg-[#870c3f] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
@@ -161,13 +187,6 @@ export default function FindMatchesPage() {
       <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-xl border-b-2 border-rose-100 px-4 py-3.5 shadow-md shadow-rose-950/5">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <button 
-              type="button" 
-              onClick={() => router.back()} 
-              className="p-2 hover:bg-rose-50 rounded-2xl text-[#870c3f] border-2 border-rose-200 transition-colors cursor-pointer"
-            >
-              <ArrowLeft size={20} />
-            </button>
             <div className="flex items-center gap-2">
               <span className="font-extrabold font-serif text-lg text-slate-900 uppercase tracking-tight">Find Matches</span>
               {!isUserPaid && (
@@ -214,90 +233,15 @@ export default function FindMatchesPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {profiles.map((user) => {
               const uId = user.userId || user.UserId;
-              const uName = user.fullName || user.FullName || "Member";
-              const uAge = user.age || user.Age || user.ageYears || "";
-              const uPhoto = user.photoUrl || user.PhotoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(uName)}&background=FAF7F2&color=870C3F&bold=true`;
-              const isPhotoLocked = Boolean(user.isPhotoHidden ?? user.IsPhotoHidden);
-              const uCity = user.cityName || user.CityName || user.CurrentCityName || "";
-              const uState = user.stateName || user.StateName || user.CurrentStateName || "";
-              const uProfession = user.profession || user.Profession || user.Designation || user.Occupation || 'Professional';
-              const uEducation = user.education || user.Education || user.HighestDegree || 'Graduate';
-              const uSect = user.sect || user.Sect || 'Sunni';
-              const uCaste = user.caste || user.Caste || 'General';
-              const isVerified = Boolean(user.isVerified ?? user.IsVerified ?? true);
-
               return (
-                <motion.div 
-                  key={uId} 
-                  initial={{ opacity: 0, y: 15 }} 
-                  animate={{ opacity: 1, y: 0 }} 
-                  className="bg-white rounded-3xl overflow-hidden border-2 border-rose-100 shadow-xl group flex flex-col justify-between hover:shadow-2xl hover:border-rose-300 transition-all duration-300"
-                >
-                  <div>
-                    {/* CARD PHOTO HEADER */}
-                    <div className="relative h-[270px] overflow-hidden bg-slate-950">
-                      <img 
-                        src={uPhoto} 
-                        className={`w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500 ${isPhotoLocked ? 'blur-xl opacity-60' : ''}`} 
-                        alt={uName} 
-                        onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(uName)}&background=FAF7F2&color=870C3F&bold=true`; }}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
-                      
-                      {isPhotoLocked && (
-                        <div className="absolute top-4 left-4 bg-slate-900/80 backdrop-blur-md text-amber-300 text-[10px] font-black px-3 py-1 rounded-full flex items-center gap-1.5 shadow-md uppercase border border-amber-400/30">
-                          <Lock size={12} /> Photo Protected
-                        </div>
-                      )}
-
-                      {/* NAME & LOCATION OVERLAY (z-40 for full visibility) */}
-                      <div className="absolute bottom-4 left-5 right-5 text-white z-40">
-                        <div className="flex items-center gap-2 font-extrabold">
-                          <h3 className="text-xl font-serif tracking-tight text-white">
-                            {uName}{uAge ? `, ${uAge}` : ''}
-                          </h3>
-                          {isVerified && <CheckCircle2 size={18} className="text-emerald-400 fill-emerald-400 shrink-0" />}
-                        </div>
-                        <p className="text-rose-200 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 mt-0.5">
-                          <MapPin size={13} className="text-amber-400" /> 
-                          <span>{uCity ? `${uCity}, ` : ''}{uState || 'India'}</span>
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* CARD DETAILS BODY */}
-                    <div className="p-5 space-y-4">
-                      <div className="grid grid-cols-2 gap-2 text-slate-800">
-                        <MiniDetail icon={<Briefcase size={14}/>} label={uProfession} />
-                        <MiniDetail icon={<GraduationCap size={14}/>} label={uEducation} />
-                        <MiniDetail icon={<Users2 size={14}/>} label={uSect} />
-                        <MiniDetail icon={<Star size={14}/>} label={uCaste} />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* CARD ACTION BUTTONS */}
-                  <div className="p-5 pt-0 flex gap-2.5">
-                    <button 
-                      type="button"
-                      onClick={() => openProfileView(user)} 
-                      className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-[#870c3f] font-black text-xs uppercase rounded-xl border-2 border-rose-200 transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
-                    >
-                      <Eye size={14} />
-                      <span>View</span>
-                    </button>
-
-                    <button 
-                      type="button"
-                      disabled={actionLoading}
-                      onClick={() => handleInteraction(uId, 'INTEREST', 'PENDING')} 
-                      className="flex-1 py-2.5 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-md shadow-rose-900/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5 border border-rose-300/30"
-                    >
-                      <Heart size={14} className="fill-amber-300 text-amber-300" />
-                      <span>Connect</span>
-                    </button>
-                  </div>
-                </motion.div>
+                <ProfileCard
+                  key={uId}
+                  profile={user}
+                  actionLoading={actionLoading}
+                  onInteraction={handleInteraction}
+                  onViewProfile={() => openProfileView(user)}
+                  onInitiateChat={handleInitiateChat}
+                />
               );
             })}
           </div>
@@ -327,9 +271,9 @@ export default function FindMatchesPage() {
                 <div className="bg-slate-50 rounded-3xl p-5 border-2 border-slate-200 shadow-xs space-y-6">
                   <span className="text-[11px] font-black uppercase tracking-wider text-[#870c3f] block">Basic Criteria</span>
 
-                  <DualRange min={18} max={60} valMin={filters.ageMin} valMax={filters.ageMax} onChangeMin={(v)=>setFilters({...filters, ageMin:v})} onChangeMax={(v)=>setFilters({...filters, ageMax:v})} title="Age Range" label="yrs" />
+                  <DualRange min={18} max={60} valMin={filters.ageMin} valMax={filters.ageMax} onChangeMin={(v: number)=>setFilters({...filters, ageMin:v})} onChangeMax={(v: number)=>setFilters({...filters, ageMax:v})} title="Age Range" label="yrs" />
 
-                  <DualRange min={4.0} max={7.0} valMin={filters.heightMin} valMax={filters.heightMax} onChangeMin={(v)=>setFilters({...filters, heightMin:v})} onChangeMax={(v)=>setFilters({...filters, heightMax:v})} title="Height Range" label="ft" step={0.1} />
+                  <DualRange min={4.0} max={7.0} valMin={filters.heightMin} valMax={filters.heightMax} onChangeMin={(v: number)=>setFilters({...filters, heightMin:v})} onChangeMax={(v: number)=>setFilters({...filters, heightMax:v})} title="Height Range" label="ft" step={0.1} />
 
                   <CategoryRow 
                     title="Marital Status" 
@@ -434,25 +378,10 @@ export default function FindMatchesPage() {
       </AnimatePresence>
 
       {/* VIP UPGRADE MODAL */}
-      <AnimatePresence>
-        {showUpgradeModal && (
-          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-3xl max-w-sm w-full p-7 text-center shadow-2xl border-2 border-rose-100 text-slate-800">
-              <div className="w-16 h-16 bg-rose-50 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-3 border-2 border-rose-200 shadow-xs">
-                <Crown size={32} />
-              </div>
-              <h3 className="text-lg font-serif font-extrabold uppercase text-slate-900 mb-1">VIP Filter Locked</h3>
-              <p className="text-slate-500 text-xs font-semibold mb-6 leading-relaxed">
-                City, Degree, and Profession filters are reserved for VIP Premium members. Upgrade to search your exact match!
-              </p>
-              <div className="flex flex-col gap-2.5">
-                <button onClick={() => router.push('/dashboard/membership')} className="w-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 cursor-pointer border border-rose-300/30">Upgrade to VIP</button>
-                <button onClick={() => setShowUpgradeModal(false)} className="w-full bg-slate-100 text-slate-600 hover:bg-slate-200 py-3 rounded-2xl font-bold text-xs uppercase cursor-pointer">Maybe Later</button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <SubscriptionModal 
+        isOpen={showUpgradeModal} 
+        onClose={() => setShowUpgradeModal(false)} 
+      />
 
     </div>
   );

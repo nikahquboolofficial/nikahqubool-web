@@ -15,6 +15,7 @@ import DashboardHeader from '@/components/layout/dashboard/DashboardHeader';
 import DashboardBottomNav from '@/components/layout/dashboard/DashboardBottomNav';
 import { fetchDashboardApi, handleInteractionApiCall } from '@/lib/api';
 import GlobalPresence from '@/components/layout/GlobalPresence';
+import { SignalRProvider } from '@/context/SignalRContext';
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -65,11 +66,44 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     shortlistedCount: 0
   });
 
-  // 📱 MOBILE BOTTOM NAV VISIBILITY RULES (VISIBLE ON FIND-MATCH AS WELL)
+  // 📱 MOBILE BOTTOM NAV & MAIN HEADER VISIBILITY RULES
   const isMobileBottomNavVisible = 
-    pathname !== '/dashboard/profile' && 
-    pathname !== '/dashboard/membership' && 
-    !(pathname.startsWith('/dashboard/messages') && isChatOpenOnMobile);
+    pathname === '/dashboard' ||
+    pathname === '/dashboard/activity' ||
+    pathname === '/dashboard/find-match' ||
+    pathname === '/dashboard/interests-received' ||
+    pathname === '/dashboard/interests-sent' ||
+    pathname === '/dashboard/viewed-my-profile' ||
+    pathname === '/dashboard/profiles-viewed' ||
+    pathname === '/dashboard/shortlisted-by-me' ||
+    pathname === '/dashboard/shortlisted-me' ||
+    pathname === '/dashboard/my-profile' ||
+    (pathname.startsWith('/dashboard/messages') && !isChatOpenOnMobile);
+
+  const isMainHeaderVisibleOnMobile = 
+    (pathname === '/dashboard' ||
+    pathname === '/dashboard/activity' ||
+    pathname === '/dashboard/find-match' ||
+    pathname === '/dashboard/interests-received' ||
+    pathname === '/dashboard/interests-sent' ||
+    pathname === '/dashboard/viewed-my-profile' ||
+    pathname === '/dashboard/profiles-viewed' ||
+    pathname === '/dashboard/shortlisted-by-me' ||
+    pathname === '/dashboard/shortlisted-me') &&
+    !pathname.startsWith('/dashboard/messages') &&
+    pathname !== '/dashboard/my-profile';
+
+  const isStandaloneBackVisibleOnMobile = 
+    !isMobileBottomNavVisible && 
+    !pathname.startsWith('/dashboard/messages') &&
+    !pathname.startsWith('/dashboard/profile') &&
+    !pathname.startsWith('/dashboard/edit-profile') &&
+    !pathname.startsWith('/dashboard/gallery') &&
+    !pathname.startsWith('/dashboard/settings') &&
+    !pathname.startsWith('/dashboard/membership') &&
+    !pathname.startsWith('/dashboard/payment-info') &&
+    !pathname.startsWith('/dashboard/support') &&
+    pathname !== '/dashboard/my-profile';
 
   useEffect(() => {
     try {
@@ -103,9 +137,16 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   const loadNotificationCounts = useCallback(async () => {
     const token = getToken();
-    if (!token) return;
+    if (!token) {
+      handleLogout();
+      return;
+    }
 
     const res = await fetchDashboardApi('best-matches', 1, token);
+    if (res.isUnauthorized) {
+      handleLogout();
+      return;
+    }
     if (res.success && res.data) {
       const c = res.data.counts || res.data.Counts || {};
       let notes = res.data.notifications || res.data.Notifications || res.data.recentNotifications || [];
@@ -124,7 +165,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         shortlistedCount: c.shortlistedCount || c.ShortlistedCount || 0,
       });
     }
-  }, [getToken]);
+  }, [getToken, handleLogout]);
 
   useEffect(() => {
     loadNotificationCounts();
@@ -195,8 +236,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       {/* 🟢 WEBSITE-WIDE REALTIME ONLINE PRESENCE */}
       <GlobalPresence />
 
-      {/* 📌 TOP HEADER */}
-      <div className={pathname.startsWith('/dashboard/messages') || pathname === '/dashboard/profile' || pathname.startsWith('/dashboard/my-profile') || pathname.startsWith('/dashboard/gallery') ? 'hidden md:block' : 'block'}>
+      {/* 📌 TOP MAIN HEADER (VISIBLE ON DESKTOP & ON MAIN TABS MOBILE) */}
+      <div className={isMainHeaderVisibleOnMobile ? 'block' : 'hidden lg:block'}>
         <DashboardHeader 
           unreadCount={unreadTotal}
           onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
@@ -205,8 +246,23 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         />
       </div>
 
+      {/* 📌 STANDALONE MOBILE BACK BUTTON ONLY (FOR SUBPAGES WHERE BOTTOM NAV & MAIN HEADER ARE HIDDEN) */}
+      {isStandaloneBackVisibleOnMobile && (
+        <div className="lg:hidden sticky top-0 z-[100] bg-white/95 backdrop-blur-xl border-b-2 border-rose-100 px-4 py-3 flex items-center shadow-xs">
+          <button 
+            type="button" 
+            onClick={() => router.back()} 
+            className="p-2 -ml-2 rounded-full text-[#870c3f] hover:bg-rose-50 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
+            aria-label="Back"
+            title="Go Back"
+          >
+            <ArrowLeft size={22} className="stroke-[2.5]" />
+          </button>
+        </div>
+      )}
+
       {/* MAIN CANVAS */}
-      <main className="flex-1 w-full pb-20 lg:pb-0">{children}</main>
+      <main className={(pathname.startsWith('/dashboard/edit-profile') || pathname.startsWith('/dashboard/messages')) ? "flex-1 w-full p-0 m-0 overflow-hidden" : "flex-1 w-full pb-20 lg:pb-0"}>{children}</main>
 
       {/* MOBILE BOTTOM DOCK */}
       {isMobileBottomNavVisible && (
@@ -389,12 +445,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center text-[#870c3f] font-black text-xs uppercase tracking-widest">
-        Loading Dashboard...
-      </div>
-    }>
-      <DashboardLayoutContent>{children}</DashboardLayoutContent>
-    </Suspense>
+    <SignalRProvider>
+      <Suspense fallback={
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center text-[#870c3f] font-black text-xs uppercase tracking-widest">
+          Loading Dashboard...
+        </div>
+      }>
+        <DashboardLayoutContent>{children}</DashboardLayoutContent>
+      </Suspense>
+    </SignalRProvider>
   );
 }

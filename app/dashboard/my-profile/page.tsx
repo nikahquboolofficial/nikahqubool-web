@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
   Share2, Edit2, CheckCircle2, ChevronRight, Crown, Settings, 
@@ -9,12 +10,14 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
-import { fetchActiveSubscriptionApi, fetchProfileDetailsApi } from '@/lib/api';
+import { fetchActiveSubscriptionApi, fetchProfileDetailsApi, fetchSubscriptionPlansApi } from '@/lib/api';
+import { getOptimizedImageUrl } from '@/lib/imageUtils';
 
 export default function MySelfProfilePage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'premium' | 'settings'>('premium');
   const [profileData, setProfileData] = useState<any>(null);
+  const [cheapestPlan, setCheapestPlan] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   const getCookie = (name: string) => {
@@ -69,9 +72,9 @@ export default function MySelfProfilePage() {
     }
   };
 
-  const photo = profileData?.mainPhotoUrl || profileData?.photoUrl || '/placeholder.png';
+  const photo = getOptimizedImageUrl(profileData?.mainPhotoUrl || profileData?.photoUrl);
   const fullName = profileData?.fullName || 'Member Profile';
-  const isVerified = Boolean(profileData?.isVerified ?? profileData?.IsVerified ?? true);
+  const isVerified = Boolean(profileData?.isVerified ?? profileData?.IsVerified ?? false);
   const profileCompletion = profileData?.profileCompletion || 85;
 
   return (
@@ -104,7 +107,7 @@ export default function MySelfProfilePage() {
               <img 
                 src={photo} 
                 alt={fullName} 
-                className="w-full h-full rounded-full object-cover" 
+                className="w-full h-full rounded-full object-cover object-top" 
                 onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }} 
               />
             </div>
@@ -179,50 +182,76 @@ export default function MySelfProfilePage() {
           <motion.div 
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-[#fffdf2] rounded-3xl p-6 border-2 border-amber-200/70 shadow-xl text-center space-y-6"
+            className="bg-gradient-to-br from-amber-500/10 via-rose-50/70 to-amber-500/10 rounded-3xl p-6 border-2 border-amber-300/70 shadow-xl text-center space-y-5 relative overflow-hidden"
           >
-            <div>
-              <h3 className="text-xl md:text-2xl font-serif font-extrabold text-amber-950 uppercase tracking-tight">
-                Find Your Match Faster with Premium
-              </h3>
-              <div className="flex items-center justify-center gap-2 mt-2">
-                <div className="flex -space-x-2 overflow-hidden">
-                  <img className="inline-block h-6 w-6 rounded-full ring-2 ring-white" src="/placeholder.png" alt="" />
-                  <img className="inline-block h-6 w-6 rounded-full ring-2 ring-white" src="/placeholder.png" alt="" />
-                  <img className="inline-block h-6 w-6 rounded-full ring-2 ring-white" src="/placeholder.png" alt="" />
-                </div>
-                <span className="text-xs font-bold text-amber-900/80">
-                  1000+ users joined premium this week
-                </span>
+            <div className="space-y-1.5">
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-950 text-[11px] font-black uppercase tracking-wider">
+                <Sparkles size={13} className="text-amber-600 fill-amber-500" />
+                <span>Pakiza Luxury Matchmaking</span>
               </div>
+
+              <h3 className="text-xl font-serif font-extrabold text-slate-900 uppercase tracking-tight pt-1">
+                Elevate Your Matchmaking with Premium
+              </h3>
+
+              <p className="text-xs font-semibold text-slate-600 max-w-sm mx-auto leading-relaxed">
+                Connect directly with verified families & unlock 100% genuine contact numbers instantly.
+              </p>
             </div>
 
+            {/* DYNAMIC PLAN DETAILS BADGE */}
+            {cheapestPlan && (
+              <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-4 border border-amber-300/80 shadow-md flex items-center justify-between">
+                <div className="text-left">
+                  <div className="text-[10px] font-black uppercase tracking-wider text-rose-800">
+                    {cheapestPlan.planName || cheapestPlan.PlanName || "Starter VIP Plan"}
+                  </div>
+                  <div className="flex items-baseline gap-2 mt-0.5">
+                    <span className="text-xl font-black text-slate-900">
+                      ₹{cheapestPlan.discountPrice ?? cheapestPlan.DiscountPrice ?? cheapestPlan.originalPrice ?? cheapestPlan.OriginalPrice ?? 799}
+                    </span>
+                    {(cheapestPlan.discountPrice || cheapestPlan.DiscountPrice) && (cheapestPlan.originalPrice || cheapestPlan.OriginalPrice) > (cheapestPlan.discountPrice || cheapestPlan.DiscountPrice) && (
+                      <span className="text-xs font-bold text-slate-400 line-through">
+                        ₹{cheapestPlan.originalPrice || cheapestPlan.OriginalPrice}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="px-3 py-1 bg-amber-100 text-amber-900 rounded-full text-[10px] font-black uppercase border border-amber-300">
+                  Best Value
+                </div>
+              </div>
+            )}
+
             {/* CHECKLIST */}
-            <div className="bg-white rounded-2xl p-5 border border-amber-200/60 shadow-xs text-left space-y-3 text-xs font-black text-slate-800">
+            <div className="bg-white rounded-2xl p-4 border border-rose-100 shadow-xs text-left space-y-2.5 text-xs font-black text-slate-800">
               <div className="flex items-center gap-2.5">
                 <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0" />
-                <span>Unlimited Messaging</span>
+                <span>Direct Messaging & Instant Proposal Calls</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0" />
-                <span>Contact Views & Phone Numbers</span>
+                <span>Full Contact Details & Verified Phone Numbers</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0" />
-                <span>Weekly Profile Boost & Priority Listing</span>
+                <span>Priority Profile Placement in Match Searches</span>
               </div>
             </div>
 
             {/* UPGRADE BUTTON */}
             <div>
-              <button
-                type="button"
-                onClick={() => router.push('/dashboard/membership')}
-                className="w-full py-4 rounded-2xl bg-slate-950 text-white font-black text-xs uppercase tracking-wider shadow-xl hover:bg-slate-900 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer border border-amber-300/30"
+              <Link
+                href="/dashboard/membership"
+                className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer border border-rose-300/30 block"
               >
-                <Crown size={18} className="fill-amber-400 text-amber-400" />
-                <span>Upgrade at ₹1299</span>
-              </button>
+                <div className="flex items-center justify-center gap-2 w-full">
+                  <Crown size={18} className="fill-amber-300 text-amber-300" />
+                  <span>
+                    Upgrade Now {cheapestPlan ? `at ₹${cheapestPlan.discountPrice ?? cheapestPlan.DiscountPrice ?? cheapestPlan.originalPrice ?? cheapestPlan.OriginalPrice}` : ''}
+                  </span>
+                </div>
+              </Link>
             </div>
           </motion.div>
         )}
@@ -234,77 +263,83 @@ export default function MySelfProfilePage() {
             animate={{ opacity: 1, y: 0 }}
             className="bg-white rounded-3xl p-3 border-2 border-rose-100 shadow-xl space-y-1"
           >
-            <button 
-              type="button" 
-              onClick={() => router.push('/dashboard/edit-profile')} 
-              className="w-full p-4 rounded-2xl hover:bg-rose-50/60 flex items-center justify-between text-slate-900 transition-all group cursor-pointer border border-transparent hover:border-rose-100"
+            <Link 
+              href="/dashboard/edit-profile" 
+              className="w-full p-4 rounded-2xl hover:bg-rose-50/60 flex items-center justify-between text-slate-900 transition-all group cursor-pointer border border-transparent hover:border-rose-100 block"
             >
-              <div className="flex items-center gap-3.5">
-                <Edit2 size={18} className="text-[#870c3f]" />
-                <span className="text-xs font-black uppercase">Edit my profile</span>
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-3.5">
+                  <Edit2 size={18} className="text-[#870c3f]" />
+                  <span className="text-xs font-black uppercase">Edit my profile</span>
+                </div>
+                <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
               </div>
-              <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
-            </button>
+            </Link>
 
-            <button 
-              type="button" 
-              onClick={() => router.push('/dashboard/gallery')} 
-              className="w-full p-4 rounded-2xl hover:bg-rose-50/60 flex items-center justify-between text-slate-900 transition-all group cursor-pointer border border-transparent hover:border-rose-100"
+            <Link 
+              href="/dashboard/gallery" 
+              className="w-full p-4 rounded-2xl hover:bg-rose-50/60 flex items-center justify-between text-slate-900 transition-all group cursor-pointer border border-transparent hover:border-rose-100 block"
             >
-              <div className="flex items-center gap-3.5">
-                <Shield size={18} className="text-[#870c3f]" />
-                <span className="text-xs font-black uppercase">Profile Privacy</span>
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-3.5">
+                  <Shield size={18} className="text-[#870c3f]" />
+                  <span className="text-xs font-black uppercase">Profile Privacy</span>
+                </div>
+                <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
               </div>
-              <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
-            </button>
+            </Link>
 
-            <button 
-              type="button" 
-              onClick={() => router.push('/dashboard/membership')} 
-              className="w-full p-4 rounded-2xl hover:bg-rose-50/60 flex items-center justify-between text-slate-900 transition-all group cursor-pointer border border-transparent hover:border-rose-100"
+            <Link 
+              href="/dashboard/membership" 
+              className="w-full p-4 rounded-2xl hover:bg-rose-50/60 flex items-center justify-between text-slate-900 transition-all group cursor-pointer border border-transparent hover:border-rose-100 block"
             >
-              <div className="flex items-center gap-3.5">
-                <Crown size={18} className="text-amber-500" />
-                <span className="text-xs font-black uppercase">Explore Plans</span>
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-3.5">
+                  <Crown size={18} className="text-amber-500" />
+                  <span className="text-xs font-black uppercase">Explore Plans</span>
+                </div>
+                <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
               </div>
-              <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
-            </button>
+            </Link>
 
-            <button 
-              type="button" 
-              onClick={() => router.push('/dashboard/membership')} 
-              className="w-full p-4 rounded-2xl hover:bg-rose-50/60 flex items-center justify-between text-slate-900 transition-all group cursor-pointer border border-transparent hover:border-rose-100"
+            <Link 
+              href="/dashboard/payment-info" 
+              className="w-full p-4 rounded-2xl hover:bg-rose-50/60 flex items-center justify-between text-slate-900 transition-all group cursor-pointer border border-transparent hover:border-rose-100 block"
             >
-              <div className="flex items-center gap-3.5">
-                <CreditCard size={18} className="text-[#870c3f]" />
-                <span className="text-xs font-black uppercase">Payment Info</span>
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-3.5">
+                  <CreditCard size={18} className="text-[#870c3f]" />
+                  <span className="text-xs font-black uppercase">Payment Info</span>
+                </div>
+                <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
               </div>
-              <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
-            </button>
+            </Link>
 
-            <button 
-              type="button" 
-              onClick={() => router.push('/dashboard/support')} 
-              className="w-full p-4 rounded-2xl hover:bg-rose-50/60 flex items-center justify-between text-slate-900 transition-all group cursor-pointer border border-transparent hover:border-rose-100"
+            <Link 
+              href="/dashboard/support" 
+              className="w-full p-4 rounded-2xl hover:bg-rose-50/60 flex items-center justify-between text-slate-900 transition-all group cursor-pointer border border-transparent hover:border-rose-100 block"
             >
-              <div className="flex items-center gap-3.5">
-                <HelpCircle size={18} className="text-[#870c3f]" />
-                <span className="text-xs font-black uppercase">Help & Support</span>
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-3.5">
+                  <HelpCircle size={18} className="text-[#870c3f]" />
+                  <span className="text-xs font-black uppercase">Help & Support</span>
+                </div>
+                <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
               </div>
-              <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
-            </button>
+            </Link>
 
-            <button 
-              type="button" 
-              onClick={() => router.push('/dashboard/settings')} 
-              className="w-full p-4 rounded-2xl hover:bg-rose-50/60 flex items-center justify-between text-slate-900 transition-all group cursor-pointer border border-transparent hover:border-rose-100"
+            <Link 
+              href="/dashboard/settings" 
+              className="w-full p-4 rounded-2xl hover:bg-rose-50/60 flex items-center justify-between text-slate-900 transition-all group cursor-pointer border border-transparent hover:border-rose-100 block"
             >
-              <div className="flex items-center gap-3.5">
-                <Settings size={18} className="text-[#870c3f]" />
-                <span className="text-xs font-black uppercase">Account Settings & Deactivate</span>
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-3.5">
+                  <Settings size={18} className="text-[#870c3f]" />
+                  <span className="text-xs font-black uppercase">Account Settings & Deactivate</span>
+                </div>
+                <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
               </div>
-              <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
-            </button>
+            </Link>
           </motion.div>
         )}
 

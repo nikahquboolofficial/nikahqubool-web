@@ -4,34 +4,57 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ShieldCheck, Lock, Heart, Sparkles, CheckCircle2, 
-  ChevronRight, ChevronLeft, ArrowRight, HelpCircle, Star, Users
+  ChevronRight, ChevronLeft, ArrowRight, HelpCircle, Star, Users,
+  Phone, Flame, UserCheck, ChevronDown, Crown, MessageSquare, Eye, Award
 } from 'lucide-react';
 import HeroRegisterForm from '@/components/home/HeroRegisterForm';
+import { useAuthModal } from '@/context/AuthModalContext';
 
 export default function HomePage() {
+  const { openRegisterModal, openLoginModal } = useAuthModal();
   const [currentSlide, setCurrentSlide] = useState<number>(0);
   const [activeStory, setActiveStory] = useState(0);
+  const [activeFaq, setActiveFaq] = useState<number | null>(0);
+  const [profileType, setProfileType] = useState<'groom' | 'bride'>('bride');
 
   const stories = [
     {
-      name: "Sana & Zaid",
+      name: "Sana & Zaid Siddiqui",
       location: "Bareilly, UP",
+      date: "Nikah: Jan 2026",
       img: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=1200",
-      text: "Alhamdulillah, Pakiza Rishte se humein wo sab mila jo hum ek partner mein dhoond rahe the. Process itna simple tha ki family ne bhi turant haan keh di."
+      text: "Alhamdulillah, Pakiza Rishte se humein wo sab mila jo hum ek partner mein dhoond rahe the. Family-centric approach aur 100% verified profiles ki wajah se humari baat 15 din me final ho gayi!"
     },
     {
-      name: "Mehak & Arif",
-      location: "Bareilly (Civil Lines)",
+      name: "Mehak & Dr. Arif Khan",
+      location: "Civil Lines, Bareilly",
+      date: "Nikah: Dec 2025",
       img: "https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=1200",
-      text: "The security features here are best. Maine kayi profiles dekhi par jab Arif se baat hui to pata chala ki verified profiles ka kya fayda hota hai."
+      text: "Photo protection aur phone privacy feature bohot hi umda hai. Mujhe exact meri preference aur Maslak ke mutabiq rishta mila. May Allah bless the Pakiza Rishte team!"
     },
     {
-      name: "Iqra & Sameer",
+      name: "Iqra & Er. Sameer Ansari",
       location: "Lucknow, UP",
+      date: "Nikah: Nov 2025",
       img: "https://images.unsplash.com/photo-1529634806980-85c3dd6d34ac?q=80&w=1200",
-      text: "Finding a soulmate in your own city was never this easy. Today we are happily married and thankful to the entire team of Pakiza Rishte."
+      text: "Apne hi shehar me decent aur verified rishta dhoondna bohot mushkil tha pehle. Pakiza Rishte ne process ko transparent aur aasan bana diya."
     },
   ];
+
+  const sampleProfiles = {
+    bride: [
+      { id: 1, name: "Farheen S.", age: 23, height: "5' 3\"", degree: "M.Sc Computer Science", city: "Bareilly", sect: "Sunni Hanafi", photo: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=600" },
+      { id: 2, name: "Ayesha K.", age: 25, height: "5' 4\"", degree: "B.Tech IT", city: "Lucknow", sect: "Sunni Hanafi", photo: "https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=600" },
+      { id: 3, name: "Zainab F.", age: 22, height: "5' 2\"", degree: "B.A. B.Ed", city: "Moradabad", sect: "Sunni Hanafi", photo: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=600" },
+      { id: 4, name: "Mariyam R.", age: 24, height: "5' 5\"", degree: "B.Pharm", city: "Aligarh", sect: "Sunni Hanafi", photo: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=600" },
+    ],
+    groom: [
+      { id: 5, name: "Er. Yasar M.", age: 26, height: "5' 10\"", degree: "B.Tech Software Engineer", city: "Bareilly", sect: "Sunni Hanafi", photo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600" },
+      { id: 6, name: "Dr. Danish A.", age: 28, height: "5' 11\"", degree: "M.D. Physician", city: "Lucknow", sect: "Sunni Hanafi", photo: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=600" },
+      { id: 7, name: "Bilal H.", age: 27, height: "5' 9\"", degree: "MBA Marketing Manager", city: "Noida / UP", sect: "Sunni Hanafi", photo: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=600" },
+      { id: 8, name: "Shahbaz K.", age: 29, height: "6' 0\"", degree: "Chartered Accountant", city: "Delhi NCR", sect: "Sunni Hanafi", photo: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=600" },
+    ]
+  };
 
   const banners = [
     "https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=100&w=2400",
@@ -39,8 +62,27 @@ export default function HomePage() {
     "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=100&w=2400"
   ];
 
+  const faqs = [
+    { 
+      q: "How are profiles verified on Pakiza Rishte?", 
+      a: "Every single profile undergoes mandatory phone OTP verification and strict manual screening by our team. Family backgrounds and documents are cross-verified to maintain 100% genuine proposals." 
+    },
+    { 
+      q: "Is photo privacy and contact number protection available?", 
+      a: "Yes! Pakiza Rishte offers complete privacy controls. You can set your photos to 'Only Approved Members' or 'Blurred', and your phone number remains masked until you explicitly grant access." 
+    },
+    { 
+      q: "Can parents or family members create a profile?", 
+      a: "Absolutely! Over 70% of profiles on Pakiza Rishte are managed directly by parents, brothers, or sisters. You can select 'Creating for Son/Daughter/Sibling' during registration." 
+    },
+    { 
+      q: "Is basic registration free on Pakiza Rishte?", 
+      a: "Yes, creating a profile, searching compatible proposals, and expressing interests are 100% Free! Optional VIP plans unlock direct contact numbers and instant messaging." 
+    }
+  ];
+
   useEffect(() => {
-    const int = setInterval(() => setCurrentSlide(p => (p === 2 ? 0 : p + 1)), 6000);
+    const int = setInterval(() => setCurrentSlide(p => (p === 2 ? 0 : p + 1)), 7000);
     return () => clearInterval(int);
   }, []);
 
@@ -48,9 +90,9 @@ export default function HomePage() {
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-[#870c3f] selection:text-white">
       
       {/* 🌟 HERO SECTION */}
-      <section className="relative min-h-[92vh] flex items-center justify-center pt-24 pb-16 overflow-hidden bg-slate-950">
+      <section className="relative min-h-[95vh] flex items-center justify-center pt-24 pb-16 overflow-hidden bg-slate-950">
         
-        {/* BACKGROUND SLIDESHOW */}
+        {/* BACKGROUND SLIDESHOW WITH LUXURY BLUR */}
         <div className="absolute inset-0 z-0">
           {banners.map((img, idx) => (
             <div 
@@ -59,13 +101,13 @@ export default function HomePage() {
               style={{ 
                 backgroundImage: `url('${img}')`, 
                 opacity: currentSlide === idx ? 0.35 : 0,
-                filter: 'brightness(0.7)'
+                filter: 'brightness(0.65)'
               }}
             />
           ))}
-          <div className="absolute top-1/4 left-10 w-96 h-96 bg-[#870c3f]/25 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-10 right-10 w-96 h-96 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-slate-950/40" />
+          <div className="absolute top-1/4 left-10 w-[500px] h-[500px] bg-[#870c3f]/30 rounded-full blur-[140px] pointer-events-none" />
+          <div className="absolute bottom-10 right-10 w-[500px] h-[500px] bg-amber-500/20 rounded-full blur-[140px] pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/75 to-slate-950/40" />
         </div>
 
         <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 flex flex-col lg:grid lg:grid-cols-12 gap-10 lg:gap-12 items-center">
@@ -77,34 +119,53 @@ export default function HomePage() {
             transition={{ duration: 0.6 }}
             className="w-full lg:col-span-7 text-center lg:text-left space-y-6 order-2 lg:order-1"
           >
-            <div className="inline-flex items-center gap-2.5 px-4.5 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-amber-300 text-xs font-bold uppercase tracking-widest shadow-lg">
+            {/* VIP BADGE */}
+            <div className="inline-flex items-center gap-2.5 px-4.5 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-amber-300 text-xs font-bold uppercase tracking-widest shadow-xl">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-              100% Verified Nikah Platform
+              #1 Trusted Muslim Matrimony Platform
             </div>
 
+            {/* MAIN HEADLINE */}
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-serif font-black text-white leading-[1.1] tracking-tight">
-              Discover. Connect. <br/>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 via-amber-300 to-amber-400 italic font-normal">
-                Soulful Matches.
+              Find Your Blessed <br/>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-rose-300 to-amber-400 italic font-normal">
+                Halal Life Partner.
               </span>
             </h1>
 
-            <p className="text-slate-300 text-sm sm:text-base max-w-xl mx-auto lg:mx-0 font-medium leading-relaxed bg-white/5 p-5 rounded-2xl border border-white/10 backdrop-blur-md shadow-xl">
-              Find your ideal life partner with absolute privacy, traditional respect, and trusted verified profiles tailored for honorable families.
+            <p className="text-slate-200 text-sm sm:text-base max-w-xl mx-auto lg:mx-0 font-medium leading-relaxed bg-white/5 p-5 rounded-2xl border border-white/10 backdrop-blur-md shadow-2xl">
+              Connect with thousands of verified Muslim brides and grooms. Complete privacy control, family-centric matchmaking, and Sunnah-guided Nikah process.
             </p>
 
-            <div className="pt-2 flex flex-wrap items-center justify-center lg:justify-start gap-6 text-xs font-bold text-slate-300 uppercase tracking-wider">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 size={18} className="text-emerald-400" />
-                <span>Verified Profiles</span>
+            {/* TRUST BADGES ROW */}
+            <div className="pt-2 flex flex-wrap items-center justify-center lg:justify-start gap-5 text-xs font-black text-slate-200 uppercase tracking-wider">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
+                <CheckCircle2 size={16} className="text-emerald-400" />
+                <span>100% Verified Profiles</span>
               </div>
-              <div className="flex items-center gap-2">
-                <ShieldCheck size={18} className="text-amber-400" />
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
+                <ShieldCheck size={16} className="text-amber-400" />
                 <span>Halal & Secure</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Lock size={18} className="text-rose-400" />
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
+                <Lock size={16} className="text-rose-400" />
                 <span>Privacy Control</span>
+              </div>
+            </div>
+
+            {/* STATS HIGHLIGHT */}
+            <div className="grid grid-cols-3 gap-3 pt-4 max-w-lg mx-auto lg:mx-0">
+              <div className="bg-white/10 backdrop-blur-md border border-white/15 p-3 rounded-2xl text-center">
+                <p className="text-xl sm:text-2xl font-serif font-black text-amber-300">10,000+</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-300">Active Profiles</p>
+              </div>
+              <div className="bg-white/10 backdrop-blur-md border border-white/15 p-3 rounded-2xl text-center">
+                <p className="text-xl sm:text-2xl font-serif font-black text-rose-300">2,500+</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-300">Blessed Nikahs</p>
+              </div>
+              <div className="bg-white/10 backdrop-blur-md border border-white/15 p-3 rounded-2xl text-center">
+                <p className="text-xl sm:text-2xl font-serif font-black text-emerald-300">100%</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-300">Privacy Safe</p>
               </div>
             </div>
           </motion.div>
@@ -118,25 +179,26 @@ export default function HomePage() {
       </section>
 
       {/* 🚀 TRUST TICKER BAR */}
-      <div className="relative py-6 bg-[#870c3f] text-white overflow-hidden shadow-lg border-y border-rose-900">
+      <div className="relative py-4 bg-gradient-to-r from-[#870c3f] via-[#a3124e] to-[#870c3f] text-white overflow-hidden shadow-lg border-y border-rose-900">
         <div className="relative flex overflow-hidden">
           <div className="flex whitespace-nowrap animate-[scrollText_28s_linear_infinite] hover:[animation-play-state:paused] cursor-pointer">
             {[1, 2].map((group) => (
               <div key={group} className="flex items-center">
                 {[
                   { t: "100% Verified Profiles", i: "✅" },
-                  { t: "Secure & Halal Nikah", i: "🕌" },
-                  { t: "Privacy Protection Guaranteed", i: "🔒" },
+                  { t: "Secure & Halal Nikah Platform", i: "🕌" },
+                  { t: "Photo & Phone Privacy Control", i: "🔒" },
                   { t: "Trusted Family Matchmaking", i: "🤝" },
+                  { t: "Bareilly & UP Top Matrimony", i: "⭐" },
                   { t: "Strict Manual Screening", i: "🛡️" }
                 ].map((item, idx) => (
                   <div 
                     key={idx} 
-                    className="relative flex items-center mx-4 px-5 py-2.5 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 shadow-xs hover:bg-white/20 transition-all duration-300"
+                    className="relative flex items-center mx-3 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 shadow-xs hover:bg-white/20 transition-all duration-300"
                   >
-                    <span className="text-base mr-3">{item.i}</span>
-                    <span className="text-xs font-black tracking-widest uppercase text-white">{item.t}</span>
-                    <div className="ml-4 text-amber-300 text-xs">✦</div>
+                    <span className="text-sm mr-2">{item.i}</span>
+                    <span className="text-[11px] font-black tracking-wider uppercase text-white">{item.t}</span>
+                    <div className="ml-3 text-amber-300 text-xs">✦</div>
                   </div>
                 ))}
               </div>
@@ -152,7 +214,114 @@ export default function HomePage() {
         `}</style>
       </div>
 
-      {/* 🛡️ WHY CHOOSE SECTION */}
+      {/* 💖 FEATURED PROFILES PREVIEW SECTION */}
+      <section className="relative py-16 md:py-24 px-4 sm:px-6 bg-slate-50 border-b border-slate-200">
+        <div className="max-w-7xl mx-auto space-y-10">
+          <div className="text-center max-w-2xl mx-auto space-y-3">
+            <span className="text-[#870c3f] font-black uppercase tracking-[0.25em] text-xs bg-rose-50 px-5 py-2 rounded-full border border-rose-200 shadow-xs">
+              Verified Proposals
+            </span>
+            <h2 className="text-3xl md:text-5xl font-serif font-black text-slate-900 tracking-tight">
+              Explore Compatible <span className="text-[#870c3f] italic font-normal">Proposals</span>
+            </h2>
+            <p className="text-slate-600 text-sm font-medium">
+              Browse genuine verified profiles looking for honorable Nikah connections.
+            </p>
+
+            {/* GROOM / BRIDE FILTER TOGGLE */}
+            <div className="inline-flex p-1 bg-white rounded-full border-2 border-rose-100 shadow-md">
+              <button 
+                onClick={() => setProfileType('bride')}
+                className={`px-6 py-2 rounded-full text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  profileType === 'bride' 
+                    ? 'bg-[#870c3f] text-white shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                👰 Muslim Brides
+              </button>
+              <button 
+                onClick={() => setProfileType('groom')}
+                className={`px-6 py-2 rounded-full text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  profileType === 'groom' 
+                    ? 'bg-[#870c3f] text-white shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                🤵 Muslim Grooms
+              </button>
+            </div>
+          </div>
+
+          {/* PROFILES GRID */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {sampleProfiles[profileType].map((p) => (
+              <motion.div 
+                key={p.id}
+                whileHover={{ y: -6 }}
+                className="bg-white rounded-3xl border-2 border-rose-100/80 shadow-lg overflow-hidden group hover:border-rose-300 transition-all duration-300 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="relative h-64 w-full overflow-hidden bg-slate-900">
+                    <img 
+                      src={p.photo} 
+                      alt={p.name} 
+                      className="w-full h-full object-cover object-top filter blur-xs group-hover:blur-0 transition-all duration-500 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
+                    
+                    <span className="absolute top-3 left-3 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md flex items-center gap-1">
+                      <CheckCircle2 size={12} /> Verified
+                    </span>
+
+                    <div className="absolute bottom-3 left-3 right-3 text-white">
+                      <h3 className="font-serif font-extrabold text-lg uppercase tracking-tight">{p.name}</h3>
+                      <p className="text-xs font-bold text-amber-300">{p.age} yrs | {p.height}</p>
+                    </div>
+                  </div>
+
+                  <div className="p-5 space-y-2 text-xs font-semibold text-slate-600">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Education</span>
+                      <span className="font-extrabold text-slate-800">{p.degree}</span>
+                    </div>
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">City</span>
+                      <span className="font-extrabold text-slate-800">{p.city}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Sect</span>
+                      <span className="font-extrabold text-[#870c3f]">{p.sect}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-slate-50 border-t border-rose-100">
+                  <button 
+                    onClick={openRegisterModal}
+                    className="w-full py-2.5 rounded-2xl bg-[#870c3f] hover:bg-[#6e0932] text-white text-xs font-black uppercase tracking-wider shadow-md cursor-pointer transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <span>Connect Now</span>
+                    <ArrowRight size={14} className="text-amber-300" />
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="text-center pt-4">
+            <button 
+              onClick={openRegisterModal}
+              className="px-8 py-3.5 rounded-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white font-black text-xs uppercase tracking-wider shadow-xl shadow-rose-900/20 cursor-pointer border border-rose-300/30 inline-flex items-center gap-2"
+            >
+              <Sparkles size={16} className="text-amber-300" />
+              <span>Register Free to View All 10,000+ Profiles</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* 🛡️ WHY CHOOSE PAKIZA RISHTE */}
       <section className="relative py-20 md:py-28 px-6 bg-white overflow-hidden border-b border-slate-200">
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
@@ -169,9 +338,24 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
-              { title: "Halal & Secure", desc: "Every single profile undergoes rigorous manual 3-step screening to ensure zero fake accounts and complete peace of mind for Nikah.", badge: "100% VERIFIED", icon: "🛡️" },
-              { title: "Privacy Control", desc: "Advanced privacy controls put you in charge. Choose exactly who views your family details, pictures, and contact numbers.", badge: "COMPLETE PRIVACY", icon: "💎" },
-              { title: "Marriage Focus", desc: "Exclusively built for families and individuals serious about Sunnah and lifelong Nikah. No casual swiping, only meaningful connections.", badge: "NO DATING APP", icon: "🌿" }
+              { 
+                title: "100% Halal & Secure", 
+                desc: "Every single profile undergoes rigorous manual 3-step screening to ensure zero fake accounts and complete peace of mind for Nikah.", 
+                badge: "100% VERIFIED", 
+                icon: "🛡️" 
+              },
+              { 
+                title: "Privacy First Control", 
+                desc: "Advanced privacy controls put you in charge. Choose exactly who views your family details, pictures, and contact numbers.", 
+                badge: "COMPLETE PRIVACY", 
+                icon: "🔒" 
+              },
+              { 
+                title: "Family Involvement", 
+                desc: "Built for serious families looking for honorable Sunnah Nikah. No casual dating or swiping, only dignified proposals.", 
+                badge: "FAMILY FIRST", 
+                icon: "🤝" 
+              }
             ].map((item, index) => (
               <motion.div 
                 key={index} 
@@ -204,7 +388,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 🚀 HOW IT WORKS */}
+      {/* 🚀 HOW IT WORKS STEP BY STEP */}
       <section className="relative py-20 md:py-28 px-6 bg-slate-100 overflow-hidden border-b border-slate-200">
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
@@ -221,9 +405,9 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
-              { step: "01", title: "Create Profile", desc: "Register securely with your family background, education, and partner preferences." },
-              { step: "02", title: "Connect Families", desc: "Browse verified profiles and send interest requests directly to compatible families." },
-              { step: "03", title: "Begin Nikah Journey", desc: "Interact safely through our platform and take the blessed step forward." }
+              { step: "01", title: "Create Free Profile", desc: "Register securely with your family background, education, and partner preferences." },
+              { step: "02", title: "Discover & Express Interest", desc: "Browse verified profiles and send interest requests directly to compatible candidates." },
+              { step: "03", title: "Connect & Perform Nikah", desc: "Interact safely through instant chat, involve families, and take the blessed step forward." }
             ].map((box, i) => (
               <motion.div 
                 key={i}
@@ -242,7 +426,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 💖 TESTIMONIALS SLIDER */}
+      {/* 💖 TESTIMONIALS & SUCCESS STORIES */}
       <section className="relative py-20 md:py-28 px-6 bg-white overflow-hidden border-b border-slate-200">
         <div className="max-w-7xl mx-auto relative z-10">
           <div className="text-center mb-16 space-y-3">
@@ -273,7 +457,7 @@ export default function HomePage() {
                     {stories[activeStory].name}
                   </h3>
                   <p className="text-[#870c3f] font-black text-xs tracking-widest uppercase mt-1">
-                    Location: {stories[activeStory].location}
+                    Location: {stories[activeStory].location} • {stories[activeStory].date}
                   </p>
                 </div>
 
@@ -301,7 +485,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ❓ FAQ SECTION */}
+      {/* ❓ FREQUENTLY ASKED QUESTIONS */}
       <section className="relative py-20 md:py-28 px-6 bg-slate-50 overflow-hidden">
         <div className="max-w-4xl mx-auto space-y-12">
           <div className="text-center space-y-4">
@@ -314,16 +498,59 @@ export default function HomePage() {
           </div>
 
           <div className="space-y-4">
-            {[
-              { q: "How are profiles verified on Pakiza Rishte?", a: "Every single profile goes through a strict manual verification process involving phone confirmation and valid identity proofs to ensure complete family safety." },
-              { q: "Is my personal and family contact information secure?", a: "Yes, your data is completely secure. Only approved members with your explicit permission can view your contact details and pictures." },
-              { q: "How can I register my son or daughter's profile?", a: "You can easily sign up by entering basic details, uploading verification documents, and setting up partner expectations." }
-            ].map((faq, idx) => (
-              <div key={idx} className="bg-white border-2 border-slate-200 p-6 md:p-8 rounded-2xl space-y-2 shadow-sm">
-                <h4 className="text-lg md:text-xl font-serif font-bold text-slate-900">{faq.q}</h4>
-                <p className="text-sm text-slate-600 font-medium leading-relaxed">{faq.a}</p>
-              </div>
-            ))}
+            {faqs.map((faq, idx) => {
+              const isOpen = activeFaq === idx;
+              return (
+                <div 
+                  key={idx} 
+                  className="bg-white border-2 border-slate-200 rounded-2xl overflow-hidden shadow-xs transition-all"
+                >
+                  <button
+                    onClick={() => setActiveFaq(isOpen ? null : idx)}
+                    className="w-full p-6 text-left flex items-center justify-between gap-4 cursor-pointer"
+                  >
+                    <h4 className="text-base sm:text-lg font-serif font-bold text-slate-900">{faq.q}</h4>
+                    <ChevronDown size={20} className={`text-[#870c3f] transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  <AnimatePresence>
+                    {isOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="px-6 pb-6 text-sm text-slate-600 font-medium leading-relaxed border-t border-slate-100 pt-3"
+                      >
+                        {faq.a}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* 🌟 VIP FOOTER CTA BANNER */}
+      <section className="py-16 px-6 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white text-center relative overflow-hidden shadow-2xl">
+        <div className="max-w-4xl mx-auto space-y-6 relative z-10">
+          <Crown size={42} className="text-amber-300 mx-auto animate-bounce" />
+          <h2 className="text-3xl sm:text-5xl font-serif font-black tracking-tight">
+            Your Soulmate is Waiting.
+          </h2>
+          <p className="text-rose-100 text-sm sm:text-base font-semibold max-w-xl mx-auto">
+            Take the first step towards a blessed life partnership today. Registration takes less than 2 minutes!
+          </p>
+          <div className="pt-2">
+            <button
+              onClick={openRegisterModal}
+              className="px-10 py-4 rounded-full bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs uppercase tracking-widest shadow-2xl shadow-amber-500/30 active:scale-95 transition-all cursor-pointer border-2 border-amber-300 inline-flex items-center gap-2"
+            >
+              <span>Begin Free Registration Now</span>
+              <ArrowRight size={16} />
+            </button>
           </div>
         </div>
       </section>

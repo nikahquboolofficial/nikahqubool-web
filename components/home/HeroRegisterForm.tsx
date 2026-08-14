@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Phone, Mail, Users, ShieldCheck, ArrowRight, Loader2, Lock } from 'lucide-react';
+import { User, Phone, Mail, Users, ShieldCheck, ArrowRight, Loader2, Lock, Sparkles, CheckCircle2 } from 'lucide-react';
 import { fetchProfileCreatedForOptions, sendOtpApi, verifyOtpApi, MasterOption } from '@/lib/api';
 import { handleAuthSuccessRedirect } from '@/lib/auth';
 
@@ -175,40 +175,45 @@ export default function HeroRegisterForm() {
         initial={{ opacity: 0, y: 25, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="w-full max-w-[420px] bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl shadow-rose-950/15 border-2 border-rose-100 overflow-hidden relative group"
+        className="w-full max-w-[440px] bg-white/95 backdrop-blur-2xl rounded-3xl shadow-2xl shadow-rose-950/20 border-2 border-rose-100/90 overflow-hidden relative group"
       >
-        {/* HEADER WITH GRADIENT & ICON */}
-        <div className="bg-gradient-to-r from-[#870c3f] via-[#a3124e] to-[#870c3f] px-6 py-4.5 text-center text-white relative shadow-sm">
+        {/* TOP GLOWING BAR */}
+        <div className="h-1.5 bg-gradient-to-r from-[#870c3f] via-amber-400 to-[#870c3f]" />
+
+        {/* HEADER WITH GRADIENT & SHIELD */}
+        <div className="bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] px-6 py-5 text-center text-white relative shadow-sm">
           <div className="flex items-center justify-center gap-2">
-            <ShieldCheck size={18} className="text-amber-300" />
-            <span className="font-serif font-black text-xs sm:text-sm tracking-widest uppercase text-amber-200">
-              Begin Your Blessed Journey
+            <ShieldCheck size={20} className="text-amber-300 animate-pulse" />
+            <span className="font-serif font-black text-sm sm:text-base tracking-wider uppercase text-amber-200">
+              Begin Your Nikah Journey
             </span>
           </div>
-          <p className="text-[11px] font-medium text-rose-100/90 mt-0.5">Free Registration • 100% Verified Profiles</p>
+          <p className="text-[11px] font-semibold text-rose-100/90 mt-1 flex items-center justify-center gap-1.5">
+            <Sparkles size={12} className="text-amber-300" /> Free Registration • 100% Verified Proposals
+          </p>
         </div>
         
         <div className="p-6 sm:p-7 space-y-4 text-slate-800">
 
           {/* 1. PROFILE CREATED FOR DROPDOWN */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-              Create Profile For
+            <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1">
+              Create Profile For <span className="text-rose-500">*</span>
             </label>
             <div className="relative">
               <Users size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#870c3f] pointer-events-none" />
               <select
                 value={profileFor}
                 onChange={(e) => handleProfileForChange(e.target.value)}
-                className={`w-full pl-10 pr-4 py-3.5 rounded-xl border-2 bg-slate-50/80 outline-none text-sm font-semibold transition-all shadow-xs ${
+                className={`w-full pl-10 pr-4 py-3.5 rounded-2xl border-2 bg-slate-50 outline-none text-xs sm:text-sm font-bold transition-all shadow-xs ${
                   errors.profileFor 
-                    ? 'border-rose-500 text-rose-600 bg-rose-50/30' 
-                    : 'border-slate-300 focus:border-[#870c3f] focus:bg-white focus:ring-4 focus:ring-[#870c3f]/10 text-slate-800'
+                    ? 'border-rose-500 text-rose-600 bg-rose-50/40' 
+                    : 'border-slate-200 focus:border-[#870c3f] focus:bg-white focus:ring-4 focus:ring-[#870c3f]/10 text-slate-800'
                 }`}
               >
                 <option value="">{dropdownLoading ? 'Loading Options...' : 'Select Relation'}</option>
                 {options.map((opt) => (
-                  <option key={opt.id} value={opt.id} className="text-slate-900">
+                  <option key={opt.id} value={opt.id} className="text-slate-900 font-bold">
                     {opt.value}
                   </option>
                 ))}
@@ -217,25 +222,25 @@ export default function HeroRegisterForm() {
             {errors.profileFor && <p className="text-[11px] text-rose-600 font-bold ml-1 mt-1">{errors.profileFor}</p>}
           </div>
 
-          {/* GENDER SELECTION (IF SELF OR RELATIVE) */}
+          {/* GENDER SELECTION (IF APPLICABLE) */}
           {showGenderSelection && (
             <div>
-              <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-                Gender
+              <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1">
+                Gender <span className="text-rose-500">*</span>
               </label>
-              <div className={`flex gap-2 p-1.5 rounded-xl border-2 bg-slate-50 transition-all ${errors.gender ? 'border-rose-500' : 'border-slate-300'}`}>
+              <div className={`flex gap-2 p-1 rounded-2xl border-2 bg-slate-50 transition-all ${errors.gender ? 'border-rose-500' : 'border-slate-200'}`}>
                 {['male', 'female'].map(g => (
                   <button
                     key={g}
                     type="button"
                     onClick={() => setGender(g)}
-                    className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                    className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                       gender === g 
                         ? 'bg-[#870c3f] text-white shadow-md' 
                         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                     }`}
                   >
-                    {g === 'male' ? '👨 Male' : '👩 Female'}
+                    {g === 'male' ? '👨 Groom (Male)' : '👩 Bride (Female)'}
                   </button>
                 ))}
               </div>
@@ -245,8 +250,8 @@ export default function HeroRegisterForm() {
 
           {/* 2. FULL NAME */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-              Full Name
+            <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1">
+              Full Name <span className="text-rose-500">*</span>
             </label>
             <div className="relative">
               <User size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#870c3f] pointer-events-none" />
@@ -254,12 +259,12 @@ export default function HeroRegisterForm() {
                 type="text"
                 value={fullName}
                 onChange={(e) => handleInputChange('fullName', e.target.value)}
-                className={`w-full pl-10 pr-4 py-3.5 rounded-xl border-2 bg-slate-50/80 outline-none text-sm font-semibold transition-all shadow-xs ${
+                className={`w-full pl-10 pr-4 py-3.5 rounded-2xl border-2 bg-slate-50 outline-none text-xs sm:text-sm font-bold transition-all shadow-xs ${
                   errors.fullName 
-                    ? 'border-rose-500 text-rose-600 bg-rose-50/30' 
-                    : 'border-slate-300 focus:border-[#870c3f] focus:bg-white focus:ring-4 focus:ring-[#870c3f]/10 text-slate-800'
+                    ? 'border-rose-500 text-rose-600 bg-rose-50/40' 
+                    : 'border-slate-200 focus:border-[#870c3f] focus:bg-white focus:ring-4 focus:ring-[#870c3f]/10 text-slate-800'
                 }`}
-                placeholder="e.g. Mohammad Sameer"
+                placeholder="e.g. Mohammad Sameer Khan"
               />
             </div>
             {errors.fullName && <p className="text-[11px] text-rose-600 font-bold ml-1 mt-1">{errors.fullName}</p>}
@@ -267,11 +272,11 @@ export default function HeroRegisterForm() {
 
           {/* 3. MOBILE NUMBER */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-              Mobile Number
+            <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1">
+              Mobile Number <span className="text-rose-500">*</span>
             </label>
             <div className="relative">
-              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1 text-slate-500 font-bold text-xs pointer-events-none border-r border-slate-300 pr-2">
+              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1 text-slate-600 font-extrabold text-xs pointer-events-none border-r border-slate-300 pr-2">
                 <Phone size={14} className="text-[#870c3f]" />
                 <span>+91</span>
               </div>
@@ -280,12 +285,12 @@ export default function HeroRegisterForm() {
                 maxLength={10}
                 value={mobileNumber}
                 onChange={(e) => handleInputChange('mobileNumber', e.target.value)}
-                className={`w-full pl-18 pr-4 py-3.5 rounded-xl border-2 bg-slate-50/80 outline-none text-sm font-semibold transition-all shadow-xs ${
+                className={`w-full pl-18 pr-4 py-3.5 rounded-2xl border-2 bg-slate-50 outline-none text-xs sm:text-sm font-bold transition-all shadow-xs ${
                   errors.mobileNumber 
-                    ? 'border-rose-500 text-rose-600 bg-rose-50/30' 
-                    : 'border-slate-300 focus:border-[#870c3f] focus:bg-white focus:ring-4 focus:ring-[#870c3f]/10 text-slate-800'
+                    ? 'border-rose-500 text-rose-600 bg-rose-50/40' 
+                    : 'border-slate-200 focus:border-[#870c3f] focus:bg-white focus:ring-4 focus:ring-[#870c3f]/10 text-slate-800'
                 }`}
-                placeholder="10-digit number"
+                placeholder="10-digit mobile number"
               />
             </div>
             {errors.mobileNumber && <p className="text-[11px] text-rose-600 font-bold ml-1 mt-1">{errors.mobileNumber}</p>}
@@ -293,8 +298,8 @@ export default function HeroRegisterForm() {
 
           {/* 4. EMAIL ADDRESS */}
           <div>
-            <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-              Email Address
+            <label className="block text-[11px] font-black text-slate-600 uppercase tracking-wider mb-1">
+              Email Address <span className="text-rose-500">*</span>
             </label>
             <div className="relative">
               <Mail size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#870c3f] pointer-events-none" />
@@ -302,10 +307,10 @@ export default function HeroRegisterForm() {
                 type="email"
                 value={email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
-                className={`w-full pl-10 pr-4 py-3.5 rounded-xl border-2 bg-slate-50/80 outline-none text-sm font-semibold transition-all shadow-xs ${
+                className={`w-full pl-10 pr-4 py-3.5 rounded-2xl border-2 bg-slate-50 outline-none text-xs sm:text-sm font-bold transition-all shadow-xs ${
                   errors.email 
-                    ? 'border-rose-500 text-rose-600 bg-rose-50/30' 
-                    : 'border-slate-300 focus:border-[#870c3f] focus:bg-white focus:ring-4 focus:ring-[#870c3f]/10 text-slate-800'
+                    ? 'border-rose-500 text-rose-600 bg-rose-50/40' 
+                    : 'border-slate-200 focus:border-[#870c3f] focus:bg-white focus:ring-4 focus:ring-[#870c3f]/10 text-slate-800'
                 }`}
                 placeholder="name@example.com"
               />
@@ -315,11 +320,11 @@ export default function HeroRegisterForm() {
 
           {/* SUBMIT BUTTON */}
           <motion.button
-            whileHover={{ scale: 1.02 }}
+            whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.98 }}
             disabled={loading}
             onClick={handleRegisterSubmit}
-            className="w-full py-4 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white font-bold rounded-xl text-xs uppercase tracking-widest shadow-lg shadow-rose-900/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer border border-rose-300/30"
+            className="w-full py-4 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white font-black rounded-2xl text-xs uppercase tracking-widest shadow-xl shadow-rose-900/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer border border-rose-300/30"
           >
             {loading ? (
               <>
@@ -335,25 +340,29 @@ export default function HeroRegisterForm() {
           </motion.button>
 
           {apiMessage && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-center">
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl text-center">
               <p className="text-xs font-bold text-rose-600">{apiMessage}</p>
             </div>
           )}
+
+          <p className="text-[10px] text-center font-bold text-slate-400 uppercase tracking-wider">
+            By registering, you agree to our Terms & Privacy Policy
+          </p>
         </div>
       </motion.div>
 
       {/* OTP MODAL */}
       <AnimatePresence>
         {showOtpModal && (
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[2000] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/75 backdrop-blur-md z-[9999] flex items-center justify-center p-4">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="relative w-full max-w-[390px] bg-white p-7 sm:p-8 rounded-3xl shadow-2xl border border-rose-100 my-auto text-slate-800"
+              className="relative w-full max-w-[400px] bg-white p-7 sm:p-8 rounded-3xl shadow-2xl border-2 border-rose-100 my-auto text-slate-800"
             >
               <button
-                className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-[#870c3f] hover:text-white flex items-center justify-center font-bold text-xs transition-all cursor-pointer"
+                className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-[#870c3f] hover:text-white flex items-center justify-center font-bold text-xs transition-all cursor-pointer shadow-xs"
                 onClick={() => setShowOtpModal(false)}
               >
                 ✕
@@ -361,11 +370,11 @@ export default function HeroRegisterForm() {
 
               <div className="space-y-5 text-center">
                 <div>
-                  <div className="w-12 h-12 rounded-2xl bg-rose-50 text-[#870c3f] flex items-center justify-center mx-auto mb-3 shadow-xs">
-                    <Lock size={24} />
+                  <div className="w-14 h-14 rounded-2xl bg-rose-50 text-[#870c3f] border-2 border-rose-100 flex items-center justify-center mx-auto mb-3 shadow-sm">
+                    <Lock size={26} />
                   </div>
-                  <h2 className="text-2xl font-serif font-bold text-slate-900">Verify Mobile OTP</h2>
-                  <p className="text-xs text-slate-500 mt-1 font-medium">Enter 6-digit OTP sent to <span className="font-bold text-[#870c3f]">+91 {mobileNumber}</span></p>
+                  <h2 className="text-2xl font-serif font-extrabold text-slate-900 uppercase tracking-tight">Verify Mobile OTP</h2>
+                  <p className="text-xs text-slate-500 mt-1 font-semibold">Enter 6-digit OTP sent to <span className="font-extrabold text-[#870c3f]">+91 {mobileNumber}</span></p>
                 </div>
 
                 <div className="flex gap-2 justify-center py-2">
@@ -386,10 +395,10 @@ export default function HeroRegisterForm() {
                           setActiveOtpIndex(i - 1);
                         }
                       }}
-                      className={`w-11 h-13 text-lg font-bold text-center border-2 rounded-xl outline-none text-slate-900 bg-slate-50 transition-all ${
+                      className={`w-11 h-13 text-xl font-black text-center border-2 rounded-2xl outline-none text-slate-900 transition-all ${
                         activeOtpIndex === i 
-                          ? 'border-[#870c3f] ring-4 ring-[#870c3f]/20 bg-white' 
-                          : 'border-slate-200'
+                          ? 'border-[#870c3f] ring-4 ring-[#870c3f]/20 bg-white shadow-md' 
+                          : 'border-slate-200 bg-slate-50'
                       }`}
                     />
                   ))}
@@ -400,22 +409,25 @@ export default function HeroRegisterForm() {
                   whileTap={{ scale: 0.98 }}
                   disabled={loading}
                   onClick={() => handleVerifyOtpWithCode()}
-                  className="w-full py-4 bg-[#870c3f] hover:bg-[#6e0932] text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-4 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white font-black rounded-2xl text-xs uppercase tracking-widest shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer border border-rose-300/30"
                 >
                   {loading ? (
                     <>
-                      <Loader2 size={18} className="animate-spin" />
+                      <Loader2 size={18} className="animate-spin text-amber-300" />
                       <span>{loadingAction}</span>
                     </>
                   ) : (
-                    'Verify & Create Account'
+                    <>
+                      <CheckCircle2 size={16} className="text-amber-300" />
+                      <span>Verify & Create Account</span>
+                    </>
                   )}
                 </motion.button>
 
                 <div className="pt-1">
-                  <p className="text-xs text-slate-500 font-medium">Resend code in <span className="font-bold text-[#870c3f]">0:{timer.toString().padStart(2, '0')}</span></p>
+                  <p className="text-xs text-slate-500 font-semibold">Resend code in <span className="font-bold text-[#870c3f]">0:{timer.toString().padStart(2, '0')}</span></p>
                   {timer === 0 && (
-                    <button onClick={handleRegisterSubmit} className="text-[#870c3f] font-bold text-xs underline mt-2 hover:text-[#6e0932] cursor-pointer">
+                    <button onClick={handleRegisterSubmit} className="text-[#870c3f] font-extrabold text-xs underline mt-2 hover:text-[#6e0932] cursor-pointer">
                       Resend OTP Now
                     </button>
                   )}

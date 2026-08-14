@@ -30,7 +30,7 @@ function MessagesContainer() {
   }, [selectedChat]);
 
   return (
-    <div className="flex h-[calc(100vh-80px)] md:h-[calc(100vh-88px)] w-full max-w-7xl mx-auto bg-white md:shadow-2xl md:rounded-3xl overflow-hidden my-0 md:my-3 border-0 md:border-2 border-rose-100 selection:bg-[#870c3f] selection:text-white">
+    <div className="flex h-[100dvh] md:h-[calc(100vh-80px)] w-full max-w-7xl mx-auto bg-white md:shadow-2xl md:rounded-3xl overflow-hidden my-0 md:my-3 border-0 md:border-2 border-rose-100 selection:bg-[#870c3f] selection:text-white fixed inset-0 md:static z-[99]">
       
       {/* SIDEBAR INBOX */}
       <div className={`w-full md:w-[360px] lg:w-[420px] h-full flex-shrink-0 border-r-2 border-rose-100 bg-white ${selectedChat ? 'hidden md:block' : 'block'}`}>
@@ -46,7 +46,7 @@ function MessagesContainer() {
           <ChatWindow 
             receiverId={selectedChat.userId ?? selectedChat.UserId} 
             userName={selectedChat.fullName ?? selectedChat.FullName} 
-            photoUrl={selectedChat.photoUrl ?? selectedChat.PhotoUrl}
+            photoUrl={selectedChat.photoUrl ?? selectedChat.PhotoUrl ?? selectedChat.mainPhotoUrl ?? selectedChat.MainPhotoUrl}
             initialIsOnline={selectedChat.isOnline ?? selectedChat.IsOnline}
             initialLastSeen={selectedChat.lastSeen ?? selectedChat.LastSeen}
             onBack={() => setSelectedChat(null)} 

@@ -34,19 +34,20 @@ export default function HelpAndSupportPage() {
       <div className="max-w-2xl mx-auto px-4 space-y-6">
         
         {/* HEADER BAR */}
-        <div className="bg-white rounded-3xl p-5 border-2 border-rose-100 shadow-xl flex items-center gap-3">
+        <div className="flex items-center gap-3 py-2 border-b border-slate-200">
           <button 
             type="button" 
             onClick={() => router.back()} 
-            className="p-2 rounded-2xl bg-rose-50 hover:bg-rose-100 text-[#870c3f] border-2 border-rose-200 transition-colors cursor-pointer"
+            className="flex p-2 hover:bg-rose-50 text-[#870c3f] rounded-full transition-colors cursor-pointer"
+            aria-label="Back"
+            title="Go Back"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft size={22} className="stroke-[2.5]" />
           </button>
           <div>
-            <h1 className="text-lg font-serif font-extrabold uppercase text-slate-900 tracking-tight">
-              Help & Support Center
+            <h1 className="text-xl font-extrabold tracking-tight text-slate-900">
+              Help & Customer Support
             </h1>
-            <p className="text-xs font-semibold text-slate-500">We are here to assist you 24/7</p>
           </div>
         </div>
 

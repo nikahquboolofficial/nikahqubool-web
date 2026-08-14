@@ -4,6 +4,7 @@ import { Search, MessageSquare, UserX } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useSignalR } from '@/context/SignalRContext';
 import { fetchChatInboxApi, markChatReadApi, blockUserApiCall } from '@/lib/api';
+import { getOptimizedImageUrl } from '@/lib/imageUtils';
 
 export default function InboxList({ onSelectUser, selectedId }: any) {
   const router = useRouter();
@@ -45,7 +46,13 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
     }
   };
 
-  useEffect(() => { fetchInbox(); }, []);
+  useEffect(() => { 
+    fetchInbox();
+    const interval = setInterval(() => {
+      fetchInbox();
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (!connection) return;
@@ -156,7 +163,8 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
           if (isBlockedByMe) displayPreview = "You blocked this user";
           else if (isBlockedByOther || isBlocked) displayPreview = "User unavailable";
 
-          const pUrl = chat.photoUrl ?? chat.PhotoUrl ?? `https://ui-avatars.com/api/?name=${encodeURIComponent(fName)}&background=FFF0F3&color=870c3f&bold=true`;
+          const rawPhoto = chat.photoUrl ?? chat.PhotoUrl;
+          const pUrl = rawPhoto ? getOptimizedImageUrl(rawPhoto) : `https://ui-avatars.com/api/?name=${encodeURIComponent(fName)}&background=FFF0F3&color=870c3f&bold=true`;
 
           return (
             <div 
@@ -168,14 +176,15 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
                   : 'hover:bg-slate-50 border border-transparent'
               }`}
             >
-              <div className="relative flex-shrink-0">
+              <div className="relative flex-shrink-0 w-12 h-12">
                 <img 
                   src={pUrl} 
-                  className="w-11 h-11 rounded-2xl object-cover border border-rose-200 shadow-xs" 
+                  className="w-12 h-12 rounded-full object-cover object-top border-2 border-rose-200 shadow-xs flex-shrink-0" 
                   alt="avatar"
+                  onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }}
                 />
                 {isUserOnline && (
-                  <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full shadow-xs" />
+                  <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full shadow-xs z-10" />
                 )}
               </div>
               <div className="flex-1 min-w-0">

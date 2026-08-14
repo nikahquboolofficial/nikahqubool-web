@@ -11,6 +11,7 @@ import CustomSelect from '@/components/profile/CustomSelect';
 import CircularPhotoUpload from '@/components/profile/CircularPhotoUpload';
 import ImageCropModal from '@/components/profile/ImageCropModal';
 import MobileBottomNav from '@/components/profile/MobileBottomNav';
+import { CompactSelect } from '@/components/profile/CompactSelect';
 
 export default function CompleteProfilePage() {
   const router = useRouter();
@@ -24,14 +25,16 @@ export default function CompleteProfilePage() {
   const [masterData, setMasterData] = useState<{ [key: string]: MasterOption[] }>({});
 
   const [formData, setFormData] = useState({
-    dob: '', height: '', weight: '', complexionId: 0, complexionText: '',
-    maritalStatusId: 0, maritalStatusText: '', religionId: 0, religionText: '',
-    sectId: 0, sectText: '', maslakId: 0, maslakText: '', casteId: 0, casteText: '',
-    motherTongueId: 0, motherTongueText: '', stateId: 0, stateText: '', cityId: 0, cityText: '',
-    educationId: 0, educationText: '', employmentSectorId: 0, employmentSectorText: '',
-    occupationId: 0, occupationText: '', income: '', familyTypeId: 0, familyTypeText: '',
-    familyStatusId: 0, familyStatusText: '', fatherOccupationId: 0, fatherOccupationText: '',
-    motherOccupationId: 0, motherOccupationText: '', photo: null as File | null, photoUrl: '', photoPrivacy: 'All Members'
+    dob: '', height: '5 ft 6 in', weight: '60 kg', complexionId: 1, complexionText: '',
+    maritalStatusId: 1, maritalStatusText: '', religionId: 1, religionText: '',
+    sectId: 1, sectText: '', maslakId: 1, maslakText: '', casteId: 1, casteText: '',
+    motherTongueId: 1, motherTongueText: '', stateId: 0, stateText: '', cityId: 0, cityText: '',
+    educationId: 1, educationText: '', employmentSectorId: 1, employmentSectorText: '',
+    occupationId: 1, occupationText: '', income: '5 - 10 LPA', familyTypeId: 1, familyTypeText: '',
+    familyStatusId: 1, familyStatusText: '', fatherOccupation: 'Business Owner',
+    motherOccupation: 'Homemaker', totalBrothers: 0, marriedBrothers: 0, totalSisters: 0, marriedSisters: 0,
+    namazHabit: 'Regular 5 Times', hijabOrBeard: 'Hijab',
+    photo: null as File | null, photoUrl: '', photoPrivacy: 'All Members'
   });
 
   const getCookie = (name: string) => {
@@ -43,13 +46,18 @@ export default function CompleteProfilePage() {
 
   useEffect(() => {
     const loadAllMasters = async () => {
-      const types = ['MARITAL_STATUS', 'RELIGIONS', 'SECTS', 'MASLAKS', 'CASTES', 'MOTHER_TONGUES', 'EDUCATIONS', 'EMPLOYMENT_SECTORS', 'OCCUPATIONS', 'STATES', 'FAMILY_TYPES', 'FAMILY_STATUS'];
-      for (const t of types) {
-        const data = await fetchMasterDataApi(t);
-        setMasterData(prev => ({ ...prev, [t]: data }));
-      }
-      const complexions = await fetchMasterDataApi('Complexion');
-      setMasterData(prev => ({ ...prev, COMPLEXIONS: complexions }));
+      const types = ['MARITAL_STATUS', 'RELIGIONS', 'SECTS', 'MASLAKS', 'CASTES', 'MOTHER_TONGUES', 'EDUCATIONS', 'EMPLOYMENT_SECTORS', 'OCCUPATIONS', 'STATES', 'FAMILY_TYPES', 'FAMILY_STATUS', 'Complexion'];
+      const results = await Promise.all(
+        types.map(async (t) => {
+          const data = await fetchMasterDataApi(t);
+          return { key: t === 'Complexion' ? 'COMPLEXIONS' : t, data };
+        })
+      );
+      const masterObj: { [key: string]: MasterOption[] } = {};
+      results.forEach(item => {
+        masterObj[item.key] = item.data;
+      });
+      setMasterData(prev => ({ ...prev, ...masterObj }));
     };
     loadAllMasters();
   }, []);
@@ -123,8 +131,14 @@ export default function CompleteProfilePage() {
     fd.append("AnnualIncome", String(formData.income));
     fd.append("FamilyType", String(formData.familyTypeId));
     fd.append("FamilyStatus", String(formData.familyStatusId));
-    fd.append("FatherOccupation", String(formData.fatherOccupationId));
-    fd.append("MotherOccupation", String(formData.motherOccupationId));
+    fd.append("FatherOccupation", formData.fatherOccupation);
+    fd.append("MotherOccupation", formData.motherOccupation);
+    fd.append("TotalBrothers", String(formData.totalBrothers));
+    fd.append("MarriedBrothers", String(formData.marriedBrothers));
+    fd.append("TotalSisters", String(formData.totalSisters));
+    fd.append("MarriedSisters", String(formData.marriedSisters));
+    fd.append("NamazHabit", formData.namazHabit);
+    fd.append("HijabOrBeard", formData.hijabOrBeard);
     fd.append("PhotoPrivacy", formData.photoPrivacy);
     if (formData.photo) fd.append("Photo", formData.photo);
 
@@ -150,7 +164,7 @@ export default function CompleteProfilePage() {
     if (section === 2) currentFields = ['maritalStatusId', 'religionId', 'sectId', 'maslakId', 'casteId', 'motherTongueId'];
     if (section === 3) currentFields = ['stateId', 'cityId'];
     if (section === 4) currentFields = ['educationId', 'employmentSectorId', 'occupationId', 'income'];
-    if (section === 5) currentFields = ['familyTypeId', 'familyStatusId', 'fatherOccupationId', 'motherOccupationId'];
+    if (section === 5) currentFields = ['familyTypeId', 'familyStatusId'];
 
     if (section === 6 && !formData.photo) {
       setErrors(['photo']);
@@ -170,6 +184,8 @@ export default function CompleteProfilePage() {
   };
 
   const percentage = Math.round((section / 6) * 100);
+  const countOptions = Array.from({ length: 11 }, (_, i) => ({ id: i, value: String(i) }));
+  const incomeOptions = ["2-5 LPA", "5-10 LPA", "10-20 LPA", "20-50 LPA", "50 LPA+"].map(i => ({ id: i, value: i }));
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col selection:bg-[#870c3f] selection:text-white">
@@ -241,7 +257,7 @@ export default function CompleteProfilePage() {
                       <CustomSelect label="Highest Qualification" value={formData.educationText} fieldName="educationId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.EDUCATIONS} errors={errors} />
                       <CustomSelect label="Employment Sector" value={formData.employmentSectorText} fieldName="employmentSectorId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.EMPLOYMENT_SECTORS} errors={errors} />
                       <CustomSelect label="Occupation" value={formData.occupationText} fieldName="occupationId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.OCCUPATIONS} errors={errors} openUpward={true} />
-                      <CustomSelect label="Annual Income Range" value={formData.income} fieldName="income" isPlainString={true} onChange={(f: string, v: any) => update(f, v)} options={["2-5 LPA", "5-10 LPA", "10-20 LPA", "20-50 LPA", "50 LPA+"].map(i => ({ id: i as any, value: i }))} errors={errors} openUpward={true} />
+                      <CustomSelect label="Annual Income Range" value={formData.income} fieldName="income" isPlainString={true} onChange={(f: string, v: any) => update(f, v)} options={incomeOptions} errors={errors} openUpward={true} />
                     </>
                   )}
 
@@ -249,8 +265,8 @@ export default function CompleteProfilePage() {
                     <>
                       <CustomSelect label="Family Type" value={formData.familyTypeText} fieldName="familyTypeId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.FAMILY_TYPES} errors={errors} />
                       <CustomSelect label="Family Status" value={formData.familyStatusText} fieldName="familyStatusId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.FAMILY_STATUS} errors={errors} />
-                      <CustomSelect label="Father's Occupation" value={formData.fatherOccupationText} fieldName="fatherOccupationId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.OCCUPATIONS} errors={errors} openUpward={true} />
-                      <CustomSelect label="Mother's Occupation" value={formData.motherOccupationText} fieldName="motherOccupationId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.OCCUPATIONS} errors={errors} openUpward={true} />
+                      <CompactSelect label="Father's Occupation" options={masterData.OCCUPATIONS || []} value={formData.fatherOccupation} onChange={(val) => update('fatherOccupation', (masterData.OCCUPATIONS || []).find(o => String(o.id) === String(val))?.value || val)} />
+                      <CompactSelect label="Mother's Occupation" options={masterData.OCCUPATIONS || []} value={formData.motherOccupation} onChange={(val) => update('motherOccupation', (masterData.OCCUPATIONS || []).find(o => String(o.id) === String(val))?.value || val)} />
                     </>
                   )}
 
