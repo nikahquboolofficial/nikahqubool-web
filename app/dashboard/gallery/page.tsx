@@ -135,12 +135,13 @@ export default function GalleryManagementPage() {
     if (res.success) {
       // 🔄 IF REPLACING AN EXISTING PHOTO
       if (selectedPhoto && oldPhotoId) {
-        const newPhotoId = res.data?.photoId || res.data?.PhotoId || res.photoId || res.PhotoId;
+        const resAny = res as any;
+        const newPhotoId = resAny.data?.photoId || resAny.data?.PhotoId || resAny.photoId || resAny.PhotoId;
         
         if (isReplacingMain && newPhotoId) {
           await setMainPhotoApi(newPhotoId, token);
-          if (res.data?.photoUrl || res.photoUrl) {
-            updateSessionPhoto(res.data?.photoUrl || res.photoUrl);
+          if (resAny.data?.photoUrl || resAny.photoUrl) {
+            updateSessionPhoto(resAny.data?.photoUrl || resAny.photoUrl);
           }
         } else if (oldPhotoId && !isReplacingMain) {
           await deleteGalleryPhotoApi(oldPhotoId, token);

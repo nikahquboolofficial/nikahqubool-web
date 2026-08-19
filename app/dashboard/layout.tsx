@@ -91,7 +91,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     pathname === '/dashboard/shortlisted-by-me' ||
     pathname === '/dashboard/shortlisted-me') &&
     !pathname.startsWith('/dashboard/messages') &&
-    pathname !== '/dashboard/my-profile';
+    (pathname as string) !== '/dashboard/my-profile';
 
   const isStandaloneBackVisibleOnMobile = 
     !isMobileBottomNavVisible && 

@@ -40,6 +40,7 @@ BEGIN
           
     -- 📊 RESULT SET 1: TabCountsModel    
     SELECT          
+        @IsCurrentUserPaid AS IsCurrentUserPaid,
         (SELECT COUNT(1) FROM Users u2 WITH (NOLOCK) WHERE ISNULL(u2.Gender, @TargetGender) = @TargetGender AND CAST(ISNULL(u2.IsActive, 1) AS VARCHAR(10)) IN ('1', 'Yes', 'True')) AS MatchesCount,          
         (SELECT COUNT(1) FROM UserInteractions WITH (NOLOCK) WHERE ReceiverUserId = @CurrentUserId AND InteractionType = 'INTEREST' AND Status = 'PENDING') AS RequestsCount,          
         (SELECT COUNT(1) FROM UserInteractions WITH (NOLOCK) WHERE (SenderUserId = @CurrentUserId OR ReceiverUserId = @CurrentUserId) AND InteractionType = 'INTEREST' AND Status = 'ACCEPTED') AS AcceptedCount,          

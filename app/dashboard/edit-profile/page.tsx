@@ -887,20 +887,45 @@ export default function EditMyProfilePage() {
                         />
                       </div>
 
-                      <CompactSelect 
-                        label="Father's Occupation" 
-                        options={masterData.OCCUPATIONS || []} 
-                        value={formData.FatherOccupation} 
-                        onChange={(val) => setFormData({ ...formData, FatherOccupation: String(val) })} 
-                      />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 uppercase tracking-tight mb-1">Father's Name</label>
+                          <input
+                            type="text"
+                            placeholder="Enter Father's Name"
+                            value={formData.FatherName || ''}
+                            onChange={(e) => setFormData({ ...formData, FatherName: e.target.value })}
+                            className="w-full px-3 py-2 text-sm border-2 border-slate-200 rounded-xl focus:border-[#870c3f] focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 uppercase tracking-tight mb-1">Mother's Name</label>
+                          <input
+                            type="text"
+                            placeholder="Enter Mother's Name"
+                            value={formData.MotherName || ''}
+                            onChange={(e) => setFormData({ ...formData, MotherName: e.target.value })}
+                            className="w-full px-3 py-2 text-sm border-2 border-slate-200 rounded-xl focus:border-[#870c3f] focus:outline-none"
+                          />
+                        </div>
+                      </div>
 
-                      <CompactSelect 
-                        label="Mother's Occupation" 
-                        options={masterData.OCCUPATIONS || []} 
-                        value={formData.MotherOccupation} 
-                        onChange={(val) => setFormData({ ...formData, MotherOccupation: String(val) })} 
-                        openUpward={true}
-                      />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <CompactSelect 
+                          label="Father's Occupation" 
+                          options={masterData.OCCUPATIONS || []} 
+                          value={formData.FatherOccupationId || formData.FatherOccupation} 
+                          onChange={(val) => setFormData({ ...formData, FatherOccupationId: Number(val), FatherOccupation: String(val) })} 
+                        />
+
+                        <CompactSelect 
+                          label="Mother's Occupation" 
+                          options={masterData.OCCUPATIONS || []} 
+                          value={formData.MotherOccupationId || formData.MotherOccupation} 
+                          onChange={(val) => setFormData({ ...formData, MotherOccupationId: Number(val), MotherOccupation: String(val) })} 
+                          openUpward={true}
+                        />
+                      </div>
 
                       {/* BROTHER / SISTER COUNT DROPDOWNS WITH AUTO-UPWARD POSITIONING */}
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

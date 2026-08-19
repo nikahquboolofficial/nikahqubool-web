@@ -109,7 +109,7 @@ export default function ChatWindow({
         }));
         setMessages(prev => {
           const currentIds = prev.map(p => p.messageId).join(',');
-          const newIds = formatted.map(f => f.messageId).join(',');
+          const newIds = formatted.map((f: any) => f.messageId).join(',');
           if (currentIds === newIds) return prev;
           return formatted;
         });
