@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -57,7 +57,7 @@ export default function PaymentInfoPage() {
   const remainingViews = activePlan?.remainingContacts ?? activePlan?.RemainingContacts ?? activePlan?.contactViewsAllowed ?? 0;
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-28 pt-4 selection:bg-[#870c3f] selection:text-white">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-28 pt-4 selection:bg-[#d91b5c] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-6">
@@ -68,7 +68,7 @@ export default function PaymentInfoPage() {
             <button 
               type="button" 
               onClick={() => router.back()} 
-              className="flex p-2 hover:bg-rose-50 text-[#870c3f] rounded-full transition-colors cursor-pointer"
+              className="flex p-2 hover:bg-rose-50 text-[#d91b5c] rounded-full transition-colors cursor-pointer"
               aria-label="Back"
               title="Go Back"
             >
@@ -82,7 +82,7 @@ export default function PaymentInfoPage() {
           <button 
             type="button"
             onClick={() => router.push('/dashboard/membership')}
-            className="px-4 py-2 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white text-xs font-black uppercase rounded-full shadow-md flex items-center gap-1.5 cursor-pointer hover:brightness-110 shrink-0"
+            className="px-4 py-2 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white text-xs font-black uppercase rounded-full shadow-md flex items-center gap-1.5 cursor-pointer hover:brightness-110 shrink-0"
           >
             <Crown size={15} className="text-amber-300 fill-amber-300" />
             <span>Upgrade VIP</span>
@@ -90,7 +90,7 @@ export default function PaymentInfoPage() {
         </div>
 
         {loading ? (
-          <div className="min-h-[250px] flex items-center justify-center text-[#870c3f]">
+          <div className="min-h-[250px] flex items-center justify-center text-[#d91b5c]">
             <Loader2 size={36} className="animate-spin" />
           </div>
         ) : (
@@ -103,7 +103,7 @@ export default function PaymentInfoPage() {
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
                 <div className="flex items-center gap-3.5">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-r from-[#870c3f] to-[#9e0f4a] text-white flex items-center justify-center shadow-md">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-r from-[#d91b5c] to-[#e11d48] text-white flex items-center justify-center shadow-md">
                     <Crown size={24} className="text-amber-300 fill-amber-300" />
                   </div>
                   <div>
@@ -127,7 +127,7 @@ export default function PaymentInfoPage() {
                 <button 
                   type="button"
                   onClick={() => router.push('/dashboard/membership')}
-                  className="px-5 py-2.5 rounded-2xl bg-[#870c3f] hover:bg-[#6e0a33] text-white font-black text-xs uppercase tracking-wider shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="px-5 py-2.5 rounded-2xl bg-[#d91b5c] hover:bg-[#6e0a33] text-white font-black text-xs uppercase tracking-wider shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <RefreshCw size={15} /> Renew / Change Plan
                 </button>
@@ -136,7 +136,7 @@ export default function PaymentInfoPage() {
               {/* ACTIVE PLAN METRICS GRID */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-1">
                 <div className="p-4 rounded-2xl bg-rose-50/60 border border-rose-100 flex items-center gap-3">
-                  <Calendar className="text-[#870c3f]" size={20} />
+                  <Calendar className="text-[#d91b5c]" size={20} />
                   <div>
                     <span className="text-[10px] font-black uppercase text-slate-400 block">Expiry Date</span>
                     <span className="text-xs font-black text-slate-800">
@@ -202,7 +202,7 @@ export default function PaymentInfoPage() {
                             <td className="py-3.5 px-3">
                               {date ? new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}
                             </td>
-                            <td className="py-3.5 px-3 text-[#870c3f]">{plan}</td>
+                            <td className="py-3.5 px-3 text-[#d91b5c]">{plan}</td>
                             <td className="py-3.5 px-3">₹{amount}</td>
                             <td className="py-3.5 px-3">
                               {status === 'COMPLETED' || status === 'SUCCESS' || status === 'PAID' ? (
@@ -230,3 +230,4 @@ export default function PaymentInfoPage() {
     </div>
   );
 }
+

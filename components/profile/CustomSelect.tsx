@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect } from 'react';
 import { Search, ChevronDown } from 'lucide-react';
@@ -38,13 +38,13 @@ export default function CustomSelect({
         className={`px-4 py-3.5 bg-slate-50/80 hover:bg-white border-2 rounded-2xl text-xs font-semibold flex justify-between items-center cursor-pointer transition-all shadow-xs ${
           hasError 
             ? 'border-rose-500 bg-rose-50/40 text-rose-700' 
-            : 'border-slate-300 focus:border-[#870c3f] focus:ring-4 focus:ring-[#870c3f]/10 text-slate-800'
+            : 'border-slate-300 focus:border-[#d91b5c] focus:ring-4 focus:ring-[#d91b5c]/10 text-slate-800'
         }`}
       >
         <span className={value ? 'text-slate-900 font-bold truncate' : 'text-slate-400 font-medium'}>
           {value || `Select ${label}...`}
         </span>
-        <ChevronDown size={16} className={`text-slate-400 shrink-0 ml-2 transition-transform ${isOpen ? 'rotate-180 text-[#870c3f]' : ''}`} />
+        <ChevronDown size={16} className={`text-slate-400 shrink-0 ml-2 transition-transform ${isOpen ? 'rotate-180 text-[#d91b5c]' : ''}`} />
       </div>
 
       <AnimatePresence>
@@ -58,9 +58,9 @@ export default function CustomSelect({
             }`}
           >
             <div className="relative border-b-2 border-slate-100 bg-slate-50 p-2.5">
-              <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#870c3f]" />
+              <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#d91b5c]" />
               <input 
-                className="w-full pl-9 pr-3 py-2 text-xs font-bold outline-none bg-white rounded-xl border border-slate-200 text-slate-800 focus:border-[#870c3f]" 
+                className="w-full pl-9 pr-3 py-2 text-xs font-bold outline-none bg-white rounded-xl border border-slate-200 text-slate-800 focus:border-[#d91b5c]" 
                 placeholder="Search options..." 
                 value={search} 
                 onChange={(e) => setSearch(e.target.value)} 
@@ -77,7 +77,7 @@ export default function CustomSelect({
                     else onChange(fieldName, opt.id, fieldName.replace('Id', 'Text'), opt.value);
                     setIsOpen(false);
                   }}
-                  className="px-4 py-2.5 rounded-xl hover:bg-rose-50 hover:text-[#870c3f] text-xs font-bold cursor-pointer text-slate-700 transition-all"
+                  className="px-4 py-2.5 rounded-xl hover:bg-rose-50 hover:text-[#d91b5c] text-xs font-bold cursor-pointer text-slate-700 transition-all"
                 >
                   {opt.value}
                 </div>

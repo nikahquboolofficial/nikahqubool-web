@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import { fetchActiveSubscriptionApi, fetchProfileDetailsApi, fetchSubscriptionPlansApi } from '@/lib/api';
 import { getOptimizedImageUrl } from '@/lib/imageUtils';
+import VerificationModal from '@/components/profile/VerificationModal';
 
 export default function MySelfProfilePage() {
   const router = useRouter();
@@ -19,6 +20,7 @@ export default function MySelfProfilePage() {
   const [profileData, setProfileData] = useState<any>(null);
   const [cheapestPlan, setCheapestPlan] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isVerificationOpen, setIsVerificationOpen] = useState(false);
 
   const getCookie = (name: string) => {
     if (typeof document === "undefined") return null;
@@ -63,7 +65,7 @@ export default function MySelfProfilePage() {
   const handleShareProfile = () => {
     if (navigator.share) {
       navigator.share({
-        title: profileData?.fullName || 'Pakiza Rishte Profile',
+        title: profileData?.fullName || 'Nikah Qubool Profile',
         url: window.location.href,
       }).catch(() => {});
     } else {
@@ -78,7 +80,7 @@ export default function MySelfProfilePage() {
   const profileCompletion = profileData?.profileCompletion || 85;
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-28 pt-4 selection:bg-[#870c3f] selection:text-white">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-28 pt-4 selection:bg-[#d91b5c] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
       <div className="max-w-xl mx-auto px-4 space-y-6">
@@ -91,7 +93,7 @@ export default function MySelfProfilePage() {
           <button 
             type="button"
             onClick={handleShareProfile} 
-            className="p-2.5 rounded-full bg-white border-2 border-slate-200 text-slate-700 hover:text-[#870c3f] shadow-xs cursor-pointer transition-all"
+            className="p-2.5 rounded-full bg-white border-2 border-slate-200 text-slate-700 hover:text-[#d91b5c] shadow-xs cursor-pointer transition-all"
             aria-label="Share Profile"
           >
             <Share2 size={18} />
@@ -103,7 +105,7 @@ export default function MySelfProfilePage() {
           
           {/* AVATAR WITH 85% COMPLETION RING */}
           <div className="relative w-28 h-28 mx-auto cursor-pointer" onClick={() => router.push('/dashboard/gallery')}>
-            <div className="w-full h-full rounded-full p-1 border-4 border-[#870c3f] relative flex items-center justify-center bg-white shadow-md">
+            <div className="w-full h-full rounded-full p-1 border-4 border-[#d91b5c] relative flex items-center justify-center bg-white shadow-md">
               <img 
                 src={photo} 
                 alt={fullName} 
@@ -125,7 +127,7 @@ export default function MySelfProfilePage() {
             </button>
 
             {/* % COMPLETION BADGE */}
-            <div className="absolute -bottom-2 inset-x-0 mx-auto w-fit px-3 py-0.5 rounded-full bg-[#870c3f] text-white text-[11px] font-black shadow-md border-2 border-white">
+            <div className="absolute -bottom-2 inset-x-0 mx-auto w-fit px-3 py-0.5 rounded-full bg-[#d91b5c] text-white text-[11px] font-black shadow-md border-2 border-white">
               {profileCompletion}%
             </div>
           </div>
@@ -137,13 +139,32 @@ export default function MySelfProfilePage() {
               {isVerified && <CheckCircle2 size={18} className="fill-emerald-500 text-white" />}
             </h2>
 
+            {/* PROMINENT VERIFICATION BADGE BUTTON */}
+            <div className="pt-2">
+              {isVerified ? (
+                <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-300 text-xs font-black uppercase tracking-wider shadow-xs">
+                  <CheckCircle2 size={16} className="text-emerald-600" />
+                  <span>Profile Verified</span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsVerificationOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full bg-gradient-to-r from-emerald-600 to-teal-700 text-white text-xs font-black uppercase tracking-wider shadow-md hover:brightness-110 active:scale-95 transition-all cursor-pointer border border-emerald-300"
+                >
+                  <Shield size={16} className="text-emerald-200" />
+                  <span>Get Verified Badge Now</span>
+                </button>
+              )}
+            </div>
+
             {/* INCOMPLETE PROFILE LINK -> OPENS /dashboard/edit-profile */}
             <button 
               type="button"
               onClick={() => router.push('/dashboard/edit-profile')}
-              className="text-xs font-black text-[#870c3f] hover:underline uppercase tracking-wider flex items-center justify-center gap-1 mx-auto mt-1 cursor-pointer"
+              className="text-xs font-black text-[#d91b5c] hover:underline uppercase tracking-wider flex items-center justify-center gap-1 mx-auto mt-2 cursor-pointer"
             >
-              <span>Incomplete profile</span>
+              <span>Edit Profile Details</span>
               <ChevronRight size={14} />
             </button>
           </div>
@@ -187,7 +208,7 @@ export default function MySelfProfilePage() {
             <div className="space-y-1.5">
               <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-950 text-[11px] font-black uppercase tracking-wider">
                 <Sparkles size={13} className="text-amber-600 fill-amber-500" />
-                <span>Pakiza Luxury Matchmaking</span>
+                <span>Nikah Qubool Premium Matchmaking</span>
               </div>
 
               <h3 className="text-xl font-serif font-extrabold text-slate-900 uppercase tracking-tight pt-1">
@@ -243,7 +264,7 @@ export default function MySelfProfilePage() {
             <div>
               <Link
                 href="/dashboard/membership"
-                className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer border border-rose-300/30 block"
+                className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer border border-rose-300/30 block"
               >
                 <div className="flex items-center justify-center gap-2 w-full">
                   <Crown size={18} className="fill-amber-300 text-amber-300" />
@@ -269,7 +290,7 @@ export default function MySelfProfilePage() {
             >
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-3.5">
-                  <Edit2 size={18} className="text-[#870c3f]" />
+                  <Edit2 size={18} className="text-[#d91b5c]" />
                   <span className="text-xs font-black uppercase">Edit my profile</span>
                 </div>
                 <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
@@ -282,7 +303,7 @@ export default function MySelfProfilePage() {
             >
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-3.5">
-                  <Shield size={18} className="text-[#870c3f]" />
+                  <Shield size={18} className="text-[#d91b5c]" />
                   <span className="text-xs font-black uppercase">Profile Privacy</span>
                 </div>
                 <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
@@ -308,7 +329,7 @@ export default function MySelfProfilePage() {
             >
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-3.5">
-                  <CreditCard size={18} className="text-[#870c3f]" />
+                  <CreditCard size={18} className="text-[#d91b5c]" />
                   <span className="text-xs font-black uppercase">Payment Info</span>
                 </div>
                 <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
@@ -321,7 +342,7 @@ export default function MySelfProfilePage() {
             >
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-3.5">
-                  <HelpCircle size={18} className="text-[#870c3f]" />
+                  <HelpCircle size={18} className="text-[#d91b5c]" />
                   <span className="text-xs font-black uppercase">Help & Support</span>
                 </div>
                 <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
@@ -334,7 +355,7 @@ export default function MySelfProfilePage() {
             >
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-3.5">
-                  <Settings size={18} className="text-[#870c3f]" />
+                  <Settings size={18} className="text-[#d91b5c]" />
                   <span className="text-xs font-black uppercase">Account Settings & Deactivate</span>
                 </div>
                 <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
@@ -344,6 +365,18 @@ export default function MySelfProfilePage() {
         )}
 
       </div>
+
+      {/* 🛡️ DUAL VERIFICATION MODAL */}
+      <VerificationModal
+        isOpen={isVerificationOpen}
+        onClose={() => setIsVerificationOpen(false)}
+        userId={profileData?.userId || 0}
+        token={getToken() || null}
+        onVerificationSuccess={() => {
+          loadMyProfile();
+        }}
+      />
     </div>
   );
 }
+

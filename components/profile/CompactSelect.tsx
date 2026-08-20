@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from 'react';
 import { ChevronDown, Search, X, Check } from 'lucide-react';
@@ -41,12 +41,12 @@ export function CompactSelect({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-900 flex items-center justify-between outline-none focus:border-[#870c3f] transition-all cursor-pointer"
+        className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-900 flex items-center justify-between outline-none focus:border-[#d91b5c] transition-all cursor-pointer"
       >
         <span className={selectedOpt ? "text-slate-900 font-extrabold" : "text-slate-400"}>
           {selectedOpt ? selectedOpt.value : placeholder}
         </span>
-        <ChevronDown size={16} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180 text-[#870c3f]' : ''}`} />
+        <ChevronDown size={16} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180 text-[#d91b5c]' : ''}`} />
       </button>
 
       {isOpen && (
@@ -63,7 +63,7 @@ export function CompactSelect({
                 placeholder="Search..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-[#870c3f]"
+                className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-[#d91b5c]"
               />
             </div>
           )}
@@ -83,11 +83,11 @@ export function CompactSelect({
                       setSearch("");
                     }}
                     className={`px-3 py-2 rounded-xl text-xs font-extrabold flex items-center justify-between cursor-pointer transition-colors ${
-                      isSelected ? 'bg-rose-50 text-[#870c3f]' : 'hover:bg-slate-50 text-slate-700'
+                      isSelected ? 'bg-rose-50 text-[#d91b5c]' : 'hover:bg-slate-50 text-slate-700'
                     }`}
                   >
                     <span>{opt.value}</span>
-                    {isSelected && <Check size={14} className="text-[#870c3f]" />}
+                    {isSelected && <Check size={14} className="text-[#d91b5c]" />}
                   </div>
                 );
               })
@@ -141,12 +141,12 @@ export function MultiSelectDropdown({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-900 flex items-center justify-between outline-none focus:border-[#870c3f] transition-all cursor-pointer"
+        className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-900 flex items-center justify-between outline-none focus:border-[#d91b5c] transition-all cursor-pointer"
       >
         <span className={selectedOptions.length > 0 ? "text-slate-900 font-extrabold" : "text-slate-400"}>
           {selectedOptions.length > 0 ? `${selectedOptions.length} Selected` : placeholder}
         </span>
-        <ChevronDown size={16} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180 text-[#870c3f]' : ''}`} />
+        <ChevronDown size={16} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180 text-[#d91b5c]' : ''}`} />
       </button>
 
       {selectedOptions.length > 0 && (
@@ -154,7 +154,7 @@ export function MultiSelectDropdown({
           {selectedOptions.map(opt => (
             <span
               key={opt.id}
-              className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 text-[#870c3f] border border-rose-200 rounded-xl text-xs font-black shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 text-[#d91b5c] border border-rose-200 rounded-xl text-xs font-black shadow-2xs"
             >
               <span>{opt.value}</span>
               <button
@@ -183,7 +183,7 @@ export function MultiSelectDropdown({
                 placeholder="Search items..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-[#870c3f]"
+                className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-[#d91b5c]"
               />
             </div>
           )}
@@ -199,11 +199,11 @@ export function MultiSelectDropdown({
                     key={opt.id}
                     onClick={() => toggleOption(opt.id)}
                     className={`px-3 py-2 rounded-xl text-xs font-extrabold flex items-center justify-between cursor-pointer transition-colors ${
-                      isSelected ? 'bg-rose-50 text-[#870c3f]' : 'hover:bg-slate-50 text-slate-700'
+                      isSelected ? 'bg-rose-50 text-[#d91b5c]' : 'hover:bg-slate-50 text-slate-700'
                     }`}
                   >
                     <span>{opt.value}</span>
-                    <div className={`w-4 h-4 rounded-md border flex items-center justify-center ${isSelected ? 'bg-[#870c3f] border-[#870c3f] text-white' : 'border-slate-300'}`}>
+                    <div className={`w-4 h-4 rounded-md border flex items-center justify-center ${isSelected ? 'bg-[#d91b5c] border-[#d91b5c] text-white' : 'border-slate-300'}`}>
                       {isSelected && <Check size={10} className="stroke-[3]" />}
                     </div>
                   </div>

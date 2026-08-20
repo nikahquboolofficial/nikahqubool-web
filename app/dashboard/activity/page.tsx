@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   UserCheck, Loader2, Sparkles, Heart, Flame, RefreshCw, Crown, 
@@ -36,7 +36,6 @@ const CATEGORY_SUBTABS: Record<MainCategory, SubTabConfig[]> = {
   gallery: [
     { id: 'gallery-requests-received', label: 'Received', countKey: 'photosCount', icon: Inbox },
     { id: 'gallery-requests', label: 'Sent', icon: Lock },
-    { id: 'gallery-requests-accepted', label: 'Accepted', icon: CheckCircle2 },
   ],
   contacts: [
     { id: 'viewed-my-profile', label: 'Viewed Mine', icon: Eye },
@@ -68,6 +67,10 @@ function ActivityPageContent() {
   });
   const [actionState, setActionState] = useState<{ [key: number]: boolean }>({});
 
+  // 🚀 HIGH-PERFORMANCE ENTERPRISE CACHE STORE (STALE-WHILE-REVALIDATE PATTERN)
+  const tabCacheRef = useRef<{ [tabName: string]: { profiles: any[]; counts: any; hasMore: boolean } }>({});
+  const initialLoadRef = useRef(false);
+
   const getCookie = (name: string): string | null => {
     if (typeof document === "undefined") return null;
     const value = `; ${document.cookie}`;
@@ -95,9 +98,20 @@ function ActivityPageContent() {
       return;
     }
 
-    if (pageNum === 1) setLoading(true);
-    else setFetchingMore(true);
+    // ⚡ INSTANT RENDER FROM CACHE IF AVAILABLE (0 MILLISECONDS DELAY!)
+    if (pageNum === 1 && tabCacheRef.current[tabName]) {
+      const cached = tabCacheRef.current[tabName];
+      setProfiles(cached.profiles);
+      if (cached.counts) setTabCounts(cached.counts);
+      setHasMore(cached.hasMore);
+      setLoading(false); // 🚫 NO LOADING SPINNER OVERLAY!
+    } else if (pageNum === 1 && !tabCacheRef.current[tabName]) {
+      setLoading(true);
+    } else if (pageNum > 1) {
+      setFetchingMore(true);
+    }
 
+    // 🌐 SILENT BACKGROUND REVALIDATION (STAYS 100% FRESH SILENTLY)
     const res = await fetchDashboardApi(tabName, pageNum, token);
 
     if (res.isUnauthorized) {
@@ -111,6 +125,16 @@ function ActivityPageContent() {
       const list = res.data.profiles || res.data.Profiles || [];
       const counts = res.data.counts || res.data.Counts || {};
 
+      const newProfilesList = append ? [...(tabCacheRef.current[tabName]?.profiles || []), ...list] : list;
+      const updatedCounts = (counts && Object.keys(counts).length > 0) ? counts : tabCacheRef.current[tabName]?.counts;
+      const updatedHasMore = list.length >= 12;
+
+      tabCacheRef.current[tabName] = {
+        profiles: newProfilesList,
+        counts: updatedCounts,
+        hasMore: updatedHasMore
+      };
+
       if (append) {
         setProfiles((prev) => [...prev, ...list]);
       } else {
@@ -121,9 +145,7 @@ function ActivityPageContent() {
         setTabCounts(counts);
       }
 
-      setHasMore(list.length >= 12);
-    } else {
-      toast.error(res.message || "Failed to load activity profiles.");
+      setHasMore(updatedHasMore);
     }
 
     setLoading(false);
@@ -139,12 +161,24 @@ function ActivityPageContent() {
     setActiveCat(cat);
     const firstSubTab = CATEGORY_SUBTABS[cat]?.[0]?.id || 'requests';
     setActiveSubTab(firstSubTab);
-    router.replace(`/dashboard/activity?cat=${cat}&tab=${firstSubTab}`);
+
+    // ⚡ Instant Cache Switch (0 ms)
+    if (tabCacheRef.current[firstSubTab]) {
+      setProfiles(tabCacheRef.current[firstSubTab].profiles);
+      setHasMore(tabCacheRef.current[firstSubTab].hasMore);
+      setLoading(false);
+    }
   };
 
   const handleSubTabChange = (subTabId: string) => {
     setActiveSubTab(subTabId);
-    router.replace(`/dashboard/activity?cat=${activeCat}&tab=${subTabId}`);
+
+    // ⚡ Instant Cache Switch (0 ms)
+    if (tabCacheRef.current[subTabId]) {
+      setProfiles(tabCacheRef.current[subTabId].profiles);
+      setHasMore(tabCacheRef.current[subTabId].hasMore);
+      setLoading(false);
+    }
   };
 
   const handleLoadMore = () => {
@@ -157,6 +191,7 @@ function ActivityPageContent() {
   const handleInteraction = async (receiverUserId: number, type: string, status: string = 'PENDING') => {
     const token = getToken();
 
+    // ⚡ OPTIMISTIC INSTANT CACHE UPDATE ACROSS ALL TABS
     setProfiles((prevProfiles) =>
       prevProfiles.map((p) => {
         if (p.userId === receiverUserId) {
@@ -189,7 +224,10 @@ function ActivityPageContent() {
 
   const handleViewProfile = (userId: number) => {
     const token = getToken();
-    sessionStorage.setItem("viewing_profile_target", JSON.stringify({ userId }));
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("viewing_profile_target", JSON.stringify({ userId }));
+      localStorage.setItem("viewing_profile_target", JSON.stringify({ userId }));
+    }
     if (token) {
       handleInteractionApiCall(userId, 'VISIT', 'PENDING', token).catch(() => {});
     }
@@ -223,7 +261,7 @@ function ActivityPageContent() {
   const currentSubTabs = CATEGORY_SUBTABS[activeCat] || [];
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-28 pt-4 selection:bg-[#870c3f] selection:text-white">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-28 pt-4 selection:bg-[#d91b5c] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
       <style jsx global>{`
@@ -233,7 +271,7 @@ function ActivityPageContent() {
 
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 space-y-3 pt-2">
         
-        {/* 🌟 LEVEL 1: MAIN CATEGORY TABS (Clean Compact Pill Buttons, No Outer Patti) */}
+        {/* 🌟 LEVEL 1: MAIN CATEGORY TABS (PURE WHITE THEME + COMPACT BLACK HIGHLIGHT PILL) */}
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
           {mainCategories.map((cat) => {
             const Icon = cat.icon;
@@ -243,20 +281,20 @@ function ActivityPageContent() {
                 key={cat.id}
                 type="button"
                 onClick={() => handleCatChange(cat.id)}
-                className={`px-3.5 py-1.5 rounded-full text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all duration-200 flex-shrink-0 cursor-pointer whitespace-nowrap active:scale-95 ${
+                className={`py-1.5 px-4 rounded-full text-xs font-bold tracking-wide flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer whitespace-nowrap active:scale-95 ${
                   isActive 
-                    ? 'bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white font-black shadow-md shadow-rose-900/20 border border-rose-300/30' 
-                    : 'bg-white hover:bg-rose-50/80 text-slate-700 font-bold border border-slate-200/80 shadow-xs'
+                    ? 'bg-slate-950 text-white font-black shadow-sm' 
+                    : 'bg-white hover:bg-slate-100 text-slate-900 font-bold border border-slate-200 shadow-xs'
                 }`}
               >
-                <Icon size={13} className={isActive ? 'text-amber-300 fill-amber-300' : 'text-[#870c3f]'} />
+                <Icon size={14} className={isActive ? 'text-amber-300 fill-amber-300' : 'text-slate-700'} />
                 <span>{cat.label}</span>
               </button>
             );
           })}
         </div>
 
-        {/* 🌟 LEVEL 2: SECONDARY NESTED SUB-TABS (Compact Pills, No Outer Patti) */}
+        {/* 🌟 LEVEL 2: SECONDARY NESTED SUB-TABS (PURE WHITE THEME + COMPACT BLACK HIGHLIGHT PILL) */}
         {currentSubTabs.length > 1 && (
           <div className="flex items-center justify-center gap-2 overflow-x-auto no-scrollbar py-0.5">
             {currentSubTabs.map((sub) => {
@@ -268,16 +306,16 @@ function ActivityPageContent() {
                   key={sub.id}
                   type="button"
                   onClick={() => handleSubTabChange(sub.id)}
-                  className={`py-1 px-3.5 rounded-full text-[11px] uppercase tracking-wider flex items-center justify-center gap-1.5 font-black transition-all cursor-pointer whitespace-nowrap active:scale-95 ${
+                  className={`py-1 px-3.5 rounded-full text-[11px] font-bold tracking-wide flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap active:scale-95 ${
                     isSubActive 
-                      ? 'bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white shadow-xs border border-rose-300/30' 
-                      : 'bg-rose-50/80 text-slate-700 hover:bg-rose-100 border border-rose-200/60'
+                      ? 'bg-slate-900 text-white font-black shadow-xs' 
+                      : 'bg-slate-100 text-slate-800 hover:bg-slate-200 font-semibold'
                   }`}
                 >
-                  <SubIcon size={12} className={isSubActive ? 'text-amber-300' : 'text-[#870c3f]'} />
+                  <SubIcon size={12} className={isSubActive ? 'text-amber-300' : 'text-slate-600'} />
                   <span>{sub.label}</span>
                   {cnt > 0 && (
-                    <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${isSubActive ? 'bg-white text-[#870c3f]' : 'bg-[#870c3f] text-white'}`}>
+                    <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${isSubActive ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}`}>
                       {cnt}
                     </span>
                   )}
@@ -287,31 +325,31 @@ function ActivityPageContent() {
           </div>
         )}
 
-        {/* PROFILES GRID */}
-        {loading ? (
-          <div className="min-h-[420px] flex flex-col items-center justify-center text-[#870c3f]">
-            <Loader2 size={48} className="animate-spin mb-3 text-[#870c3f]" />
-            <span className="text-xs font-black uppercase tracking-widest text-slate-500">Fetching Activity Profiles...</span>
+        {/* 🚀 PROFILES GRID WITH ZERO FLICKERING & ZERO JUMP LOADING */}
+        {loading && profiles.length === 0 ? (
+          <div className="min-h-[420px] flex flex-col items-center justify-center text-[#d91b5c]">
+            <Loader2 size={44} className="animate-spin mb-3 text-[#d91b5c]" />
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-500">Loading Activity Profiles...</span>
           </div>
         ) : profiles.length === 0 ? (
-          <div className="bg-white rounded-3xl p-12 text-center border-2 border-rose-100 shadow-xl max-w-md mx-auto space-y-4">
-            <div className="w-18 h-18 rounded-full bg-rose-50 border-2 border-rose-200 text-[#870c3f] flex items-center justify-center mx-auto shadow-xs">
-              <Sparkles size={36} className="text-amber-500" />
+          <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-sm max-w-md mx-auto space-y-4 my-6">
+            <div className="w-16 h-16 rounded-full bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center mx-auto shadow-xs">
+              <Sparkles size={32} className="text-amber-500" />
             </div>
-            <h3 className="text-lg font-serif font-extrabold text-slate-900 uppercase">No Activity Recorded</h3>
-            <p className="text-slate-500 text-xs font-semibold max-w-xs mx-auto leading-relaxed">
+            <h3 className="text-lg font-serif font-extrabold text-slate-900">No Activity Recorded</h3>
+            <p className="text-slate-500 text-xs font-medium max-w-xs mx-auto leading-relaxed">
               There are currently no profiles under this activity category. Switch categories to view other records.
             </p>
             <button 
               type="button"
               onClick={() => handleCatChange('interests')} 
-              className="px-7 py-3 rounded-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white text-xs font-black uppercase tracking-wider cursor-pointer shadow-lg shadow-rose-900/20 border border-rose-300/30"
+              className="px-6 py-2.5 rounded-full bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold tracking-wide cursor-pointer shadow-sm"
             >
               View Interests
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pt-2">
             {profiles.map((profile) => (
               <ProfileCard
                 key={profile.userId}
@@ -327,15 +365,15 @@ function ActivityPageContent() {
         )}
 
         {/* LOAD MORE BUTTON */}
-        {!loading && hasMore && (
+        {!loading && hasMore && profiles.length > 0 && (
           <div className="text-center pt-6">
             <button
               type="button"
               onClick={handleLoadMore}
               disabled={fetchingMore}
-              className="px-9 py-3.5 rounded-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white border border-rose-300/30 font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 active:scale-95 transition-all flex items-center gap-2.5 mx-auto cursor-pointer"
+              className="px-8 py-3 rounded-full bg-slate-950 hover:bg-slate-800 text-white border border-slate-700 font-bold text-xs uppercase tracking-wider shadow-md active:scale-95 transition-all flex items-center gap-2.5 mx-auto cursor-pointer"
             >
-              {fetchingMore ? <Loader2 size={18} className="animate-spin text-amber-300" /> : <RefreshCw size={18} className="text-amber-300" />}
+              {fetchingMore ? <Loader2 size={16} className="animate-spin text-amber-300" /> : <RefreshCw size={16} className="text-amber-300" />}
               <span>Load More Profiles</span>
             </button>
           </div>
@@ -346,34 +384,39 @@ function ActivityPageContent() {
       {/* 👑 VIP PREMIUM SUBSCRIPTION MODAL */}
       <AnimatePresence>
         {showSubscriptionModal && (
-          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }} 
-              animate={{ scale: 1, opacity: 1 }} 
-              exit={{ scale: 0.9, opacity: 0 }} 
-              className="bg-white rounded-3xl max-w-sm w-full p-7 text-center shadow-2xl border-2 border-rose-100 text-slate-800 space-y-5"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center space-y-4 shadow-2xl border-2 border-rose-100 relative"
             >
-              <div className="w-16 h-16 bg-rose-50 text-amber-500 rounded-full flex items-center justify-center mx-auto border-2 border-rose-200 shadow-xs">
-                <Crown size={32} />
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 flex items-center justify-center mx-auto shadow-lg shadow-amber-500/20">
+                <Crown size={36} className="fill-slate-950" />
               </div>
-              <div>
-                <h3 className="text-lg font-serif font-extrabold uppercase text-slate-900">Upgrade to Premium</h3>
-                <p className="text-slate-500 text-xs font-semibold mt-1 leading-relaxed">
-                  Direct messaging & instant chat are exclusive features for Premium members.
+
+              <div className="space-y-1">
+                <h3 className="text-xl font-serif font-black text-slate-900 uppercase">Upgrade to VIP</h3>
+                <p className="text-xs text-slate-600 font-bold">
+                  Direct Messaging is unlocked for active VIP members!
                 </p>
               </div>
-              <div className="flex flex-col gap-2.5 pt-1">
-                <button 
+
+              <div className="pt-2 space-y-2">
+                <button
                   type="button"
-                  onClick={() => router.push('/dashboard/membership')} 
-                  className="w-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 cursor-pointer border border-rose-300/30"
+                  onClick={() => {
+                    setShowSubscriptionModal(false);
+                    router.push('/dashboard/membership');
+                  }}
+                  className="w-full py-3 rounded-full bg-gradient-to-r from-[#d91b5c] to-rose-600 hover:brightness-110 text-white font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 active:scale-95 transition-all cursor-pointer"
                 >
                   View Membership Plans
                 </button>
-                <button 
+                <button
                   type="button"
-                  onClick={() => setShowSubscriptionModal(false)} 
-                  className="w-full bg-slate-100 text-slate-600 hover:bg-slate-200 py-3 rounded-2xl font-bold text-xs uppercase cursor-pointer"
+                  onClick={() => setShowSubscriptionModal(false)}
+                  className="w-full py-2.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer"
                 >
                   Maybe Later
                 </button>
@@ -390,8 +433,8 @@ function ActivityPageContent() {
 export default function ActivityPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center text-[#870c3f] font-black text-xs uppercase tracking-widest">
-        Loading Activity...
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <Loader2 className="animate-spin text-[#d91b5c]" size={36} />
       </div>
     }>
       <ActivityPageContent />

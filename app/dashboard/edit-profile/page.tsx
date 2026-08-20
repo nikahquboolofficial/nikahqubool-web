@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -250,7 +250,7 @@ export default function EditMyProfilePage() {
         UserId: p.userId || p.UserId || userId,
         FullName: getValidText(p.fullName || p.FullName, 'Member'),
         MobileNumber: getValidText(p.mobileNumber || p.MobileNumber, '+919876543210'),
-        Email: getValidText(p.email || p.Email, 'user@pakizarishte.com'),
+        Email: getValidText(p.email || p.Email, 'user@nikahqubool.com'),
         ProfileCreatedFor: getValidId(p.profileCreatedForId ?? p.ProfileCreatedForId, p.profileCreatedFor, currentMasters.PROFILE_CREATED_FOR, 1),
         ProfileCreatedForText: getValidText(p.profileCreatedFor || p.ProfileCreatedFor, 'Self'),
         Age: p.age || 24,
@@ -510,7 +510,7 @@ export default function EditMyProfilePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-[#870c3f] selection:text-white">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-[#d91b5c] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
       <div className="max-w-7xl mx-auto px-0 sm:px-6 lg:px-8 space-y-0 md:space-y-6 md:pt-4">
@@ -521,7 +521,7 @@ export default function EditMyProfilePage() {
           {/* SIDEBAR OVERVIEW */}
           <div className={`md:col-span-4 lg:col-span-4 bg-white md:rounded-3xl p-0 md:p-5 border-0 md:border-2 md:border-rose-100 shadow-none md:shadow-xl space-y-0 md:space-y-4 ${mobileSubScreenOpen ? 'hidden md:block' : 'block'}`}>
             
-            <div className="bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] p-4 text-white flex items-center justify-between shadow-md md:hidden sticky top-0 z-30">
+            <div className="bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] p-4 text-white flex items-center justify-between shadow-md md:hidden sticky top-0 z-30">
               <div className="flex items-center gap-3">
                 <button type="button" onClick={() => router.push('/dashboard/my-profile')} className="p-1.5 hover:bg-white/20 rounded-full cursor-pointer">
                   <ArrowLeft size={20} />
@@ -534,7 +534,7 @@ export default function EditMyProfilePage() {
             </div>
 
             {/* AVATAR CARD */}
-            <div className="p-4 sm:p-5 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white flex items-center gap-4 shadow-lg border-b md:border border-rose-300/30 md:rounded-2xl">
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white flex items-center gap-4 shadow-lg border-b md:border border-rose-300/30 md:rounded-2xl">
               <div className="relative flex-shrink-0">
                 <img 
                   src={formData.PhotoUrl} 
@@ -571,12 +571,12 @@ export default function EditMyProfilePage() {
                     }}
                     className={`p-3.5 rounded-2xl border-2 transition-all flex items-center justify-between cursor-pointer group ${
                       isActive
-                        ? 'bg-rose-50/80 border-[#870c3f] text-[#870c3f] shadow-xs'
+                        ? 'bg-rose-50/80 border-[#d91b5c] text-[#d91b5c] shadow-xs'
                         : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-800'
                     }`}
                   >
                     <div className="flex items-center gap-3.5">
-                      <div className={`p-2.5 rounded-xl border ${isActive ? 'bg-[#870c3f] text-white border-[#870c3f]' : 'bg-rose-50 text-[#870c3f] border-rose-100'}`}>
+                      <div className={`p-2.5 rounded-xl border ${isActive ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-rose-50 text-[#d91b5c] border-rose-100'}`}>
                         <Icon size={18} />
                       </div>
                       <div>
@@ -584,7 +584,7 @@ export default function EditMyProfilePage() {
                         <span className="text-[10px] font-semibold text-slate-500 block truncate">{item.desc}</span>
                       </div>
                     </div>
-                    <ChevronRight size={16} className={`transition-transform ${isActive ? 'translate-x-1 text-[#870c3f]' : 'text-slate-400 group-hover:translate-x-1'}`} />
+                    <ChevronRight size={16} className={`transition-transform ${isActive ? 'translate-x-1 text-[#d91b5c]' : 'text-slate-400 group-hover:translate-x-1'}`} />
                   </div>
                 );
               })}
@@ -596,7 +596,7 @@ export default function EditMyProfilePage() {
           <div className={`fixed inset-0 z-[500] bg-white flex flex-col md:relative md:inset-auto md:z-auto md:col-span-8 lg:col-span-8 md:bg-white md:rounded-3xl md:border-2 md:border-rose-100 md:shadow-xl md:overflow-hidden md:max-h-[85vh] ${!mobileSubScreenOpen ? 'hidden md:flex' : 'flex'}`}>
             
             {/* FIXED TOP HEADER */}
-            <div className="sticky top-0 z-30 p-4 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white flex items-center justify-between shadow-md flex-shrink-0">
+            <div className="sticky top-0 z-30 p-4 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white flex items-center justify-between shadow-md flex-shrink-0">
               <div className="flex items-center gap-3">
                 <button 
                   type="button" 
@@ -629,13 +629,13 @@ export default function EditMyProfilePage() {
             <div className="flex-1 overflow-y-auto p-5 sm:p-7 pb-48 space-y-6">
               
               {loading ? (
-                <div className="py-20 text-center text-[#870c3f]">
-                  <Loader2 size={42} className="animate-spin mx-auto mb-2 text-[#870c3f]" />
+                <div className="py-20 text-center text-[#d91b5c]">
+                  <Loader2 size={42} className="animate-spin mx-auto mb-2 text-[#d91b5c]" />
                   <span className="text-xs font-black uppercase tracking-wider text-slate-500">Loading Section Data...</span>
                 </div>
               ) : (
                 <>
-                  <div className="w-14 h-14 bg-rose-50 border-2 border-rose-200 text-[#870c3f] rounded-full flex items-center justify-center mx-auto shadow-md">
+                  <div className="w-14 h-14 bg-rose-50 border-2 border-rose-200 text-[#d91b5c] rounded-full flex items-center justify-center mx-auto shadow-md">
                     <Edit3 size={24} />
                   </div>
 
@@ -649,7 +649,7 @@ export default function EditMyProfilePage() {
                           value={formData.FamilyAbout} 
                           onChange={(e) => setFormData({ ...formData, FamilyAbout: e.target.value })} 
                           placeholder="Share background about your family values, culture..." 
-                          className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-xs font-bold text-slate-900 outline-none focus:border-[#870c3f]"
+                          className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
                         />
                       </div>
                     </div>
@@ -660,49 +660,49 @@ export default function EditMyProfilePage() {
                     <div className="space-y-5">
                       <div className="bg-slate-50 rounded-3xl p-6 border-2 border-slate-200 shadow-xs space-y-4 text-xs font-extrabold text-slate-800">
                         <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#870c3f]" />
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#d91b5c]" />
                           <span className="text-slate-500 font-bold">Full Name :</span>
                           <span className="text-slate-900">{formData.FullName}</span>
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#870c3f]" />
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#d91b5c]" />
                           <span className="text-slate-500 font-bold">Mobile Number :</span>
                           <span className="text-slate-900">{formData.MobileNumber}</span>
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#870c3f]" />
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#d91b5c]" />
                           <span className="text-slate-500 font-bold">Email Address :</span>
                           <span className="text-slate-900">{formData.Email}</span>
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#870c3f]" />
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#d91b5c]" />
                           <span className="text-slate-500 font-bold">Profile Created For :</span>
                           <span className="text-slate-900">{formData.ProfileCreatedForText}</span>
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#870c3f]" />
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#d91b5c]" />
                           <span className="text-slate-500 font-bold">Age :</span>
                           <span className="text-slate-900">{formData.Age} Years</span>
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#870c3f]" />
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#d91b5c]" />
                           <span className="text-slate-500 font-bold">Gender :</span>
                           <span className="text-slate-900">{formData.Gender}</span>
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#870c3f]" />
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#d91b5c]" />
                           <span className="text-slate-500 font-bold">Marital Status :</span>
                           <span className="text-slate-900">{formData.MaritalStatusText}</span>
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#870c3f]" />
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#d91b5c]" />
                           <span className="text-slate-500 font-bold">Date of Birth :</span>
                           <span className="text-slate-900">{formData.DateOfBirthFormatted || 'N/A'}</span>
                         </div>
@@ -710,7 +710,7 @@ export default function EditMyProfilePage() {
 
                       <div className="p-4 bg-rose-50 rounded-2xl border border-rose-200 text-center">
                         <p className="text-xs font-black text-rose-700 leading-relaxed">
-                          This section can not be edited! If you want to update basic details please contact support@pakizarishte.com
+                          This section can not be edited! If you want to update basic details please contact support@nikahqubool.com
                         </p>
                       </div>
                     </div>
@@ -778,7 +778,7 @@ export default function EditMyProfilePage() {
                           value={formData.CollegeName || ''} 
                           onChange={(e) => setFormData({ ...formData, CollegeName: e.target.value })} 
                           placeholder="e.g. Delhi University / AMU / Jamia Millia (Max 150 chars)..." 
-                          className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-3.5 text-xs font-bold text-slate-900 outline-none focus:border-[#870c3f]"
+                          className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-3.5 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
                         />
                       </div>
 
@@ -804,7 +804,7 @@ export default function EditMyProfilePage() {
                           value={formData.OccupationDetails || ''} 
                           onChange={(e) => setFormData({ ...formData, OccupationDetails: e.target.value })} 
                           placeholder="e.g. Working as Senior Software Engineer at MNC in Delhi..." 
-                          className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-xs font-bold text-slate-900 outline-none focus:border-[#870c3f]"
+                          className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
                         />
                       </div>
 
@@ -895,7 +895,7 @@ export default function EditMyProfilePage() {
                             placeholder="Enter Father's Name"
                             value={formData.FatherName || ''}
                             onChange={(e) => setFormData({ ...formData, FatherName: e.target.value })}
-                            className="w-full px-3 py-2 text-sm border-2 border-slate-200 rounded-xl focus:border-[#870c3f] focus:outline-none"
+                            className="w-full px-3 py-2 text-sm border-2 border-slate-200 rounded-xl focus:border-[#d91b5c] focus:outline-none"
                           />
                         </div>
                         <div>
@@ -905,7 +905,7 @@ export default function EditMyProfilePage() {
                             placeholder="Enter Mother's Name"
                             value={formData.MotherName || ''}
                             onChange={(e) => setFormData({ ...formData, MotherName: e.target.value })}
-                            className="w-full px-3 py-2 text-sm border-2 border-slate-200 rounded-xl focus:border-[#870c3f] focus:outline-none"
+                            className="w-full px-3 py-2 text-sm border-2 border-slate-200 rounded-xl focus:border-[#d91b5c] focus:outline-none"
                           />
                         </div>
                       </div>
@@ -1029,7 +1029,7 @@ export default function EditMyProfilePage() {
                   type="button" 
                   onClick={handleSaveProfileSection} 
                   disabled={saving} 
-                  className="w-full py-4 rounded-2xl bg-[#870c3f] hover:bg-[#9e0f4a] text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 flex items-center justify-center gap-2 cursor-pointer transition-all border border-rose-300/30 active:scale-98"
+                  className="w-full py-4 rounded-2xl bg-[#d91b5c] hover:bg-[#e11d48] text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 flex items-center justify-center gap-2 cursor-pointer transition-all border border-rose-300/30 active:scale-98"
                 >
                   {saving ? <Loader2 size={16} className="animate-spin text-amber-300" /> : <Save size={16} className="text-amber-300" />}
                   <span>Save</span>

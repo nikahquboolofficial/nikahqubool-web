@@ -173,9 +173,15 @@ export default function RegisterModal({ isOpen, onClose }: RegisterModalProps) {
           </button>
 
           {/* GRADIENT HEADER */}
-          <div className="bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] px-6 py-4.5 text-center text-white relative shadow-sm">
+          <div className="bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] px-6 py-4.5 text-center text-white relative shadow-sm">
+            <img 
+              src="/logo.png" 
+              alt="Nikah Qubool Logo" 
+              className="h-10 w-auto mx-auto mb-2 object-contain filter drop-shadow-md"
+              onError={(e) => { (e.target as HTMLImageElement).src = '/logo.jpg'; }}
+            />
             <div className="flex items-center justify-center gap-2">
-              <ShieldCheck size={20} className="text-amber-300" />
+              <ShieldCheck size={18} className="text-amber-300" />
               <h2 className="font-serif font-bold text-lg sm:text-xl tracking-tight text-white">
                 {!showOtpStep ? 'Free Registration' : 'Verify Mobile OTP'}
               </h2>
@@ -195,14 +201,14 @@ export default function RegisterModal({ isOpen, onClose }: RegisterModalProps) {
                     Create Profile For
                   </label>
                   <div className="relative">
-                    <Users size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#870c3f] pointer-events-none" />
+                    <Users size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#d91b5c] pointer-events-none" />
                     <select
                       value={profileFor}
                       onChange={(e) => handleProfileForChange(e.target.value)}
                       className={`w-full pl-10 pr-4 py-3.5 rounded-xl border-2 bg-slate-50/80 outline-none text-sm font-semibold transition-all shadow-xs ${
                         errors.profileFor 
                           ? 'border-rose-500 text-rose-600 bg-rose-50/30' 
-                          : 'border-slate-300 focus:border-[#870c3f] focus:bg-white focus:ring-4 focus:ring-[#870c3f]/10 text-slate-800'
+                          : 'border-slate-300 focus:border-[#d91b5c] focus:bg-white focus:ring-4 focus:ring-[#d91b5c]/10 text-slate-800'
                       }`}
                     >
                       <option value="">Select Relation</option>
@@ -230,7 +236,7 @@ export default function RegisterModal({ isOpen, onClose }: RegisterModalProps) {
                           onClick={() => setGender(g)}
                           className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
                             gender === g 
-                              ? 'bg-[#870c3f] text-white shadow-md' 
+                              ? 'bg-[#d91b5c] text-white shadow-md' 
                               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                           }`}
                         >
@@ -248,7 +254,7 @@ export default function RegisterModal({ isOpen, onClose }: RegisterModalProps) {
                     Full Name
                   </label>
                   <div className="relative">
-                    <User size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#870c3f] pointer-events-none" />
+                    <User size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#d91b5c] pointer-events-none" />
                     <input
                       type="text"
                       value={fullName}
@@ -256,7 +262,7 @@ export default function RegisterModal({ isOpen, onClose }: RegisterModalProps) {
                       className={`w-full pl-10 pr-4 py-3.5 rounded-xl border-2 bg-slate-50/80 outline-none text-sm font-semibold transition-all shadow-xs ${
                         errors.fullName 
                           ? 'border-rose-500 text-rose-600 bg-rose-50/30' 
-                          : 'border-slate-300 focus:border-[#870c3f] focus:bg-white focus:ring-4 focus:ring-[#870c3f]/10 text-slate-800'
+                          : 'border-slate-300 focus:border-[#d91b5c] focus:bg-white focus:ring-4 focus:ring-[#d91b5c]/10 text-slate-800'
                       }`}
                       placeholder="e.g. Mohammad Sameer"
                     />
@@ -271,7 +277,7 @@ export default function RegisterModal({ isOpen, onClose }: RegisterModalProps) {
                   </label>
                   <div className="relative">
                     <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1 text-slate-500 font-bold text-xs pointer-events-none border-r border-slate-300 pr-2">
-                      <Phone size={14} className="text-[#870c3f]" />
+                      <Phone size={14} className="text-[#d91b5c]" />
                       <span>+91</span>
                     </div>
                     <input
@@ -282,7 +288,7 @@ export default function RegisterModal({ isOpen, onClose }: RegisterModalProps) {
                       className={`w-full pl-18 pr-4 py-3.5 rounded-xl border-2 bg-slate-50/80 outline-none text-sm font-semibold transition-all shadow-xs ${
                         errors.mobileNumber 
                           ? 'border-rose-500 text-rose-600 bg-rose-50/30' 
-                          : 'border-slate-300 focus:border-[#870c3f] focus:bg-white focus:ring-4 focus:ring-[#870c3f]/10 text-slate-800'
+                          : 'border-slate-300 focus:border-[#d91b5c] focus:bg-white focus:ring-4 focus:ring-[#d91b5c]/10 text-slate-800'
                       }`}
                       placeholder="10-digit number"
                     />
@@ -296,7 +302,7 @@ export default function RegisterModal({ isOpen, onClose }: RegisterModalProps) {
                     Email Address
                   </label>
                   <div className="relative">
-                    <Mail size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#870c3f] pointer-events-none" />
+                    <Mail size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#d91b5c] pointer-events-none" />
                     <input
                       type="email"
                       value={email}
@@ -304,7 +310,7 @@ export default function RegisterModal({ isOpen, onClose }: RegisterModalProps) {
                       className={`w-full pl-10 pr-4 py-3.5 rounded-xl border-2 bg-slate-50/80 outline-none text-sm font-semibold transition-all shadow-xs ${
                         errors.email 
                           ? 'border-rose-500 text-rose-600 bg-rose-50/30' 
-                          : 'border-slate-300 focus:border-[#870c3f] focus:bg-white focus:ring-4 focus:ring-[#870c3f]/10 text-slate-800'
+                          : 'border-slate-300 focus:border-[#d91b5c] focus:bg-white focus:ring-4 focus:ring-[#d91b5c]/10 text-slate-800'
                       }`}
                       placeholder="name@example.com"
                     />
@@ -318,7 +324,7 @@ export default function RegisterModal({ isOpen, onClose }: RegisterModalProps) {
                   whileTap={{ scale: 0.98 }}
                   disabled={loading}
                   onClick={handleRegisterSubmit}
-                  className="w-full py-4 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white font-bold rounded-xl text-xs uppercase tracking-widest shadow-lg shadow-rose-900/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer border border-rose-300/30 mt-2"
+                  className="w-full py-4 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white font-bold rounded-xl text-xs uppercase tracking-widest shadow-lg shadow-rose-900/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer border border-rose-300/30 mt-2"
                 >
                   {loading ? (
                     <>
@@ -361,7 +367,7 @@ export default function RegisterModal({ isOpen, onClose }: RegisterModalProps) {
                       }}
                       className={`w-11 h-13 text-lg font-bold text-center border-2 rounded-xl outline-none text-slate-900 bg-slate-50 transition-all ${
                         activeOtpIndex === i 
-                          ? 'border-[#870c3f] ring-4 ring-[#870c3f]/20 bg-white' 
+                          ? 'border-[#d91b5c] ring-4 ring-[#d91b5c]/20 bg-white' 
                           : 'border-slate-300'
                       }`}
                     />
@@ -373,7 +379,7 @@ export default function RegisterModal({ isOpen, onClose }: RegisterModalProps) {
                   whileTap={{ scale: 0.98 }}
                   disabled={loading}
                   onClick={() => handleVerifyRegisterOtpWithCode()}
-                  className="w-full py-4 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer border border-rose-300/30"
+                  className="w-full py-4 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer border border-rose-300/30"
                 >
                   {loading ? (
                     <>
@@ -386,9 +392,9 @@ export default function RegisterModal({ isOpen, onClose }: RegisterModalProps) {
                 </motion.button>
 
                 <div className="pt-1">
-                  <p className="text-xs text-slate-500 font-medium">Resend code in <span className="font-bold text-[#870c3f]">0:{timer.toString().padStart(2, '0')}</span></p>
+                  <p className="text-xs text-slate-500 font-medium">Resend code in <span className="font-bold text-[#d91b5c]">0:{timer.toString().padStart(2, '0')}</span></p>
                   {timer === 0 && (
-                    <button onClick={handleRegisterSubmit} className="text-[#870c3f] font-bold text-xs underline mt-2 hover:text-[#6e0932] cursor-pointer">
+                    <button onClick={handleRegisterSubmit} className="text-[#d91b5c] font-bold text-xs underline mt-2 hover:text-[#6e0932] cursor-pointer">
                       Resend OTP Now
                     </button>
                   )}

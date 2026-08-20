@@ -5,14 +5,14 @@ import LoginModalWrapper from '@/components/layout/LoginModalWrapper';
 import { AuthModalProvider } from '@/context/AuthModalContext';
 
 export const metadata = {
-  title: 'Pakiza Rishte - Bareilly\'s Most Trusted Halal Matchmaking',
-  description: 'Find your perfect halal life partner on Pakiza Rishte.',
+  title: 'Nikah Qubool - Most Trusted Halal Matchmaking Platform',
+  description: 'Find your perfect halal life partner on Nikah Qubool.',
 };
 
 export default function PublicGroupLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthModalProvider>
-      <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-[#870c3f] selection:text-white font-sans antialiased">
+      <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-[#d91b5c] selection:text-white font-sans antialiased">
         <Navbar />
         <main className="flex-grow pt-22 sm:pt-24 w-full">
           {children}

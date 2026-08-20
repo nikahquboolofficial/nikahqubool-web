@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -178,10 +178,10 @@ export default function HeroRegisterForm() {
         className="w-full max-w-[440px] bg-white/95 backdrop-blur-2xl rounded-3xl shadow-2xl shadow-rose-950/20 border-2 border-rose-100/90 overflow-hidden relative group"
       >
         {/* TOP GLOWING BAR */}
-        <div className="h-1.5 bg-gradient-to-r from-[#870c3f] via-amber-400 to-[#870c3f]" />
+        <div className="h-1.5 bg-gradient-to-r from-[#d91b5c] via-amber-400 to-[#d91b5c]" />
 
         {/* HEADER WITH GRADIENT & SHIELD */}
-        <div className="bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] px-6 py-5 text-center text-white relative shadow-sm">
+        <div className="bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] px-6 py-5 text-center text-white relative shadow-sm">
           <div className="flex items-center justify-center gap-2">
             <ShieldCheck size={20} className="text-amber-300 animate-pulse" />
             <span className="font-serif font-black text-sm sm:text-base tracking-wider uppercase text-amber-200">
@@ -201,14 +201,14 @@ export default function HeroRegisterForm() {
               Create Profile For <span className="text-rose-500">*</span>
             </label>
             <div className="relative">
-              <Users size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#870c3f] pointer-events-none" />
+              <Users size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#d91b5c] pointer-events-none" />
               <select
                 value={profileFor}
                 onChange={(e) => handleProfileForChange(e.target.value)}
                 className={`w-full pl-10 pr-4 py-3.5 rounded-2xl border-2 bg-slate-50 outline-none text-xs sm:text-sm font-bold transition-all shadow-xs ${
                   errors.profileFor 
                     ? 'border-rose-500 text-rose-600 bg-rose-50/40' 
-                    : 'border-slate-200 focus:border-[#870c3f] focus:bg-white focus:ring-4 focus:ring-[#870c3f]/10 text-slate-800'
+                    : 'border-slate-200 focus:border-[#d91b5c] focus:bg-white focus:ring-4 focus:ring-[#d91b5c]/10 text-slate-800'
                 }`}
               >
                 <option value="">{dropdownLoading ? 'Loading Options...' : 'Select Relation'}</option>
@@ -236,7 +236,7 @@ export default function HeroRegisterForm() {
                     onClick={() => setGender(g)}
                     className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                       gender === g 
-                        ? 'bg-[#870c3f] text-white shadow-md' 
+                        ? 'bg-[#d91b5c] text-white shadow-md' 
                         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                     }`}
                   >
@@ -254,7 +254,7 @@ export default function HeroRegisterForm() {
               Full Name <span className="text-rose-500">*</span>
             </label>
             <div className="relative">
-              <User size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#870c3f] pointer-events-none" />
+              <User size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#d91b5c] pointer-events-none" />
               <input
                 type="text"
                 value={fullName}
@@ -262,7 +262,7 @@ export default function HeroRegisterForm() {
                 className={`w-full pl-10 pr-4 py-3.5 rounded-2xl border-2 bg-slate-50 outline-none text-xs sm:text-sm font-bold transition-all shadow-xs ${
                   errors.fullName 
                     ? 'border-rose-500 text-rose-600 bg-rose-50/40' 
-                    : 'border-slate-200 focus:border-[#870c3f] focus:bg-white focus:ring-4 focus:ring-[#870c3f]/10 text-slate-800'
+                    : 'border-slate-200 focus:border-[#d91b5c] focus:bg-white focus:ring-4 focus:ring-[#d91b5c]/10 text-slate-800'
                 }`}
                 placeholder="e.g. Mohammad Sameer Khan"
               />
@@ -277,7 +277,7 @@ export default function HeroRegisterForm() {
             </label>
             <div className="relative">
               <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1 text-slate-600 font-extrabold text-xs pointer-events-none border-r border-slate-300 pr-2">
-                <Phone size={14} className="text-[#870c3f]" />
+                <Phone size={14} className="text-[#d91b5c]" />
                 <span>+91</span>
               </div>
               <input
@@ -288,7 +288,7 @@ export default function HeroRegisterForm() {
                 className={`w-full pl-18 pr-4 py-3.5 rounded-2xl border-2 bg-slate-50 outline-none text-xs sm:text-sm font-bold transition-all shadow-xs ${
                   errors.mobileNumber 
                     ? 'border-rose-500 text-rose-600 bg-rose-50/40' 
-                    : 'border-slate-200 focus:border-[#870c3f] focus:bg-white focus:ring-4 focus:ring-[#870c3f]/10 text-slate-800'
+                    : 'border-slate-200 focus:border-[#d91b5c] focus:bg-white focus:ring-4 focus:ring-[#d91b5c]/10 text-slate-800'
                 }`}
                 placeholder="10-digit mobile number"
               />
@@ -302,7 +302,7 @@ export default function HeroRegisterForm() {
               Email Address <span className="text-rose-500">*</span>
             </label>
             <div className="relative">
-              <Mail size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#870c3f] pointer-events-none" />
+              <Mail size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#d91b5c] pointer-events-none" />
               <input
                 type="email"
                 value={email}
@@ -310,7 +310,7 @@ export default function HeroRegisterForm() {
                 className={`w-full pl-10 pr-4 py-3.5 rounded-2xl border-2 bg-slate-50 outline-none text-xs sm:text-sm font-bold transition-all shadow-xs ${
                   errors.email 
                     ? 'border-rose-500 text-rose-600 bg-rose-50/40' 
-                    : 'border-slate-200 focus:border-[#870c3f] focus:bg-white focus:ring-4 focus:ring-[#870c3f]/10 text-slate-800'
+                    : 'border-slate-200 focus:border-[#d91b5c] focus:bg-white focus:ring-4 focus:ring-[#d91b5c]/10 text-slate-800'
                 }`}
                 placeholder="name@example.com"
               />
@@ -324,7 +324,7 @@ export default function HeroRegisterForm() {
             whileTap={{ scale: 0.98 }}
             disabled={loading}
             onClick={handleRegisterSubmit}
-            className="w-full py-4 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white font-black rounded-2xl text-xs uppercase tracking-widest shadow-xl shadow-rose-900/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer border border-rose-300/30"
+            className="w-full py-4 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white font-black rounded-2xl text-xs uppercase tracking-widest shadow-xl shadow-rose-900/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer border border-rose-300/30"
           >
             {loading ? (
               <>
@@ -362,7 +362,7 @@ export default function HeroRegisterForm() {
               className="relative w-full max-w-[400px] bg-white p-7 sm:p-8 rounded-3xl shadow-2xl border-2 border-rose-100 my-auto text-slate-800"
             >
               <button
-                className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-[#870c3f] hover:text-white flex items-center justify-center font-bold text-xs transition-all cursor-pointer shadow-xs"
+                className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-[#d91b5c] hover:text-white flex items-center justify-center font-bold text-xs transition-all cursor-pointer shadow-xs"
                 onClick={() => setShowOtpModal(false)}
               >
                 ✕
@@ -370,11 +370,11 @@ export default function HeroRegisterForm() {
 
               <div className="space-y-5 text-center">
                 <div>
-                  <div className="w-14 h-14 rounded-2xl bg-rose-50 text-[#870c3f] border-2 border-rose-100 flex items-center justify-center mx-auto mb-3 shadow-sm">
+                  <div className="w-14 h-14 rounded-2xl bg-rose-50 text-[#d91b5c] border-2 border-rose-100 flex items-center justify-center mx-auto mb-3 shadow-sm">
                     <Lock size={26} />
                   </div>
                   <h2 className="text-2xl font-serif font-extrabold text-slate-900 uppercase tracking-tight">Verify Mobile OTP</h2>
-                  <p className="text-xs text-slate-500 mt-1 font-semibold">Enter 6-digit OTP sent to <span className="font-extrabold text-[#870c3f]">+91 {mobileNumber}</span></p>
+                  <p className="text-xs text-slate-500 mt-1 font-semibold">Enter 6-digit OTP sent to <span className="font-extrabold text-[#d91b5c]">+91 {mobileNumber}</span></p>
                 </div>
 
                 <div className="flex gap-2 justify-center py-2">
@@ -397,7 +397,7 @@ export default function HeroRegisterForm() {
                       }}
                       className={`w-11 h-13 text-xl font-black text-center border-2 rounded-2xl outline-none text-slate-900 transition-all ${
                         activeOtpIndex === i 
-                          ? 'border-[#870c3f] ring-4 ring-[#870c3f]/20 bg-white shadow-md' 
+                          ? 'border-[#d91b5c] ring-4 ring-[#d91b5c]/20 bg-white shadow-md' 
                           : 'border-slate-200 bg-slate-50'
                       }`}
                     />
@@ -409,7 +409,7 @@ export default function HeroRegisterForm() {
                   whileTap={{ scale: 0.98 }}
                   disabled={loading}
                   onClick={() => handleVerifyOtpWithCode()}
-                  className="w-full py-4 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white font-black rounded-2xl text-xs uppercase tracking-widest shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer border border-rose-300/30"
+                  className="w-full py-4 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white font-black rounded-2xl text-xs uppercase tracking-widest shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer border border-rose-300/30"
                 >
                   {loading ? (
                     <>
@@ -425,9 +425,9 @@ export default function HeroRegisterForm() {
                 </motion.button>
 
                 <div className="pt-1">
-                  <p className="text-xs text-slate-500 font-semibold">Resend code in <span className="font-bold text-[#870c3f]">0:{timer.toString().padStart(2, '0')}</span></p>
+                  <p className="text-xs text-slate-500 font-semibold">Resend code in <span className="font-bold text-[#d91b5c]">0:{timer.toString().padStart(2, '0')}</span></p>
                   {timer === 0 && (
-                    <button onClick={handleRegisterSubmit} className="text-[#870c3f] font-extrabold text-xs underline mt-2 hover:text-[#6e0932] cursor-pointer">
+                    <button onClick={handleRegisterSubmit} className="text-[#d91b5c] font-extrabold text-xs underline mt-2 hover:text-[#6e0932] cursor-pointer">
                       Resend OTP Now
                     </button>
                   )}

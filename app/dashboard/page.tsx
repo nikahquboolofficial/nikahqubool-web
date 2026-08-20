@@ -1,11 +1,11 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Sparkles, Flame, RefreshCw, Crown, Lock, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
-import { fetchDashboardApi, handleInteractionApiCall } from '@/lib/api';
+import { fetchDashboardApi, handleInteractionApiCall, fetchActiveSubscriptionApi } from '@/lib/api';
 import ProfileCard from '@/components/dashboard/ProfileCard';
 import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
 
@@ -199,22 +199,35 @@ export default function VIPCleanDashboardPage() {
 
   const handleViewProfile = (userId: number) => {
     const token = getToken();
-    sessionStorage.setItem("viewing_profile_target", JSON.stringify({ userId }));
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("viewing_profile_target", JSON.stringify({ userId }));
+      localStorage.setItem("viewing_profile_target", JSON.stringify({ userId }));
+    }
     if (token) {
       handleInteractionApiCall(userId, 'VISIT', 'PENDING', token).catch(() => {});
     }
     router.push('/dashboard/profile?userId=' + userId);
   };
 
-  const handleInitiateChat = (profile: any) => {
+  const handleInitiateChat = async (profile: any) => {
+    const token = getToken();
     let isPaid = Boolean(profile.isCurrentUserPaid ?? profile.IsCurrentUserPaid ?? isCurrentUserPaid);
+    
     if (!isPaid && typeof window !== "undefined") {
-      const stored = localStorage.getItem("user_details") || localStorage.getItem("user_session");
+      const stored = localStorage.getItem("user_details");
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
-          isPaid = Boolean(parsed.isPaid ?? parsed.IsPaid ?? parsed.isCurrentUserPaid ?? parsed.IsCurrentUserPaid);
+          isPaid = Boolean(parsed.isPaid || parsed.IsPaid || parsed.isCurrentUserPaid || parsed.IsCurrentUserPaid || parsed.isPremium || parsed.IsPremium);
         } catch (e) {}
+      }
+    }
+
+    if (!isPaid && token) {
+      const subRes = await fetchActiveSubscriptionApi(token);
+      if (subRes.success && subRes.data) {
+        isPaid = true;
+        setIsCurrentUserPaid(true);
       }
     }
 
@@ -236,7 +249,7 @@ export default function VIPCleanDashboardPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-28 pt-4 selection:bg-[#870c3f] selection:text-white">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-28 pt-4 selection:bg-[#d91b5c] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
       <style jsx global>{`
@@ -245,9 +258,9 @@ export default function VIPCleanDashboardPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         
-        {/* 🌟 LUXURY 2-TAB BAR CONTAINER (BEST MATCHES & ONLINE) */}
-        <div className="bg-white/90 backdrop-blur-xl border-2 border-rose-100 rounded-3xl p-2 shadow-xl shadow-rose-950/5 max-w-md mx-auto">
-          <div className="grid grid-cols-2 gap-2">
+        {/* 🌟 CLEAN COMPACT 2-TAB BAR CONTAINER (BEST MATCHES & ONLINE - PURE WHITE THEME) */}
+        <div className="bg-white border border-slate-200 rounded-full p-1.5 shadow-xs max-w-xs mx-auto">
+          <div className="grid grid-cols-2 gap-1">
             {tabs.map((t) => {
               const Icon = t.icon;
               const isActive = activeTab === t.id;
@@ -256,13 +269,13 @@ export default function VIPCleanDashboardPage() {
                   key={t.id}
                   type="button"
                   onClick={() => setActiveTab(t.id)}
-                  className={`py-3.5 px-4 rounded-2xl text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 transition-all duration-300 cursor-pointer ${
+                  className={`py-2 px-3 rounded-full text-xs font-bold tracking-wide flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer ${
                     isActive 
-                      ? 'bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white font-black shadow-lg shadow-rose-900/25 scale-[1.02] border border-rose-300/30' 
-                      : 'bg-rose-50/60 hover:bg-rose-100/80 text-slate-700 font-extrabold border border-rose-200/60'
+                      ? 'bg-slate-950 text-white font-black shadow-sm' 
+                      : 'bg-transparent hover:bg-slate-100 text-slate-900 font-bold'
                   }`}
                 >
-                  <Icon size={18} className={isActive ? 'text-amber-300 fill-amber-300' : 'text-[#870c3f]'} />
+                  <Icon size={15} className={isActive ? 'text-amber-300 fill-amber-300' : 'text-slate-700'} />
                   <span>{t.label}</span>
                 </button>
               );
@@ -272,13 +285,13 @@ export default function VIPCleanDashboardPage() {
 
         {/* PROFILES GRID */}
         {loading ? (
-          <div className="min-h-[420px] flex flex-col items-center justify-center text-[#870c3f]">
-            <Loader2 size={48} className="animate-spin mb-3 text-[#870c3f]" />
+          <div className="min-h-[420px] flex flex-col items-center justify-center text-[#d91b5c]">
+            <Loader2 size={48} className="animate-spin mb-3 text-[#d91b5c]" />
             <span className="text-xs font-black uppercase tracking-widest text-slate-500">Discovering Verified Profiles...</span>
           </div>
         ) : profiles.length === 0 ? (
           <div className="bg-white rounded-3xl p-12 text-center border-2 border-rose-100 shadow-xl max-w-md mx-auto space-y-4">
-            <div className="w-18 h-18 rounded-full bg-rose-50 border-2 border-rose-200 text-[#870c3f] flex items-center justify-center mx-auto shadow-xs">
+            <div className="w-18 h-18 rounded-full bg-rose-50 border-2 border-rose-200 text-[#d91b5c] flex items-center justify-center mx-auto shadow-xs">
               <Sparkles size={36} className="text-amber-500" />
             </div>
             <h3 className="text-lg font-serif font-extrabold text-slate-900 uppercase">No Profiles Available</h3>
@@ -290,7 +303,7 @@ export default function VIPCleanDashboardPage() {
             <button 
               type="button"
               onClick={() => setActiveTab('best-matches')} 
-              className="px-7 py-3 rounded-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white text-xs font-black uppercase tracking-wider cursor-pointer shadow-lg shadow-rose-900/20 border border-rose-300/30"
+              className="px-7 py-3 rounded-full bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white text-xs font-black uppercase tracking-wider cursor-pointer shadow-lg shadow-rose-900/20 border border-rose-300/30"
             >
               Explore Best Matches
             </button>
@@ -363,7 +376,7 @@ export default function VIPCleanDashboardPage() {
               type="button"
               onClick={handleLoadMore}
               disabled={fetchingMore}
-              className="px-9 py-3.5 rounded-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white border border-rose-300/30 font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 active:scale-95 transition-all flex items-center gap-2.5 mx-auto cursor-pointer"
+              className="px-9 py-3.5 rounded-full bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white border border-rose-300/30 font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 active:scale-95 transition-all flex items-center gap-2.5 mx-auto cursor-pointer"
             >
               {fetchingMore ? <Loader2 size={18} className="animate-spin text-amber-300" /> : <RefreshCw size={18} className="text-amber-300" />}
               <span>Load More Profiles</span>

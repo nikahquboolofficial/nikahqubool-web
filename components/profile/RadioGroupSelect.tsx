@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React from 'react';
 import { Check } from 'lucide-react';
@@ -53,7 +53,7 @@ export default function RadioGroupSelect({
               }}
               className={`p-3 rounded-2xl border-2 text-xs font-black flex items-center justify-between cursor-pointer transition-all duration-200 select-none ${
                 isSelected
-                  ? 'bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white border-rose-400 shadow-md shadow-rose-950/10'
+                  ? 'bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white border-rose-400 shadow-md shadow-rose-950/10'
                   : 'bg-slate-50/90 hover:bg-white text-slate-800 border-slate-200 hover:border-rose-300'
               }`}
             >
@@ -72,3 +72,4 @@ export default function RadioGroupSelect({
     </div>
   );
 }
+

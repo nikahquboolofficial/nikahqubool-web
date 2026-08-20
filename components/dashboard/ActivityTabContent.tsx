@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -230,7 +230,7 @@ export default function ActivityTabContent({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-28 pt-4 relative selection:bg-[#870c3f] selection:text-white">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-28 pt-4 relative selection:bg-[#d91b5c] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
       {/* 💖 FLOATING HEARTS ANIMATION OVERLAY */}
@@ -250,7 +250,7 @@ export default function ActivityTabContent({
               transition={{ duration: 1.8, ease: "easeOut" }}
               className="absolute text-rose-500 drop-shadow-[0_4px_10px_rgba(135,12,63,0.5)]"
             >
-              <Heart size={36} className="fill-[#870c3f] text-[#870c3f]" />
+              <Heart size={36} className="fill-[#d91b5c] text-[#d91b5c]" />
             </motion.div>
           ))}
         </AnimatePresence>
@@ -261,10 +261,10 @@ export default function ActivityTabContent({
         {/* PAGE HEADER */}
         <div className="bg-white rounded-3xl p-6 border-2 border-rose-100 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
-            <button onClick={() => router.back()} className="p-2.5 rounded-2xl bg-rose-50 hover:bg-rose-100 text-[#870c3f] border-2 border-rose-200 transition-all cursor-pointer shadow-xs">
+            <button onClick={() => router.back()} className="p-2.5 rounded-2xl bg-rose-50 hover:bg-rose-100 text-[#d91b5c] border-2 border-rose-200 transition-all cursor-pointer shadow-xs">
               <ArrowLeft size={20} />
             </button>
-            <div className="p-3.5 bg-gradient-to-tr from-[#870c3f] to-[#9e0f4a] text-white rounded-2xl shadow-md border border-rose-300/30">
+            <div className="p-3.5 bg-gradient-to-tr from-[#d91b5c] to-[#e11d48] text-white rounded-2xl shadow-md border border-rose-300/30">
               <HeaderIcon size={24} className="text-amber-300" />
             </div>
             <div>
@@ -272,27 +272,27 @@ export default function ActivityTabContent({
               <p className="text-xs font-semibold text-slate-500">{subtitle}</p>
             </div>
           </div>
-          <div className="px-5 py-2 rounded-full bg-rose-50 border-2 border-rose-200 text-[#870c3f] font-black text-xs uppercase tracking-wider self-start sm:self-auto shadow-xs">
+          <div className="px-5 py-2 rounded-full bg-rose-50 border-2 border-rose-200 text-[#d91b5c] font-black text-xs uppercase tracking-wider self-start sm:self-auto shadow-xs">
             Total {totalRecords} Profiles
           </div>
         </div>
 
         {/* PROFILES GRID */}
         {loading ? (
-          <div className="min-h-[420px] flex flex-col items-center justify-center text-[#870c3f]">
-            <Loader2 size={48} className="animate-spin mb-3 text-[#870c3f]" />
+          <div className="min-h-[420px] flex flex-col items-center justify-center text-[#d91b5c]">
+            <Loader2 size={48} className="animate-spin mb-3 text-[#d91b5c]" />
             <span className="text-xs font-black uppercase tracking-widest text-slate-500">Fetching {title}...</span>
           </div>
         ) : profiles.length === 0 ? (
           <div className="bg-white rounded-3xl p-12 text-center border-2 border-rose-100 shadow-xl max-w-md mx-auto space-y-4">
-            <div className="w-18 h-18 rounded-full bg-rose-50 border-2 border-rose-200 text-[#870c3f] flex items-center justify-center mx-auto shadow-xs">
+            <div className="w-18 h-18 rounded-full bg-rose-50 border-2 border-rose-200 text-[#d91b5c] flex items-center justify-center mx-auto shadow-xs">
               <Sparkles size={36} className="text-amber-500" />
             </div>
             <h3 className="text-lg font-serif font-extrabold text-slate-900 uppercase">No Activity Found</h3>
             <p className="text-slate-500 text-xs font-semibold max-w-xs mx-auto leading-relaxed">
               There are currently no profiles under {title}.
             </p>
-            <button onClick={() => router.push('/dashboard')} className="px-7 py-3 rounded-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white text-xs font-black uppercase tracking-wider cursor-pointer shadow-lg shadow-rose-900/20 border border-rose-300/30">
+            <button onClick={() => router.push('/dashboard')} className="px-7 py-3 rounded-full bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white text-xs font-black uppercase tracking-wider cursor-pointer shadow-lg shadow-rose-900/20 border border-rose-300/30">
               Back to Dashboard
             </button>
           </div>
@@ -315,7 +315,7 @@ export default function ActivityTabContent({
         {/* LOAD MORE BUTTON */}
         {!loading && hasMore && (
           <div className="text-center pt-6">
-            <button onClick={handleLoadMore} disabled={fetchingMore} className="px-9 py-3.5 rounded-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white border border-rose-300/30 font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 active:scale-95 transition-all flex items-center gap-2.5 mx-auto cursor-pointer">
+            <button onClick={handleLoadMore} disabled={fetchingMore} className="px-9 py-3.5 rounded-full bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white border border-rose-300/30 font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 active:scale-95 transition-all flex items-center gap-2.5 mx-auto cursor-pointer">
               {fetchingMore ? <Loader2 size={18} className="animate-spin text-amber-300" /> : <RefreshCw size={18} className="text-amber-300" />}
               <span>Load More Profiles</span>
             </button>

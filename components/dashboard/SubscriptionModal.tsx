@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -63,19 +63,19 @@ export default function SubscriptionModal({
           initial={{ scale: 0.9, opacity: 0, y: 20 }} 
           animate={{ scale: 1, opacity: 1, y: 0 }} 
           exit={{ scale: 0.9, opacity: 0, y: 20 }} 
-          className="bg-white rounded-3xl max-w-md w-full p-6 text-center shadow-2xl border-2 border-rose-100 text-slate-800 space-y-5 relative overflow-hidden selection:bg-[#870c3f] selection:text-white"
+          className="bg-white rounded-3xl max-w-md w-full p-6 text-center shadow-2xl border-2 border-rose-100 text-slate-800 space-y-5 relative overflow-hidden selection:bg-[#d91b5c] selection:text-white"
         >
           {/* CLOSE BUTTON */}
           <button 
             type="button" 
             onClick={onClose} 
-            className="absolute top-4 right-4 p-2 rounded-full bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-[#870c3f] transition-all cursor-pointer z-10"
+            className="absolute top-4 right-4 p-2 rounded-full bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-[#d91b5c] transition-all cursor-pointer z-10"
           >
             <X size={18} />
           </button>
 
           {/* CROWN BADGE HEADER */}
-          <div className="w-16 h-16 bg-gradient-to-tr from-[#870c3f] via-[#9e0f4a] to-amber-500 text-white rounded-3xl flex items-center justify-center mx-auto shadow-xl shadow-rose-900/25 border-2 border-rose-200">
+          <div className="w-16 h-16 bg-gradient-to-tr from-[#d91b5c] via-[#e11d48] to-amber-500 text-white rounded-3xl flex items-center justify-center mx-auto shadow-xl shadow-rose-900/25 border-2 border-rose-200">
             <Crown size={32} className="text-amber-300 fill-amber-300 animate-pulse" />
           </div>
 
@@ -91,7 +91,7 @@ export default function SubscriptionModal({
           {/* DYNAMIC CHEAPEST PLAN HIGHLIGHT CARD */}
           <div className="bg-gradient-to-b from-rose-50/80 to-amber-50/60 p-4 rounded-2xl border-2 border-rose-200/80 text-left space-y-3 relative overflow-hidden shadow-inner">
             <div className="flex items-center justify-between">
-              <span className="px-2.5 py-0.5 rounded-full bg-[#870c3f] text-white text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-xs">
+              <span className="px-2.5 py-0.5 rounded-full bg-[#d91b5c] text-white text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-xs">
                 <Sparkles size={11} className="text-amber-300" /> Best Price Offer
               </span>
               {savingsPct > 0 && (
@@ -107,7 +107,7 @@ export default function SubscriptionModal({
                 <p className="text-[10px] font-bold text-slate-500">{days} Days Membership Validity</p>
               </div>
               <div className="text-right">
-                <span className="text-2xl font-black text-[#870c3f]">₹{discPrice}</span>
+                <span className="text-2xl font-black text-[#d91b5c]">₹{discPrice}</span>
                 {origPrice > discPrice && (
                   <span className="text-xs font-bold text-slate-400 line-through ml-1.5">₹{origPrice}</span>
                 )}
@@ -139,7 +139,7 @@ export default function SubscriptionModal({
                 onClose();
                 router.push('/dashboard/membership');
               }} 
-              className="w-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 active:scale-95 transition-all cursor-pointer border border-rose-300/30 flex items-center justify-center gap-2"
+              className="w-full bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 active:scale-95 transition-all cursor-pointer border border-rose-300/30 flex items-center justify-center gap-2"
             >
               <Crown size={16} className="text-amber-300 fill-amber-300" />
               <span>Unlock VIP Now</span>
@@ -162,3 +162,4 @@ export default function SubscriptionModal({
     </AnimatePresence>
   );
 }
+

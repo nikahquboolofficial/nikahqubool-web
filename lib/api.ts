@@ -1,4 +1,5 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://crm.altawafumrah.com/api";
+//const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://localhost:7204/api";
 
 // ⚡ Dynamic SignalR Hub URL
 export const SIGNALR_HUB_URL = API_BASE_URL.replace(/\/api\/?$/, '') + "/chatHub";
@@ -667,5 +668,39 @@ export const deleteAccountApi = async (reason: string, token: string | null | un
     };
   } catch (e) {
     return { success: true, message: "Account deleted permanently." };
+  }
+};
+
+// 🔒 Protected: Upload Govt ID Document (R2 documents/ folder)
+export const uploadGovtDocumentApi = async (formDataPayload: FormData, token: string | null | undefined) => {
+  if (!token) return { success: false, message: "Unauthorized access." };
+  try {
+    const res = await fetch(`${API_BASE_URL}/User/upload-govt-document`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${token}` },
+      body: formDataPayload,
+    });
+    const data = await res.json();
+    return { success: Boolean(data.success || data.Success), message: data.message || data.Message || "Document uploaded successfully." };
+  } catch (e) {
+    return { success: false, message: "Failed to upload document to server." };
+  }
+};
+
+// 🔒 Protected: Verify Selfie Face Match API
+export const verifySelfieFaceMatchApi = async (token: string | null | undefined) => {
+  if (!token) return { success: false, message: "Unauthorized access." };
+  try {
+    const res = await fetch(`${API_BASE_URL}/User/verify-selfie-match`, {
+      method: "POST",
+      headers: { 
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      }
+    });
+    const data = await res.json();
+    return { success: Boolean(data.success || data.Success), message: data.message || data.Message || "Selfie face match verified successfully!" };
+  } catch (e) {
+    return { success: false, message: "Failed to process selfie verification." };
   }
 };

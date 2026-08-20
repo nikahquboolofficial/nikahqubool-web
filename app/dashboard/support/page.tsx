@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -28,7 +28,7 @@ export default function HelpAndSupportPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-28 pt-4 selection:bg-[#870c3f] selection:text-white">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-28 pt-4 selection:bg-[#d91b5c] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
       <div className="max-w-2xl mx-auto px-4 space-y-6">
@@ -38,7 +38,7 @@ export default function HelpAndSupportPage() {
           <button 
             type="button" 
             onClick={() => router.back()} 
-            className="flex p-2 hover:bg-rose-50 text-[#870c3f] rounded-full transition-colors cursor-pointer"
+            className="flex p-2 hover:bg-rose-50 text-[#d91b5c] rounded-full transition-colors cursor-pointer"
             aria-label="Back"
             title="Go Back"
           >
@@ -55,13 +55,13 @@ export default function HelpAndSupportPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <a 
             href="tel:+918055990011" 
-            className="bg-white rounded-3xl p-5 border-2 border-rose-100 shadow-md hover:border-[#870c3f] transition-all flex flex-col items-center text-center space-y-2 group cursor-pointer"
+            className="bg-white rounded-3xl p-5 border-2 border-rose-100 shadow-md hover:border-[#d91b5c] transition-all flex flex-col items-center text-center space-y-2 group cursor-pointer"
           >
-            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-[#870c3f] flex items-center justify-center border border-rose-200 group-hover:scale-110 transition-transform">
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-[#d91b5c] flex items-center justify-center border border-rose-200 group-hover:scale-110 transition-transform">
               <Phone size={22} />
             </div>
             <span className="text-xs font-black uppercase text-slate-900">Phone Support</span>
-            <span className="text-[11px] font-bold text-[#870c3f]">+91 805 599 0011</span>
+            <span className="text-[11px] font-bold text-[#d91b5c]">+91 805 599 0011</span>
           </a>
 
           <a 
@@ -78,21 +78,21 @@ export default function HelpAndSupportPage() {
           </a>
 
           <a 
-            href="mailto:support@pakizarishte.com" 
-            className="bg-white rounded-3xl p-5 border-2 border-rose-100 shadow-md hover:border-[#870c3f] transition-all flex flex-col items-center text-center space-y-2 group cursor-pointer"
+            href="mailto:support@nikahqubool.com" 
+            className="bg-white rounded-3xl p-5 border-2 border-rose-100 shadow-md hover:border-[#d91b5c] transition-all flex flex-col items-center text-center space-y-2 group cursor-pointer"
           >
-            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-[#870c3f] flex items-center justify-center border border-rose-200 group-hover:scale-110 transition-transform">
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-[#d91b5c] flex items-center justify-center border border-rose-200 group-hover:scale-110 transition-transform">
               <Mail size={22} />
             </div>
             <span className="text-xs font-black uppercase text-slate-900">Email Query</span>
-            <span className="text-[11px] font-bold text-[#870c3f]">support@pakizarishte.com</span>
+            <span className="text-[11px] font-bold text-[#d91b5c]">support@nikahqubool.com</span>
           </a>
         </div>
 
         {/* 📝 SUBMIT SUPPORT TICKET FORM */}
         <div className="bg-white rounded-3xl p-6 border-2 border-rose-100 shadow-xl space-y-5">
           <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
-            <HelpCircle size={20} className="text-[#870c3f]" />
+            <HelpCircle size={20} className="text-[#d91b5c]" />
             <h3 className="font-serif font-extrabold text-sm uppercase text-slate-900">Send Us a Direct Message</h3>
           </div>
 
@@ -102,7 +102,7 @@ export default function HelpAndSupportPage() {
               <select 
                 value={subject} 
                 onChange={(e) => setSubject(e.target.value)} 
-                className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:border-[#870c3f]"
+                className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
               >
                 <option value="General Query">General Query</option>
                 <option value="Membership & VIP Plan">Membership & VIP Plan Query</option>
@@ -118,14 +118,14 @@ export default function HelpAndSupportPage() {
                 value={message} 
                 onChange={(e) => setMessage(e.target.value)} 
                 placeholder="Write your issue or question here in detail..." 
-                className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-xs font-bold text-slate-900 outline-none focus:border-[#870c3f]" 
+                className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]" 
               />
             </div>
 
             <button 
               type="submit" 
               disabled={submitting} 
-              className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 hover:brightness-110 flex items-center justify-center gap-2 cursor-pointer border border-rose-300/30"
+              className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 hover:brightness-110 flex items-center justify-center gap-2 cursor-pointer border border-rose-300/30"
             >
               <Send size={16} />
               <span>Submit Ticket</span>
@@ -137,3 +137,4 @@ export default function HelpAndSupportPage() {
     </div>
   );
 }
+

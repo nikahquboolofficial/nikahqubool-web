@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect } from 'react';
 import { 
@@ -136,8 +136,8 @@ export default function MembershipPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center text-[#870c3f] font-black text-xs uppercase tracking-widest gap-3">
-        <Loader2 className="animate-spin text-[#870c3f]" size={48} />
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center text-[#d91b5c] font-black text-xs uppercase tracking-widest gap-3">
+        <Loader2 className="animate-spin text-[#d91b5c]" size={48} />
         <span>Loading VIP Royal Membership...</span>
       </div>
     );
@@ -149,7 +149,7 @@ export default function MembershipPage() {
   const totalSavings = selectedPlan ? ((selectedPlan.originalPrice ?? selectedPlan.OriginalPrice ?? 0) - finalPrice) : 0;
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-32 relative overflow-x-hidden selection:bg-[#870c3f] selection:text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-32 relative overflow-x-hidden selection:bg-[#d91b5c] selection:text-white">
       
       {/* TOAST NOTIFICATION */}
       <AnimatePresence>
@@ -176,7 +176,7 @@ export default function MembershipPage() {
           <button 
             type="button" 
             onClick={() => router.back()} 
-            className="flex p-2 hover:bg-rose-50 text-[#870c3f] rounded-full transition-colors cursor-pointer"
+            className="flex p-2 hover:bg-rose-50 text-[#d91b5c] rounded-full transition-colors cursor-pointer"
             aria-label="Back"
             title="Go Back"
           >
@@ -189,7 +189,7 @@ export default function MembershipPage() {
       </div>
 
       {/* ROYAL HERO BANNER */}
-      <div className="bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white py-12 md:py-20 px-6 text-center relative shadow-xl overflow-hidden border-b-2 border-rose-100">
+      <div className="bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white py-12 md:py-20 px-6 text-center relative shadow-xl overflow-hidden border-b-2 border-rose-100">
         <div className="absolute top-0 left-1/4 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-amber-400/15 rounded-full blur-3xl pointer-events-none" />
 
@@ -249,12 +249,12 @@ export default function MembershipPage() {
                 onClick={() => handleSelectPlan(plan)}
                 className={`rounded-3xl p-6 flex flex-col justify-between cursor-pointer transition-all relative overflow-hidden bg-white shadow-2xl ${
                   isSelected 
-                    ? 'border-4 border-[#870c3f] ring-4 ring-[#870c3f]/10 scale-[1.03]' 
+                    ? 'border-4 border-[#d91b5c] ring-4 ring-[#d91b5c]/10 scale-[1.03]' 
                     : 'border-2 border-slate-200 hover:border-rose-300'
                 }`}
               >
                 {(isBestVal || isPop) && (
-                  <div className="absolute top-4 right-4 px-3.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-md bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] border border-rose-300/30">
+                  <div className="absolute top-4 right-4 px-3.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-md bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] border border-rose-300/30">
                     {isBestVal ? 'TILL YOU MARRY' : 'MOST POPULAR'}
                   </div>
                 )}
@@ -262,18 +262,18 @@ export default function MembershipPage() {
                 <div>
                   <div className="flex items-center gap-3 mb-4">
                     <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all ${
-                      isSelected ? 'border-[#870c3f] bg-[#870c3f]' : 'border-slate-300'
+                      isSelected ? 'border-[#d91b5c] bg-[#d91b5c]' : 'border-slate-300'
                     }`}>
                       {isSelected && <Check size={16} className="text-white stroke-[3]" />}
                     </div>
                     <div>
                       <h3 className="font-serif font-extrabold text-lg uppercase text-slate-900 leading-tight">{pName}</h3>
-                      {pBadge && <span className="text-[10px] font-extrabold text-[#870c3f] uppercase tracking-wider block">{pBadge}</span>}
+                      {pBadge && <span className="text-[10px] font-extrabold text-[#d91b5c] uppercase tracking-wider block">{pBadge}</span>}
                     </div>
                   </div>
 
                   <div className="mb-4">
-                    <span className="inline-block px-4 py-1.5 bg-rose-50 text-[#870c3f] rounded-2xl text-xs font-black uppercase tracking-wider border border-rose-200">
+                    <span className="inline-block px-4 py-1.5 bg-rose-50 text-[#d91b5c] rounded-2xl text-xs font-black uppercase tracking-wider border border-rose-200">
                       {pDuration}
                     </span>
                   </div>
@@ -295,7 +295,7 @@ export default function MembershipPage() {
                   <div className="space-y-3 mb-6">
                     {parsedFeatures.map((feat: string, idx: number) => (
                       <div key={idx} className="flex items-center gap-2.5 text-xs font-extrabold text-slate-800">
-                        <CheckCircle2 size={16} className="text-[#870c3f] flex-shrink-0" />
+                        <CheckCircle2 size={16} className="text-[#d91b5c] flex-shrink-0" />
                         <span>{feat}</span>
                       </div>
                     ))}
@@ -304,7 +304,7 @@ export default function MembershipPage() {
 
                 <div className={`w-full py-4 rounded-2xl font-black uppercase text-xs tracking-wider text-center transition-all ${
                   isSelected 
-                    ? 'bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white shadow-md border border-rose-300/30' 
+                    ? 'bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white shadow-md border border-rose-300/30' 
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}>
                   {isSelected ? 'SELECTED PLAN' : 'SELECT PLAN'}
@@ -318,7 +318,7 @@ export default function MembershipPage() {
         <div className="mt-12 max-w-xl mx-auto bg-white p-5 rounded-3xl border-2 border-rose-100 shadow-xl">
           {!appliedPromo ? (
             <div className="flex items-center gap-3">
-              <Tag className="text-[#870c3f] ml-2" size={22} />
+              <Tag className="text-[#d91b5c] ml-2" size={22} />
               <input 
                 value={promoInput}
                 onChange={(e) => setPromoInput(e.target.value)}
@@ -329,7 +329,7 @@ export default function MembershipPage() {
                 type="button"
                 onClick={handleApplyPromo}
                 disabled={validatingPromo || !promoInput.trim()}
-                className="px-6 py-3.5 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white text-xs font-black uppercase rounded-2xl transition-all cursor-pointer disabled:opacity-50 shadow-md border border-rose-300/30"
+                className="px-6 py-3.5 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white text-xs font-black uppercase rounded-2xl transition-all cursor-pointer disabled:opacity-50 shadow-md border border-rose-300/30"
               >
                 {validatingPromo ? "Checking..." : "Apply Code"}
               </button>
@@ -372,7 +372,7 @@ export default function MembershipPage() {
             <h4 className="text-xs font-extrabold uppercase text-slate-900">VIP Profile Rank</h4>
           </div>
           <div className="p-3">
-            <Zap className="mx-auto text-[#870c3f] mb-2" size={34} />
+            <Zap className="mx-auto text-[#d91b5c] mb-2" size={34} />
             <h4 className="text-xs font-extrabold uppercase text-slate-900">Instant Contact View</h4>
           </div>
           <div className="p-3">
@@ -399,7 +399,7 @@ export default function MembershipPage() {
             type="button"
             onClick={handlePurchase}
             disabled={purchasing || !selectedPlan}
-            className="w-full sm:w-auto px-10 py-4 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white font-black text-sm uppercase tracking-wider rounded-2xl shadow-lg shadow-rose-900/20 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 border border-rose-300/30"
+            className="w-full sm:w-auto px-10 py-4 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white font-black text-sm uppercase tracking-wider rounded-2xl shadow-lg shadow-rose-900/20 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 border border-rose-300/30"
           >
             <span>{purchasing ? "PROCESSING..." : `₹ ${finalPrice} | PAY NOW`}</span>
             <ArrowRight size={18} className="text-amber-300" />
@@ -427,11 +427,11 @@ export default function MembershipPage() {
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               className="relative bg-white rounded-[36px] max-w-md w-full p-8 text-center shadow-2xl border-2 border-rose-100 z-10 overflow-hidden text-slate-800"
             >
-              <div className="w-20 h-20 bg-gradient-to-tr from-[#870c3f] to-[#9e0f4a] rounded-full flex items-center justify-center mx-auto mb-5 shadow-lg shadow-rose-900/30">
+              <div className="w-20 h-20 bg-gradient-to-tr from-[#d91b5c] to-[#e11d48] rounded-full flex items-center justify-center mx-auto mb-5 shadow-lg shadow-rose-900/30">
                 <Crown size={38} className="text-amber-300 fill-amber-300" />
               </div>
 
-              <span className="text-[11px] font-black tracking-[0.2em] text-[#870c3f] bg-rose-50 border border-rose-200 px-4 py-1 rounded-full uppercase">
+              <span className="text-[11px] font-black tracking-[0.2em] text-[#d91b5c] bg-rose-50 border border-rose-200 px-4 py-1 rounded-full uppercase">
                 VIP Upgrade Activated
               </span>
 
@@ -440,14 +440,14 @@ export default function MembershipPage() {
               </h2>
 
               <p className="text-xs font-semibold text-slate-500 leading-relaxed mb-6">
-                Your profile has been upgraded to <span className="text-[#870c3f] uppercase font-black">{selectedPlan?.planName ?? selectedPlan?.PlanName}</span>. Enjoy direct access to soulmates!
+                Your profile has been upgraded to <span className="text-[#d91b5c] uppercase font-black">{selectedPlan?.planName ?? selectedPlan?.PlanName}</span>. Enjoy direct access to soulmates!
               </p>
 
               {/* DETAILS SUMMARY BOX */}
               <div className="bg-slate-50 rounded-2xl p-4 border-2 border-slate-200 text-left space-y-2 mb-6">
                 <div className="flex justify-between items-center text-xs">
                   <span className="font-bold text-slate-500 uppercase">Package:</span>
-                  <span className="font-black text-[#870c3f] uppercase">{selectedPlan?.planName ?? selectedPlan?.PlanName}</span>
+                  <span className="font-black text-[#d91b5c] uppercase">{selectedPlan?.planName ?? selectedPlan?.PlanName}</span>
                 </div>
                 <div className="flex justify-between items-center text-xs">
                   <span className="font-bold text-slate-500 uppercase">Original Price:</span>
@@ -471,7 +471,7 @@ export default function MembershipPage() {
                   setShowSuccessModal(false);
                   router.push('/dashboard');
                 }}
-                className="w-full py-4 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-rose-900/20 transition-all cursor-pointer active:scale-95 border border-rose-300/30"
+                className="w-full py-4 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-rose-900/20 transition-all cursor-pointer active:scale-95 border border-rose-300/30"
               >
                 Go to Dashboard
               </button>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -52,11 +52,11 @@ export default function DashboardBottomNav({ unreadCount = 0 }: BottomNavProps) 
           href="/dashboard" 
           className={`flex flex-col items-center justify-center py-1.5 px-3 rounded-2xl transition-all duration-300 ${
             isHome 
-              ? 'bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white shadow-md scale-105 border border-rose-300/30' 
-              : 'text-slate-600 font-extrabold hover:text-[#870c3f]'
+              ? 'bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white shadow-md scale-105 border border-rose-300/30' 
+              : 'text-slate-600 font-extrabold hover:text-[#d91b5c]'
           }`}
         >
-          <LayoutDashboard size={19} className={isHome ? 'text-amber-300' : 'text-[#870c3f]'} /> 
+          <LayoutDashboard size={19} className={isHome ? 'text-amber-300' : 'text-[#d91b5c]'} /> 
           <span className="text-[9px] uppercase tracking-wider font-black mt-1">For You</span>
         </Link>
 
@@ -65,11 +65,11 @@ export default function DashboardBottomNav({ unreadCount = 0 }: BottomNavProps) 
           href="/dashboard/activity" 
           className={`flex flex-col items-center justify-center py-1.5 px-3 rounded-2xl transition-all duration-300 ${
             isActivity 
-              ? 'bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white shadow-md scale-105 border border-rose-300/30' 
-              : 'text-slate-600 font-extrabold hover:text-[#870c3f]'
+              ? 'bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white shadow-md scale-105 border border-rose-300/30' 
+              : 'text-slate-600 font-extrabold hover:text-[#d91b5c]'
           }`}
         >
-          <HeartHandshake size={19} className={isActivity ? 'text-amber-300' : 'text-[#870c3f]'} /> 
+          <HeartHandshake size={19} className={isActivity ? 'text-amber-300' : 'text-[#d91b5c]'} /> 
           <span className="text-[9px] uppercase tracking-wider font-black mt-1">Activity</span>
         </Link>
 
@@ -78,11 +78,11 @@ export default function DashboardBottomNav({ unreadCount = 0 }: BottomNavProps) 
           href="/dashboard/find-match" 
           className={`flex flex-col items-center justify-center py-1.5 px-3 rounded-2xl transition-all duration-300 ${
             isSearch 
-              ? 'bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white shadow-md scale-105 border border-rose-300/30' 
-              : 'text-slate-600 font-extrabold hover:text-[#870c3f]'
+              ? 'bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white shadow-md scale-105 border border-rose-300/30' 
+              : 'text-slate-600 font-extrabold hover:text-[#d91b5c]'
           }`}
         >
-          <Search size={19} className={isSearch ? 'text-amber-300' : 'text-[#870c3f]'} /> 
+          <Search size={19} className={isSearch ? 'text-amber-300' : 'text-[#d91b5c]'} /> 
           <span className="text-[9px] uppercase tracking-wider font-black mt-1">Search</span>
         </Link>
 
@@ -91,11 +91,11 @@ export default function DashboardBottomNav({ unreadCount = 0 }: BottomNavProps) 
           href="/dashboard/messages" 
           className={`flex flex-col items-center justify-center py-1.5 px-3 rounded-2xl transition-all duration-300 ${
             isChat 
-              ? 'bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white shadow-md scale-105 border border-rose-300/30' 
-              : 'text-slate-600 font-extrabold hover:text-[#870c3f]'
+              ? 'bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white shadow-md scale-105 border border-rose-300/30' 
+              : 'text-slate-600 font-extrabold hover:text-[#d91b5c]'
           }`}
         >
-          <MessageSquare size={19} className={isChat ? 'text-amber-300' : 'text-[#870c3f]'} /> 
+          <MessageSquare size={19} className={isChat ? 'text-amber-300' : 'text-[#d91b5c]'} /> 
           <span className="text-[9px] uppercase tracking-wider font-black mt-1">Chats</span>
         </Link>
 
@@ -104,11 +104,11 @@ export default function DashboardBottomNav({ unreadCount = 0 }: BottomNavProps) 
           href="/dashboard/my-profile" 
           className={`flex flex-col items-center justify-center py-1.5 px-3 rounded-2xl transition-all duration-300 ${
             isProfile 
-              ? 'bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white shadow-md scale-105 border border-rose-300/30' 
-              : 'text-slate-600 font-extrabold hover:text-[#870c3f]'
+              ? 'bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white shadow-md scale-105 border border-rose-300/30' 
+              : 'text-slate-600 font-extrabold hover:text-[#d91b5c]'
           }`}
         >
-          <div className="w-6 h-6 rounded-full border-2 border-[#870c3f] overflow-hidden bg-white flex items-center justify-center shadow-xs">
+          <div className="w-6 h-6 rounded-full border-2 border-[#d91b5c] overflow-hidden bg-white flex items-center justify-center shadow-xs">
             <img 
               src={userPhoto} 
               alt="Me" 

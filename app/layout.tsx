@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pakiza Rihste || Muslim Matrimony ",
-  description: "Pakiza Rishte Trusted Brand",
+  title: "Nikah Qubool || Muslim Matrimony",
+  description: "Nikah Qubool - Most Trusted Halal Matrimony Platform",
 };
 
 export default function RootLayout({

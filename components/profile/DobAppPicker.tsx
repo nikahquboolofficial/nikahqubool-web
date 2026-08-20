@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect } from 'react';
 import { Calendar } from 'lucide-react';
@@ -46,7 +46,7 @@ export default function DobAppPicker({ value, onChange, hasError }: DobAppPicker
   return (
     <div className="flex flex-col gap-1.5 md:col-span-2">
       <label className={`text-[11px] font-extrabold uppercase tracking-wider ml-1 flex items-center gap-1.5 ${hasError ? 'text-rose-600' : 'text-slate-700'}`}>
-        <Calendar size={15} className="text-[#870c3f]" /> Birth Date (Age Verification)
+        <Calendar size={15} className="text-[#d91b5c]" /> Birth Date (Age Verification)
       </label>
 
       <div className="grid grid-cols-3 gap-3">
@@ -54,7 +54,7 @@ export default function DobAppPicker({ value, onChange, hasError }: DobAppPicker
           value={day}
           onChange={(e) => handleSelect(e.target.value, month, year)}
           className={`px-4 py-3.5 bg-slate-50/80 border-2 rounded-2xl text-xs font-bold text-slate-800 outline-none cursor-pointer transition-all shadow-xs ${
-            hasError ? 'border-rose-500 bg-rose-50/40 text-rose-700' : 'border-slate-300 focus:border-[#870c3f] focus:bg-white'
+            hasError ? 'border-rose-500 bg-rose-50/40 text-rose-700' : 'border-slate-300 focus:border-[#d91b5c] focus:bg-white'
           }`}
         >
           <option value="">Day</option>
@@ -65,7 +65,7 @@ export default function DobAppPicker({ value, onChange, hasError }: DobAppPicker
           value={month}
           onChange={(e) => handleSelect(day, e.target.value, year)}
           className={`px-4 py-3.5 bg-slate-50/80 border-2 rounded-2xl text-xs font-bold text-slate-800 outline-none cursor-pointer transition-all shadow-xs ${
-            hasError ? 'border-rose-500 bg-rose-50/40 text-rose-700' : 'border-slate-300 focus:border-[#870c3f] focus:bg-white'
+            hasError ? 'border-rose-500 bg-rose-50/40 text-rose-700' : 'border-slate-300 focus:border-[#d91b5c] focus:bg-white'
           }`}
         >
           <option value="">Month</option>
@@ -76,7 +76,7 @@ export default function DobAppPicker({ value, onChange, hasError }: DobAppPicker
           value={year}
           onChange={(e) => handleSelect(day, month, e.target.value)}
           className={`px-4 py-3.5 bg-slate-50/80 border-2 rounded-2xl text-xs font-bold text-slate-800 outline-none cursor-pointer transition-all shadow-xs ${
-            hasError ? 'border-rose-500 bg-rose-50/40 text-rose-700' : 'border-slate-300 focus:border-[#870c3f] focus:bg-white'
+            hasError ? 'border-rose-500 bg-rose-50/40 text-rose-700' : 'border-slate-300 focus:border-[#d91b5c] focus:bg-white'
           }`}
         >
           <option value="">Year</option>

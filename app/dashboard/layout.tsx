@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import Link from 'next/link';
@@ -231,7 +231,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     + (readKeys['other-visitors'] ? 0 : counts.visitorsCount);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 selection:bg-[#870c3f] selection:text-white">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 selection:bg-[#d91b5c] selection:text-white">
       
       {/* 🟢 WEBSITE-WIDE REALTIME ONLINE PRESENCE */}
       <GlobalPresence />
@@ -252,7 +252,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           <button 
             type="button" 
             onClick={() => router.back()} 
-            className="p-2 -ml-2 rounded-full text-[#870c3f] hover:bg-rose-50 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
+            className="p-2 -ml-2 rounded-full text-[#d91b5c] hover:bg-rose-50 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
             aria-label="Back"
             title="Go Back"
           >
@@ -277,7 +277,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeAll} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9990]" />
             <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: "spring", damping: 25, stiffness: 220 }} className="fixed top-0 right-0 bottom-0 w-full max-w-[400px] bg-white z-[9999] shadow-2xl flex flex-col border-l-2 border-rose-100 text-slate-800">
-              <div className="p-5 border-b-2 border-rose-100 flex items-center justify-between bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white sticky top-0 z-10 shadow-md">
+              <div className="p-5 border-b-2 border-rose-100 flex items-center justify-between bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white sticky top-0 z-10 shadow-md">
                 <div className="flex items-center gap-3">
                   {selectedCategory ? (
                     <button onClick={() => setSelectedCategory(null)} className="p-1.5 rounded-full hover:bg-white/20 text-white transition-all cursor-pointer">
@@ -304,7 +304,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
               {!selectedCategory ? (
                 <div className="flex-1 overflow-y-auto p-5 space-y-3">
-                  <div className="text-[11px] font-black text-[#870c3f] uppercase tracking-widest px-1 mb-1">
+                  <div className="text-[11px] font-black text-[#d91b5c] uppercase tracking-widest px-1 mb-1">
                     Notification Categories
                   </div>
                   {categoriesList.map((cat) => {
@@ -318,20 +318,20 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                           closeAll();
                           router.push(cat.path);
                         }} 
-                        className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-200 rounded-2xl hover:border-[#870c3f] hover:bg-rose-50/40 shadow-xs transition-all cursor-pointer group"
+                        className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-200 rounded-2xl hover:border-[#d91b5c] hover:bg-rose-50/40 shadow-xs transition-all cursor-pointer group"
                       >
                         <div className="flex items-center gap-3.5">
-                          <div className="p-2.5 rounded-xl bg-white border-2 border-slate-200 text-[#870c3f] group-hover:bg-[#870c3f] group-hover:text-white transition-all shadow-xs">
+                          <div className="p-2.5 rounded-xl bg-white border-2 border-slate-200 text-[#d91b5c] group-hover:bg-[#d91b5c] group-hover:text-white transition-all shadow-xs">
                             <Icon size={20} />
                           </div>
                           <div>
-                            <span className="font-black text-slate-900 text-xs block group-hover:text-[#870c3f] uppercase tracking-tight">{cat.label}</span>
+                            <span className="font-black text-slate-900 text-xs block group-hover:text-[#d91b5c] uppercase tracking-tight">{cat.label}</span>
                             <span className="text-[10px] font-bold text-slate-500 block">{cat.desc}</span>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           {cat.count > 0 ? (
-                            <span className="bg-[#870c3f] text-white text-[10px] font-black px-3 py-1 rounded-full shadow-xs">
+                            <span className="bg-[#d91b5c] text-white text-[10px] font-black px-3 py-1 rounded-full shadow-xs">
                               {cat.count} New
                             </span>
                           ) : (
@@ -363,7 +363,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                             <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleViewUserProfile(senderId)}>
                               <img src={senderPhoto} alt={senderName} className="w-11 h-11 rounded-full object-cover border-2 border-rose-100 flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }} />
                               <div>
-                                <h4 className="text-xs font-black text-slate-900 hover:text-[#870c3f] line-clamp-1 uppercase">{senderName}</h4>
+                                <h4 className="text-xs font-black text-slate-900 hover:text-[#d91b5c] line-clamp-1 uppercase">{senderName}</h4>
                                 <p className="text-[10px] font-bold text-slate-500 line-clamp-1">{message}</p>
                                 <span className="text-[9px] font-bold text-slate-400">
                                   {new Date(item.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
@@ -377,9 +377,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                                   <button onClick={() => handleNotificationAction(senderId, 'INTEREST', 'DECLINED')} className="px-3 py-1 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black uppercase shadow-xs transition-all cursor-pointer">REJECT</button>
                                 </>
                               ) : selectedCategory === 'photo-requests' ? (
-                                <button onClick={() => handleNotificationAction(senderId, 'PHOTO_REQUEST', 'ACCEPTED')} className="px-3.5 py-1 rounded-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white text-[10px] font-black uppercase shadow-xs cursor-pointer hover:brightness-110 border border-rose-300/30">UNLOCK</button>
+                                <button onClick={() => handleNotificationAction(senderId, 'PHOTO_REQUEST', 'ACCEPTED')} className="px-3.5 py-1 rounded-full bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white text-[10px] font-black uppercase shadow-xs cursor-pointer hover:brightness-110 border border-rose-300/30">UNLOCK</button>
                               ) : (
-                                <button onClick={() => handleViewUserProfile(senderId)} className="px-3.5 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-[#870c3f] text-[10px] font-black uppercase border border-rose-200 cursor-pointer">VIEW</button>
+                                <button onClick={() => handleViewUserProfile(senderId)} className="px-3.5 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-[#d91b5c] text-[10px] font-black uppercase border border-rose-200 cursor-pointer">VIEW</button>
                               )}
                             </div>
                           </div>
@@ -388,7 +388,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                     )}
                   </div>
                   <div className="pt-4 border-t-2 border-slate-200">
-                    <button onClick={() => { const path = activeCategoryObj?.path || '/dashboard/activity'; closeAll(); router.push(path); }} className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-rose-900/20 cursor-pointer transition-all border border-rose-300/30">
+                    <button onClick={() => { const path = activeCategoryObj?.path || '/dashboard/activity'; closeAll(); router.push(path); }} className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-rose-900/20 cursor-pointer transition-all border border-rose-300/30">
                       <span>View Activity Section</span>
                       <ExternalLink size={15} />
                     </button>
@@ -407,30 +407,30 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeAll} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9990]" />
             <motion.div initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: "spring", damping: 25, stiffness: 220 }} className="fixed top-0 left-0 bottom-0 w-[88%] max-w-sm bg-white z-[9999] shadow-2xl flex flex-col border-r-2 border-rose-100 text-slate-800">
               <div className="p-4 flex justify-between items-center border-b-2 border-rose-100 bg-slate-50">
-                 <img src="/pakiza-rishte-website-logo-removebg-preview.png" alt="Pakiza Rishte" className="h-14 sm:h-16 w-auto object-contain" />
+                 <img src="/logo.png" alt="Nikah Qubool" className="h-12 sm:h-14 w-auto object-contain" onError={(e) => { (e.target as HTMLImageElement).src = '/logo.jpg'; }} />
                  <button onClick={closeAll} className="p-2 bg-white rounded-full text-slate-700 border-2 border-slate-200 hover:bg-slate-100 cursor-pointer"><X size={20}/></button>
               </div>
               <div className="flex-1 overflow-y-auto p-5 space-y-3.5">
                 <Link href="/dashboard" onClick={closeAll} className="flex items-center gap-3 p-4 bg-slate-50 text-slate-900 font-black rounded-2xl text-xs uppercase tracking-wider border-2 border-slate-200 hover:border-rose-300">
-                  <LayoutDashboard size={18} className="text-[#870c3f]" /> For You / Dashboard
+                  <LayoutDashboard size={18} className="text-[#d91b5c]" /> For You / Dashboard
                 </Link>
                 <Link href="/dashboard/activity" onClick={closeAll} className="flex items-center gap-3 p-4 bg-slate-50 text-slate-900 font-black rounded-2xl text-xs uppercase tracking-wider border-2 border-slate-200 hover:border-rose-300">
-                  <HeartHandshake size={18} className="text-[#870c3f]" /> Activity Center
+                  <HeartHandshake size={18} className="text-[#d91b5c]" /> Activity Center
                 </Link>
                 <Link href="/dashboard/find-match" onClick={closeAll} className="flex items-center gap-3 p-4 text-slate-900 font-black border-2 border-slate-200 rounded-2xl text-xs uppercase tracking-wider hover:bg-rose-50/50 hover:border-rose-300">
-                  <Search size={18} className="text-[#870c3f]" /> Find Matches
+                  <Search size={18} className="text-[#d91b5c]" /> Find Matches
                 </Link>
                 <Link href="/dashboard/messages" onClick={closeAll} className="flex items-center gap-3 p-4 text-slate-900 font-black border-2 border-slate-200 rounded-2xl text-xs uppercase tracking-wider hover:bg-rose-50/50 hover:border-rose-300">
-                  <MessageSquare size={18} className="text-[#870c3f]" /> Messages
+                  <MessageSquare size={18} className="text-[#d91b5c]" /> Messages
                 </Link>
                 <Link href="/dashboard/my-profile" onClick={closeAll} className="flex items-center gap-3 p-4 text-slate-900 font-black border-2 border-slate-200 rounded-2xl text-xs uppercase tracking-wider hover:bg-rose-50/50 hover:border-rose-300">
-                  <User size={18} className="text-[#870c3f]" /> My Profile
+                  <User size={18} className="text-[#d91b5c]" /> My Profile
                 </Link>
                 <Link href="/dashboard/settings" onClick={closeAll} className="flex items-center gap-3 p-4 text-slate-900 font-black border-2 border-slate-200 rounded-2xl text-xs uppercase tracking-wider hover:bg-rose-50/50 hover:border-rose-300">
-                  <Settings size={18} className="text-[#870c3f]" /> Account Settings & Deactivate
+                  <Settings size={18} className="text-[#d91b5c]" /> Account Settings & Deactivate
                 </Link>
 
-                <Link href="/dashboard/membership" onClick={closeAll} className="flex items-center justify-center gap-2 p-4 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white font-black rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 border border-rose-300/30">
+                <Link href="/dashboard/membership" onClick={closeAll} className="flex items-center justify-center gap-2 p-4 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white font-black rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 border border-rose-300/30">
                   <Crown size={18} className="text-amber-300 fill-amber-300" /> Upgrade VIP Membership
                 </Link>
               </div>
@@ -447,7 +447,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <SignalRProvider>
       <Suspense fallback={
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center text-[#870c3f] font-black text-xs uppercase tracking-widest">
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center text-[#d91b5c] font-black text-xs uppercase tracking-widest">
           Loading Dashboard...
         </div>
       }>

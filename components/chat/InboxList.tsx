@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useState, useRef } from 'react';
 import { Search, MessageSquare, UserX } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -125,11 +125,11 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
   const filteredChats = chats.filter(c => (c.fullName ?? c.FullName ?? "").toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="flex flex-col h-full bg-white border-r-2 border-rose-100 selection:bg-[#870c3f] selection:text-white">
+    <div className="flex flex-col h-full bg-white border-r-2 border-rose-100 selection:bg-[#d91b5c] selection:text-white">
       <div className="p-4 border-b border-rose-100 bg-white">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-xl font-serif font-extrabold uppercase tracking-tight text-slate-900">Messages</h2>
-          <div className="bg-rose-50 p-2 rounded-2xl text-[#870c3f] border border-rose-200 shadow-xs">
+          <div className="bg-rose-50 p-2 rounded-2xl text-[#d91b5c] border border-rose-200 shadow-xs">
             <MessageSquare size={18} />
           </div>
         </div>
@@ -139,7 +139,7 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search chat..." 
-            className="w-full bg-slate-50 border border-rose-100 py-2.5 pl-10 pr-4 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-[#870c3f]/20 transition-all placeholder-slate-400" 
+            className="w-full bg-slate-50 border border-rose-100 py-2.5 pl-10 pr-4 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-[#d91b5c]/20 transition-all placeholder-slate-400" 
           />
         </div>
       </div>
@@ -199,7 +199,7 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
                   <p className={`text-[11px] truncate flex-1 ${
                     (isBlockedByMe || isBlockedByOther || isBlocked)
                       ? "text-rose-500 font-bold italic"
-                      : unread > 0 ? "text-[#870c3f] font-black" : "text-slate-500 font-semibold"
+                      : unread > 0 ? "text-[#d91b5c] font-black" : "text-slate-500 font-semibold"
                   }`}>
                     {displayPreview}
                   </p>
@@ -209,14 +209,14 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
                     <button 
                       type="button"
                       onClick={(e) => handleUnblockUser(e, chat)}
-                      className="text-[10px] font-black text-[#870c3f] bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2 py-0.5 rounded-full transition-all flex items-center gap-1 cursor-pointer shrink-0 shadow-2xs"
+                      className="text-[10px] font-black text-[#d91b5c] bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2 py-0.5 rounded-full transition-all flex items-center gap-1 cursor-pointer shrink-0 shadow-2xs"
                     >
                       <UserX size={11} /> Unblock
                     </button>
                   )}
 
                   {unread > 0 && !isBlockedByMe && !isBlockedByOther && !isBlocked && (
-                    <span className="bg-[#870c3f] text-white text-[10px] font-black h-5 min-w-[20px] px-1.5 rounded-full flex items-center justify-center shadow-xs shrink-0">
+                    <span className="bg-[#d91b5c] text-white text-[10px] font-black h-5 min-w-[20px] px-1.5 rounded-full flex items-center justify-center shadow-xs shrink-0">
                       {unread}
                     </span>
                   )}

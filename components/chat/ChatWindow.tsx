@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Send, ArrowLeft, MoreVertical, CheckCheck, Heart, ShieldAlert, UserX, Smile, ChevronDown } from 'lucide-react';
+import { Send, ArrowLeft, MoreVertical, CheckCheck, Heart, ShieldAlert, UserX, Smile, ChevronDown, Loader2, CheckCircle2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useSignalR } from '@/context/SignalRContext';
 import { 
@@ -9,9 +9,11 @@ import {
   markChatReadApi, 
   fetchBlockStatusApi, 
   blockUserApiCall, 
+  handleInteractionApiCall,
   formatLastSeen
 } from '@/lib/api';
 import { getOptimizedImageUrl } from '@/lib/imageUtils';
+import { toast } from 'sonner';
 
 const QUICK_EMOJIS = ["❤️", "😂", "🔥", "👍", "😍", "😊", "🙏", "🎉", "😭", "😮", "💖", "✨"];
 
@@ -32,6 +34,8 @@ export default function ChatWindow({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
   const [blockStatus, setBlockStatus] = useState({ isBlockedByMe: false, isBlockedByOther: false });
+  const [proposalState, setProposalState] = useState<'NONE' | 'PENDING' | 'ACCEPTED' | 'DECLINED'>('NONE');
+  const [proposalLoading, setProposalLoading] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -251,14 +255,29 @@ export default function ChatWindow({
     return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
+  const handleProposalAction = async (status: string) => {
+    const token = getToken();
+    if (!token) return;
+    const finalStatus = (status === 'ACCEPT' || status === 'ACCEPTED') ? 'ACCEPTED' : 'DECLINED';
+    setProposalLoading(true);
+    const res = await handleInteractionApiCall(receiverId, 'INTEREST', finalStatus, token);
+    setProposalLoading(false);
+    if (res.success) {
+      setProposalState(finalStatus);
+      toast.success(finalStatus === 'ACCEPTED' ? "Proposal Accepted! You can now chat freely." : "Proposal Declined.");
+    } else {
+      toast.error(res.message || "Failed to update proposal status.");
+    }
+  };
+
   const isBlocked = blockStatus.isBlockedByMe || blockStatus.isBlockedByOther;
   const displayAvatar = photoUrl ? getOptimizedImageUrl(photoUrl) : `https://ui-avatars.com/api/?name=${encodeURIComponent(userName ?? 'User')}&background=FFF0F3&color=870c3f&bold=true`;
 
   return (
-    <div className="flex flex-col h-full w-full bg-[#efeae2]/30 relative overflow-hidden selection:bg-[#870c3f] selection:text-white">
+    <div className="flex flex-col h-full w-full bg-[#efeae2]/30 relative overflow-hidden selection:bg-[#d91b5c] selection:text-white">
       
       {/* 📌 WHATSAPP-STYLE STICKY TOP HEADER */}
-      <div className="shrink-0 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] p-3 sm:p-3.5 flex items-center gap-3 text-white shadow-md z-30 border-b border-rose-900/20">
+      <div className="shrink-0 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] p-3 sm:p-3.5 flex items-center gap-3 text-white shadow-md z-30 border-b border-rose-900/20">
         <button onClick={onBack} className="p-2 hover:bg-white/15 rounded-2xl transition-colors cursor-pointer md:hidden">
           <ArrowLeft size={20} />
         </button>
@@ -272,7 +291,7 @@ export default function ChatWindow({
               onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }}
             />
             {isOnline && (
-              <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-400 border-2 border-[#870c3f] rounded-full z-20 shadow-sm animate-pulse" />
+              <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-400 border-2 border-[#d91b5c] rounded-full z-20 shadow-sm animate-pulse" />
             )}
           </div>
 
@@ -322,6 +341,38 @@ export default function ChatWindow({
         onScroll={handleScroll}
         className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 space-y-6 bg-[#fbf8f5] scroll-smooth"
       >
+        {/* 💌 PROPOSAL ACTION BANNER FOR RECIPIENT */}
+        {proposalState === 'PENDING' && (
+          <div className="bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] p-5 rounded-3xl text-white shadow-xl border-2 border-rose-300/40 text-center space-y-3 my-2">
+            <div className="flex items-center justify-center gap-2 text-amber-300">
+              <Heart size={22} className="fill-amber-300" />
+              <h4 className="text-base font-serif font-black tracking-tight">Nikah Proposal Request Received</h4>
+            </div>
+            <p className="text-xs text-rose-100 font-medium">
+              {userName} has sent you a soulmate proposal request. Accept proposal to start private messaging!
+            </p>
+            <div className="flex justify-center gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => handleProposalAction('DECLINE')}
+                disabled={proposalLoading}
+                className="px-5 py-2 bg-slate-900 text-rose-200 font-bold text-xs uppercase rounded-xl border border-rose-300/20 cursor-pointer"
+              >
+                Decline Proposal
+              </button>
+              <button
+                type="button"
+                onClick={() => handleProposalAction('ACCEPT')}
+                disabled={proposalLoading}
+                className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase rounded-xl shadow-md cursor-pointer flex items-center gap-1.5"
+              >
+                {proposalLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                <span>Accept Proposal</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {Object.keys(groupedMessages).map(dateKey => (
           <div key={dateKey} className="space-y-3">
             <div className="flex justify-center my-2 sticky top-2 z-10">
@@ -338,7 +389,7 @@ export default function ChatWindow({
                 <div key={m.uniqueKey} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[85%] md:max-w-[65%] p-3 px-4 rounded-2xl text-xs md:text-sm shadow-sm relative transition-all ${
                     isMe 
-                    ? 'bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white rounded-br-none shadow-rose-950/10 border border-rose-300/30' 
+                    ? 'bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white rounded-br-none shadow-rose-950/10 border border-rose-300/30' 
                     : 'bg-white text-slate-900 rounded-bl-none border border-rose-100 shadow-xs font-medium'
                   }`}>
                     <p className="font-semibold leading-relaxed tracking-wide break-words">{m.text}</p>
@@ -370,7 +421,7 @@ export default function ChatWindow({
       {showScrollBottom && (
         <button 
           onClick={() => scrollToBottom("smooth")}
-          className="absolute bottom-20 right-6 bg-[#870c3f] text-white p-2.5 rounded-full shadow-xl hover:scale-110 active:scale-95 transition-all z-30 border border-rose-200"
+          className="absolute bottom-20 right-6 bg-[#d91b5c] text-white p-2.5 rounded-full shadow-xl hover:scale-110 active:scale-95 transition-all z-30 border border-rose-200"
         >
           <ChevronDown size={18} />
         </button>
@@ -399,17 +450,17 @@ export default function ChatWindow({
               {blockStatus.isBlockedByMe ? "You have blocked this account." : "You can't reply to this conversation."}
             </p>
             {blockStatus.isBlockedByMe && (
-              <button type="button" onClick={handleToggleBlock} className="text-xs font-black text-[#870c3f] underline mt-1 cursor-pointer">
+              <button type="button" onClick={handleToggleBlock} className="text-xs font-black text-[#d91b5c] underline mt-1 cursor-pointer">
                 Unblock User
               </button>
             )}
           </div>
         ) : (
-          <div className="max-w-4xl mx-auto bg-slate-50 p-1.5 pl-3 rounded-full border-2 border-rose-100 flex items-center gap-2 focus-within:ring-2 focus-within:ring-[#870c3f]/20 focus-within:bg-white transition-all shadow-xs">
+          <div className="max-w-4xl mx-auto bg-slate-50 p-1.5 pl-3 rounded-full border-2 border-rose-100 flex items-center gap-2 focus-within:ring-2 focus-within:ring-[#d91b5c]/20 focus-within:bg-white transition-all shadow-xs">
             <button 
               type="button"
               onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
-              className="p-2 text-slate-400 hover:text-[#870c3f] rounded-full transition-colors cursor-pointer"
+              className="p-2 text-slate-400 hover:text-[#d91b5c] rounded-full transition-colors cursor-pointer"
             >
               <Smile size={22} />
             </button>
@@ -423,7 +474,7 @@ export default function ChatWindow({
             <button 
               type="button"
               onClick={handleSend} 
-              className="h-10 w-10 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 rounded-full flex items-center justify-center text-white shadow-md active:scale-90 transition-all flex-shrink-0 cursor-pointer border border-rose-300/30"
+              className="h-10 w-10 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 rounded-full flex items-center justify-center text-white shadow-md active:scale-90 transition-all flex-shrink-0 cursor-pointer border border-rose-300/30"
             >
               <Send size={16} className="ml-0.5 text-amber-300" />
             </button>

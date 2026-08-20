@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -46,14 +46,16 @@ export default function ProfileDetailPage() {
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
       const urlId = urlParams.get('userId') || urlParams.get('id') || urlParams.get('targetUserId');
-      if (urlId) {
+      if (urlId && parseInt(urlId, 10) > 0) {
         targetUserId = parseInt(urlId, 10);
       } else {
-        const stored = sessionStorage.getItem("viewing_profile_target");
+        const storedSession = sessionStorage.getItem("viewing_profile_target");
+        const storedLocal = localStorage.getItem("viewing_profile_target");
+        const stored = storedSession || storedLocal;
         if (stored) {
           try {
             const parsed = JSON.parse(stored);
-            targetUserId = parsed.userId || parsed.targetUserId || parsed.id;
+            targetUserId = parsed.userId || parsed.targetUserId || parsed.id || 0;
           } catch (e) {}
         }
       }
@@ -203,8 +205,8 @@ export default function ProfileDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center text-[#870c3f]">
-        <Loader2 className="animate-spin mb-3 text-[#870c3f]" size={48} />
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center text-[#d91b5c]">
+        <Loader2 className="animate-spin mb-3 text-[#d91b5c]" size={48} />
         <span className="font-black text-xs uppercase tracking-widest text-slate-500">Loading Member Profile...</span>
       </div>
     );
@@ -213,7 +215,7 @@ export default function ProfileDetailPage() {
   if (!profileData) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-16 h-16 rounded-full bg-rose-100 flex items-center justify-center text-[#870c3f] mb-4 shadow-sm">
+        <div className="w-16 h-16 rounded-full bg-rose-100 flex items-center justify-center text-[#d91b5c] mb-4 shadow-sm">
           <User size={32} />
         </div>
         <h2 className="text-xl font-bold text-slate-800 mb-2">Profile Not Found</h2>
@@ -222,7 +224,7 @@ export default function ProfileDetailPage() {
         </p>
         <button
           onClick={() => router.push('/dashboard')}
-          className="px-6 py-2.5 bg-[#870c3f] text-white font-bold text-sm rounded-xl shadow-md hover:bg-[#6b0932] transition-all cursor-pointer"
+          className="px-6 py-2.5 bg-[#d91b5c] text-white font-bold text-sm rounded-xl shadow-md hover:bg-[#6b0932] transition-all cursor-pointer"
         >
           Return to Dashboard
         </button>
@@ -269,7 +271,7 @@ export default function ProfileDetailPage() {
   const isShortlisted = Boolean(profileData.isShortlisted);
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 w-full relative selection:bg-[#870c3f] selection:text-white pb-12">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 w-full relative selection:bg-[#d91b5c] selection:text-white pb-12">
       <Toaster position="top-center" richColors duration={2000} />
 
       <div className="max-w-4xl mx-auto md:py-6 md:px-4 space-y-4">
@@ -319,7 +321,7 @@ export default function ProfileDetailPage() {
                         type="button" 
                         disabled={actionLoading} 
                         onClick={(e) => handleInteraction(e, 'REPORT', 'PENDING')} 
-                        className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold hover:bg-rose-50 hover:text-[#870c3f] transition-all cursor-pointer"
+                        className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold hover:bg-rose-50 hover:text-[#d91b5c] transition-all cursor-pointer"
                       >
                         <Flag size={15} /> Report Profile
                       </button>
@@ -368,7 +370,7 @@ export default function ProfileDetailPage() {
                     type="button" 
                     disabled={actionLoading} 
                     onClick={(e) => handleInteraction(e, 'PHOTO_REQUEST', 'PENDING')} 
-                    className="px-6 py-3 rounded-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 active:scale-95 text-white text-xs font-black uppercase tracking-wider shadow-xl border border-rose-300/30 flex items-center gap-2 cursor-pointer transition-all"
+                    className="px-6 py-3 rounded-full bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 active:scale-95 text-white text-xs font-black uppercase tracking-wider shadow-xl border border-rose-300/30 flex items-center gap-2 cursor-pointer transition-all"
                   >
                     {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
                     <span>Request Photo Access</span>
@@ -512,7 +514,7 @@ export default function ProfileDetailPage() {
                 className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 ${
                   isInterestSent || isConnected
                     ? 'bg-emerald-600 text-white border-2 border-emerald-400 cursor-not-allowed opacity-95 shadow-emerald-200' 
-                    : 'bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white border-2 border-rose-300/40 cursor-pointer shadow-rose-900/20'
+                    : 'bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white border-2 border-rose-300/40 cursor-pointer shadow-rose-900/20'
                 }`}
                 aria-label="Send Interest"
                 title={isInterestSent ? 'Interest Sent' : isConnected ? 'Connected' : 'Send Interest'}
@@ -534,7 +536,7 @@ export default function ProfileDetailPage() {
               whileTap={{ scale: 0.85 }}
               onClick={handleInitiateChat}
               disabled={actionLoading}
-              className="w-13 h-13 rounded-full bg-slate-900 hover:bg-[#870c3f] text-white border-2 border-slate-700 shadow-md flex items-center justify-center cursor-pointer active:scale-95 transition-colors"
+              className="w-13 h-13 rounded-full bg-slate-900 hover:bg-[#d91b5c] text-white border-2 border-slate-700 shadow-md flex items-center justify-center cursor-pointer active:scale-95 transition-colors"
               aria-label="Direct Message"
               title="Send Message"
             >
@@ -551,7 +553,7 @@ export default function ProfileDetailPage() {
               className={`w-13 h-13 rounded-full shadow-md flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 border-2 ${
                 profileData.isShortlisted 
                   ? 'bg-amber-50 text-amber-500 border-amber-300 shadow-xs' 
-                  : 'bg-rose-50/60 hover:bg-rose-100 text-[#870c3f] border-rose-200'
+                  : 'bg-rose-50/60 hover:bg-rose-100 text-[#d91b5c] border-rose-200'
               }`}
               aria-label="Shortlist Profile"
               title={profileData.isShortlisted ? "Shortlisted" : "Shortlist Profile"}
@@ -567,6 +569,34 @@ export default function ProfileDetailPage() {
 
         {/* 📋 PROFILE DETAILS CARDS GRID (ALL EDITED DETAILS INCLUDED) */}
         <div className="space-y-5 px-4 md:px-0">
+
+          {/* 🧕 WALI / GUARDIAN CONTACT DETAILS CARD */}
+          <SectionCard icon={ShieldCheck} title="Wali / Guardian Details (Halal Proposals)">
+            {(profileData?.isCurrentUserPaid || profileData?.IsCurrentUserPaid) ? (
+              <>
+                <GridRow label="Wali Name" value={profileData.waliName || 'Parent / Guardian'} />
+                <GridRow label="Relation" value={profileData.waliRelation || 'Father'} />
+                <GridRow label="Wali Contact Number" value={profileData.waliContactNumber || profileData.mobileNumber || 'Contact Unlocked'} />
+              </>
+            ) : (
+              <div className="py-4 text-center space-y-3">
+                <div className="w-12 h-12 rounded-full bg-rose-100 text-[#d91b5c] flex items-center justify-center mx-auto">
+                  <Lock size={22} />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-sm font-extrabold text-slate-900">Wali Contact Locked</h4>
+                  <p className="text-xs text-slate-500 max-w-xs mx-auto">Upgrade to Nikah Qubool VIP to view verified Parent/Guardian contact details.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => router.push('/dashboard/plans')}
+                  className="px-5 py-2 bg-[#d91b5c] hover:bg-[#6b0932] text-white text-xs font-black uppercase rounded-xl shadow-md cursor-pointer"
+                >
+                  Unlock Wali Contact
+                </button>
+              </div>
+            )}
+          </SectionCard>
 
           {/* 1. BASIC INFORMATION CARD */}
           <SectionCard icon={User} title="Basic Details">
@@ -600,7 +630,7 @@ export default function ProfileDetailPage() {
           {/* 3. 🔒 FAMILY DETAILS CARD (LOCKED FOR FREE USERS - MATCHING SCREENSHOT 2) */}
           <div className="bg-white rounded-3xl p-6 border-2 border-rose-100 shadow-xl space-y-4">
             <div className="flex items-center gap-3 pb-3 border-b-2 border-slate-100">
-              <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200 text-[#870c3f] flex items-center justify-center font-bold shadow-xs">
+              <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200 text-[#d91b5c] flex items-center justify-center font-bold shadow-xs">
                 <Users size={20} />
               </div>
               <h3 className="font-extrabold text-sm uppercase tracking-wider text-slate-900">Family Details</h3>
@@ -609,8 +639,8 @@ export default function ProfileDetailPage() {
             {/* IF USER IS NOT PAID: SHOW LOCKED CONTAINER AS SHOWN IN SCREENSHOT 2 */}
             {!isUserPaid ? (
               <div className="bg-rose-50/70 border-2 border-rose-100/80 rounded-3xl p-6 md:p-8 text-center space-y-3.5 my-2">
-                <div className="w-14 h-14 rounded-full bg-rose-100 text-[#870c3f] flex items-center justify-center mx-auto shadow-inner border border-rose-200">
-                  <Lock size={26} className="text-[#870c3f]" />
+                <div className="w-14 h-14 rounded-full bg-rose-100 text-[#d91b5c] flex items-center justify-center mx-auto shadow-inner border border-rose-200">
+                  <Lock size={26} className="text-[#d91b5c]" />
                 </div>
                 <div className="space-y-1">
                   <h4 className="font-serif font-extrabold text-base text-slate-900 uppercase tracking-wide">
@@ -624,7 +654,7 @@ export default function ProfileDetailPage() {
                   <button
                     type="button"
                     onClick={() => setShowSubscriptionModal(true)}
-                    className="px-6 py-3 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white font-black text-xs uppercase tracking-wider rounded-full shadow-lg shadow-rose-900/20 active:scale-95 transition-all cursor-pointer border border-rose-300/30 inline-flex items-center gap-2"
+                    className="px-6 py-3 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white font-black text-xs uppercase tracking-wider rounded-full shadow-lg shadow-rose-900/20 active:scale-95 transition-all cursor-pointer border border-rose-300/30 inline-flex items-center gap-2"
                   >
                     <span>View Premium Plans</span>
                     <ChevronRight size={16} />
@@ -715,7 +745,7 @@ export default function ProfileDetailPage() {
                     type="button"
                     onClick={handleUnlockContact}
                     disabled={actionLoading}
-                    className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white font-black text-xs uppercase tracking-wider rounded-full shadow-lg shadow-rose-900/20 active:scale-95 transition-all cursor-pointer border border-rose-300/30"
+                    className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white font-black text-xs uppercase tracking-wider rounded-full shadow-lg shadow-rose-900/20 active:scale-95 transition-all cursor-pointer border border-rose-300/30"
                   >
                     {actionLoading ? <Loader2 size={16} className="animate-spin inline mr-2" /> : null}
                     <span>VIEW CONTACT DETAILS</span>
@@ -839,7 +869,7 @@ export default function ProfileDetailPage() {
               exit={{ scale: 0.9, opacity: 0 }} 
               className="bg-white rounded-3xl max-w-sm w-full p-7 text-center shadow-2xl border-2 border-rose-100 text-slate-800 space-y-4"
             >
-              <div className="w-16 h-16 rounded-full bg-rose-50 text-[#870c3f] flex items-center justify-center mx-auto border-2 border-rose-200 shadow-md">
+              <div className="w-16 h-16 rounded-full bg-rose-50 text-[#d91b5c] flex items-center justify-center mx-auto border-2 border-rose-200 shadow-md">
                 <Crown size={32} className="text-amber-500 fill-amber-400" />
               </div>
               <div>
@@ -852,7 +882,7 @@ export default function ProfileDetailPage() {
                 <button 
                   type="button" 
                   onClick={() => router.push('/dashboard/membership')} 
-                  className="w-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 cursor-pointer border border-rose-300/30"
+                  className="w-full bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 cursor-pointer border border-rose-300/30"
                 >
                   View Plans & Upgrade
                 </button>
@@ -877,7 +907,7 @@ function SectionCard({ icon: Icon, title, children }: { icon: any; title: string
   return (
     <div className="bg-white rounded-3xl p-6 border-2 border-rose-100 shadow-xl space-y-4">
       <div className="flex items-center gap-3 pb-3 border-b-2 border-slate-100">
-        <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200 text-[#870c3f] flex items-center justify-center font-bold shadow-xs">
+        <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200 text-[#d91b5c] flex items-center justify-center font-bold shadow-xs">
           <Icon size={20} />
         </div>
         <h3 className="font-extrabold text-sm uppercase tracking-wider text-slate-900">{title}</h3>
@@ -892,7 +922,7 @@ function SectionCard({ icon: Icon, title, children }: { icon: any; title: string
 function GridRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center gap-2.5 font-medium text-slate-800 p-1.5 rounded-xl hover:bg-slate-50 transition-colors">
-      <span className="w-2 h-2 rounded-full bg-[#870c3f] flex-shrink-0" />
+      <span className="w-2 h-2 rounded-full bg-[#d91b5c] flex-shrink-0" />
       <span className="font-bold text-slate-500 min-w-[120px]">{label}:</span>
       <span className="font-black text-slate-900 truncate">{value || 'Not Disclosed'}</span>
     </div>

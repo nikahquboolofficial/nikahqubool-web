@@ -142,15 +142,21 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
           </button>
 
           {/* GRADIENT HEADER */}
-          <div className="bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] px-6 py-5 text-center text-white relative shadow-sm">
+          <div className="bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] px-6 py-5 text-center text-white relative shadow-sm">
+            <img 
+              src="/logo.png" 
+              alt="Nikah Qubool Logo" 
+              className="h-10 w-auto mx-auto mb-2 object-contain filter drop-shadow-md"
+              onError={(e) => { (e.target as HTMLImageElement).src = '/logo.jpg'; }}
+            />
             <div className="flex items-center justify-center gap-2">
-              <ShieldCheck size={20} className="text-amber-300" />
+              <ShieldCheck size={18} className="text-amber-300" />
               <h2 className="font-serif font-bold text-lg sm:text-xl tracking-tight text-white">
                 {step === 1 ? 'Welcome Back' : 'Verify Mobile OTP'}
               </h2>
             </div>
             <p className="text-xs font-medium text-rose-100/90 mt-0.5">
-              {step === 1 ? 'Sign in to access your matrimony account' : `OTP sent to +91 ${mobile}`}
+              {step === 1 ? 'Sign in to access your Nikah Qubool account' : `OTP sent to +91 ${mobile}`}
             </p>
           </div>
 
@@ -163,7 +169,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   </label>
                   <div className="relative">
                     <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1 text-slate-500 font-bold text-xs pointer-events-none border-r border-slate-300 pr-2">
-                      <Phone size={14} className="text-[#870c3f]" />
+                      <Phone size={14} className="text-[#d91b5c]" />
                       <span>+91</span>
                     </div>
                     <input
@@ -174,7 +180,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                       className={`w-full pl-18 pr-4 py-3.5 rounded-xl border-2 bg-slate-50/80 outline-none text-sm font-semibold transition-all shadow-xs ${
                         error 
                           ? 'border-rose-500 text-rose-600 bg-rose-50/30' 
-                          : 'border-slate-300 focus:border-[#870c3f] focus:bg-white focus:ring-4 focus:ring-[#870c3f]/10 text-slate-800'
+                          : 'border-slate-300 focus:border-[#d91b5c] focus:bg-white focus:ring-4 focus:ring-[#d91b5c]/10 text-slate-800'
                       }`}
                       placeholder="Enter 10-digit number"
                     />
@@ -187,7 +193,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   whileTap={{ scale: 0.98 }}
                   disabled={loading}
                   onClick={handleSendOtp}
-                  className="w-full py-4 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white font-bold rounded-xl text-xs uppercase tracking-widest shadow-lg shadow-rose-900/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer border border-rose-300/30"
+                  className="w-full py-4 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white font-bold rounded-xl text-xs uppercase tracking-widest shadow-lg shadow-rose-900/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer border border-rose-300/30"
                 >
                   {loading ? (
                     <>
@@ -230,7 +236,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                       }}
                       className={`w-11 h-13 text-lg font-bold text-center border-2 rounded-xl outline-none text-slate-900 bg-slate-50 transition-all ${
                         activeOtpIndex === i 
-                          ? 'border-[#870c3f] ring-4 ring-[#870c3f]/20 bg-white' 
+                          ? 'border-[#d91b5c] ring-4 ring-[#d91b5c]/20 bg-white' 
                           : 'border-slate-300'
                       }`}
                     />
@@ -242,7 +248,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   whileTap={{ scale: 0.98 }}
                   disabled={loading}
                   onClick={() => handleVerifyOtpWithCode()}
-                  className="w-full py-4 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer border border-rose-300/30"
+                  className="w-full py-4 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer border border-rose-300/30"
                 >
                   {loading ? (
                     <>
@@ -255,9 +261,9 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 </motion.button>
 
                 <div className="pt-1">
-                  <p className="text-xs text-slate-500 font-medium">Resend code in <span className="font-bold text-[#870c3f]">0:{timer.toString().padStart(2, '0')}</span></p>
+                  <p className="text-xs text-slate-500 font-medium">Resend code in <span className="font-bold text-[#d91b5c]">0:{timer.toString().padStart(2, '0')}</span></p>
                   {timer === 0 && (
-                    <button onClick={handleSendOtp} className="text-[#870c3f] font-bold text-xs underline mt-2 hover:text-[#6e0932] cursor-pointer">
+                    <button onClick={handleSendOtp} className="text-[#d91b5c] font-bold text-xs underline mt-2 hover:text-[#6e0932] cursor-pointer">
                       Resend OTP Now
                     </button>
                   )}

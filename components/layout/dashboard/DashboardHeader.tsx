@@ -7,7 +7,7 @@ import {
   Bell, MessageSquare, ChevronDown, User, 
   LogOut, Edit3, Search, Crown, CheckCircle2, HeartHandshake, Settings, ArrowLeft
 } from 'lucide-react';
-import { getOptimizedImageUrl } from '@/lib/imageUtils';
+import { getOptimizedImageUrl, getFallbackPhoto } from '@/lib/imageUtils';
 
 interface HeaderProps {
   unreadCount?: number;
@@ -30,19 +30,53 @@ export default function DashboardHeader({
   const [isVerified, setIsVerified] = useState<boolean>(false);
   const [isPaid, setIsPaid] = useState<boolean>(false);
 
+  const getCookie = (name: string): string | null => {
+    if (typeof document === "undefined") return null;
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop()?.split(';').shift() ?? null;
+    return null;
+  };
+
   useEffect(() => {
-    const updatePhotoFromStorage = () => {
+    const updatePhotoFromStorage = async () => {
       if (typeof window !== "undefined") {
         const stored = localStorage.getItem("user_details") || localStorage.getItem("user_session");
+        let parsed: any = null;
         if (stored) {
           try {
-            const parsed = JSON.parse(stored);
-            const rawPhoto = parsed.mainPhotoUrl || parsed.photoUrl || parsed.PhotoUrl || parsed.mainPhoto || parsed.photo || '/placeholder.png';
-            setUserPhoto(getOptimizedImageUrl(rawPhoto));
-            setUserName(parsed.fullName || parsed.FullName || 'My Account');
-            setIsVerified(Boolean(parsed.isVerified ?? parsed.IsVerified ?? false));
-            setIsPaid(Boolean(parsed.isPaid ?? parsed.IsPaid ?? false));
+            parsed = JSON.parse(stored);
           } catch (e) {}
+        }
+
+        if (parsed) {
+          const rawPhoto = parsed.mainPhotoUrl || parsed.photoUrl || parsed.PhotoUrl || parsed.mainPhoto || parsed.photo;
+          setUserPhoto(getOptimizedImageUrl(rawPhoto, parsed.userId || 1, parsed.gender));
+          setUserName(parsed.fullName || parsed.FullName || 'My Account');
+          setIsVerified(Boolean(parsed.isVerified ?? parsed.IsVerified ?? false));
+          setIsPaid(Boolean(parsed.isPaid ?? parsed.IsPaid ?? false));
+        } else {
+          // 🔄 Auto Fetch Logged-in User Profile to ensure Avatar DP works on EVERY page
+          const token = getCookie("user_token");
+          if (token) {
+            try {
+              const res = await fetch('http://115.124.106.149/api/User/get-profile-details', {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              if (res.ok) {
+                const json = await res.json();
+                const profile = json?.data?.profile || json?.data || json?.profile;
+                if (profile) {
+                  localStorage.setItem("user_details", JSON.stringify(profile));
+                  const rawPhoto = profile.mainPhotoUrl || profile.photoUrl || profile.PhotoUrl;
+                  setUserPhoto(getOptimizedImageUrl(rawPhoto, profile.userId || 1, profile.gender));
+                  setUserName(profile.fullName || 'My Account');
+                  setIsVerified(Boolean(profile.isVerified ?? false));
+                  setIsPaid(Boolean(profile.isPaid ?? false));
+                }
+              }
+            } catch (err) {}
+          }
         }
       }
     };
@@ -56,145 +90,108 @@ export default function DashboardHeader({
   }, [pathname]);
 
   return (
-    <header className="h-14 md:h-20 bg-white/95 backdrop-blur-xl border-b-2 border-rose-100 sticky top-0 z-[100] px-4 md:px-8 flex items-center justify-between shadow-md shadow-rose-950/5 text-slate-900 selection:bg-[#870c3f] selection:text-white">
+    <header className="h-16 md:h-20 bg-white/95 backdrop-blur-xl border-b border-slate-200 sticky top-0 z-[100] px-4 md:px-8 flex items-center justify-between shadow-xs text-slate-900 selection:bg-[#d91b5c] selection:text-white">
       
-      {/* BRANDING: MOBILE TITLE VS DESKTOP LOGO */}
+      {/* 👑 OFFICIAL NIKAH QUBOOL BRAND LOGO */}
       <div className="flex items-center gap-3">
-        <Link href="/dashboard" className="block md:hidden">
-          <span className="font-serif font-black text-xl text-[#870c3f] tracking-tight">
-            Pakiza Rishte
-          </span>
-        </Link>
-
-        <Link href="/dashboard" className="hidden md:flex items-center gap-3 group">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#870c3f] via-[#9e0f4a] to-[#870c3f] flex items-center justify-center text-white shadow-lg shadow-rose-900/20 group-hover:scale-105 transition-transform duration-300 border border-rose-300/30">
-            <HeartHandshake size={24} className="text-amber-300" />
-          </div>
-          <div>
-            <span className="font-serif font-black text-2xl bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] bg-clip-text text-transparent tracking-tight block">
-              Pakiza Rishte
-            </span>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block -mt-1">
-              Pure Matrimony
-            </span>
-          </div>
+        <Link href="/dashboard" className="flex items-center gap-2 group">
+          <img 
+            src="/logo.png" 
+            alt="Nikah Qubool Logo" 
+            className="h-10 sm:h-12 md:h-14 w-auto object-contain transition-transform group-hover:scale-105"
+            onError={(e) => { (e.target as HTMLImageElement).src = '/logo.jpg'; }}
+          />
         </Link>
       </div>
 
-      {/* DESKTOP HIGH-END NAVIGATION */}
+      {/* DESKTOP NAVIGATION */}
       <nav className="hidden lg:flex items-center gap-8 h-full">
         <Link 
           href="/dashboard" 
-          className={`text-xs font-black uppercase tracking-wider transition-all py-2 border-b-2 ${pathname === '/dashboard' ? 'text-[#870c3f] border-[#870c3f]' : 'text-slate-700 hover:text-[#870c3f] border-transparent'}`}
+          className={`text-xs font-bold uppercase tracking-wider transition-all py-2 border-b-2 ${pathname === '/dashboard' ? 'text-[#d91b5c] border-[#d91b5c]' : 'text-slate-700 hover:text-[#d91b5c] border-transparent'}`}
         >
           Dashboard
         </Link>
 
         <Link 
           href="/dashboard/activity" 
-          className={`text-xs font-black uppercase tracking-wider transition-all py-2 border-b-2 flex items-center gap-1.5 ${pathname.startsWith('/dashboard/activity') ? 'text-[#870c3f] border-[#870c3f]' : 'text-slate-700 hover:text-[#870c3f] border-transparent'}`}
+          className={`text-xs font-bold uppercase tracking-wider transition-all py-2 border-b-2 flex items-center gap-1.5 ${pathname.startsWith('/dashboard/activity') ? 'text-[#d91b5c] border-[#d91b5c]' : 'text-slate-700 hover:text-[#d91b5c] border-transparent'}`}
         >
-          <HeartHandshake size={16} className="text-[#870c3f]" /> Activity
+          <HeartHandshake size={16} className="text-[#d91b5c]" /> Activity
         </Link>
 
         <Link 
           href="/dashboard/find-match" 
-          className={`text-xs font-black uppercase tracking-wider transition-all py-2 border-b-2 flex items-center gap-1.5 ${pathname.startsWith('/dashboard/find-match') ? 'text-[#870c3f] border-[#870c3f]' : 'text-slate-700 hover:text-[#870c3f] border-transparent'}`}
+          className={`text-xs font-bold uppercase tracking-wider transition-all py-2 border-b-2 ${pathname.startsWith('/dashboard/find-match') ? 'text-[#d91b5c] border-[#d91b5c]' : 'text-slate-700 hover:text-[#d91b5c] border-transparent'}`}
         >
-          <Search size={16} className="text-amber-500" /> Find Matches
+          Find Matches
         </Link>
 
         <Link 
           href="/dashboard/messages" 
-          className={`text-xs font-black uppercase tracking-wider transition-all py-2 border-b-2 ${pathname.startsWith('/dashboard/messages') ? 'text-[#870c3f] border-[#870c3f]' : 'text-slate-700 hover:text-[#870c3f] border-transparent'}`}
+          className={`text-xs font-bold uppercase tracking-wider transition-all py-2 border-b-2 flex items-center gap-1.5 ${pathname.startsWith('/dashboard/messages') ? 'text-[#d91b5c] border-[#d91b5c]' : 'text-slate-700 hover:text-[#d91b5c] border-transparent'}`}
         >
           Messages
         </Link>
 
         <Link 
           href="/dashboard/my-profile" 
-          className={`text-xs font-black uppercase tracking-wider transition-all py-2 border-b-2 ${pathname.startsWith('/dashboard/my-profile') ? 'text-[#870c3f] border-[#870c3f]' : 'text-slate-700 hover:text-[#870c3f] border-transparent'}`}
+          className={`text-xs font-bold uppercase tracking-wider transition-all py-2 border-b-2 ${pathname.startsWith('/dashboard/my-profile') ? 'text-[#d91b5c] border-[#d91b5c]' : 'text-slate-700 hover:text-[#d91b5c] border-transparent'}`}
         >
           My Profile
         </Link>
-
-        <Link 
-          href="/dashboard/membership" 
-          className="text-xs font-black uppercase tracking-wider text-white bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 px-6 py-3 rounded-full border border-rose-300/30 transition-all shadow-md shadow-rose-900/20 flex items-center gap-2 active:scale-95 cursor-pointer"
-        >
-          <Crown size={16} className="text-amber-300 fill-amber-300" /> Upgrade VIP
-        </Link>
       </nav>
 
-      {/* RIGHT SIDE QUICK ACTION BAR */}
-      <div className="flex items-center gap-2 sm:gap-3.5">
-        <Link 
-          href="/dashboard/messages" 
-          className="hidden lg:flex p-2.5 text-slate-700 hover:text-[#870c3f] hover:bg-rose-50 rounded-full transition-all cursor-pointer border border-slate-200 bg-slate-50"
-          aria-label="Direct Messages"
-        >
-          <MessageSquare size={20} />
-        </Link>
+      {/* RIGHT SIDE ACTIONS: VIP UPGRADE & USER AVATAR */}
+      <div className="flex items-center gap-3 sm:gap-4">
         
-        {/* 🔔 NOTIFICATION BELL BADGE */}
+        <Link 
+          href="/dashboard/membership"
+          className="hidden sm:flex items-center gap-1.5 bg-gradient-to-r from-[#d91b5c] to-rose-600 hover:from-rose-600 hover:to-[#d91b5c] text-white px-4 py-2 rounded-full font-bold text-xs shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 border border-rose-300/30"
+        >
+          <Crown size={15} className="text-amber-300 fill-amber-300 animate-pulse" />
+          <span>Upgrade VIP</span>
+        </Link>
+
+        {/* NOTIFICATIONS BELL */}
         <button 
-          type="button"
-          onClick={onOpenNotifications} 
-          className="p-2 sm:p-2.5 text-slate-700 hover:text-[#870c3f] hover:bg-rose-50 rounded-full transition-all cursor-pointer relative border border-slate-200 bg-slate-50"
-          aria-label="Live Activity Feed"
+          onClick={onOpenNotifications}
+          className="relative p-2 rounded-full hover:bg-slate-100 text-slate-700 transition-colors cursor-pointer"
+          aria-label="Notifications"
         >
           <Bell size={20} />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 bg-[#870c3f] text-white text-[9px] flex items-center justify-center rounded-full font-black animate-pulse shadow-md border border-white">
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </span>
+            <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-[#d91b5c] rounded-full ring-2 ring-white" />
           )}
         </button>
 
-        {/* PROFILE ACCOUNT QUICK OVERLAY (DESKTOP) */}
-        <div className="relative hidden lg:block group/profile">
-          <div className="flex items-center gap-2 cursor-pointer p-1 rounded-full border-2 border-slate-200 hover:border-rose-300 transition-all bg-slate-50">
-            <div className="w-8 h-8 rounded-full border-2 border-[#870c3f] overflow-hidden bg-white flex items-center justify-center shadow-xs">
+        {/* USER PROFILE AVATAR DP (DESKTOP ONLY - HIDDEN ON MOBILE VIEW AS REQUESTED) */}
+        <div className="relative group hidden md:flex">
+          <Link 
+            href="/dashboard/my-profile" 
+            className="flex items-center gap-2 p-1 rounded-full hover:bg-slate-100 transition-colors"
+          >
+            <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden border-2 border-[#d91b5c] shadow-sm bg-slate-100">
               <img 
                 src={userPhoto} 
                 alt={userName} 
-                className="w-full h-full object-cover object-top" 
-                onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }} 
+                className="w-full h-full object-cover"
+                onError={(e) => { 
+                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80';
+                }}
               />
             </div>
-            <ChevronDown size={14} className="text-slate-500 group-hover/profile:rotate-180 transition-transform mr-1" />
-          </div>
-          
-          <div className="absolute right-0 top-full pt-2 opacity-0 pointer-events-none group-hover/profile:opacity-100 group-hover/profile:pointer-events-auto transition-all duration-200 z-[110]">
-            <div className="w-64 bg-white rounded-3xl shadow-2xl border-2 border-rose-100 p-3 text-slate-800">
-               <div className="p-3 border-b-2 border-slate-100 mb-1 bg-slate-50 rounded-2xl">
-                  <p className="font-serif font-extrabold text-slate-900 text-xs uppercase truncate">{userName}</p>
-                  {isVerified ? (
-                    <span className="text-[10px] font-black text-emerald-700 uppercase flex items-center gap-1 mt-0.5">
-                      <CheckCircle2 size={13} className="fill-emerald-600 text-white" /> Verified Member
-                    </span>
-                  ) : (
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block mt-0.5">
-                      Standard Member
-                    </span>
-                  )}
-                  {isPaid && (
-                    <span className="inline-block px-2 py-0.5 bg-amber-100 text-amber-900 rounded-full text-[9px] font-black uppercase mt-1">
-                      VIP Premium
-                    </span>
-                  )}
-               </div>
-               <div className="space-y-1">
-                  <Link href="/dashboard/my-profile" className="flex items-center gap-2.5 p-3 text-xs font-black text-slate-800 hover:bg-rose-50 hover:text-[#870c3f] rounded-xl transition-all"><User size={16} className="text-[#870c3f]" /> My Profile</Link>
-                  <Link href="/dashboard/edit-profile" className="flex items-center gap-2.5 p-3 text-xs font-black text-slate-800 hover:bg-rose-50 hover:text-[#870c3f] rounded-xl transition-all"><Edit3 size={16} className="text-[#870c3f]" /> Edit Profile</Link>
-                  <Link href="/dashboard/settings" className="flex items-center gap-2.5 p-3 text-xs font-black text-slate-800 hover:bg-rose-50 hover:text-[#870c3f] rounded-xl transition-all"><Settings size={16} className="text-[#870c3f]" /> Account Settings</Link>
-                  <Link href="/dashboard/membership" className="flex items-center gap-2.5 p-3 text-xs font-black text-slate-800 hover:bg-rose-50 hover:text-[#870c3f] rounded-xl transition-all"><Crown size={16} className="text-amber-500" /> My Plan & Balance</Link>
-                  <div className="h-0.5 bg-slate-100 my-1 mx-2" />
-                  <button type="button" onClick={handleLogout} className="w-full text-left flex items-center gap-2.5 p-3 text-xs font-black text-rose-700 hover:bg-rose-50 rounded-xl cursor-pointer transition-all"><LogOut size={16} /> Logout Account</button>
-               </div>
+            <div className="hidden md:block text-left">
+              <p className="text-xs font-extrabold text-slate-900 leading-tight truncate max-w-[110px]">
+                {userName}
+              </p>
+              <p className="text-[10px] text-[#d91b5c] font-semibold flex items-center gap-1">
+                {isPaid ? 'VIP Member' : 'Free Member'}
+              </p>
             </div>
-          </div>
+          </Link>
         </div>
+
       </div>
 
     </header>

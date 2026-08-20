@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React from 'react';
 import Image from 'next/image';
@@ -6,9 +6,9 @@ import Link from 'next/link';
 
 export default function Footer() {
   return (
-    <footer className="w-full bg-slate-950 text-white border-t-2 border-[#870c3f] relative overflow-hidden">
+    <footer className="w-full bg-slate-950 text-white border-t-2 border-[#d91b5c] relative overflow-hidden">
       {/* GRADIENT TOP BAR */}
-      <div className="w-full h-1.5 bg-gradient-to-r from-[#870c3f] via-amber-400 via-rose-500 to-[#870c3f]" />
+      <div className="w-full h-1.5 bg-gradient-to-r from-[#d91b5c] via-amber-400 via-rose-500 to-[#d91b5c]" />
 
       <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-14 md:py-18 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12">
@@ -17,15 +17,14 @@ export default function Footer() {
           <div className="lg:col-span-5 space-y-4 text-center lg:text-left">
             <div className="flex flex-col items-center lg:items-start">
               <Link href="/">
-                <Image
-                  src="/pakiza-rishte-website-logo-removebg-preview.png"
-                  alt="Pakiza Rishte Logo"
-                  width={240}
-                  height={80}
+                <img
+                  src="/logo.png"
+                  alt="Nikah Qubool Logo"
                   className="h-16 sm:h-20 w-auto object-contain brightness-125 filter drop-shadow-md origin-center lg:origin-left"
+                  onError={(e) => { (e.target as HTMLImageElement).src = '/logo.jpg'; }}
                 />
               </Link>
-              <p className="text-xs font-black text-amber-300 uppercase tracking-widest mt-1">
+              <p className="text-xs font-bold text-amber-300 uppercase tracking-widest mt-1">
                 Halal & Trusted Matrimony Platform
               </p>
             </div>
@@ -33,17 +32,19 @@ export default function Footer() {
             <p className="text-slate-300 font-serif italic text-sm leading-relaxed max-w-sm mx-auto lg:mx-0">
               "And We created you in pairs." <br />
               <span className="not-italic font-sans text-[11px] text-rose-300 font-bold uppercase tracking-wider block mt-1">
-                Bareilly's Most Trusted Halal Matchmaking Platform
+                Most Trusted Halal Matchmaking Platform
               </span>
             </p>
 
             <div className="pt-2 flex items-center justify-center lg:justify-start gap-2.5 flex-wrap">
-              <span className="px-3.5 py-1.5 bg-white/10 border border-white/20 shadow-sm rounded-full text-[10px] font-black text-amber-300 uppercase tracking-wider">
-                🔒 100% Safe & Secure
-              </span>
-              <span className="px-3.5 py-1.5 bg-white/10 border border-white/20 shadow-sm rounded-full text-[10px] font-black text-emerald-300 uppercase tracking-wider">
-                🌿 Verified Profiles
-              </span>
+              <div className="mt-4 p-4 rounded-2xl bg-white/5 border border-white/10 shadow-xs space-y-1.5">
+                <p className="text-[11px] font-bold text-white flex items-center gap-1.5">
+                  <span>📍</span> UP, India
+                </p>
+                <p className="text-[10px] font-bold text-amber-300 flex items-center gap-1.5">
+                  <span>📞</span> Official Support Active
+                </p>
+              </div>
             </div>
           </div>
 
@@ -113,7 +114,7 @@ export default function Footer() {
         {/* COPYRIGHT BAR */}
         <div className="mt-14 pt-6 border-t border-slate-800 text-center">
           <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
-            © 2026 PAKIZA RISHTE • A PROUD DIGITAL PROPERTY OF IT CREATIVE SOLUTION
+            © 2026 Nikah Qubool • A PROUD DIGITAL PROPERTY OF IT CREATIVE SOLUTION
           </p>
         </div>
       </div>

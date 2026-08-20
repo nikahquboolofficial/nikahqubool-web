@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -188,19 +188,19 @@ export default function CompleteProfilePage() {
   const incomeOptions = ["2-5 LPA", "5-10 LPA", "10-20 LPA", "20-50 LPA", "50 LPA+"].map(i => ({ id: i, value: i }));
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col selection:bg-[#870c3f] selection:text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col selection:bg-[#d91b5c] selection:text-white">
       {/* HEADER NAV */}
       <nav className="fixed top-0 w-full z-[100] bg-white/95 backdrop-blur-xl border-b-2 border-rose-100 px-4 sm:px-8 py-3.5 sm:py-4 flex justify-between items-center shadow-md shadow-rose-950/5">
-        <Image src="/pakiza-rishte-website-logo-removebg-preview.png" alt="Pakiza Rishte Logo" width={280} height={80} priority className="h-12 sm:h-16 md:h-18 w-auto object-contain drop-shadow-xs" />
+        <img src="/logo.png" alt="Nikah Qubool Logo" className="h-10 sm:h-14 md:h-16 w-auto object-contain" onError={(e) => { (e.target as HTMLImageElement).src = '/logo.jpg'; }} />
         <div className="px-4 py-2 bg-rose-50 rounded-full border-2 border-rose-200 flex items-center gap-2 shadow-xs">
           <Crown size={16} className="text-amber-500" />
-          <span className="text-xs sm:text-sm font-black text-[#870c3f] uppercase tracking-wider">Step {section} of 6</span>
+          <span className="text-xs sm:text-sm font-black text-[#d91b5c] uppercase tracking-wider">Step {section} of 6</span>
         </div>
       </nav>
 
       {/* PROGRESS BAR */}
       <div className="fixed top-[68px] sm:top-[82px] left-0 w-full h-2 bg-slate-200/70 z-[101]">
-        <motion.div animate={{ width: `${percentage}%` }} transition={{ duration: 0.4 }} className="h-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-amber-400 shadow-sm" />
+        <motion.div animate={{ width: `${percentage}%` }} transition={{ duration: 0.4 }} className="h-full bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-amber-400 shadow-sm" />
       </div>
 
       {/* MAIN CONTAINER */}
@@ -210,7 +210,7 @@ export default function CompleteProfilePage() {
             <AnimatePresence mode="wait">
               <motion.div key={section} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} className="space-y-6">
                 <div>
-                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-rose-50 rounded-full text-[#870c3f] border border-rose-200 text-[10px] font-black uppercase mb-2 shadow-xs">
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-rose-50 rounded-full text-[#d91b5c] border border-rose-200 text-[10px] font-black uppercase mb-2 shadow-xs">
                     <Sparkles size={12} className="text-amber-500" /> Mandatory Step
                   </div>
                   <h1 className="text-2xl sm:text-3xl font-serif font-extrabold text-slate-900 flex items-center gap-3">
@@ -296,7 +296,7 @@ export default function CompleteProfilePage() {
                   <button
                     onClick={validateAndNext}
                     disabled={loading}
-                    className="flex-1 py-4 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] hover:brightness-110 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg shadow-rose-900/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer border border-rose-300/30"
+                    className="flex-1 py-4 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg shadow-rose-900/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer border border-rose-300/30"
                   >
                     {loading ? (
                       <>
@@ -327,4 +327,4 @@ export default function CompleteProfilePage() {
 }
 
 function getSectionTitle(step: number) { return ["Birth & Attributes", "Religion & Community", "Location Details", "Career & Profession", "Family Details", "Profile Photo"][step - 1]; }
-function getSectionIcon(step: number) { const props = { size: 22, className: "text-[#870c3f] shrink-0" }; return [<User key="1" {...props}/>, <Heart key="2" {...props}/>, <Globe key="3" {...props}/>, <Briefcase key="4" {...props}/>, <Users key="5" {...props}/>, <Camera key="6" {...props}/>][step - 1]; }
+function getSectionIcon(step: number) { const props = { size: 22, className: "text-[#d91b5c] shrink-0" }; return [<User key="1" {...props}/>, <Heart key="2" {...props}/>, <Globe key="3" {...props}/>, <Briefcase key="4" {...props}/>, <Users key="5" {...props}/>, <Camera key="6" {...props}/>][step - 1]; }

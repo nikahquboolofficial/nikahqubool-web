@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from 'react';
 import { Camera, Lock, ChevronRight, CheckCircle2, Sparkles, ShieldAlert, Image as ImageIcon } from 'lucide-react';
@@ -33,7 +33,7 @@ export default function CircularPhotoUpload({ photoUrl, privacyValue, hasError, 
         <div
           onClick={() => document.getElementById('photo-file-picker')?.click()}
           className={`relative w-44 sm:w-52 h-56 sm:h-64 rounded-3xl overflow-hidden border-4 shadow-xl cursor-pointer group flex items-center justify-center bg-slate-100 transition-all ${
-            photoUrl ? 'border-[#870c3f] ring-4 ring-[#870c3f]/10' : 'border-slate-300'
+            photoUrl ? 'border-[#d91b5c] ring-4 ring-[#d91b5c]/10' : 'border-slate-300'
           }`}
         >
           {photoUrl ? (
@@ -44,16 +44,16 @@ export default function CircularPhotoUpload({ photoUrl, privacyValue, hasError, 
             />
           ) : (
             <div className="flex flex-col items-center text-slate-400 p-4 text-center">
-              <div className="w-14 h-14 rounded-full bg-rose-50 border-2 border-rose-200 flex items-center justify-center text-[#870c3f] mb-2 shadow-xs group-hover:scale-110 transition-transform">
+              <div className="w-14 h-14 rounded-full bg-rose-50 border-2 border-rose-200 flex items-center justify-center text-[#d91b5c] mb-2 shadow-xs group-hover:scale-110 transition-transform">
                 <Camera size={26} />
               </div>
-              <span className="text-xs font-black uppercase text-[#870c3f] tracking-wider mt-1">Upload Full Photo</span>
+              <span className="text-xs font-black uppercase text-[#d91b5c] tracking-wider mt-1">Upload Full Photo</span>
               <span className="text-[10px] font-medium text-slate-400 mt-1">Preserves full head-to-waist photo without cropping body</span>
             </div>
           )}
 
           {/* OVERLAY ON HOVER */}
-          <div className="absolute inset-0 bg-[#870c3f]/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white font-bold text-xs gap-1.5 p-4 text-center">
+          <div className="absolute inset-0 bg-[#d91b5c]/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white font-bold text-xs gap-1.5 p-4 text-center">
             <ImageIcon size={24} className="text-amber-300" />
             <span>{photoUrl ? "Change / Re-upload Photo" : "Select Photo from Device"}</span>
           </div>
@@ -63,7 +63,7 @@ export default function CircularPhotoUpload({ photoUrl, privacyValue, hasError, 
         <button
           type="button"
           onClick={() => document.getElementById('photo-file-picker')?.click()}
-          className="mt-5 px-7 py-3 rounded-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white text-xs font-black uppercase tracking-wider shadow-md hover:brightness-110 active:scale-95 transition-all cursor-pointer border border-rose-300/30 flex items-center gap-2"
+          className="mt-5 px-7 py-3 rounded-full bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white text-xs font-black uppercase tracking-wider shadow-md hover:brightness-110 active:scale-95 transition-all cursor-pointer border border-rose-300/30 flex items-center gap-2"
         >
           <Camera size={15} className="text-amber-300" />
           <span>{photoUrl ? "Change Photo" : "Choose Profile Photo"}</span>
@@ -88,10 +88,10 @@ export default function CircularPhotoUpload({ photoUrl, privacyValue, hasError, 
           className="px-5 py-4 bg-slate-50/80 border-2 border-slate-300 hover:bg-white rounded-2xl text-xs font-bold flex justify-between items-center cursor-pointer shadow-xs transition-all"
         >
           <div className="flex items-center gap-2.5">
-            <Lock size={16} className="text-[#870c3f]" />
+            <Lock size={16} className="text-[#d91b5c]" />
             <span className="text-slate-800">{privacyValue}</span>
           </div>
-          <ChevronRight size={16} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-90 text-[#870c3f]' : ''}`} />
+          <ChevronRight size={16} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-90 text-[#d91b5c]' : ''}`} />
         </div>
 
         <AnimatePresence>
@@ -108,12 +108,12 @@ export default function CircularPhotoUpload({ photoUrl, privacyValue, hasError, 
                   onClick={() => { onPrivacyChange(opt); setIsOpen(false); }} 
                   className={`px-4 py-3 rounded-xl text-xs font-bold cursor-pointer flex items-center justify-between transition-all ${
                     privacyValue === opt 
-                      ? 'bg-rose-50 text-[#870c3f] border border-rose-200' 
+                      ? 'bg-rose-50 text-[#d91b5c] border border-rose-200' 
                       : 'hover:bg-slate-100 text-slate-700'
                   }`}
                 >
                   <span>{opt}</span>
-                  {privacyValue === opt && <CheckCircle2 size={16} className="text-[#870c3f]" />}
+                  {privacyValue === opt && <CheckCircle2 size={16} className="text-[#d91b5c]" />}
                 </div>
               ))}
             </motion.div>

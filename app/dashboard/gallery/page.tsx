@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -226,7 +226,7 @@ export default function GalleryManagementPage() {
   const isMainSelected = selectedPhoto ? Boolean(selectedPhoto.isMain ?? selectedPhoto.IsMain) : false;
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-28 pt-4 selection:bg-[#870c3f] selection:text-white">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-28 pt-4 selection:bg-[#d91b5c] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
       <div className="max-w-xl mx-auto px-4 md:px-6 space-y-6">
@@ -236,7 +236,7 @@ export default function GalleryManagementPage() {
           <button 
             type="button" 
             onClick={() => router.back()} 
-            className="flex p-2 hover:bg-rose-50 text-[#870c3f] rounded-full transition-colors cursor-pointer"
+            className="flex p-2 hover:bg-rose-50 text-[#d91b5c] rounded-full transition-colors cursor-pointer"
             aria-label="Back"
             title="Go Back"
           >
@@ -259,7 +259,7 @@ export default function GalleryManagementPage() {
 
         {/* 📸 3-SLOT DYNAMIC GALLERY GRID */}
         {loading ? (
-          <div className="min-h-[220px] flex items-center justify-center text-[#870c3f]">
+          <div className="min-h-[220px] flex items-center justify-center text-[#d91b5c]">
             <Loader2 size={36} className="animate-spin" />
           </div>
         ) : (
@@ -272,7 +272,7 @@ export default function GalleryManagementPage() {
                 <div 
                   key={idx} 
                   onClick={() => setSelectedPhoto({ ...photo, resolvedUrl: imageUrl })}
-                  className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-slate-950 shadow-md border-2 border-slate-200 cursor-pointer group hover:border-[#870c3f] transition-all"
+                  className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-slate-950 shadow-md border-2 border-slate-200 cursor-pointer group hover:border-[#d91b5c] transition-all"
                 >
                   <img 
                     src={imageUrl} 
@@ -282,7 +282,7 @@ export default function GalleryManagementPage() {
                   />
                   
                   {isMain && (
-                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white text-[9px] font-black uppercase text-center py-1 tracking-wider">
+                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white text-[9px] font-black uppercase text-center py-1 tracking-wider">
                       MAIN PROFILE
                     </div>
                   )}
@@ -305,13 +305,13 @@ export default function GalleryManagementPage() {
                 />
                 
                 {uploading ? (
-                  <Loader2 size={24} className="animate-spin text-[#870c3f]" />
+                  <Loader2 size={24} className="animate-spin text-[#d91b5c]" />
                 ) : (
                   <div className="flex flex-col items-center gap-1">
-                    <div className="w-10 h-10 rounded-full bg-[#870c3f] text-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                    <div className="w-10 h-10 rounded-full bg-[#d91b5c] text-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
                       <Plus size={22} className="stroke-[3]" />
                     </div>
-                    <span className="text-[10px] font-black text-[#870c3f] uppercase mt-1">Add Photo</span>
+                    <span className="text-[10px] font-black text-[#d91b5c] uppercase mt-1">Add Photo</span>
                   </div>
                 )}
               </label>
@@ -339,7 +339,7 @@ export default function GalleryManagementPage() {
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border-2 border-rose-100 text-slate-800 space-y-4">
               <div className="flex justify-between items-center border-b pb-3">
                 <h3 className="font-serif font-black text-sm uppercase text-slate-900 flex items-center gap-2">
-                  Photo Actions {isMainSelected && <span className="text-[10px] bg-rose-100 text-[#870c3f] px-2 py-0.5 rounded-full font-sans font-bold">Main Profile</span>}
+                  Photo Actions {isMainSelected && <span className="text-[10px] bg-rose-100 text-[#d91b5c] px-2 py-0.5 rounded-full font-sans font-bold">Main Profile</span>}
                 </h3>
                 <button type="button" onClick={() => setSelectedPhoto(null)} className="p-1.5 rounded-full bg-slate-100 hover:bg-slate-200">
                   <X size={18} />
@@ -357,7 +357,7 @@ export default function GalleryManagementPage() {
 
               {isMainSelected ? (
                 <div className="space-y-3 pt-1">
-                  <label className="w-full p-3.5 bg-[#870c3f] hover:bg-[#6e0a33] text-white font-black text-xs rounded-2xl flex items-center justify-center gap-2 cursor-pointer shadow-md transition-all">
+                  <label className="w-full p-3.5 bg-[#d91b5c] hover:bg-[#6e0a33] text-white font-black text-xs rounded-2xl flex items-center justify-center gap-2 cursor-pointer shadow-md transition-all">
                     <input type="file" accept="image/*" onChange={handleFileUpload} disabled={uploading} className="hidden" />
                     {uploading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />} 
                     Replace Main Profile Photo
@@ -374,7 +374,7 @@ export default function GalleryManagementPage() {
                       type="button" 
                       onClick={() => handleSetPrimary(selectedPhoto)} 
                       disabled={uploading}
-                      className="p-3 bg-rose-50 hover:bg-rose-100 text-[#870c3f] font-black text-xs rounded-2xl flex items-center justify-center gap-1.5 border border-rose-200 cursor-pointer transition-all"
+                      className="p-3 bg-rose-50 hover:bg-rose-100 text-[#d91b5c] font-black text-xs rounded-2xl flex items-center justify-center gap-1.5 border border-rose-200 cursor-pointer transition-all"
                     >
                       {uploading ? <Loader2 size={15} className="animate-spin" /> : <Star size={15} />} 
                       Make Main
@@ -406,3 +406,4 @@ export default function GalleryManagementPage() {
     </div>
   );
 }
+

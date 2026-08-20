@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 export const dynamic = 'force-dynamic';
 
@@ -49,7 +49,7 @@ function SettingsContent() {
 
   // 3. Pause / Deactivate Modal State
   const [showPauseModal, setShowPauseModal] = useState(false);
-  const [pauseReason, setPauseReason] = useState("Found my partner on Pakiza Rishte");
+  const [pauseReason, setPauseReason] = useState("Found my partner on Nikah Qubool");
   const [customReason, setCustomReason] = useState("");
   const [isAccountPaused, setIsAccountPaused] = useState(false);
   const [pausingLoading, setPausingLoading] = useState(false);
@@ -190,7 +190,7 @@ function SettingsContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-32 pt-4 selection:bg-[#870c3f] selection:text-white">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-32 pt-4 selection:bg-[#d91b5c] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
       <div className="max-w-xl mx-auto px-4 md:px-6 space-y-6">
@@ -206,7 +206,7 @@ function SettingsContent() {
                 router.push('/dashboard/my-profile');
               }
             }} 
-            className="flex p-2 hover:bg-rose-50 text-[#870c3f] rounded-full transition-colors cursor-pointer"
+            className="flex p-2 hover:bg-rose-50 text-[#d91b5c] rounded-full transition-colors cursor-pointer"
             aria-label="Back"
             title="Go Back"
           >
@@ -252,7 +252,7 @@ function SettingsContent() {
                 className="p-5 flex items-center justify-between cursor-pointer hover:bg-rose-50/40 transition-all group"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-rose-50 text-[#870c3f] border-2 border-rose-200 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <div className="w-12 h-12 rounded-2xl bg-rose-50 text-[#d91b5c] border-2 border-rose-200 flex items-center justify-center group-hover:scale-105 transition-transform">
                     <Bell size={22} />
                   </div>
                   <div>
@@ -264,7 +264,7 @@ function SettingsContent() {
                     </p>
                   </div>
                 </div>
-                <ChevronRight size={20} className="text-slate-400 group-hover:text-[#870c3f] group-hover:translate-x-1 transition-all" />
+                <ChevronRight size={20} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-1 transition-all" />
               </div>
 
               {/* OPTION 2: PARTNER PREFERENCES */}
@@ -273,7 +273,7 @@ function SettingsContent() {
                 className="p-5 flex items-center justify-between cursor-pointer hover:bg-rose-50/40 transition-all group"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-rose-50 text-[#870c3f] border-2 border-rose-200 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <div className="w-12 h-12 rounded-2xl bg-rose-50 text-[#d91b5c] border-2 border-rose-200 flex items-center justify-center group-hover:scale-105 transition-transform">
                     <Heart size={22} />
                   </div>
                   <div>
@@ -285,7 +285,7 @@ function SettingsContent() {
                     </p>
                   </div>
                 </div>
-                <ChevronRight size={20} className="text-slate-400 group-hover:text-[#870c3f] group-hover:translate-x-1 transition-all" />
+                <ChevronRight size={20} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-1 transition-all" />
               </div>
 
               {/* OPTION 3: MANAGE ACCOUNT */}
@@ -294,7 +294,7 @@ function SettingsContent() {
                 className="p-5 flex items-center justify-between cursor-pointer hover:bg-rose-50/40 transition-all group"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-rose-50 text-[#870c3f] border-2 border-rose-200 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <div className="w-12 h-12 rounded-2xl bg-rose-50 text-[#d91b5c] border-2 border-rose-200 flex items-center justify-center group-hover:scale-105 transition-transform">
                     <Power size={22} />
                   </div>
                   <div>
@@ -306,7 +306,7 @@ function SettingsContent() {
                     </p>
                   </div>
                 </div>
-                <ChevronRight size={20} className="text-slate-400 group-hover:text-[#870c3f] group-hover:translate-x-1 transition-all" />
+                <ChevronRight size={20} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-1 transition-all" />
               </div>
 
             </div>
@@ -330,7 +330,7 @@ function SettingsContent() {
         {activeTab === 'notifications' && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-6 md:p-8 border-2 border-rose-100 shadow-xl space-y-6">
             <div className="flex items-center gap-3 border-b-2 border-slate-100 pb-4">
-              <div className="p-2.5 bg-rose-50 rounded-2xl text-[#870c3f] border border-rose-200">
+              <div className="p-2.5 bg-rose-50 rounded-2xl text-[#d91b5c] border border-rose-200">
                 <Bell size={22} />
               </div>
               <div>
@@ -349,7 +349,7 @@ function SettingsContent() {
                   type="checkbox" 
                   checked={emailNotif} 
                   onChange={(e) => setEmailNotif(e.target.checked)} 
-                  className="w-5 h-5 accent-[#870c3f] cursor-pointer" 
+                  className="w-5 h-5 accent-[#d91b5c] cursor-pointer" 
                 />
               </div>
 
@@ -362,7 +362,7 @@ function SettingsContent() {
                   type="checkbox" 
                   checked={appNotif} 
                   onChange={(e) => setAppNotif(e.target.checked)} 
-                  className="w-5 h-5 accent-[#870c3f] cursor-pointer" 
+                  className="w-5 h-5 accent-[#d91b5c] cursor-pointer" 
                 />
               </div>
 
@@ -375,7 +375,7 @@ function SettingsContent() {
                   type="checkbox" 
                   checked={matchAlerts} 
                   onChange={(e) => setMatchAlerts(e.target.checked)} 
-                  className="w-5 h-5 accent-[#870c3f] cursor-pointer" 
+                  className="w-5 h-5 accent-[#d91b5c] cursor-pointer" 
                 />
               </div>
 
@@ -383,7 +383,7 @@ function SettingsContent() {
                 type="button" 
                 onClick={handleSaveNotifications}
                 disabled={loading}
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 cursor-pointer border border-rose-300/30 flex items-center justify-center gap-2"
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 cursor-pointer border border-rose-300/30 flex items-center justify-center gap-2"
               >
                 {loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                 <span>Save Notification Settings</span>
@@ -396,7 +396,7 @@ function SettingsContent() {
         {activeTab === 'preferences' && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-6 md:p-8 border-2 border-rose-100 shadow-xl space-y-6">
             <div className="flex items-center gap-3 border-b-2 border-slate-100 pb-4">
-              <div className="p-2.5 bg-rose-50 rounded-2xl text-[#870c3f] border border-rose-200">
+              <div className="p-2.5 bg-rose-50 rounded-2xl text-[#d91b5c] border border-rose-200">
                 <Heart size={22} />
               </div>
               <div>
@@ -469,7 +469,7 @@ function SettingsContent() {
                 type="button" 
                 onClick={handleSavePartnerPreferences}
                 disabled={savingPref}
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 cursor-pointer border border-rose-300/30 flex items-center justify-center gap-2"
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 cursor-pointer border border-rose-300/30 flex items-center justify-center gap-2"
               >
                 {savingPref ? <Loader2 size={16} className="animate-spin text-amber-300" /> : <Save size={16} className="text-amber-300" />}
                 <span>Save Partner Preferences</span>
@@ -483,7 +483,7 @@ function SettingsContent() {
         {activeTab === 'manage' && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-6 md:p-8 border-2 border-rose-100 shadow-xl space-y-6">
             <div className="flex items-center gap-3 border-b-2 border-slate-100 pb-4">
-              <div className="p-2.5 bg-rose-50 rounded-2xl text-[#870c3f] border border-rose-200">
+              <div className="p-2.5 bg-rose-50 rounded-2xl text-[#d91b5c] border border-rose-200">
                 <Power size={22} />
               </div>
               <div>
@@ -530,7 +530,7 @@ function SettingsContent() {
                     <Trash2 size={18} className="text-rose-600" /> Delete Account
                   </h4>
                   <p className="text-xs font-semibold text-slate-600">
-                    Permanently delete your profile, photos, and match history from Pakiza Rishte.
+                    Permanently delete your profile, photos, and match history from Nikah Qubool.
                   </p>
                 </div>
                 <button 
@@ -572,7 +572,7 @@ function SettingsContent() {
 
               <div className="space-y-2">
                 {[
-                  "Found my partner on Pakiza Rishte",
+                  "Found my partner on Nikah Qubool",
                   "Taking a temporary break",
                   "Privacy & security concerns",
                   "Other"
@@ -584,7 +584,7 @@ function SettingsContent() {
                       value={reason} 
                       checked={pauseReason === reason} 
                       onChange={(e) => setPauseReason(e.target.value)} 
-                      className="w-4 h-4 accent-[#870c3f]"
+                      className="w-4 h-4 accent-[#d91b5c]"
                     />
                     <span>{reason}</span>
                   </label>
@@ -596,7 +596,7 @@ function SettingsContent() {
                   value={customReason}
                   onChange={(e) => setCustomReason(e.target.value)}
                   placeholder="Tell us more about your reason..."
-                  className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#870c3f]"
+                  className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#d91b5c]"
                   rows={2}
                 />
               )}
@@ -675,7 +675,7 @@ function SettingsContent() {
 export default function AccountSettingsPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center text-[#870c3f] p-8">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center text-[#d91b5c] p-8">
         <Loader2 size={36} className="animate-spin" />
       </div>
     }>

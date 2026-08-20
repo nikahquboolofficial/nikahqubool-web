@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState, useEffect, Suspense } from 'react';
 import InboxList from '@/components/chat/InboxList';
 import ChatWindow from '@/components/chat/ChatWindow';
@@ -30,7 +30,7 @@ function MessagesContainer() {
   }, [selectedChat]);
 
   return (
-    <div className="flex h-[100dvh] md:h-[calc(100vh-80px)] w-full max-w-7xl mx-auto bg-white md:shadow-2xl md:rounded-3xl overflow-hidden my-0 md:my-3 border-0 md:border-2 border-rose-100 selection:bg-[#870c3f] selection:text-white fixed inset-0 md:static z-[99]">
+    <div className="flex h-[100dvh] md:h-[calc(100vh-80px)] w-full max-w-7xl mx-auto bg-white md:shadow-2xl md:rounded-3xl overflow-hidden my-0 md:my-3 border-0 md:border-2 border-rose-100 selection:bg-[#d91b5c] selection:text-white fixed inset-0 md:static z-[99]">
       
       {/* SIDEBAR INBOX */}
       <div className={`w-full md:w-[360px] lg:w-[420px] h-full flex-shrink-0 border-r-2 border-rose-100 bg-white ${selectedChat ? 'hidden md:block' : 'block'}`}>
@@ -57,9 +57,9 @@ function MessagesContainer() {
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ duration: 0.4 }}
-              className="w-20 h-20 bg-rose-50 text-[#870c3f] rounded-full flex items-center justify-center border-2 border-rose-200 shadow-xl"
+              className="w-20 h-20 bg-rose-50 text-[#d91b5c] rounded-full flex items-center justify-center border-2 border-rose-200 shadow-xl"
             >
-              <MessageSquare size={36} className="text-[#870c3f]" />
+              <MessageSquare size={36} className="text-[#d91b5c]" />
             </motion.div>
             
             <div>
@@ -69,7 +69,7 @@ function MessagesContainer() {
               </p>
             </div>
 
-            <div className="px-5 py-2 rounded-full bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white text-[10px] font-black uppercase tracking-widest shadow-md flex items-center gap-1.5 border border-rose-300/30">
+            <div className="px-5 py-2 rounded-full bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white text-[10px] font-black uppercase tracking-widest shadow-md flex items-center gap-1.5 border border-rose-300/30">
               <Sparkles size={13} className="text-amber-300" /> Direct Messaging Unlocked
             </div>
           </div>
@@ -83,8 +83,8 @@ function MessagesContainer() {
 export default function MessagesPage() {
   return (
     <Suspense fallback={
-      <div className="flex h-screen flex-col items-center justify-center text-[#870c3f] font-black text-xs uppercase tracking-widest gap-3 bg-slate-50">
-        <Loader2 size={42} className="animate-spin text-[#870c3f]" />
+      <div className="flex h-screen flex-col items-center justify-center text-[#d91b5c] font-black text-xs uppercase tracking-widest gap-3 bg-slate-50">
+        <Loader2 size={42} className="animate-spin text-[#d91b5c]" />
         <span>Loading Messenger...</span>
       </div>
     }>

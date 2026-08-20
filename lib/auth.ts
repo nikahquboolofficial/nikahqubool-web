@@ -5,8 +5,10 @@ export const setAuthCookies = (result: any) => {
   const isCompleted = (isCompletedRaw === true || isCompletedRaw === 1 || isCompletedRaw === "1" || isCompletedRaw === "true");
   const profileCompletedVal = isCompleted ? '1' : '0';
 
-  document.cookie = `user_token=${result.token}; expires=${expires}; path=/; SameSite=Lax; Secure`;
-  document.cookie = `is_profile_completed=${profileCompletedVal}; expires=${expires}; path=/; SameSite=Lax; Secure`;
+  const isSecure = typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : "";
+
+  document.cookie = `user_token=${result.token}; expires=${expires}; path=/; SameSite=Lax${isSecure}`;
+  document.cookie = `is_profile_completed=${profileCompletedVal}; expires=${expires}; path=/; SameSite=Lax${isSecure}`;
 
   if (typeof window !== "undefined" && result) {
     try {

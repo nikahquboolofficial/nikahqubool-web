@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React from 'react';
 import { ChevronRight, Loader2, ArrowLeft } from 'lucide-react';
@@ -28,7 +28,7 @@ export default function MobileBottomNav({ currentSection, totalSections, loading
         type="button" 
         onClick={onNext} 
         disabled={loading} 
-        className="flex-1 py-3.5 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-lg shadow-rose-900/20 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer border border-rose-300/30"
+        className="flex-1 py-3.5 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white rounded-xl font-black uppercase text-xs tracking-widest shadow-lg shadow-rose-900/20 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer border border-rose-300/30"
       >
         {loading ? (
           <Loader2 className="animate-spin text-amber-300" size={16} />

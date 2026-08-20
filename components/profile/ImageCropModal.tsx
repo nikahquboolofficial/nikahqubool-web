@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useRef } from 'react';
 import { Check, X, ShieldCheck } from 'lucide-react';
@@ -42,7 +42,7 @@ export default function ImageCropModal({ imageSrc, onCropComplete, onClose }: Im
         className="relative w-full max-w-[440px] bg-white rounded-3xl overflow-hidden shadow-2xl border-2 border-rose-100 text-slate-800"
       >
         {/* HEADER */}
-        <div className="bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] px-6 py-4 flex items-center justify-between text-white font-serif font-bold text-sm">
+        <div className="bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] px-6 py-4 flex items-center justify-between text-white font-serif font-bold text-sm">
           <div className="flex items-center gap-2">
             <ShieldCheck size={18} className="text-amber-300" />
             <span>Confirm Profile Photo</span>
@@ -77,7 +77,7 @@ export default function ImageCropModal({ imageSrc, onCropComplete, onClose }: Im
             </button>
             <button 
               onClick={handleCropSave} 
-              className="flex-1 py-3.5 bg-gradient-to-r from-[#870c3f] via-[#9e0f4a] to-[#870c3f] text-white rounded-2xl text-xs font-black uppercase tracking-wider hover:brightness-110 flex items-center justify-center gap-2 shadow-lg shadow-rose-900/20 active:scale-95 transition-all cursor-pointer border border-rose-300/30"
+              className="flex-1 py-3.5 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white rounded-2xl text-xs font-black uppercase tracking-wider hover:brightness-110 flex items-center justify-center gap-2 shadow-lg shadow-rose-900/20 active:scale-95 transition-all cursor-pointer border border-rose-300/30"
             >
               <Check size={18} className="text-amber-300" /> 
               <span>Use Full Photo</span>
