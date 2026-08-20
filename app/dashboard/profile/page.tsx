@@ -44,12 +44,18 @@ export default function ProfileDetailPage() {
 
     let targetUserId = 0;
     if (typeof window !== "undefined") {
-      const stored = sessionStorage.getItem("viewing_profile_target");
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          targetUserId = parsed.userId || parsed.targetUserId;
-        } catch (e) {}
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlId = urlParams.get('userId') || urlParams.get('id') || urlParams.get('targetUserId');
+      if (urlId) {
+        targetUserId = parseInt(urlId, 10);
+      } else {
+        const stored = sessionStorage.getItem("viewing_profile_target");
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            targetUserId = parsed.userId || parsed.targetUserId || parsed.id;
+          } catch (e) {}
+        }
       }
     }
 
@@ -204,7 +210,25 @@ export default function ProfileDetailPage() {
     );
   }
 
-  if (!profileData) return null;
+  if (!profileData) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 rounded-full bg-rose-100 flex items-center justify-center text-[#870c3f] mb-4 shadow-sm">
+          <User size={32} />
+        </div>
+        <h2 className="text-xl font-bold text-slate-800 mb-2">Profile Not Found</h2>
+        <p className="text-sm text-slate-500 max-w-sm mb-6">
+          This candidate profile could not be loaded or may no longer be available.
+        </p>
+        <button
+          onClick={() => router.push('/dashboard')}
+          className="px-6 py-2.5 bg-[#870c3f] text-white font-bold text-sm rounded-xl shadow-md hover:bg-[#6b0932] transition-all cursor-pointer"
+        >
+          Return to Dashboard
+        </button>
+      </div>
+    );
+  }
 
   const allPhotos = gallery.length > 0 ? gallery : [{ photoUrl: profileData.mainPhotoUrl || profileData.photoUrl || '/placeholder.png' }];
   const interestStatus = profileData.interestStatus || profileData.InterestStatus || 'None';

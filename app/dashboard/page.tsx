@@ -9,6 +9,32 @@ import { fetchDashboardApi, handleInteractionApiCall } from '@/lib/api';
 import ProfileCard from '@/components/dashboard/ProfileCard';
 import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
 
+function LiveCountdownDisplay() {
+  const [timeLeft, setTimeLeft] = useState({ h: 23, m: 59, s: 59 });
+
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date();
+      const reset = new Date();
+      reset.setHours(24, 0, 0, 0);
+      const diff = Math.max(0, Math.floor((reset.getTime() - now.getTime()) / 1000));
+      const h = Math.floor(diff / 3600);
+      const m = Math.floor((diff % 3600) / 60);
+      const s = diff % 60;
+      setTimeLeft({ h, m, s });
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <span>
+      {String(timeLeft.h).padStart(2, '0')}h : {String(timeLeft.m).padStart(2, '0')}m : {String(timeLeft.s).padStart(2, '0')}s
+    </span>
+  );
+}
+
 export default function VIPCleanDashboardPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('best-matches');
@@ -177,7 +203,7 @@ export default function VIPCleanDashboardPage() {
     if (token) {
       handleInteractionApiCall(userId, 'VISIT', 'PENDING', token).catch(() => {});
     }
-    router.push('/dashboard/profile');
+    router.push('/dashboard/profile?userId=' + userId);
   };
 
   const handleInitiateChat = (profile: any) => {
@@ -299,12 +325,21 @@ export default function VIPCleanDashboardPage() {
                     24-Hour Limit Reached
                   </span>
                   <h3 className="text-xl font-serif font-extrabold uppercase mt-2 text-white tracking-wide">
-                    20 Profiles Viewed Today
+                    20 / 20 Free Profiles Viewed Today
                   </h3>
                   <p className="text-rose-100/80 text-xs font-medium max-w-md mx-auto mt-1 leading-relaxed">
-                    Free accounts are restricted to viewing 20 profiles per 24 hours. Upgrade to VIP Premium to unlock unlimited instant profiles or wait 24 hours.
+                    Free accounts are restricted to viewing 20 profiles per 24 hours. Upgrade to VIP Premium to unlock unlimited instant profiles or wait for timer reset.
                   </p>
                 </div>
+                
+                {/* 🕒 LIVE TICKING COUNTDOWN TIMER */}
+                <div className="bg-slate-950/80 p-3 rounded-2xl border border-amber-400/30 max-w-xs mx-auto text-center space-y-1 shadow-inner">
+                  <span className="text-[10px] uppercase font-black tracking-widest text-amber-300">Resetting Daily Limit In</span>
+                  <div className="flex items-center justify-center gap-2 text-amber-300 font-mono font-bold text-xl">
+                    <LiveCountdownDisplay />
+                  </div>
+                </div>
+
                 <div className="pt-2">
                   <button 
                     type="button"

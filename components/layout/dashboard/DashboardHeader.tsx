@@ -31,18 +31,27 @@ export default function DashboardHeader({
   const [isPaid, setIsPaid] = useState<boolean>(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("user_details") || localStorage.getItem("user_session");
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          const rawPhoto = parsed.mainPhotoUrl || parsed.photoUrl || parsed.PhotoUrl || '/placeholder.png';
-          setUserPhoto(getOptimizedImageUrl(rawPhoto));
-          setUserName(parsed.fullName || parsed.FullName || 'My Account');
-          setIsVerified(Boolean(parsed.isVerified ?? parsed.IsVerified ?? false));
-          setIsPaid(Boolean(parsed.isPaid ?? parsed.IsPaid ?? false));
-        } catch (e) {}
+    const updatePhotoFromStorage = () => {
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("user_details") || localStorage.getItem("user_session");
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            const rawPhoto = parsed.mainPhotoUrl || parsed.photoUrl || parsed.PhotoUrl || parsed.mainPhoto || parsed.photo || '/placeholder.png';
+            setUserPhoto(getOptimizedImageUrl(rawPhoto));
+            setUserName(parsed.fullName || parsed.FullName || 'My Account');
+            setIsVerified(Boolean(parsed.isVerified ?? parsed.IsVerified ?? false));
+            setIsPaid(Boolean(parsed.isPaid ?? parsed.IsPaid ?? false));
+          } catch (e) {}
+        }
       }
+    };
+
+    updatePhotoFromStorage();
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("user_photo_updated", updatePhotoFromStorage);
+      return () => window.removeEventListener("user_photo_updated", updatePhotoFromStorage);
     }
   }, [pathname]);
 

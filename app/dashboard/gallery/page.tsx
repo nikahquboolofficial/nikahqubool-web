@@ -38,10 +38,13 @@ export default function GalleryManagementPage() {
             parsed.mainPhotoUrl = mainPhotoUrl;
             parsed.photoUrl = mainPhotoUrl;
             parsed.PhotoUrl = mainPhotoUrl;
+            parsed.photo = mainPhotoUrl;
+            parsed.mainPhoto = mainPhotoUrl;
             localStorage.setItem(key, JSON.stringify(parsed));
           } catch (e) {}
         }
       });
+      window.dispatchEvent(new Event("user_photo_updated"));
     }
   };
 

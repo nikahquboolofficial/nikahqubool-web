@@ -16,15 +16,24 @@ export default function DashboardBottomNav({ unreadCount = 0 }: BottomNavProps) 
   const [userPhoto, setUserPhoto] = useState<string>('/placeholder.png');
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("user_details") || localStorage.getItem("user_session");
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          const rawPhoto = parsed.mainPhotoUrl || parsed.photoUrl || parsed.PhotoUrl || '/placeholder.png';
-          setUserPhoto(getOptimizedImageUrl(rawPhoto));
-        } catch (e) {}
+    const updatePhotoFromStorage = () => {
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("user_details") || localStorage.getItem("user_session");
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            const rawPhoto = parsed.mainPhotoUrl || parsed.photoUrl || parsed.PhotoUrl || parsed.mainPhoto || parsed.photo || '/placeholder.png';
+            setUserPhoto(getOptimizedImageUrl(rawPhoto));
+          } catch (e) {}
+        }
       }
+    };
+
+    updatePhotoFromStorage();
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("user_photo_updated", updatePhotoFromStorage);
+      return () => window.removeEventListener("user_photo_updated", updatePhotoFromStorage);
     }
   }, [pathname]);
 

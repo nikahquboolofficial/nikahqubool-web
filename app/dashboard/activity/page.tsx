@@ -51,8 +51,8 @@ function ActivityPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const queryCat = (searchParams.get('cat') as MainCategory) || 'interests';
-  const queryTab = searchParams.get('tab') || 'requests';
+  const queryCat = (searchParams.get('cat') as MainCategory) || 'all';
+  const queryTab = searchParams.get('tab') || 'all';
 
   const [activeCat, setActiveCat] = useState<MainCategory>(queryCat);
   const [activeSubTab, setActiveSubTab] = useState<string>(queryTab);
@@ -193,7 +193,7 @@ function ActivityPageContent() {
     if (token) {
       handleInteractionApiCall(userId, 'VISIT', 'PENDING', token).catch(() => {});
     }
-    router.push('/dashboard/profile');
+    router.push('/dashboard/profile?userId=' + userId);
   };
 
   const handleInitiateChat = (profile: any) => {
