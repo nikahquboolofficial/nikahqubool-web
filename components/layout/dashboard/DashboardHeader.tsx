@@ -92,15 +92,12 @@ export default function DashboardHeader({
   return (
     <header className="h-16 md:h-20 bg-white/95 backdrop-blur-xl border-b border-slate-200 sticky top-0 z-[100] px-4 md:px-8 flex items-center justify-between shadow-xs text-slate-900 selection:bg-[#d91b5c] selection:text-white">
       
-      {/* 👑 OFFICIAL NIKAH QUBOOL BRAND LOGO */}
+      {/* 👑 STYLISH NIKAH QUBOOL TEXT BRAND LOGO */}
       <div className="flex items-center gap-3">
         <Link href="/dashboard" className="flex items-center gap-2 group">
-          <img 
-            src="/logo.png" 
-            alt="Nikah Qubool Logo" 
-            className="h-10 sm:h-12 md:h-14 w-auto object-contain transition-transform group-hover:scale-105"
-            onError={(e) => { (e.target as HTMLImageElement).src = '/logo.jpg'; }}
-          />
+          <span className="font-serif font-black text-xl sm:text-2xl tracking-tight text-[#d91b5c]">
+            Nikah Qubool
+          </span>
         </Link>
       </div>
 

@@ -172,21 +172,15 @@ export default function RegisterModal({ isOpen, onClose }: RegisterModalProps) {
             ✕
           </button>
 
-          {/* GRADIENT HEADER */}
-          <div className="bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] px-6 py-4.5 text-center text-white relative shadow-sm">
-            <img 
-              src="/logo.png" 
-              alt="Nikah Qubool Logo" 
-              className="h-10 w-auto mx-auto mb-2 object-contain filter drop-shadow-md"
-              onError={(e) => { (e.target as HTMLImageElement).src = '/logo.jpg'; }}
-            />
-            <div className="flex items-center justify-center gap-2">
-              <ShieldCheck size={18} className="text-amber-300" />
-              <h2 className="font-serif font-bold text-lg sm:text-xl tracking-tight text-white">
-                {!showOtpStep ? 'Free Registration' : 'Verify Mobile OTP'}
-              </h2>
-            </div>
-            <p className="text-xs font-medium text-rose-100/90 mt-0.5">
+          {/* CLEAN WHITE HEADER */}
+          <div className="bg-white px-6 pt-7 pb-3 text-center text-slate-900 border-b border-slate-100 relative">
+            <span className="font-serif font-black text-2xl tracking-tight text-[#d91b5c] block mb-1">
+              Nikah Qubool
+            </span>
+            <h2 className="font-sans font-bold text-lg text-slate-900">
+              {!showOtpStep ? 'Free Registration' : 'Verify Mobile OTP'}
+            </h2>
+            <p className="text-xs font-medium text-slate-500 mt-0.5">
               {!showOtpStep ? 'Find your perfect halal life partner' : `OTP sent to +91 ${mobileNumber}`}
             </p>
           </div>

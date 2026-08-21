@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React from 'react';
 import Image from 'next/image';
@@ -17,12 +17,9 @@ export default function Footer() {
           <div className="lg:col-span-5 space-y-4 text-center lg:text-left">
             <div className="flex flex-col items-center lg:items-start">
               <Link href="/">
-                <img
-                  src="/logo.png"
-                  alt="Nikah Qubool Logo"
-                  className="h-16 sm:h-20 w-auto object-contain brightness-125 filter drop-shadow-md origin-center lg:origin-left"
-                  onError={(e) => { (e.target as HTMLImageElement).src = '/logo.jpg'; }}
-                />
+                <span className="font-serif font-black text-3xl tracking-tight text-white block">
+                  Nikah Qubool
+                </span>
               </Link>
               <p className="text-xs font-bold text-amber-300 uppercase tracking-widest mt-1">
                 Halal & Trusted Matrimony Platform

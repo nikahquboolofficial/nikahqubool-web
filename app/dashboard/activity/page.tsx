@@ -50,8 +50,8 @@ function ActivityPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const queryCat = (searchParams.get('cat') as MainCategory) || 'all';
-  const queryTab = searchParams.get('tab') || 'all';
+  const queryCat = (searchParams.get('cat') as MainCategory) || 'interests';
+  const queryTab = searchParams.get('tab') || 'requests';
 
   const [activeCat, setActiveCat] = useState<MainCategory>(queryCat);
   const [activeSubTab, setActiveSubTab] = useState<string>(queryTab);
@@ -250,7 +250,6 @@ function ActivityPageContent() {
   };
 
   const mainCategories: { id: MainCategory; label: string; icon: any }[] = [
-    { id: 'all', label: 'All', icon: Sparkles },
     { id: 'interests', label: 'Interests', icon: Heart },
     { id: 'visitors', label: 'Profile Visits', icon: Flame },
     { id: 'gallery', label: 'Gallery Request', icon: Lock },

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -265,6 +265,7 @@ export default function ProfileDetailPage() {
   const religion = 'Islam';
   const sect = profileData.sect || 'Sunni';
 
+  const isOnline = Boolean(profileData.isOnline ?? profileData.IsOnline ?? false);
   const isInterestSent = interestStatus === 'SentPending' || interestStatus.includes('Sent');
   const isInterestReceived = interestStatus === 'ReceivedPending';
   const isConnected = interestStatus === 'Accepted' || Boolean(profileData.isCanChat ?? profileData.IsCanChat);
@@ -394,78 +395,31 @@ export default function ProfileDetailPage() {
               </button>
             )}
 
-            {/* LEFT / RIGHT SWIPE ARROWS FOR GALLERY */}
-            {!isPhotoHidden && allPhotos.length > 1 && (
-              <>
-                <button 
-                  type="button" 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActivePhotoIndex((prev) => (prev > 0 ? prev - 1 : allPhotos.length - 1));
-                  }} 
-                  className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center cursor-pointer transition-all z-30 border border-white/20"
-                >
-                  <ChevronLeft size={22} />
-                </button>
-                <button 
-                  type="button" 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActivePhotoIndex((prev) => (prev < allPhotos.length - 1 ? prev + 1 : 0));
-                  }} 
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center cursor-pointer transition-all z-30 border border-white/20"
-                >
-                  <ChevronRight size={22} />
-                </button>
-              </>
-            )}
-
             {/* GRADIENT OVERLAY AT BOTTOM OF PHOTO */}
-            <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-slate-950 via-slate-950/65 to-transparent pointer-events-none z-25" />
+            <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent pointer-events-none z-25" />
 
-            {/* CANDIDATE NAME, AGE & PILLS ON PHOTO BOTTOM */}
-            <div className="absolute bottom-4 inset-x-5 z-30 text-white pointer-events-none space-y-2">
-              <h2 className="font-serif font-extrabold text-2xl md:text-3xl uppercase tracking-wide flex items-center gap-2 drop-shadow-md">
-                <span>{fullName}, {displayAge}</span>
-                {isVerified && <CheckCircle2 size={22} className="fill-emerald-500 text-slate-950" />}
-                {isPremium && <Crown size={20} className="fill-amber-400 text-amber-400" />}
-              </h2>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-white text-xs font-bold border border-white/30 uppercase tracking-wider">
-                  {maritalStatus}
-                </span>
-                <span className="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-white text-xs font-bold border border-white/30 uppercase tracking-wider">
-                  {religion}
-                </span>
-                {sect && (
-                  <span className="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-white text-xs font-bold border border-white/30 uppercase tracking-wider">
-                    {sect}
-                  </span>
-                )}
+            {/* CANDIDATE NAME, AGE, CROWN TAJ & ONLINE GREEN DOT ON PHOTO BOTTOM */}
+            <div className="absolute bottom-4 inset-x-5 z-30 text-white pointer-events-none flex items-center justify-between">
+              <div className="flex items-center gap-2 flex-wrap drop-shadow-md">
+                <h2 className="font-serif font-extrabold text-2xl md:text-3xl uppercase tracking-wide flex items-center gap-2">
+                  <span>{fullName}, {displayAge}</span>
+                </h2>
+                <div className="flex items-center gap-1.5 inline-flex align-middle">
+                  {isVerified && <CheckCircle2 size={20} className="fill-emerald-500 text-slate-950" />}
+                  {isPremium && <Crown size={20} className="fill-amber-400 text-amber-400 drop-shadow-xs" />}
+                  {isOnline && (
+                    <span className="flex items-center gap-1 bg-emerald-950/80 backdrop-blur-sm border border-emerald-400/50 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full ml-1">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                      <span>Online</span>
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* GALLERY THUMBNAIL STRIP */}
-          {!isPhotoHidden && allPhotos.length > 1 && (
-            <div className="p-3 bg-slate-900 border-t border-slate-800 flex items-center justify-center gap-3 overflow-x-auto no-scrollbar">
-              {allPhotos.map((p, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setActivePhotoIndex(idx)}
-                  className={`w-14 h-14 rounded-xl overflow-hidden border-2 transition-all cursor-pointer flex-shrink-0 ${
-                    activePhotoIndex === idx ? 'border-rose-500 scale-105 shadow-lg' : 'border-slate-700 opacity-50 hover:opacity-100'
-                  }`}
-                >
-                  <img src={getOptimizedImageUrl(p.photoUrl)} alt="Thumbnail" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }} />
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* 🔴 ACTION ICON BUTTONS ROW DIRECTLY BELOW HERO IMAGE (EXACT DASHBOARD CARD STYLE) */}
-          <div className="py-4 px-6 bg-white border-t border-rose-100 flex items-center justify-around gap-4 max-w-md mx-auto">
+          {/* 🔴 ACTION ICON BUTTONS ROW (FIXED STICKY AT BOTTOM OF VIEWPORT) */}
+          <div className="fixed bottom-0 inset-x-0 z-50 bg-white/95 backdrop-blur-xl border-t border-slate-200/90 py-3 px-6 shadow-[0_-10px_25px_rgba(0,0,0,0.12)] flex items-center justify-around gap-4 max-w-md mx-auto rounded-t-3xl text-slate-800 pointer-events-auto">
             
             {/* 1. ❤️ INTEREST PROPOSAL ACCEPT / DECLINE OR SEND BUTTON */}
             {isInterestReceived ? (

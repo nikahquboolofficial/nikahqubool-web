@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -175,21 +175,15 @@ export default function HeroRegisterForm() {
         initial={{ opacity: 0, y: 25, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="w-full max-w-[440px] bg-white/95 backdrop-blur-2xl rounded-3xl shadow-2xl shadow-rose-950/20 border-2 border-rose-100/90 overflow-hidden relative group"
+        className="w-full max-w-[420px] bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden relative group"
       >
-        {/* TOP GLOWING BAR */}
-        <div className="h-1.5 bg-gradient-to-r from-[#d91b5c] via-amber-400 to-[#d91b5c]" />
-
-        {/* HEADER WITH GRADIENT & SHIELD */}
-        <div className="bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] px-6 py-5 text-center text-white relative shadow-sm">
-          <div className="flex items-center justify-center gap-2">
-            <ShieldCheck size={20} className="text-amber-300 animate-pulse" />
-            <span className="font-serif font-black text-sm sm:text-base tracking-wider uppercase text-amber-200">
-              Begin Your Nikah Journey
-            </span>
-          </div>
-          <p className="text-[11px] font-semibold text-rose-100/90 mt-1 flex items-center justify-center gap-1.5">
-            <Sparkles size={12} className="text-amber-300" /> Free Registration • 100% Verified Proposals
+        {/* CLEAN WHITE HEADER */}
+        <div className="bg-white px-7 pt-7 pb-2 text-center text-slate-900 border-b border-slate-100">
+          <h2 className="font-sans font-black text-xl sm:text-22px tracking-tight text-slate-900">
+            Register and find your soulmate
+          </h2>
+          <p className="text-xs font-bold text-[#d91b5c] mt-1 flex items-center justify-center gap-1.5">
+            <Sparkles size={13} className="text-amber-500" /> Free Registration • 100% Verified Proposals
           </p>
         </div>
         

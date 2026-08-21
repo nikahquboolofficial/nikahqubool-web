@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from 'react';
 import { 
@@ -187,14 +187,57 @@ export default function ProfileCard({
         </div>
 
         {/* 🔴 ACTION BUTTONS ROW (SITTING DIRECTLY AT VERY BOTTOM EDGE OF CARD IMAGE) */}
-        <div className="absolute bottom-3 inset-x-4 z-40 flex items-center justify-around gap-3 pointer-events-auto">
+        <div className="absolute bottom-3 inset-x-4 z-40">
+        {/* CARD TOP BADGE FOR RECEIVED INTEREST IN VISITS/CONTACTS */}
+        {isInterestReceived && (activeTab === 'visitors' || activeTab === 'profiles-viewed' || activeTab === 'viewed-my-profile') && (
+          <div className="mb-2 bg-[#d91b5c]/90 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-wider py-1 px-3 rounded-full text-center border border-rose-300/40 shadow-xs">
+            ✨ Also sent you an interest request
+          </div>
+        )}
+
+        {/* 🌟 ACTION BUTTONS BAR */}
+        <div className="flex items-center justify-center gap-3 pt-1">
           
-          {/* 1. ❤️ INTEREST PROPOSAL ACCEPT / DECLINE OR SEND BUTTONS */}
-          {isInterestReceived ? (
-            <div className="flex items-center gap-2">
+          {/* RULE 1: IF GALLERY REQUEST RECEIVED -> SHOW PHOTO ACCEPT / DECLINE */}
+          {activeTab === 'gallery-requests-received' ? (
+            <div className="flex items-center justify-center gap-3 w-full">
               <motion.button 
                 type="button"
-                whileHover={{ scale: 1.12, y: -2 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onInteraction(profile.userId, 'GALLERY_REQUEST', 'ACCEPTED');
+                }}
+                disabled={actionLoading}
+                className="flex-1 py-2 px-3 rounded-full bg-[#e6f7ec] hover:bg-[#d1fae5] text-[#16a34a] border border-emerald-400 font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+              >
+                {actionLoading ? <Loader2 size={14} className="animate-spin text-[#16a34a]" /> : <Check size={16} className="text-[#16a34a]" />}
+                <span>Accept Photo</span>
+              </motion.button>
+              <motion.button 
+                type="button"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onInteraction(profile.userId, 'GALLERY_REQUEST', 'DECLINED');
+                }}
+                disabled={actionLoading}
+                className="flex-1 py-2 px-3 rounded-full bg-[#fde8e8] hover:bg-[#ffe4e6] text-[#f43f5e] border border-rose-400 font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+              >
+                <X size={16} className="text-[#f43f5e]" />
+                <span>Decline Photo</span>
+              </motion.button>
+            </div>
+          ) : (isInterestReceived || activeTab === 'requests') ? (
+            /* RULE 2: IF INTEREST REQUEST RECEIVED -> SHOW ONLY 2 BUTTONS (ACCEPT & DECLINE) */
+            <div className="flex items-center justify-center gap-3 w-full">
+              <motion.button 
+                type="button"
+                whileHover={{ scale: 1.08, y: -2 }}
                 whileTap={{ scale: 0.85 }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -203,20 +246,15 @@ export default function ProfileCard({
                   onInteraction(profile.userId, 'INTEREST', 'ACCEPTED');
                 }}
                 disabled={actionLoading}
-                className="w-11 h-11 rounded-full bg-[#e6f7ec] hover:bg-[#d1fae5] text-[#16a34a] border-2 border-emerald-400 shadow-md flex items-center justify-center cursor-pointer active:scale-95 transition-all"
-                aria-label="Accept Proposal"
-                title="Accept Proposal"
+                className="flex-1 py-2.5 px-4 rounded-full bg-[#e6f7ec] hover:bg-[#d1fae5] text-[#16a34a] border-2 border-emerald-400 font-extrabold text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer active:scale-95 transition-all"
               >
-                {actionLoading ? (
-                  <Loader2 size={18} className="animate-spin text-[#16a34a]" />
-                ) : (
-                  <Check size={20} className="text-[#16a34a] stroke-[3]" />
-                )}
+                {actionLoading ? <Loader2 size={16} className="animate-spin text-[#16a34a]" /> : <Check size={18} className="text-[#16a34a] stroke-[3]" />}
+                <span>Accept Proposal</span>
               </motion.button>
 
               <motion.button 
                 type="button"
-                whileHover={{ scale: 1.12, y: -2 }}
+                whileHover={{ scale: 1.08, y: -2 }}
                 whileTap={{ scale: 0.85 }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -224,87 +262,94 @@ export default function ProfileCard({
                   onInteraction(profile.userId, 'INTEREST', 'DECLINED');
                 }}
                 disabled={actionLoading}
-                className="w-11 h-11 rounded-full bg-[#fde8e8] hover:bg-[#ffe4e6] text-[#f43f5e] border-2 border-rose-400 shadow-md flex items-center justify-center cursor-pointer active:scale-95 transition-all"
-                aria-label="Decline Proposal"
-                title="Decline Proposal"
+                className="flex-1 py-2.5 px-4 rounded-full bg-[#fde8e8] hover:bg-[#ffe4e6] text-[#f43f5e] border-2 border-rose-400 font-extrabold text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer active:scale-95 transition-all"
               >
-                <X size={20} className="text-[#f43f5e] stroke-[3]" />
+                <X size={18} className="text-[#f43f5e] stroke-[3]" />
+                <span>Decline</span>
               </motion.button>
             </div>
           ) : (
-            <motion.button 
-              type="button"
-              whileHover={(isInterestSent || isConnected) ? {} : { scale: 1.12, y: -2 }}
-              whileTap={(isInterestSent || isConnected) ? {} : { scale: 0.85 }}
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                if (!isInterestSent && !isConnected) {
-                  triggerLocalHearts();
-                  onInteraction(profile.userId, 'INTEREST', 'PENDING');
-                }
-              }}
-              disabled={actionLoading || isInterestSent || isConnected}
-              className={`w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 ${
-                isInterestSent || isConnected
-                  ? 'bg-[#2A2D32] border-2 border-[#3F444D] cursor-not-allowed opacity-90' 
-                  : 'bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white border-2 border-rose-300/40 cursor-pointer shadow-rose-950/40'
-              }`}
-              aria-label="Send Interest"
-              title={isInterestSent ? 'Interest Sent' : isConnected ? 'Connected' : 'Send Interest'}
-            >
-              {actionLoading ? (
-                <Loader2 size={20} className="animate-spin text-white" />
-              ) : isInterestSent || isConnected ? (
-                <Heart size={22} className="fill-[#8E95A2] text-[#8E95A2]" />
-              ) : (
-                <Heart size={22} className="fill-amber-300 text-amber-300" />
+            /* RULE 3: NORMAL TABS (SHORTLIST, MESSAGE, INTEREST) */
+            <>
+              {/* 1. ❤️ INTEREST BUTTON (HIDDEN IN ACCEPTED TAB) */}
+              {activeTab !== 'accepted' && (
+                <motion.button 
+                  type="button"
+                  whileHover={(isInterestSent || isConnected) ? {} : { scale: 1.12, y: -2 }}
+                  whileTap={(isInterestSent || isConnected) ? {} : { scale: 0.85 }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (!isInterestSent && !isConnected) {
+                      triggerLocalHearts();
+                      onInteraction(profile.userId, 'INTEREST', 'PENDING');
+                    }
+                  }}
+                  disabled={actionLoading || isInterestSent || isConnected}
+                  className={`w-11 h-11 rounded-full shadow-md flex items-center justify-center transition-all duration-200 ${
+                    isInterestSent || isConnected
+                      ? 'bg-[#2A2D32] border-2 border-[#3F444D] cursor-not-allowed opacity-90' 
+                      : 'bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white border-2 border-rose-300/40 cursor-pointer shadow-rose-950/40'
+                  }`}
+                  aria-label="Send Interest"
+                  title={isInterestSent ? 'Interest Sent' : isConnected ? 'Connected' : 'Send Interest'}
+                >
+                  {actionLoading ? (
+                    <Loader2 size={18} className="animate-spin text-white" />
+                  ) : isInterestSent || isConnected ? (
+                    <Heart size={20} className="fill-[#8E95A2] text-[#8E95A2]" />
+                  ) : (
+                    <Heart size={20} className="fill-amber-300 text-amber-300" />
+                  )}
+                </motion.button>
               )}
-            </motion.button>
+
+              {/* 2. 💬 CHAT BUTTON */}
+              <motion.button 
+                type="button"
+                whileHover={{ scale: 1.12, y: -2 }}
+                whileTap={{ scale: 0.85 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  if (onInitiateChat) onInitiateChat(profile);
+                }}
+                disabled={actionLoading}
+                className="w-11 h-11 rounded-full bg-slate-900 hover:bg-[#d91b5c] text-white border-2 border-slate-700 shadow-md flex items-center justify-center cursor-pointer active:scale-95 transition-colors"
+                aria-label="Direct Message"
+                title="Send Message"
+              >
+                <MessageCircle size={20} className="fill-white text-white" />
+              </motion.button>
+
+              {/* 3. ⭐ SHORTLIST STAR BUTTON */}
+              <motion.button 
+                type="button"
+                whileHover={{ scale: 1.12, y: -2 }}
+                whileTap={{ scale: 0.85 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onInteraction(profile.userId, 'SHORTLIST', profile.isShortlisted ? 'REMOVED' : 'ACTIVE');
+                }}
+                disabled={actionLoading}
+                className={`w-11 h-11 rounded-full shadow-md flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 border-2 ${
+                  profile.isShortlisted 
+                    ? 'bg-amber-50 text-amber-500 border-amber-300' 
+                    : 'bg-white hover:bg-rose-50 text-[#d91b5c] border-slate-200'
+                }`}
+                aria-label="Shortlist Profile"
+                title={profile.isShortlisted ? "Shortlisted" : "Shortlist Profile"}
+              >
+                <Star 
+                  size={20} 
+                  className={profile.isShortlisted ? 'fill-amber-500 text-amber-500' : 'text-amber-500 fill-none'} 
+                />
+              </motion.button>
+            </>
           )}
 
-          {/* 2. 💬 CHAT BUTTON */}
-          <motion.button 
-            type="button"
-            whileHover={{ scale: 1.12, y: -2 }}
-            whileTap={{ scale: 0.85 }}
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              if (onInitiateChat) onInitiateChat(profile);
-            }}
-            disabled={actionLoading}
-            className="w-11 h-11 rounded-full bg-slate-900 hover:bg-[#d91b5c] text-white border-2 border-slate-700 shadow-md flex items-center justify-center cursor-pointer active:scale-95 transition-colors"
-            aria-label="Direct Message"
-            title="Send Message"
-          >
-            <MessageCircle size={20} className="fill-white text-white" />
-          </motion.button>
-
-          {/* 3. ⭐ SHORTLIST STAR BUTTON */}
-          <motion.button 
-            type="button"
-            whileHover={{ scale: 1.12, y: -2 }}
-            whileTap={{ scale: 0.85 }}
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              onInteraction(profile.userId, 'SHORTLIST', profile.isShortlisted ? 'REMOVED' : 'ACTIVE');
-            }}
-            disabled={actionLoading}
-            className={`w-11 h-11 rounded-full shadow-md flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 border-2 ${
-              profile.isShortlisted 
-                ? 'bg-amber-50 text-amber-500 border-amber-300' 
-                : 'bg-white hover:bg-rose-50 text-[#d91b5c] border-slate-200'
-            }`}
-            aria-label="Shortlist Profile"
-            title={profile.isShortlisted ? "Shortlisted" : "Shortlist Profile"}
-          >
-            <Star 
-              size={20} 
-              className={profile.isShortlisted ? 'fill-amber-500 text-amber-500' : 'text-amber-500 fill-none'} 
-            />
-          </motion.button>
+        </div>
 
         </div>
 

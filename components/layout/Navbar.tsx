@@ -11,15 +11,12 @@ export default function Navbar() {
   return (
     <nav className="fixed top-0 left-0 w-full h-20 sm:h-24 bg-white/95 backdrop-blur-xl flex items-center justify-between px-3 sm:px-6 lg:px-[6%] z-[1000] border-b border-slate-200 shadow-xs">
       
-      {/* 👑 OFFICIAL NIKAH QUBOOL BRAND LOGO */}
+      {/* 👑 STYLISH NIKAH QUBOOL TEXT BRAND LOGO */}
       <div className="flex items-center h-full">
-        <Link href="/" className="flex items-center h-full py-1">
-          <img
-            src="/logo.png"
-            alt="Nikah Qubool Logo"
-            className="h-12 sm:h-16 md:h-18 w-auto object-contain transition-transform hover:scale-105"
-            onError={(e) => { (e.target as HTMLImageElement).src = '/logo.jpg'; }}
-          />
+        <Link href="/" className="flex items-center gap-2">
+          <span className="font-serif font-black text-2xl sm:text-3xl tracking-tight text-[#d91b5c]">
+            Nikah Qubool
+          </span>
         </Link>
       </div>
 
