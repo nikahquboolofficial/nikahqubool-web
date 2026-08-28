@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import Link from 'next/link';
@@ -16,6 +16,8 @@ import DashboardBottomNav from '@/components/layout/dashboard/DashboardBottomNav
 import { fetchDashboardApi, handleInteractionApiCall } from '@/lib/api';
 import GlobalPresence from '@/components/layout/GlobalPresence';
 import { SignalRProvider } from '@/context/SignalRContext';
+
+import { clearAuthCookies } from '@/lib/auth';
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -40,11 +42,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   // 🚪 LOGOUT FUNCTION
   const handleLogout = useCallback(() => {
-    document.cookie = "user_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    if (typeof window !== "undefined") {
-      localStorage.clear();
-      sessionStorage.clear();
-    }
+    clearAuthCookies();
     router.push('/');
   }, [router]);
 
@@ -143,7 +141,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     }
 
     const res = await fetchDashboardApi('best-matches', 1, token);
-    if (res.isUnauthorized) {
+    if (res.isUnauthorized || !res.success) {
       handleLogout();
       return;
     }

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -6,33 +6,30 @@ import { Loader2, Sparkles, Flame, RefreshCw, Crown, Lock, ArrowRight } from 'lu
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import { fetchDashboardApi, handleInteractionApiCall, fetchActiveSubscriptionApi } from '@/lib/api';
+import { checkDailyViewLimit, formatTimeRemaining } from '@/lib/limitUtils';
 import ProfileCard from '@/components/dashboard/ProfileCard';
 import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
 
 function LiveCountdownDisplay() {
-  const [timeLeft, setTimeLeft] = useState({ h: 23, m: 59, s: 59 });
+  const [timeText, setTimeText] = useState('24h 00m 00s');
 
   useEffect(() => {
-    const tick = () => {
-      const now = new Date();
-      const reset = new Date();
-      reset.setHours(24, 0, 0, 0);
-      const diff = Math.max(0, Math.floor((reset.getTime() - now.getTime()) / 1000));
-      const h = Math.floor(diff / 3600);
-      const m = Math.floor((diff % 3600) / 60);
-      const s = diff % 60;
-      setTimeLeft({ h, m, s });
+    const updateTimer = () => {
+      const stored = localStorage.getItem('daily_profile_views_tracker');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          const remaining = Math.max(0, 86400000 - (Date.now() - parsed.timestamp));
+          setTimeText(formatTimeRemaining(remaining));
+        } catch (e) {}
+      }
     };
-    tick();
-    const interval = setInterval(tick, 1000);
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
   }, []);
 
-  return (
-    <span>
-      {String(timeLeft.h).padStart(2, '0')}h : {String(timeLeft.m).padStart(2, '0')}m : {String(timeLeft.s).padStart(2, '0')}s
-    </span>
-  );
+  return <span>{timeText}</span>;
 }
 
 export default function VIPCleanDashboardPage() {
@@ -45,6 +42,7 @@ export default function VIPCleanDashboardPage() {
   const [fetchingMore, setFetchingMore] = useState(false);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [actionState, setActionState] = useState<{ [key: number]: boolean }>({});
+  const [actionTypeState, setActionTypeState] = useState<{ [key: number]: string | null }>({});
 
   // 🔒 24-HOUR / 20 PROFILE VIEW LIMIT STATE FOR FREE USERS
   const [isCurrentUserPaid, setIsCurrentUserPaid] = useState<boolean>(false);
@@ -64,39 +62,10 @@ export default function VIPCleanDashboardPage() {
   const getToken = useCallback((): string | null => getCookie("user_token"), []);
 
   // 🕒 CHECK & UPDATE 24-HOUR PROFILE VIEW COUNT IN LOCALSTORAGE
-  const checkDailyViewLimit = useCallback((newLoadedProfilesCount: number, paidStatus: boolean) => {
-    if (paidStatus) {
-      setDailyLimitReached(false);
-      return false;
-    }
-
-    try {
-      const now = Date.now();
-      const storageKey = 'daily_profile_views_tracker';
-      const stored = localStorage.getItem(storageKey);
-
-      let record = { timestamp: now, count: 0 };
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          // If less than 24 hours (86400000 ms) old, retain count
-          if (now - parsed.timestamp < 86400000) {
-            record = parsed;
-          }
-        } catch (e) {}
-      }
-
-      const totalCount = Math.max(record.count, newLoadedProfilesCount);
-      localStorage.setItem(storageKey, JSON.stringify({ timestamp: record.timestamp, count: totalCount }));
-
-      if (totalCount >= 20) {
-        setDailyLimitReached(true);
-        return true;
-      }
-    } catch (e) {}
-
-    setDailyLimitReached(false);
-    return false;
+  const checkDailyViewLimitState = useCallback((newLoadedProfilesCount: number, paidStatus: boolean) => {
+    const limitState = checkDailyViewLimit(newLoadedProfilesCount, paidStatus);
+    setDailyLimitReached(limitState.isLimitReached);
+    return limitState.isLimitReached;
   }, []);
 
   const loadDashboardData = useCallback(async (tabName: string, pageNum: number, append: boolean = false) => {
@@ -124,44 +93,58 @@ export default function VIPCleanDashboardPage() {
       
       setIsCurrentUserPaid(userPaid);
 
-      let updatedList = list;
+      const limitState = checkDailyViewLimit(list.length, userPaid);
+      setDailyLimitReached(limitState.isLimitReached && !userPaid);
+
       if (append) {
         setProfiles((prev) => {
           const combined = [...prev, ...list];
-          const isLimit = checkDailyViewLimit(combined.length, userPaid);
-          if (isLimit && !userPaid) {
+          const curLimit = checkDailyViewLimit(combined.length, userPaid);
+          if (curLimit.isLimitReached && !userPaid) {
             return combined.slice(0, 20);
           }
           return combined;
         });
       } else {
-        const isLimit = checkDailyViewLimit(list.length, userPaid);
-        if (isLimit && !userPaid) {
+        let updatedList = list;
+        if (limitState.isLimitReached && !userPaid) {
           updatedList = list.slice(0, 20);
         }
         setProfiles(updatedList);
       }
 
-      setHasMore(list.length >= 12 && (!dailyLimitReached || userPaid));
+      setHasMore(list.length >= 12 && (!limitState.isLimitReached || userPaid));
     } else {
       toast.error(res.message || "Failed to load profiles.");
     }
 
     setLoading(false);
     setFetchingMore(false);
-  }, [getToken, router, checkDailyViewLimit, dailyLimitReached]);
+  }, [getToken, router, checkDailyViewLimitState, dailyLimitReached]);
 
   useEffect(() => {
     setPage(1);
     loadDashboardData(activeTab, 1, false);
   }, [activeTab, loadDashboardData]);
 
-  const handleLoadMore = () => {
-    if (!hasMore || fetchingMore || (dailyLimitReached && !isCurrentUserPaid)) return;
-    const nextPage = page + 1;
-    setPage(nextPage);
-    loadDashboardData(activeTab, nextPage, true);
-  };
+  // 🚀 AUTOMATIC INFINITE SCROLL PAGING (TRIGGERED NEAR BOTTOM OF SCROLL)
+  useEffect(() => {
+    const handleScroll = () => {
+      if (loading || fetchingMore || !hasMore) return;
+      if (dailyLimitReached && !isCurrentUserPaid) return;
+
+      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 400) {
+        setPage((prevPage) => {
+          const nextPage = prevPage + 1;
+          loadDashboardData(activeTab, nextPage, true);
+          return nextPage;
+        });
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [loading, fetchingMore, hasMore, dailyLimitReached, isCurrentUserPaid, activeTab, loadDashboardData]);
 
   // 🚀 0MS INSTANT OPTIMISTIC UI INTERACTION
   const handleInteraction = async (receiverUserId: number, type: string, status: string = 'PENDING') => {
@@ -184,15 +167,14 @@ export default function VIPCleanDashboardPage() {
     );
 
     setActionState((prev) => ({ ...prev, [receiverUserId]: true }));
-    const res = await handleInteractionApiCall(receiverUserId, type, status, token);
-    setActionState((prev) => ({ ...prev, [receiverUserId]: false }));
+    setActionTypeState((prev) => ({ ...prev, [receiverUserId]: type }));
 
-    if (res.success) {
-      toast.dismiss();
-      toast.success(res.message || "Action updated instantly");
-    } else {
-      toast.dismiss();
-      toast.error(res.message || "Action failed");
+    const res = await handleInteractionApiCall(receiverUserId, type, status, token);
+
+    setActionState((prev) => ({ ...prev, [receiverUserId]: false }));
+    setActionTypeState((prev) => ({ ...prev, [receiverUserId]: null }));
+
+    if (!res.success) {
       loadDashboardData(activeTab, 1, false);
     }
   };
@@ -316,6 +298,7 @@ export default function VIPCleanDashboardPage() {
                   key={profile.userId}
                   profile={profile}
                   actionLoading={actionState[profile.userId] || false}
+                  actionLoadingType={actionTypeState[profile.userId] || null}
                   onInteraction={handleInteraction}
                   onViewProfile={handleViewProfile}
                   onInitiateChat={handleInitiateChat}
@@ -366,21 +349,14 @@ export default function VIPCleanDashboardPage() {
                 </div>
               </motion.div>
             )}
-          </div>
-        )}
 
-        {/* LOAD MORE BUTTON */}
-        {!loading && hasMore && (!dailyLimitReached || isCurrentUserPaid) && (
-          <div className="text-center pt-6">
-            <button
-              type="button"
-              onClick={handleLoadMore}
-              disabled={fetchingMore}
-              className="px-9 py-3.5 rounded-full bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white border border-rose-300/30 font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 active:scale-95 transition-all flex items-center gap-2.5 mx-auto cursor-pointer"
-            >
-              {fetchingMore ? <Loader2 size={18} className="animate-spin text-amber-300" /> : <RefreshCw size={18} className="text-amber-300" />}
-              <span>Load More Profiles</span>
-            </button>
+            {/* INFINITE SCROLL BOTTOM LOADING INDICATOR */}
+            {fetchingMore && (
+              <div className="flex items-center justify-center gap-2 py-6 text-[#d91b5c]">
+                <Loader2 size={24} className="animate-spin text-[#d91b5c]" />
+                <span className="text-xs font-extrabold uppercase tracking-widest text-slate-500">Loading More Profiles...</span>
+              </div>
+            )}
           </div>
         )}
 

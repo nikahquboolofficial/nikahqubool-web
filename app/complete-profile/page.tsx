@@ -1,11 +1,11 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Crown, Sparkles, ChevronRight, Loader2, User, Heart, Globe, Briefcase, Users, Camera, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { fetchMasterDataApi, fetchCitiesApi, updateProfileApi, MasterOption } from '@/lib/api';
+import { fetchMasterDataApi, fetchCitiesApi, updateProfileApi, fetchProfileDetailsApi, MasterOption } from '@/lib/api';
 import DobAppPicker from '@/components/profile/DobAppPicker';
 import CustomSelect from '@/components/profile/CustomSelect';
 import CircularPhotoUpload from '@/components/profile/CircularPhotoUpload';
@@ -151,6 +151,19 @@ export default function CompleteProfilePage() {
         localStorage.setItem('user_session', JSON.stringify(sessionData));
       }
       document.cookie = `is_profile_completed=1; path=/; SameSite=Lax; Secure`;
+
+      try {
+        const userId = userData?.userId || 0;
+        const profileRes = await fetchProfileDetailsApi(userId, token);
+        if (profileRes.success && profileRes.data?.profile) {
+          localStorage.setItem("user_details", JSON.stringify(profileRes.data.profile));
+        }
+      } catch (e) {}
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("user_photo_updated"));
+      }
+
       router.push("/dashboard");
     } else {
       setApiError(res.message);

@@ -17,6 +17,15 @@ export const setAuthCookies = (result: any) => {
   }
 };
 
+export const clearAuthCookies = () => {
+  document.cookie = "user_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+  document.cookie = "is_profile_completed=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+  if (typeof window !== "undefined") {
+    localStorage.clear();
+    sessionStorage.clear();
+  }
+};
+
 export const handleAuthSuccessRedirect = (result: any, router: any) => {
   setAuthCookies(result);
   const isCompletedRaw = result?.isProfileCompleted ?? result?.IsProfileCompleted;

@@ -1,10 +1,10 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect } from 'react';
 import { 
   Check, Star, Crown, ShieldCheck, Zap, 
   Heart, CheckCircle2, Sparkles, Tag, ArrowRight, ArrowLeft,
-  CheckCircle, AlertCircle, Trash2, Loader2
+  CheckCircle, AlertCircle, Trash2, Loader2, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
@@ -24,13 +24,12 @@ export default function MembershipPage() {
   const [purchasing, setPurchasing] = useState(false);
   
   // 🏷️ PROMO CODE STATES
+  const [showPromoModal, setShowPromoModal] = useState(false);
   const [promoInput, setPromoInput] = useState("");
   const [validatingPromo, setValidatingPromo] = useState(false);
   const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountAmount: number } | null>(null);
 
-  // 💎 MODAL & TOAST STATES
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [purchasedResult, setPurchasedResult] = useState<any>(null);
+  // 💎 TOAST NOTIFICATION
   const [toast, setToast] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
@@ -58,7 +57,8 @@ export default function MembershipPage() {
       if (plansRes && plansRes.success && plansRes.data) {
         const rawPlans = plansRes.data;
         setPlans(rawPlans);
-        const defaultPlan = rawPlans.find((p: any) => p.isBestValue || p.IsBestValue || p.isPopular || p.IsPopular) || rawPlans[rawPlans.length - 1];
+        // Default select GOLD or SILVER
+        const defaultPlan = rawPlans.find((p: any) => (p.planName || p.PlanName) === 'GOLD' || (p.planName || p.PlanName) === 'SILVER') || rawPlans[1] || rawPlans[0];
         setSelectedPlan(defaultPlan);
       }
 
@@ -98,6 +98,7 @@ export default function MembershipPage() {
         code: res.code || promoInput.trim().toUpperCase(),
         discountAmount: res.discountAmount || 0
       });
+      setShowPromoModal(false);
       showToast(res.message || "Promo code applied!", "success");
     } else {
       showToast(res?.message || "Invalid promo code.", "error");
@@ -127,8 +128,19 @@ export default function MembershipPage() {
     setPurchasing(false);
 
     if (res && res.success) {
-      setPurchasedResult(res.data);
-      setShowSuccessModal(true);
+      showToast(res.message || "Membership upgraded successfully!", "success");
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("user_details");
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            parsed.isPaid = true;
+            parsed.isCurrentUserPaid = true;
+            localStorage.setItem("user_details", JSON.stringify(parsed));
+          } catch (e) {}
+        }
+      }
+      setTimeout(() => router.push('/dashboard'), 1500);
     } else {
       showToast(res?.message || "Purchase failed. Please try again.", "error");
     }
@@ -138,18 +150,19 @@ export default function MembershipPage() {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center text-[#d91b5c] font-black text-xs uppercase tracking-widest gap-3">
         <Loader2 className="animate-spin text-[#d91b5c]" size={48} />
-        <span>Loading VIP Royal Membership...</span>
+        <span>Loading Plans...</span>
       </div>
     );
   }
 
   const basePrice = selectedPlan ? (selectedPlan.discountPrice ?? selectedPlan.DiscountPrice ?? 0) : 0;
+  const originalPrice = selectedPlan ? (selectedPlan.originalPrice ?? selectedPlan.OriginalPrice ?? 0) : 0;
   const promoDiscountAmount = appliedPromo ? appliedPromo.discountAmount : 0;
   const finalPrice = Math.max(0, basePrice - promoDiscountAmount);
-  const totalSavings = selectedPlan ? ((selectedPlan.originalPrice ?? selectedPlan.OriginalPrice ?? 0) - finalPrice) : 0;
+  const totalSavings = Math.max(0, originalPrice - finalPrice);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-32 relative overflow-x-hidden selection:bg-[#d91b5c] selection:text-white">
+    <div className="min-h-screen bg-[#fcfcfd] text-slate-900 font-sans pb-32 relative selection:bg-[#d91b5c] selection:text-white">
       
       {/* TOAST NOTIFICATION */}
       <AnimatePresence>
@@ -170,59 +183,35 @@ export default function MembershipPage() {
         )}
       </AnimatePresence>
 
-      {/* TOP INLINE HEADER WITH BACK ARROW */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 pb-2">
-        <div className="flex items-center gap-3 border-b border-slate-200 pb-2">
-          <button 
-            type="button" 
-            onClick={() => router.back()} 
-            className="flex p-2 hover:bg-rose-50 text-[#d91b5c] rounded-full transition-colors cursor-pointer"
-            aria-label="Back"
-            title="Go Back"
-          >
-            <ArrowLeft size={22} className="stroke-[2.5]" />
-          </button>
-          <h1 className="text-xl font-extrabold tracking-tight text-slate-900">
-            VIP Membership Plans
-          </h1>
-        </div>
-      </div>
-
-      {/* ROYAL HERO BANNER */}
-      <div className="bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white py-12 md:py-20 px-6 text-center relative shadow-xl overflow-hidden border-b-2 border-rose-100">
-        <div className="absolute top-0 left-1/4 w-80 h-80 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-amber-400/15 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="relative z-10 max-w-3xl mx-auto space-y-4">
-          <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white/15 text-white font-black text-xs uppercase tracking-widest backdrop-blur-md border border-white/20 shadow-md">
-            <Crown size={18} className="text-amber-300 fill-amber-300 animate-bounce" /> Royalty VIP Membership
-          </span>
-
-          <h1 className="text-3xl md:text-5xl font-serif font-extrabold tracking-tight leading-tight text-white">
-            Unlock Instant Access To Verified Life Partners
-          </h1>
-
-          <p className="text-rose-100 text-sm md:text-base font-medium max-w-xl mx-auto leading-relaxed">
-            Get direct mobile contacts, unlimited messaging, verified profile badges, and top-priority matchmaker ranking.
-          </p>
+      {/* TOP HEADER WITH BACK ARROW */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-4">
+        <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
+          <div className="flex items-center gap-3">
+            <button 
+              type="button" 
+              onClick={() => router.back()} 
+              className="flex p-2 hover:bg-rose-50 text-[#d91b5c] rounded-full transition-colors cursor-pointer"
+              aria-label="Back"
+            >
+              <ArrowLeft size={22} className="stroke-[2.5]" />
+            </button>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-sans font-extrabold text-slate-900 tracking-tight">Membership Plans</h1>
+            </div>
+          </div>
 
           {activeSub && (
-            <div className="mt-6 p-4 bg-white/15 backdrop-blur-md border border-white/25 rounded-2xl inline-flex items-center gap-3 text-white shadow-md">
-              <Sparkles className="text-amber-300" size={22} />
-              <div className="text-left text-xs font-bold">
-                <span className="block uppercase text-amber-300 font-extrabold">Active Plan: {activeSub.planName || activeSub.PlanName}</span>
-                <span className="text-rose-100 font-medium">
-                  {activeSub.remainingContacts ?? activeSub.RemainingContacts} Contacts Remaining | Expiring on {new Date(activeSub.expiryDate || activeSub.ExpiryDate).toLocaleDateString()}
-                </span>
-              </div>
+            <div className="hidden sm:flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-4 py-1.5 rounded-full text-emerald-800 text-xs font-bold">
+              <Sparkles size={16} className="text-emerald-600" />
+              <span>Active Plan: {activeSub.planName || activeSub.PlanName} ({activeSub.remainingContacts ?? activeSub.RemainingContacts} Contacts Left)</span>
             </div>
           )}
         </div>
       </div>
 
-      {/* LUXURY PLANS CARDS */}
-      <div className="max-w-7xl mx-auto px-4 md:px-8 -mt-12 relative z-20">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* 💖 SOBER ELEGANT PLANS GRID (NIKAH FOREVER STYLE) */}
+      <div className="max-w-7xl mx-auto px-4 md:px-8 py-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
           {plans.map((plan) => {
             const pId = plan.planId ?? plan.PlanId;
             const pName = plan.planName ?? plan.PlanName;
@@ -232,253 +221,172 @@ export default function MembershipPage() {
             const pSave = plan.savePercentage ?? plan.SavePercentage;
             const pDuration = plan.durationLabel ?? plan.DurationLabel;
             const isSelected = (selectedPlan?.planId ?? selectedPlan?.PlanId) === pId;
-            const isBestVal = plan.isBestValue || plan.IsBestValue;
-            const isPop = plan.isPopular || plan.IsPopular;
 
             let parsedFeatures: string[] = [];
             try {
               parsedFeatures = typeof plan.features === 'string' ? JSON.parse(plan.features) : (plan.features || []);
             } catch (e) {
-              parsedFeatures = ["Verified Contacts Access", "Unlimited Direct Chat", "VIP Priority Ranking"];
+              parsedFeatures = ["✔ Verified Contacts", "✔ Unlimited Messages", "✔ Premium Tag"];
             }
 
             return (
-              <motion.div
+              <div
                 key={pId}
-                whileHover={{ y: -8 }}
                 onClick={() => handleSelectPlan(plan)}
-                className={`rounded-3xl p-6 flex flex-col justify-between cursor-pointer transition-all relative overflow-hidden bg-white shadow-2xl ${
+                className={`bg-white rounded-3xl p-6 flex flex-col justify-between cursor-pointer transition-all relative shadow-lg ${
                   isSelected 
-                    ? 'border-4 border-[#d91b5c] ring-4 ring-[#d91b5c]/10 scale-[1.03]' 
+                    ? 'border-3 border-[#d91b5c] ring-4 ring-[#d91b5c]/10 shadow-rose-900/15' 
                     : 'border-2 border-slate-200 hover:border-rose-300'
                 }`}
               >
-                {(isBestVal || isPop) && (
-                  <div className="absolute top-4 right-4 px-3.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-md bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] border border-rose-300/30">
-                    {isBestVal ? 'TILL YOU MARRY' : 'MOST POPULAR'}
-                  </div>
-                )}
-
                 <div>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all ${
-                      isSelected ? 'border-[#d91b5c] bg-[#d91b5c]' : 'border-slate-300'
-                    }`}>
-                      {isSelected && <Check size={16} className="text-white stroke-[3]" />}
-                    </div>
-                    <div>
-                      <h3 className="font-serif font-extrabold text-lg uppercase text-slate-900 leading-tight">{pName}</h3>
-                      {pBadge && <span className="text-[10px] font-extrabold text-[#d91b5c] uppercase tracking-wider block">{pBadge}</span>}
-                    </div>
-                  </div>
-
-                  <div className="mb-4">
-                    <span className="inline-block px-4 py-1.5 bg-rose-50 text-[#d91b5c] rounded-2xl text-xs font-black uppercase tracking-wider border border-rose-200">
-                      {pDuration}
+                  {/* TOP RED/PINK PILL BADGE */}
+                  <div className="text-center mb-5">
+                    <span className="bg-[#d91b5c] text-white px-4 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-wider inline-block shadow-sm">
+                      {pName} {pBadge ? `(${pBadge})` : ''}
                     </span>
                   </div>
 
-                  <div className="mb-6 border-b-2 border-slate-100 pb-5">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">₹{pDisc}</span>
-                      {pOrig > pDisc && (
-                        <span className="text-sm font-bold text-slate-400 line-through">₹{pOrig}</span>
-                      )}
-                    </div>
-                    {pSave > 0 && (
-                      <span className="inline-block mt-1.5 text-[10px] font-black text-emerald-700 bg-emerald-50 px-3 py-0.5 rounded-full uppercase border border-emerald-200">
-                        Save {pSave}% OFF
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="space-y-3 mb-6">
-                    {parsedFeatures.map((feat: string, idx: number) => (
-                      <div key={idx} className="flex items-center gap-2.5 text-xs font-extrabold text-slate-800">
-                        <CheckCircle2 size={16} className="text-[#d91b5c] flex-shrink-0" />
-                        <span>{feat}</span>
-                      </div>
-                    ))}
+                  {/* FEATURES CHECKLIST (EXACT TICK & CROSS LIST WITH FULL INCLUSIONS) */}
+                  <div className="space-y-3 mb-6 text-xs font-bold text-slate-800 px-1 border-b border-slate-100 pb-5">
+                    {parsedFeatures.map((feat: string, idx: number) => {
+                      const isCross = feat.startsWith('✖');
+                      return (
+                        <div key={idx} className={`flex items-start gap-2.5 leading-snug ${isCross ? 'text-slate-400 line-through font-normal' : 'text-slate-900 font-extrabold'}`}>
+                          <span className={isCross ? 'text-slate-400 font-normal shrink-0' : 'text-[#d91b5c] font-black shrink-0'}>
+                            {isCross ? '✖' : '✔'}
+                          </span>
+                          <span className="text-[12px]">{feat.replace(/^[✔✖]\s*/, '')}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
-                <div className={`w-full py-4 rounded-2xl font-black uppercase text-xs tracking-wider text-center transition-all ${
+                {/* DURATION & PRICE SELECTION BOX AT BOTTOM OF CARD */}
+                <div className={`p-4 rounded-2xl border-2 text-center transition-all ${
                   isSelected 
-                    ? 'bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white shadow-md border border-rose-300/30' 
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    ? 'bg-rose-50/90 border-[#d91b5c]' 
+                    : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
                 }`}>
-                  {isSelected ? 'SELECTED PLAN' : 'SELECT PLAN'}
+                  <div className="text-sm font-black text-slate-900 uppercase">{pDuration}</div>
+                  {pSave > 0 && (
+                    <span className="text-[10px] font-black text-rose-600 bg-rose-100 px-2.5 py-0.5 rounded-full inline-block my-1 uppercase">
+                      Save {pSave}%
+                    </span>
+                  )}
+                  <div className="flex items-baseline justify-center gap-2 mt-1">
+                    {pOrig > pDisc && (
+                      <span className="text-xs font-bold text-slate-400 line-through">₹{pOrig}</span>
+                    )}
+                    <span className="text-2xl font-black text-[#d91b5c]">₹{pDisc}</span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-center">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                      isSelected ? 'border-[#d91b5c] bg-[#d91b5c]' : 'border-slate-400 bg-white'
+                    }`}>
+                      {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                    </div>
+                  </div>
                 </div>
-              </motion.div>
+              </div>
             );
           })}
         </div>
-
-        {/* PROMO CODE SECTION WITH APPLY & REMOVE TOGGLE */}
-        <div className="mt-12 max-w-xl mx-auto bg-white p-5 rounded-3xl border-2 border-rose-100 shadow-xl">
-          {!appliedPromo ? (
-            <div className="flex items-center gap-3">
-              <Tag className="text-[#d91b5c] ml-2" size={22} />
-              <input 
-                value={promoInput}
-                onChange={(e) => setPromoInput(e.target.value)}
-                placeholder="Enter Promo Code (e.g. PAKIZA20)" 
-                className="flex-1 text-xs font-black uppercase tracking-wider outline-none text-slate-900 bg-transparent placeholder-slate-400"
-              />
-              <button 
-                type="button"
-                onClick={handleApplyPromo}
-                disabled={validatingPromo || !promoInput.trim()}
-                className="px-6 py-3.5 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white text-xs font-black uppercase rounded-2xl transition-all cursor-pointer disabled:opacity-50 shadow-md border border-rose-300/30"
-              >
-                {validatingPromo ? "Checking..." : "Apply Code"}
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between px-2">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 border-2 border-emerald-200 flex items-center justify-center font-black text-base shadow-xs">
-                  %
-                </div>
-                <div>
-                  <span className="text-xs font-extrabold text-emerald-700 uppercase tracking-widest flex items-center gap-1">
-                    <CheckCircle size={15} /> Code {appliedPromo.code} Applied
-                  </span>
-                  <span className="text-[11px] font-bold text-slate-500 block">
-                    You saved an additional ₹{appliedPromo.discountAmount}!
-                  </span>
-                </div>
-              </div>
-
-              <button 
-                type="button"
-                onClick={handleRemovePromo}
-                className="p-2.5 rounded-xl bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 transition-colors flex items-center gap-1 text-[11px] font-bold uppercase cursor-pointer"
-              >
-                <Trash2 size={14} /> Remove
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* TRUST BADGES */}
-        <div className="mt-12 bg-white rounded-3xl p-8 border-2 border-rose-100 shadow-xl grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-          <div className="p-3">
-            <ShieldCheck className="mx-auto text-emerald-600 mb-2" size={34} />
-            <h4 className="text-xs font-extrabold uppercase text-slate-900">100% Verified Profiles</h4>
-          </div>
-          <div className="p-3">
-            <Crown className="mx-auto text-amber-500 mb-2" size={34} />
-            <h4 className="text-xs font-extrabold uppercase text-slate-900">VIP Profile Rank</h4>
-          </div>
-          <div className="p-3">
-            <Zap className="mx-auto text-[#d91b5c] mb-2" size={34} />
-            <h4 className="text-xs font-extrabold uppercase text-slate-900">Instant Contact View</h4>
-          </div>
-          <div className="p-3">
-            <Sparkles className="mx-auto text-rose-500 mb-2" size={34} />
-            <h4 className="text-xs font-extrabold uppercase text-slate-900">24/7 Matchmaker Support</h4>
-          </div>
-        </div>
       </div>
 
-      {/* 📌 STICKY FIXED BOTTOM PAYMENT BAR */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t-2 border-rose-100 p-4 z-[999] shadow-2xl">
-        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
-          
-          <div className="text-center sm:text-left">
-            <span className="text-xs font-black text-emerald-700 uppercase tracking-widest block">
-              YOUR TOTAL SAVING IS ₹{totalSavings}
-            </span>
-            <span className="text-xs font-semibold text-slate-500">
-              Selected: <strong className="text-slate-900 uppercase font-black">{selectedPlan?.planName ?? selectedPlan?.PlanName}</strong> ({selectedPlan?.durationLabel ?? selectedPlan?.DurationLabel})
-            </span>
-          </div>
+      {/* 🔴 BOTTOM FIXED CHECKOUT BAR (MATCHING SCREENSHOT) */}
+      {selectedPlan && (
+        <div className="fixed bottom-0 inset-x-0 z-50 bg-white border-t-2 border-rose-100 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] py-3.5 px-4 md:px-8">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            
+            {/* LEFT: PROMO CODE & SAVINGS */}
+            <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-start">
+              <button
+                type="button"
+                onClick={() => setShowPromoModal(true)}
+                className="flex items-center gap-1.5 text-xs font-extrabold text-slate-700 hover:text-[#d91b5c] transition-colors cursor-pointer"
+              >
+                <Tag size={16} className="text-[#d91b5c]" />
+                <span>{appliedPromo ? `Promo (${appliedPromo.code})` : 'Apply Promo Code'}</span>
+              </button>
 
-          <button 
-            type="button"
-            onClick={handlePurchase}
-            disabled={purchasing || !selectedPlan}
-            className="w-full sm:w-auto px-10 py-4 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white font-black text-sm uppercase tracking-wider rounded-2xl shadow-lg shadow-rose-900/20 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 border border-rose-300/30"
-          >
-            <span>{purchasing ? "PROCESSING..." : `₹ ${finalPrice} | PAY NOW`}</span>
-            <ArrowRight size={18} className="text-amber-300" />
-          </button>
-
-        </div>
-      </div>
-
-      {/* 👑 VIP LUXURIOUS SUCCESS MODAL */}
-      <AnimatePresence>
-        {showSuccessModal && (
-          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowSuccessModal(false)}
-              className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-            />
-
-            <motion.div 
-              initial={{ scale: 0.8, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.8, opacity: 0, y: 20 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="relative bg-white rounded-[36px] max-w-md w-full p-8 text-center shadow-2xl border-2 border-rose-100 z-10 overflow-hidden text-slate-800"
-            >
-              <div className="w-20 h-20 bg-gradient-to-tr from-[#d91b5c] to-[#e11d48] rounded-full flex items-center justify-center mx-auto mb-5 shadow-lg shadow-rose-900/30">
-                <Crown size={38} className="text-amber-300 fill-amber-300" />
+              <div className="text-xs font-extrabold text-slate-900 border-l border-slate-200 pl-4">
+                <span>Your total saving is </span>
+                <span className="text-emerald-600 font-black">₹{totalSavings}</span>
               </div>
+            </div>
 
-              <span className="text-[11px] font-black tracking-[0.2em] text-[#d91b5c] bg-rose-50 border border-rose-200 px-4 py-1 rounded-full uppercase">
-                VIP Upgrade Activated
-              </span>
-
-              <h2 className="text-2xl font-serif font-extrabold text-slate-900 uppercase mt-4 mb-2">
-                Congratulations! 🎉
-              </h2>
-
-              <p className="text-xs font-semibold text-slate-500 leading-relaxed mb-6">
-                Your profile has been upgraded to <span className="text-[#d91b5c] uppercase font-black">{selectedPlan?.planName ?? selectedPlan?.PlanName}</span>. Enjoy direct access to soulmates!
-              </p>
-
-              {/* DETAILS SUMMARY BOX */}
-              <div className="bg-slate-50 rounded-2xl p-4 border-2 border-slate-200 text-left space-y-2 mb-6">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="font-bold text-slate-500 uppercase">Package:</span>
-                  <span className="font-black text-[#d91b5c] uppercase">{selectedPlan?.planName ?? selectedPlan?.PlanName}</span>
-                </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="font-bold text-slate-500 uppercase">Original Price:</span>
-                  <span className="font-bold text-slate-400 line-through">₹{selectedPlan?.discountPrice ?? selectedPlan?.DiscountPrice}</span>
-                </div>
-                {appliedPromo && (
-                  <div className="flex justify-between items-center text-xs text-emerald-700">
-                    <span className="font-bold uppercase">Promo Discount ({appliedPromo.code}):</span>
-                    <span className="font-black">-₹{appliedPromo.discountAmount}</span>
-                  </div>
+            {/* RIGHT: PROMINENT PAY NOW BUTTON */}
+            <div className="w-full sm:w-auto flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handlePurchase}
+                disabled={purchasing}
+                className="w-full sm:w-auto px-10 py-3.5 bg-[#d91b5c] hover:bg-[#b01348] text-white font-black text-sm uppercase tracking-wider rounded-xl shadow-lg shadow-rose-900/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                {purchasing ? (
+                  <Loader2 size={20} className="animate-spin text-white" />
+                ) : (
+                  <>
+                    <span>₹{finalPrice} | PAY NOW</span>
+                    <ArrowRight size={18} />
+                  </>
                 )}
-                <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-200">
-                  <span className="font-black text-slate-900 uppercase">Total Paid:</span>
-                  <span className="font-black text-slate-900 text-sm">₹{finalPrice}</span>
-                </div>
-              </div>
-
-              <button 
-                type="button"
-                onClick={() => {
-                  setShowSuccessModal(false);
-                  router.push('/dashboard');
-                }}
-                className="w-full py-4 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-rose-900/20 transition-all cursor-pointer active:scale-95 border border-rose-300/30"
-              >
-                Go to Dashboard
               </button>
-            </motion.div>
+            </div>
+
           </div>
-        )}
-      </AnimatePresence>
+        </div>
+      )}
+
+      {/* PROMO CODE MODAL */}
+      {showPromoModal && (
+        <div className="fixed inset-0 z-[10000] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 relative border-2 border-rose-100">
+            <button 
+              onClick={() => setShowPromoModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+            <h3 className="font-serif font-extrabold text-lg uppercase text-slate-900">Apply Promo Code</h3>
+            
+            {!appliedPromo ? (
+              <div className="space-y-3">
+                <input
+                  value={promoInput}
+                  onChange={(e) => setPromoInput(e.target.value)}
+                  placeholder="Enter promo code (e.g. PAKIZA50)"
+                  className="w-full p-3 text-xs font-bold uppercase tracking-wider border-2 border-slate-200 rounded-xl outline-none focus:border-[#d91b5c]"
+                />
+                <button
+                  type="button"
+                  onClick={handleApplyPromo}
+                  disabled={validatingPromo || !promoInput.trim()}
+                  className="w-full py-3 bg-[#d91b5c] text-white font-black text-xs uppercase rounded-xl hover:bg-[#b01348] cursor-pointer disabled:opacity-50"
+                >
+                  {validatingPromo ? "Validating..." : "Apply Promo Code"}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="p-3 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-200 text-xs font-bold flex justify-between items-center">
+                  <span>Code {appliedPromo.code} (Saved ₹{appliedPromo.discountAmount})</span>
+                  <button type="button" onClick={handleRemovePromo} className="text-rose-600 font-bold hover:underline cursor-pointer">Remove</button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPromoModal(false)}
+                  className="w-full py-3 bg-slate-900 text-white font-black text-xs uppercase rounded-xl cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   );

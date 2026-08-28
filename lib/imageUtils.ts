@@ -1,4 +1,4 @@
-﻿export const CDN_BASE_URL = "https://cdn.nikahqubool.com";
+export const CDN_BASE_URL = "https://cdn.nikahqubool.com";
 
 const FEMALE_DEMO_PHOTOS = [
   "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=80",
@@ -17,9 +17,7 @@ const MALE_DEMO_PHOTOS = [
 ];
 
 export const getFallbackPhoto = (userId: number = 1, gender: string = 'Female'): string => {
-  const isFemale = (gender || 'Female').toLowerCase() === 'female';
-  const list = isFemale ? FEMALE_DEMO_PHOTOS : MALE_DEMO_PHOTOS;
-  return list[Math.abs(userId || 1) % list.length];
+  return '/placeholder.png';
 };
 
 /**

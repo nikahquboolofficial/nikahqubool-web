@@ -11,6 +11,7 @@ import { getOptimizedImageUrl, getFallbackPhoto } from '@/lib/imageUtils';
 export interface ProfileCardProps {
   profile: any;
   actionLoading?: boolean;
+  actionLoadingType?: 'INTEREST' | 'SHORTLIST' | 'CHAT' | string | null;
   activeTab?: string;
   onInteraction: (receiverUserId: number, type: string, status?: string) => void;
   onViewProfile: (userId: number) => void;
@@ -20,6 +21,7 @@ export interface ProfileCardProps {
 export default function ProfileCard({ 
   profile, 
   actionLoading = false, 
+  actionLoadingType = null,
   activeTab = 'best-matches',
   onInteraction, 
   onViewProfile,
@@ -84,8 +86,8 @@ export default function ProfileCard({
       <div 
         className={`relative w-full ${
           isFullScreenCard 
-            ? 'h-[calc(100vh-150px)] min-h-[480px] max-h-[620px] md:h-[480px] md:min-h-[460px] md:max-h-[520px] md:aspect-[4/5]' 
-            : 'aspect-[4/5] max-h-[480px]'
+            ? 'h-[calc(100vh-150px)] min-h-[500px] max-h-[640px] md:h-[500px] md:min-h-[480px] md:max-h-[540px] md:aspect-[4/5]' 
+            : 'aspect-[4/5] min-h-[480px] max-h-[520px]'
         } bg-slate-950 overflow-hidden cursor-pointer`} 
         onClick={(e) => {
           e.stopPropagation();
@@ -114,49 +116,55 @@ export default function ProfileCard({
         </div>
 
         {/* 🌓 DARK GRADIENT SHADOW OVERLAY FOR TEXT READABILITY */}
-        <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-slate-950 via-slate-950/75 to-transparent pointer-events-none z-30" />
+        <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent pointer-events-none z-30" />
 
-        {/* 📝 CANDIDATE TEXT DETAILS OVERLAY (NAME BOLD, OTHER DETAILS NORMAL WEIGHT & TITLE CASE) */}
-        <div className="absolute bottom-18 inset-x-4 z-40 text-white pointer-events-none space-y-1 drop-shadow-md">
+        {/* 📝 CANDIDATE TEXT DETAILS OVERLAY (STRUCTURED 5-LINE LAYOUT WITH GAP ABOVE BUTTONS) */}
+        <div className="absolute bottom-[96px] inset-x-3.5 z-40 text-white pointer-events-none space-y-0.5 drop-shadow-md">
           
           {/* 1. NAME & AGE ONLY (BOLD) + VERIFIED TICK + CROWN + ONLINE GREEN DOT */}
-          <h3 className="font-serif font-extrabold text-lg md:text-xl tracking-tight flex items-center gap-1.5 text-white">
+          <h3 className="font-serif font-extrabold text-base md:text-lg tracking-tight flex items-center gap-1 text-white leading-tight">
             <span className="truncate">{profile.fullName || 'Member'}, {displayAge}</span>
             {isVerified && (
               <span title="Verified Profile" className="flex-shrink-0">
-                <CheckCircle2 size={17} className="fill-emerald-500 text-slate-950" />
+                <CheckCircle2 size={15} className="fill-emerald-500 text-slate-950" />
               </span>
             )}
             {isPremium && (
               <span title="VIP Premium Member" className="flex-shrink-0">
-                <Crown size={16} className="fill-amber-400 text-amber-400" />
+                <Crown size={15} className="fill-amber-400 text-amber-400" />
               </span>
             )}
             {isOnline && (
-              <span title="Online Now" className="flex-shrink-0 relative flex h-2.5 w-2.5 ml-0.5 mb-0.5">
+              <span title="Online Now" className="flex-shrink-0 relative flex h-2 w-2 ml-0.5 mb-0.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400 border border-slate-950"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400 border border-slate-950"></span>
               </span>
             )}
           </h3>
 
-          {/* 2. LOCATION & SECT/CASTE IN ONE CLEAN LINE (NORMAL WEIGHT, REGULAR CASE) */}
-          <p className="text-xs font-normal text-slate-200/90 flex items-center gap-1 tracking-wide">
-            <MapPin size={12} className="text-amber-400 flex-shrink-0" />
+          {/* 2. STATE & CITY (CLEAN LINE) */}
+          <p className="text-[11px] font-medium text-slate-200/90 flex items-center gap-1 truncate tracking-wide">
+            <MapPin size={11} className="text-amber-400 flex-shrink-0" />
             <span className="truncate">
               {city ? `${city}, ` : ''}{state || 'Location N/A'}
-              {(sect || caste) ? ` • ${sect}${caste ? ` / ${caste}` : ''}` : ''}
             </span>
           </p>
 
-          {/* 3. PROFESSION & EDUCATION (NORMAL WEIGHT, REGULAR CASE) */}
-          <p className="text-xs font-normal text-slate-300/80 truncate tracking-wide">
+          {/* 3. SECT & CASTE (CLEAN SEPARATE LINE) */}
+          {(sect || caste) && (
+            <p className="text-[11px] font-medium text-slate-300/90 truncate tracking-wide">
+              {sect}{caste ? ` / ${caste}` : ''}
+            </p>
+          )}
+
+          {/* 4. PROFESSION & EDUCATION */}
+          <p className="text-[11px] font-normal text-slate-300/80 truncate tracking-wide">
             {job} • {edu}
           </p>
 
-          {/* 4. ANNUAL INCOME (NORMAL/MEDIUM WEIGHT) */}
+          {/* 5. ANNUAL INCOME (CLEAR GAP ABOVE BUTTONS) */}
           {income && (
-            <p className="text-xs font-medium text-amber-300/95 tracking-wide">
+            <p className="text-[11px] font-bold text-amber-300 tracking-wide truncate">
               Earns {income}
             </p>
           )}
@@ -270,83 +278,106 @@ export default function ProfileCard({
             </div>
           ) : (
             /* RULE 3: NORMAL TABS (SHORTLIST, MESSAGE, INTEREST) */
-            <>
+            <div className="flex items-start justify-center gap-5 w-full">
               {/* 1. ❤️ INTEREST BUTTON (HIDDEN IN ACCEPTED TAB) */}
               {activeTab !== 'accepted' && (
-                <motion.button 
-                  type="button"
-                  whileHover={(isInterestSent || isConnected) ? {} : { scale: 1.12, y: -2 }}
-                  whileTap={(isInterestSent || isConnected) ? {} : { scale: 0.85 }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    if (!isInterestSent && !isConnected) {
-                      triggerLocalHearts();
-                      onInteraction(profile.userId, 'INTEREST', 'PENDING');
-                    }
-                  }}
-                  disabled={actionLoading || isInterestSent || isConnected}
-                  className={`w-11 h-11 rounded-full shadow-md flex items-center justify-center transition-all duration-200 ${
-                    isInterestSent || isConnected
-                      ? 'bg-[#2A2D32] border-2 border-[#3F444D] cursor-not-allowed opacity-90' 
-                      : 'bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white border-2 border-rose-300/40 cursor-pointer shadow-rose-950/40'
-                  }`}
-                  aria-label="Send Interest"
-                  title={isInterestSent ? 'Interest Sent' : isConnected ? 'Connected' : 'Send Interest'}
-                >
-                  {actionLoading ? (
-                    <Loader2 size={18} className="animate-spin text-white" />
-                  ) : isInterestSent || isConnected ? (
-                    <Heart size={20} className="fill-[#8E95A2] text-[#8E95A2]" />
-                  ) : (
-                    <Heart size={20} className="fill-amber-300 text-amber-300" />
-                  )}
-                </motion.button>
+                <div className="flex flex-col items-center gap-1">
+                  <motion.button 
+                    type="button"
+                    whileHover={(isInterestSent || isConnected) ? {} : { scale: 1.12, y: -2 }}
+                    whileTap={(isInterestSent || isConnected) ? {} : { scale: 0.85 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      if (!isInterestSent && !isConnected) {
+                        triggerLocalHearts();
+                        onInteraction(profile.userId, 'INTEREST', 'PENDING');
+                      }
+                    }}
+                    disabled={actionLoading || isInterestSent || isConnected}
+                    className={`w-11 h-11 rounded-full shadow-md flex items-center justify-center transition-all duration-200 ${
+                      isInterestSent || isConnected
+                        ? 'bg-[#2A2D32] border-2 border-[#3F444D] cursor-not-allowed opacity-90' 
+                        : 'bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white border-2 border-rose-300/40 cursor-pointer shadow-rose-950/40'
+                    }`}
+                    aria-label="Send Interest"
+                    title={isInterestSent ? 'Interest Sent' : isConnected ? 'Connected' : 'Send Interest'}
+                  >
+                    {(actionLoading && (actionLoadingType === 'INTEREST' || !actionLoadingType)) ? (
+                      <Loader2 size={18} className="animate-spin text-white" />
+                    ) : isInterestSent || isConnected ? (
+                      <Heart size={20} className="fill-[#8E95A2] text-[#8E95A2]" />
+                    ) : (
+                      <Heart size={20} className="fill-white text-white drop-shadow-xs" />
+                    )}
+                  </motion.button>
+                  <span className="text-[10px] font-extrabold text-white uppercase tracking-wider drop-shadow-sm">
+                    {isInterestSent ? 'Sent' : isConnected ? 'Connected' : 'Interest'}
+                  </span>
+                </div>
               )}
 
               {/* 2. 💬 CHAT BUTTON */}
-              <motion.button 
-                type="button"
-                whileHover={{ scale: 1.12, y: -2 }}
-                whileTap={{ scale: 0.85 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  if (onInitiateChat) onInitiateChat(profile);
-                }}
-                disabled={actionLoading}
-                className="w-11 h-11 rounded-full bg-slate-900 hover:bg-[#d91b5c] text-white border-2 border-slate-700 shadow-md flex items-center justify-center cursor-pointer active:scale-95 transition-colors"
-                aria-label="Direct Message"
-                title="Send Message"
-              >
-                <MessageCircle size={20} className="fill-white text-white" />
-              </motion.button>
+              <div className="flex flex-col items-center gap-1">
+                <motion.button 
+                  type="button"
+                  whileHover={{ scale: 1.12, y: -2 }}
+                  whileTap={{ scale: 0.85 }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (onInitiateChat) onInitiateChat(profile);
+                  }}
+                  disabled={actionLoading}
+                  className="w-11 h-11 rounded-full bg-slate-900 hover:bg-[#d91b5c] text-white border-2 border-slate-700 shadow-md flex items-center justify-center cursor-pointer active:scale-95 transition-colors"
+                  aria-label="Direct Message"
+                  title="Send Message"
+                >
+                  {(actionLoading && actionLoadingType === 'CHAT') ? (
+                    <Loader2 size={18} className="animate-spin text-white" />
+                  ) : (
+                    <MessageCircle size={20} className="fill-white text-white" />
+                  )}
+                </motion.button>
+                <span className="text-[10px] font-extrabold text-white uppercase tracking-wider drop-shadow-sm">
+                  Chat
+                </span>
+              </div>
 
               {/* 3. ⭐ SHORTLIST STAR BUTTON */}
-              <motion.button 
-                type="button"
-                whileHover={{ scale: 1.12, y: -2 }}
-                whileTap={{ scale: 0.85 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  onInteraction(profile.userId, 'SHORTLIST', profile.isShortlisted ? 'REMOVED' : 'ACTIVE');
-                }}
-                disabled={actionLoading}
-                className={`w-11 h-11 rounded-full shadow-md flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 border-2 ${
-                  profile.isShortlisted 
-                    ? 'bg-amber-50 text-amber-500 border-amber-300' 
-                    : 'bg-white hover:bg-rose-50 text-[#d91b5c] border-slate-200'
-                }`}
-                aria-label="Shortlist Profile"
-                title={profile.isShortlisted ? "Shortlisted" : "Shortlist Profile"}
-              >
-                <Star 
-                  size={20} 
-                  className={profile.isShortlisted ? 'fill-amber-500 text-amber-500' : 'text-amber-500 fill-none'} 
-                />
-              </motion.button>
-            </>
+              <div className="flex flex-col items-center gap-1">
+                <motion.button 
+                  type="button"
+                  whileHover={{ scale: 1.12, y: -2 }}
+                  whileTap={{ scale: 0.85 }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    onInteraction(profile.userId, 'SHORTLIST', profile.isShortlisted ? 'REMOVED' : 'ACTIVE');
+                  }}
+                  disabled={actionLoading}
+                  className={`w-11 h-11 rounded-full shadow-md flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 border-2 ${
+                    profile.isShortlisted 
+                      ? 'bg-amber-50 text-amber-500 border-amber-300' 
+                      : 'bg-white hover:bg-rose-50 text-[#d91b5c] border-slate-200'
+                  }`}
+                  aria-label="Shortlist Profile"
+                  title={profile.isShortlisted ? "Shortlisted" : "Shortlist Profile"}
+                >
+                  {(actionLoading && actionLoadingType === 'SHORTLIST') ? (
+                    <Loader2 size={18} className="animate-spin text-amber-500" />
+                  ) : (
+                    <Star 
+                      size={20} 
+                      className={profile.isShortlisted ? 'fill-amber-500 text-amber-500' : 'text-amber-500 fill-none'} 
+                    />
+                  )}
+                </motion.button>
+                <span className="text-[10px] font-extrabold text-white uppercase tracking-wider drop-shadow-sm">
+                  {profile.isShortlisted ? 'Saved' : 'Shortlist'}
+                </span>
+              </div>
+            </div>
           )}
 
         </div>

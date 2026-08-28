@@ -8,6 +8,7 @@ import {
   LogOut, Edit3, Search, Crown, CheckCircle2, HeartHandshake, Settings, ArrowLeft
 } from 'lucide-react';
 import { getOptimizedImageUrl, getFallbackPhoto } from '@/lib/imageUtils';
+import { fetchProfileDetailsApi } from '@/lib/api';
 
 interface HeaderProps {
   unreadCount?: number;
@@ -49,7 +50,7 @@ export default function DashboardHeader({
           } catch (e) {}
         }
 
-        if (parsed) {
+        if (parsed && (parsed.mainPhotoUrl || parsed.photoUrl || parsed.PhotoUrl || parsed.mainPhoto || parsed.photo || parsed.userId)) {
           const rawPhoto = parsed.mainPhotoUrl || parsed.photoUrl || parsed.PhotoUrl || parsed.mainPhoto || parsed.photo;
           setUserPhoto(getOptimizedImageUrl(rawPhoto, parsed.userId || 1, parsed.gender));
           setUserName(parsed.fullName || parsed.FullName || 'My Account');
@@ -60,22 +61,23 @@ export default function DashboardHeader({
           const token = getCookie("user_token");
           if (token) {
             try {
-              const res = await fetch('http://115.124.106.149/api/User/get-profile-details', {
-                headers: { 'Authorization': `Bearer ${token}` }
-              });
-              if (res.ok) {
-                const json = await res.json();
-                const profile = json?.data?.profile || json?.data || json?.profile;
-                if (profile) {
-                  localStorage.setItem("user_details", JSON.stringify(profile));
-                  const rawPhoto = profile.mainPhotoUrl || profile.photoUrl || profile.PhotoUrl;
-                  setUserPhoto(getOptimizedImageUrl(rawPhoto, profile.userId || 1, profile.gender));
-                  setUserName(profile.fullName || 'My Account');
-                  setIsVerified(Boolean(profile.isVerified ?? false));
-                  setIsPaid(Boolean(profile.isPaid ?? false));
-                }
+              const profileRes = await fetchProfileDetailsApi(0, token);
+              if (profileRes.success && profileRes.data?.profile && profileRes.data.profile.userId > 0) {
+                const profile = profileRes.data.profile;
+                localStorage.setItem("user_details", JSON.stringify(profile));
+                const rawPhoto = profile.mainPhotoUrl || profile.photoUrl || profile.PhotoUrl;
+                setUserPhoto(getOptimizedImageUrl(rawPhoto, profile.userId || 1, profile.gender));
+                setUserName(profile.fullName || 'My Account');
+                setIsVerified(Boolean(profile.isVerified ?? false));
+                setIsPaid(Boolean(profile.isPaid ?? false));
+              } else if (profileRes.isUnauthorized || !profileRes.success) {
+                handleLogout();
               }
-            } catch (err) {}
+            } catch (err) {
+              handleLogout();
+            }
+          } else {
+            handleLogout();
           }
         }
       }

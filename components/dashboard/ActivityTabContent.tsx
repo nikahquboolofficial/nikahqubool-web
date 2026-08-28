@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -53,6 +53,7 @@ export default function ActivityTabContent({
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [totalRecords, setTotalRecords] = useState(0);
   const [actionState, setActionState] = useState<{ [key: number]: boolean }>({});
+  const [actionTypeState, setActionTypeState] = useState<{ [key: number]: string | null }>({});
   
   // 💖 FLYING HEARTS ANIMATION STATE
   const [flyingHearts, setFlyingHearts] = useState<FlyingHeart[]>([]);
@@ -183,15 +184,14 @@ export default function ActivityTabContent({
     );
 
     setActionState((prev) => ({ ...prev, [receiverUserId]: true }));
-    const res = await handleInteractionApiCall(receiverUserId, type, status, token);
-    setActionState((prev) => ({ ...prev, [receiverUserId]: false }));
+    setActionTypeState((prev) => ({ ...prev, [receiverUserId]: type }));
 
-    if (res.success) {
-      toast.dismiss();
-      toast.success(res.message || "Action updated instantly");
-    } else {
-      toast.dismiss();
-      toast.error(res.message || "Action failed");
+    const res = await handleInteractionApiCall(receiverUserId, type, status, token);
+
+    setActionState((prev) => ({ ...prev, [receiverUserId]: false }));
+    setActionTypeState((prev) => ({ ...prev, [receiverUserId]: null }));
+
+    if (!res.success) {
       loadData(1, false);
     }
   };
@@ -227,7 +227,23 @@ export default function ActivityTabContent({
     } else {
       setShowSubscriptionModal(true);
     }
-  };
+  };  // 🚀 AUTOMATIC INFINITE SCROLL PAGING (TRIGGERED NEAR BOTTOM OF SCROLL)
+  useEffect(() => {
+    const handleScroll = () => {
+      if (loading || fetchingMore || !hasMore) return;
+
+      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 400) {
+        setPage((prevPage) => {
+          const nextPage = prevPage + 1;
+          loadData(nextPage, true);
+          return nextPage;
+        });
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [loading, fetchingMore, hasMore, loadData]);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-28 pt-4 relative selection:bg-[#d91b5c] selection:text-white">
@@ -297,28 +313,29 @@ export default function ActivityTabContent({
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {profiles.map((profile) => (
-              <ProfileCard
-                key={profile.userId}
-                profile={profile}
-                activeTab={activeTab}
-                actionLoading={actionState[profile.userId] || false}
-                onInteraction={handleInteraction}
-                onViewProfile={handleViewProfile}
-                onInitiateChat={handleInitiateChat}
-              />
-            ))}
-          </div>
-        )}
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {profiles.map((profile) => (
+                <ProfileCard
+                  key={profile.userId}
+                  profile={profile}
+                  activeTab={activeTab}
+                  actionLoading={actionState[profile.userId] || false}
+                  actionLoadingType={actionTypeState[profile.userId] || null}
+                  onInteraction={handleInteraction}
+                  onViewProfile={handleViewProfile}
+                  onInitiateChat={handleInitiateChat}
+                />
+              ))}
+            </div>
 
-        {/* LOAD MORE BUTTON */}
-        {!loading && hasMore && (
-          <div className="text-center pt-6">
-            <button onClick={handleLoadMore} disabled={fetchingMore} className="px-9 py-3.5 rounded-full bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white border border-rose-300/30 font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 active:scale-95 transition-all flex items-center gap-2.5 mx-auto cursor-pointer">
-              {fetchingMore ? <Loader2 size={18} className="animate-spin text-amber-300" /> : <RefreshCw size={18} className="text-amber-300" />}
-              <span>Load More Profiles</span>
-            </button>
+            {/* INFINITE SCROLL BOTTOM LOADING INDICATOR */}
+            {fetchingMore && (
+              <div className="flex items-center justify-center gap-2 py-6 text-[#d91b5c]">
+                <Loader2 size={24} className="animate-spin text-[#d91b5c]" />
+                <span className="text-xs font-extrabold uppercase tracking-widest text-slate-500">Loading More Profiles...</span>
+              </div>
+            )}
           </div>
         )}
 

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { toast, Toaster } from 'sonner';
 import { searchMatchesApi, handleInteractionApiCall } from '@/lib/api';
+import { checkDailyViewLimit, formatTimeRemaining } from '@/lib/limitUtils';
 import ProfileCard from '@/components/dashboard/ProfileCard';
 import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
 
@@ -26,6 +27,10 @@ export default function FindMatchesPage() {
   const router = useRouter();
   const [profiles, setProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchingMore, setFetchingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [dailyLimitReached, setDailyLimitReached] = useState(false);
   const [isUserPaid, setIsUserPaid] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -55,14 +60,16 @@ export default function FindMatchesPage() {
 
   const getToken = useCallback(() => getCookie("user_token"), []);
 
-  const loadMatches = useCallback(async () => {
+  const loadMatches = useCallback(async (pageNum: number = 1, append: boolean = false) => {
     const token = getToken();
     if (!token) {
       router.push('/');
       return;
     }
 
-    setLoading(true);
+    if (pageNum === 1) setLoading(true);
+    else setFetchingMore(true);
+
     const payload = {
       searchText: "",
       ageMin: filters.ageMin,
@@ -74,24 +81,68 @@ export default function FindMatchesPage() {
       cities: isUserPaid ? filters.cities : [],
       education: isUserPaid ? filters.education : [],
       employedIn: isUserPaid ? filters.employedIn : [],
-      pageNumber: 1,
-      pageSize: 24
+      pageNumber: pageNum,
+      pageSize: 12
     };
 
     const res = await searchMatchesApi(payload, token);
     setLoading(false);
+    setFetchingMore(false);
 
-    if (res && (res.success) && res.data) {
-      setProfiles(res.data);
-      setIsUserPaid(Boolean(res.isUserPaid));
+    if (res && res.success && res.data) {
+      const list = res.data || [];
+      const userPaid = Boolean(res.isUserPaid ?? isUserPaid);
+      setIsUserPaid(userPaid);
+
+      const limitState = checkDailyViewLimit(list.length, userPaid);
+      setDailyLimitReached(limitState.isLimitReached && !userPaid);
+
+      if (append) {
+        setProfiles((prev) => {
+          const combined = [...prev, ...list];
+          const curLimit = checkDailyViewLimit(combined.length, userPaid);
+          if (curLimit.isLimitReached && !userPaid) {
+            return combined.slice(0, 20);
+          }
+          return combined;
+        });
+      } else {
+        let updatedList = list;
+        if (limitState.isLimitReached && !userPaid) {
+          updatedList = list.slice(0, 20);
+        }
+        setProfiles(updatedList);
+      }
+
+      setHasMore(list.length >= 12 && (!limitState.isLimitReached || userPaid));
     } else {
-      setProfiles([]);
+      if (!append) setProfiles([]);
     }
   }, [getToken, filters, isUserPaid, router]);
 
   useEffect(() => {
-    loadMatches();
-  }, []);
+    setPage(1);
+    loadMatches(1, false);
+  }, [filters]);
+
+  // 🚀 AUTOMATIC INFINITE SCROLL PAGING (TRIGGERED NEAR BOTTOM OF SCROLL)
+  useEffect(() => {
+    const handleScroll = () => {
+      if (loading || fetchingMore || !hasMore) return;
+      if (dailyLimitReached && !isUserPaid) return;
+
+      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 400) {
+        setPage((prevPage) => {
+          const nextPage = prevPage + 1;
+          loadMatches(nextPage, true);
+          return nextPage;
+        });
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [loading, fetchingMore, hasMore, dailyLimitReached, isUserPaid, loadMatches]);
 
   const handleReset = () => {
     setFilters({
@@ -230,20 +281,74 @@ export default function FindMatchesPage() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {profiles.map((user) => {
-              const uId = user.userId || user.UserId;
-              return (
-                <ProfileCard
-                  key={uId}
-                  profile={user}
-                  actionLoading={actionLoading}
-                  onInteraction={handleInteraction}
-                  onViewProfile={() => openProfileView(user)}
-                  onInitiateChat={handleInitiateChat}
-                />
-              );
-            })}
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {profiles.map((user) => {
+                const uId = user.userId || user.UserId;
+                return (
+                  <ProfileCard
+                    key={uId}
+                    profile={user}
+                    actionLoading={actionLoading}
+                    onInteraction={handleInteraction}
+                    onViewProfile={() => openProfileView(user)}
+                    onInitiateChat={handleInitiateChat}
+                  />
+                );
+              })}
+            </div>
+
+            {/* 🔒 24-HOUR DAILY 20 PROFILES VIEW LIMIT CARD (FOR FREE UNPAID USERS) */}
+            {dailyLimitReached && !isUserPaid && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-gradient-to-br from-slate-900 via-[#3a051b] to-slate-950 text-white rounded-3xl p-8 border-2 border-amber-400/40 shadow-2xl text-center max-w-xl mx-auto space-y-4 relative overflow-hidden my-8"
+              >
+                <div className="w-16 h-16 rounded-full bg-amber-500/20 text-amber-300 border-2 border-amber-400/50 flex items-center justify-center mx-auto shadow-lg">
+                  <Lock size={32} />
+                </div>
+                <div>
+                  <span className="bg-amber-400 text-slate-950 text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-widest">
+                    24-Hour Limit Reached
+                  </span>
+                  <h3 className="text-xl font-serif font-extrabold uppercase mt-2 text-white tracking-wide">
+                    20 / 20 Free Profiles Viewed Today
+                  </h3>
+                  <p className="text-rose-100/80 text-xs font-medium max-w-md mx-auto mt-1 leading-relaxed">
+                    Free accounts are restricted to viewing 20 profiles per 24 hours. Upgrade to VIP Premium to unlock unlimited instant profiles or wait for timer reset.
+                  </p>
+                </div>
+                
+                {/* 🕒 LIVE TICKING COUNTDOWN TIMER */}
+                <div className="bg-slate-950/80 p-3 rounded-2xl border border-amber-400/30 max-w-xs mx-auto text-center space-y-1 shadow-inner">
+                  <span className="text-[10px] uppercase font-black tracking-widest text-amber-300">Resetting Daily Limit In</span>
+                  <div className="flex items-center justify-center gap-2 text-amber-300 font-mono font-bold text-xl">
+                    <LiveCountdownDisplay />
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button 
+                    type="button"
+                    onClick={() => router.push('/dashboard/membership')}
+                    className="px-8 py-3.5 rounded-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-xl hover:brightness-110 active:scale-95 transition-all flex items-center gap-2 mx-auto cursor-pointer border border-amber-200"
+                  >
+                    <Crown size={18} className="fill-slate-950" />
+                    <span>Upgrade to VIP Premium</span>
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* INFINITE SCROLL BOTTOM LOADING INDICATOR */}
+            {fetchingMore && (
+              <div className="flex items-center justify-center gap-2 py-6 text-[#d91b5c]">
+                <Loader2 size={24} className="animate-spin text-[#d91b5c]" />
+                <span className="text-xs font-extrabold uppercase tracking-widest text-slate-500">Finding More Matches...</span>
+              </div>
+            )}
           </div>
         )}
       </main>
@@ -472,4 +577,26 @@ function CategoryRow({ title, count, onClick, isLocked = false }: { title: strin
       </div>
     </div>
   );
+}
+
+function LiveCountdownDisplay() {
+  const [timeText, setTimeText] = useState('24h 00m 00s');
+
+  useEffect(() => {
+    const updateTimer = () => {
+      const stored = localStorage.getItem('daily_profile_views_tracker');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          const remaining = Math.max(0, 86400000 - (Date.now() - parsed.timestamp));
+          setTimeText(formatTimeRemaining(remaining));
+        } catch (e) {}
+      }
+    };
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return <span>{timeText}</span>;
 }

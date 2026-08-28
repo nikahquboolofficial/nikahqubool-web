@@ -36,6 +36,7 @@ const CATEGORY_SUBTABS: Record<MainCategory, SubTabConfig[]> = {
   gallery: [
     { id: 'gallery-requests-received', label: 'Received', countKey: 'photosCount', icon: Inbox },
     { id: 'gallery-requests', label: 'Sent', icon: Lock },
+    { id: 'gallery-requests-accepted', label: 'Accepted', icon: CheckCircle2 },
   ],
   contacts: [
     { id: 'viewed-my-profile', label: 'Viewed Mine', icon: Eye },
