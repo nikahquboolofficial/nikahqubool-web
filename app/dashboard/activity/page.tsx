@@ -39,8 +39,8 @@ const CATEGORY_SUBTABS: Record<MainCategory, SubTabConfig[]> = {
     { id: 'gallery-requests-accepted', label: 'Accepted', icon: CheckCircle2 },
   ],
   contacts: [
-    { id: 'viewed-my-profile', label: 'Viewed Mine', icon: Eye },
-    { id: 'profiles-viewed', label: 'I Viewed', icon: Eye },
+    { id: 'contact-views', label: 'I Viewed', icon: Eye },
+    { id: 'contact-views-received', label: 'Viewed Mine', icon: Eye },
   ],
   shortlist: [
     { id: 'shortlisted-by-me', label: 'Shortlisted By Me', countKey: 'shortlistedCount', icon: Bookmark },
@@ -192,22 +192,33 @@ function ActivityPageContent() {
   const handleInteraction = async (receiverUserId: number, type: string, status: string = 'PENDING') => {
     const token = getToken();
 
-    // ⚡ OPTIMISTIC INSTANT CACHE UPDATE ACROSS ALL TABS
-    setProfiles((prevProfiles) =>
-      prevProfiles.map((p) => {
-        if (p.userId === receiverUserId) {
-          if (type === 'SHORTLIST') {
-            const currentIsShort = Boolean(p.isShortlisted ?? p.IsShortlisted);
-            return { ...p, isShortlisted: !currentIsShort, IsShortlisted: !currentIsShort };
+    // ⚡ INSTANT CARD REMOVAL IF ACCEPTED OR DECLINED
+    if (status === 'ACCEPTED' || status === 'DECLINED' || activeSubTab === 'requests' || activeSubTab === 'gallery-requests-received') {
+      setProfiles((prev) => prev.filter((p) => (p.userId || p.UserId) !== receiverUserId));
+      
+      // Update instant cache
+      if (tabCacheRef.current[activeSubTab]) {
+        tabCacheRef.current[activeSubTab].profiles = tabCacheRef.current[activeSubTab].profiles.filter(
+          (p) => (p.userId || p.UserId) !== receiverUserId
+        );
+      }
+    } else {
+      setProfiles((prevProfiles) =>
+        prevProfiles.map((p) => {
+          if ((p.userId || p.UserId) === receiverUserId) {
+            if (type === 'SHORTLIST') {
+              const currentIsShort = Boolean(p.isShortlisted ?? p.IsShortlisted);
+              return { ...p, isShortlisted: !currentIsShort, IsShortlisted: !currentIsShort };
+            }
+            if (type === 'INTEREST') {
+              const newStatus = status === 'ACCEPTED' ? 'Accepted' : status === 'DECLINED' ? 'Declined' : 'SentPending';
+              return { ...p, interestStatus: newStatus, InterestStatus: newStatus };
+            }
           }
-          if (type === 'INTEREST') {
-            const newStatus = status === 'ACCEPTED' ? 'Accepted' : status === 'DECLINED' ? 'Declined' : 'SentPending';
-            return { ...p, interestStatus: newStatus, InterestStatus: newStatus };
-          }
-        }
-        return p;
-      })
-    );
+          return p;
+        })
+      );
+    }
 
     setActionState((prev) => ({ ...prev, [receiverUserId]: true }));
     const res = await handleInteractionApiCall(receiverUserId, type, status, token);
@@ -236,7 +247,16 @@ function ActivityPageContent() {
   };
 
   const handleInitiateChat = (profile: any) => {
-    const isPaid = Boolean(profile.isCurrentUserPaid ?? profile.IsCurrentUserPaid);
+    let isPaid = Boolean(profile.isCurrentUserPaid ?? profile.IsCurrentUserPaid);
+    if (!isPaid && typeof window !== "undefined") {
+      const stored = localStorage.getItem("user_details") || localStorage.getItem("user_session");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          isPaid = Boolean(parsed.isPaid ?? parsed.IsPaid ?? parsed.isCurrentUserPaid ?? parsed.IsCurrentUserPaid ?? parsed.isPremium ?? parsed.IsPremium ?? false);
+        } catch (e) {}
+      }
+    }
     
     if (isPaid) {
       sessionStorage.setItem('active_chat_target', JSON.stringify({

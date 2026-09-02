@@ -197,7 +197,7 @@ export default function FindMatchesPage() {
       userId: uId,
       targetUserId: uId
     }));
-    router.push('/dashboard/profile');
+    router.push('/dashboard/profile?userId=' + uId);
   };
 
   const handleInitiateChat = (user: any) => {
@@ -289,6 +289,7 @@ export default function FindMatchesPage() {
                   <ProfileCard
                     key={uId}
                     profile={user}
+                    activeTab="matches"
                     actionLoading={actionLoading}
                     onInteraction={handleInteraction}
                     onViewProfile={() => openProfileView(user)}

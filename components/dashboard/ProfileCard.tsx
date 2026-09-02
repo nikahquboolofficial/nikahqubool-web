@@ -6,7 +6,8 @@ import {
   MapPin, GraduationCap, Briefcase, Loader2, CheckCircle2, Crown, Sparkles, ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getOptimizedImageUrl, getFallbackPhoto } from '@/lib/imageUtils';
+import { getOptimizedImageUrl, getFallbackPhoto, getBlurredPhotoUrl } from '@/lib/imageUtils';
+import { useSignalR } from '@/context/SignalRContext';
 
 export interface ProfileCardProps {
   profile: any;
@@ -27,40 +28,49 @@ export default function ProfileCard({
   onViewProfile,
   onInitiateChat
 }: ProfileCardProps) {
+  const { onlineUsers } = useSignalR();
   const [localHearts, setLocalHearts] = useState<{ id: number; x: number }[]>([]);
 
-  const isInterestSent = Boolean(
-    profile.isInterestSent || profile.IsInterestSent || 
-    profile.interestStatus === 'Sent' || profile.interestStatus === 'SentPending' ||
-    profile.InterestStatus === 'Sent' || profile.InterestStatus === 'SentPending'
-  );
-  
-  const isInterestReceived = Boolean(
-    profile.isInterestReceived || profile.IsInterestReceived ||
-    profile.interestStatus === 'Received' || profile.interestStatus === 'ReceivedPending' ||
-    profile.InterestStatus === 'Received' || profile.InterestStatus === 'ReceivedPending'
-  );
-  
-  const isConnected = Boolean(
-    profile.interestStatus === 'Accepted' || profile.InterestStatus === 'Accepted' ||
-    profile.interestStatus === 'ACCEPTED' || profile.InterestStatus === 'ACCEPTED'
-  );
-
+  const userIdNum = Number(profile.userId || profile.UserId);
+  const presence = onlineUsers[userIdNum];
+  const isOnline = presence ? presence.isOnline : Boolean(profile.isOnline ?? profile.IsOnline ?? false);
   const isVerified = Boolean(profile.isVerified ?? profile.IsVerified ?? false);
   const isPremium = Boolean(profile.isPremium ?? profile.IsPremium ?? false);
-  const isOnline = Boolean(profile.isOnline ?? profile.IsOnline ?? false);
-  const isPhotoHidden = Boolean(profile.isPhotoHidden ?? profile.IsPhotoHidden ?? false);
 
-  const rawPhoto = profile.mainPhotoUrl || profile.MainPhotoUrl || profile.photoUrl || profile.PhotoUrl;
-  const photo = getOptimizedImageUrl(rawPhoto, profile.userId || 1, profile.gender);
-  const state = profile.stateName || profile.StateName || profile.currentStateName || profile.CurrentStateName || '';
-  const city = profile.cityName || profile.CityName || profile.currentCityName || profile.CurrentCityName || '';
+  const rawPrivacy = String(profile.photoPrivacy || profile.PhotoPrivacy || 'All Members').toLowerCase().replace(/\s+/g, '');
+  const rawPhotoReqStatus = String(profile.photoRequestStatus || profile.PhotoRequestStatus || profile.galleryRequestStatus || profile.GalleryRequestStatus || '').toUpperCase();
+  const isPhotoReqAccepted = rawPhotoReqStatus.includes('ACCEPT');
+
+  const isPhotoHidden = !isPhotoReqAccepted && (
+    Boolean(profile.isPhotoHidden ?? profile.IsPhotoHidden ?? false) ||
+    (rawPrivacy.includes('approved') && !isPhotoReqAccepted) ||
+    (rawPrivacy.includes('premium') && !isPremium)
+  );
+
+  const rawPhoto = profile.mainPhotoUrl || profile.MainPhotoUrl || profile.photoUrl || profile.PhotoUrl || profile.mainPhoto || profile.MainPhoto || profile.profilePhoto || profile.ProfilePhoto || profile.avatarUrl || profile.AvatarUrl || (profile.userPhotos && profile.userPhotos[0]?.photoUrl) || (profile.UserPhotos && profile.UserPhotos[0]?.PhotoUrl);
+  const photo = getOptimizedImageUrl(rawPhoto, profile.userId || profile.UserId || 1, profile.gender || profile.Gender);
+  
+  const rawLocation = profile.location || profile.Location || profile.fullLocation || profile.FullLocation;
+  const state = profile.stateName || profile.StateName || profile.currentStateName || profile.CurrentStateName || profile.state || profile.State || (rawLocation && rawLocation.includes(',') ? rawLocation.split(',')[1]?.trim() : '') || '';
+  const city = profile.cityName || profile.CityName || profile.currentCityName || profile.CurrentCityName || profile.city || profile.City || profile.currentCity || profile.CurrentCity || (rawLocation && rawLocation.includes(',') ? rawLocation.split(',')[0]?.trim() : '') || '';
+  const displayLocation = (city && state) ? `${city}, ${state}` : (city || state || rawLocation || 'Location N/A');
+
   const edu = profile.education || profile.Education || profile.highestDegree || profile.HighestDegree || 'Education N/A';
-  const job = profile.profession || profile.Profession || profile.designation || profile.Designation || profile.employmentSector || 'Professional';
-  const income = profile.annualIncome || profile.AnnualIncome || '';
+  const job = profile.profession || profile.Profession || profile.designation || profile.Designation || profile.employmentSector || profile.job || profile.Job || 'Professional';
+  const income = profile.annualIncome || profile.AnnualIncome || profile.income || profile.Income || '';
   const sect = profile.sect || profile.Sect || '';
   const caste = profile.caste || profile.Caste || '';
   const displayAge = (!profile.age || profile.age <= 0) ? 24 : profile.age;
+
+  const interestStatus = String(profile.interestStatus || profile.InterestStatus || 'None');
+  const isInterestSent = Boolean(
+    profile.isInterestSent || profile.IsInterestSent || 
+    interestStatus === 'SentPending' || interestStatus.includes('Sent') ||
+    interestStatus === 'SENT' || interestStatus === 'PENDING' || interestStatus === 'Sent'
+  );
+  const isInterestReceived = interestStatus === 'ReceivedPending' || interestStatus === 'Received' || interestStatus === 'RECEIVED';
+  const isConnected = interestStatus === 'Accepted' || interestStatus === 'ACCEPTED' || Boolean(profile.isCanChat ?? profile.IsCanChat);
+  const isShortlisted = Boolean(profile.isShortlisted || profile.IsShortlisted);
 
   const isFullScreenCard = activeTab === 'best-matches' || activeTab === 'online' || activeTab === 'matches';
 
@@ -98,10 +108,13 @@ export default function ProfileCard({
           src={photo} 
           alt={profile.fullName}
           className={`w-full h-full object-cover object-top transition-all duration-700 group-hover:scale-105 ${
-            isPhotoHidden ? 'blur-xl scale-110 opacity-60' : ''
+            isPhotoHidden ? 'blur-2xl scale-110 opacity-80' : 'opacity-100'
           }`}
           onError={(e) => { 
-            (e.target as HTMLImageElement).src = getFallbackPhoto(profile.userId || 1, profile.gender);
+            const fallback = getFallbackPhoto(profile.userId || profile.UserId || 1, profile.gender || profile.Gender);
+            if ((e.target as HTMLImageElement).src !== fallback) {
+              (e.target as HTMLImageElement).src = fallback;
+            }
           }}
         />
 
@@ -146,7 +159,7 @@ export default function ProfileCard({
           <p className="text-[11px] font-medium text-slate-200/90 flex items-center gap-1 truncate tracking-wide">
             <MapPin size={11} className="text-amber-400 flex-shrink-0" />
             <span className="truncate">
-              {city ? `${city}, ` : ''}{state || 'Location N/A'}
+              {displayLocation}
             </span>
           </p>
 
@@ -206,46 +219,46 @@ export default function ProfileCard({
         {/* 🌟 ACTION BUTTONS BAR */}
         <div className="flex items-center justify-center gap-3 pt-1">
           
-          {/* RULE 1: IF GALLERY REQUEST RECEIVED -> SHOW PHOTO ACCEPT / DECLINE */}
+          {/* RULE 1: IF GALLERY REQUEST RECEIVED -> SHOW PHOTO ACCEPT / DECLINE (ICON ONLY) */}
           {activeTab === 'gallery-requests-received' ? (
-            <div className="flex items-center justify-center gap-3 w-full">
+            <div className="flex items-center justify-center gap-4 w-full">
               <motion.button 
                 type="button"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.1, y: -2 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
                   onInteraction(profile.userId, 'GALLERY_REQUEST', 'ACCEPTED');
                 }}
                 disabled={actionLoading}
-                className="flex-1 py-2 px-3 rounded-full bg-[#e6f7ec] hover:bg-[#d1fae5] text-[#16a34a] border border-emerald-400 font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                className="w-11 h-11 rounded-full bg-[#e6f7ec] hover:bg-[#d1fae5] text-[#16a34a] border-2 border-emerald-400 font-extrabold flex items-center justify-center shadow-md cursor-pointer transition-all shrink-0"
+                title="Accept Photo Request"
               >
-                {actionLoading ? <Loader2 size={14} className="animate-spin text-[#16a34a]" /> : <Check size={16} className="text-[#16a34a]" />}
-                <span>Accept Photo</span>
+                {actionLoading ? <Loader2 size={16} className="animate-spin text-[#16a34a]" /> : <Check size={20} className="text-[#16a34a] stroke-[3]" />}
               </motion.button>
               <motion.button 
                 type="button"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.1, y: -2 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
                   onInteraction(profile.userId, 'GALLERY_REQUEST', 'DECLINED');
                 }}
                 disabled={actionLoading}
-                className="flex-1 py-2 px-3 rounded-full bg-[#fde8e8] hover:bg-[#ffe4e6] text-[#f43f5e] border border-rose-400 font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                className="w-11 h-11 rounded-full bg-[#fde8e8] hover:bg-[#ffe4e6] text-[#f43f5e] border-2 border-rose-400 font-extrabold flex items-center justify-center shadow-md cursor-pointer transition-all shrink-0"
+                title="Decline Photo Request"
               >
-                <X size={16} className="text-[#f43f5e]" />
-                <span>Decline Photo</span>
+                <X size={20} className="text-[#f43f5e] stroke-[3]" />
               </motion.button>
             </div>
           ) : (isInterestReceived || activeTab === 'requests') ? (
-            /* RULE 2: IF INTEREST REQUEST RECEIVED -> SHOW ONLY 2 BUTTONS (ACCEPT & DECLINE) */
-            <div className="flex items-center justify-center gap-3 w-full">
+            /* RULE 2: IF INTEREST REQUEST RECEIVED -> SHOW ICON ONLY BUTTONS (GREEN CHECK & RED CROSS) */
+            <div className="flex items-center justify-center gap-5 w-full">
               <motion.button 
                 type="button"
-                whileHover={{ scale: 1.08, y: -2 }}
+                whileHover={{ scale: 1.12, y: -2 }}
                 whileTap={{ scale: 0.85 }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -254,15 +267,15 @@ export default function ProfileCard({
                   onInteraction(profile.userId, 'INTEREST', 'ACCEPTED');
                 }}
                 disabled={actionLoading}
-                className="flex-1 py-2.5 px-4 rounded-full bg-[#e6f7ec] hover:bg-[#d1fae5] text-[#16a34a] border-2 border-emerald-400 font-extrabold text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer active:scale-95 transition-all"
+                className="w-12 h-12 rounded-full bg-[#e6f7ec] hover:bg-[#d1fae5] text-[#16a34a] border-2 border-emerald-400 font-extrabold flex items-center justify-center shadow-lg cursor-pointer active:scale-95 transition-all shrink-0"
+                title="Accept Proposal"
               >
-                {actionLoading ? <Loader2 size={16} className="animate-spin text-[#16a34a]" /> : <Check size={18} className="text-[#16a34a] stroke-[3]" />}
-                <span>Accept Proposal</span>
+                {actionLoading ? <Loader2 size={18} className="animate-spin text-[#16a34a]" /> : <Check size={24} className="text-[#16a34a] stroke-[3]" />}
               </motion.button>
 
               <motion.button 
                 type="button"
-                whileHover={{ scale: 1.08, y: -2 }}
+                whileHover={{ scale: 1.12, y: -2 }}
                 whileTap={{ scale: 0.85 }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -270,10 +283,10 @@ export default function ProfileCard({
                   onInteraction(profile.userId, 'INTEREST', 'DECLINED');
                 }}
                 disabled={actionLoading}
-                className="flex-1 py-2.5 px-4 rounded-full bg-[#fde8e8] hover:bg-[#ffe4e6] text-[#f43f5e] border-2 border-rose-400 font-extrabold text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer active:scale-95 transition-all"
+                className="w-12 h-12 rounded-full bg-[#fde8e8] hover:bg-[#ffe4e6] text-[#f43f5e] border-2 border-rose-400 font-extrabold flex items-center justify-center shadow-lg cursor-pointer active:scale-95 transition-all shrink-0"
+                title="Decline Proposal"
               >
-                <X size={18} className="text-[#f43f5e] stroke-[3]" />
-                <span>Decline</span>
+                <X size={24} className="text-[#f43f5e] stroke-[3]" />
               </motion.button>
             </div>
           ) : (

@@ -7,12 +7,13 @@ import {
   Users, Moon, Sparkles, Heart, CheckCircle2, Lock, 
   Flag, Ban, Star, MessageCircle, Loader2, ChevronLeft, ChevronRight, Crown, Camera,
   MapPin, Briefcase, Calendar, User, ShieldCheck, Check, X, Maximize2, ExternalLink,
-  BookOpen, Home, HeartHandshake, Compass, Phone
+  BookOpen, Home, HeartHandshake, Compass, Phone, Copy, Mail
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import { fetchProfileDetailsApi, viewContactDetailsApi, handleInteractionApiCall, blockUserApiCall } from '@/lib/api';
-import { getOptimizedImageUrl } from '@/lib/imageUtils';
+import { getOptimizedImageUrl, getBlurredPhotoUrl } from '@/lib/imageUtils';
+import { useSignalR } from '@/context/SignalRContext';
 import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
 
 interface SectionTab {
@@ -32,11 +33,13 @@ const SECTION_TABS: SectionTab[] = [
 
 export default function ProfileDetailPage() {
   const router = useRouter();
+  const { onlineUsers } = useSignalR();
   const [profileData, setProfileData] = useState<any>(null);
   const [gallery, setGallery] = useState<any[]>([]);
   const [preferences, setPreferences] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [contactData, setContactData] = useState<{ mobile: string; email: string } | null>(null);
+  const [contactQuota, setContactQuota] = useState<{ total: number; used: number; remaining: number } | null>(null);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionLoadingType, setActionLoadingType] = useState<string | null>(null);
@@ -44,6 +47,35 @@ export default function ProfileDetailPage() {
   const [showThreeDotMenu, setShowThreeDotMenu] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [activeTabId, setActiveTabId] = useState<string>('section-about');
+  const [localPhotoReqSent, setLocalPhotoReqSent] = useState<boolean>(false);
+
+  const scrollToSection = (id: string) => {
+    setActiveTabId(id);
+    const element = document.getElementById(id);
+    if (element) {
+      const yOffset = -80;
+      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+  };
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const sectionIds = SECTION_TABS.map((t) => t.id);
+      const scrollPosition = window.scrollY + 120;
+
+      for (let i = sectionIds.length - 1; i >= 0; i--) {
+        const el = document.getElementById(sectionIds[i]);
+        if (el && el.offsetTop <= scrollPosition) {
+          setActiveTabId(sectionIds[i]);
+          break;
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const getCookie = (name: string) => {
     if (typeof document === "undefined") return null;
@@ -111,40 +143,22 @@ export default function ProfileDetailPage() {
     loadProfileDetails(true);
   }, [loadProfileDetails]);
 
-  // 📜 SCROLL SPY EFFECT TO AUTOMATICALLY UPDATE ACTIVE TAB WHILE SCROLLING
-  useEffect(() => {
-    if (!profileData) return;
-
-    const handleScroll = () => {
-      const scrollPosition = window.scrollY + 180;
-
-      for (let i = SECTION_TABS.length - 1; i >= 0; i--) {
-        const section = document.getElementById(SECTION_TABS[i].id);
-        if (section && section.offsetTop <= scrollPosition) {
-          setActiveTabId(SECTION_TABS[i].id);
-          break;
-        }
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [profileData]);
-
-  const scrollToSection = (id: string) => {
-    setActiveTabId(id);
-    const element = document.getElementById(id);
-    if (element) {
-      const yOffset = -110;
-      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
-      window.scrollTo({ top: y, behavior: 'smooth' });
-    }
-  };
 
   const handleUnlockContact = async (e?: React.MouseEvent) => {
     if (e) { e.preventDefault(); e.stopPropagation(); }
     
-    const isUserPaid = Boolean(profileData?.isCurrentUserPaid ?? profileData?.IsCurrentUserPaid);
+    let isUserPaid = Boolean(profileData?.isCurrentUserPaid ?? profileData?.IsCurrentUserPaid);
+
+    if (!isUserPaid && typeof window !== "undefined") {
+      const stored = localStorage.getItem("user_details") || localStorage.getItem("user_session");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          isUserPaid = Boolean(parsed.isPaid ?? parsed.IsPaid ?? parsed.isCurrentUserPaid ?? parsed.IsCurrentUserPaid ?? parsed.isPremium ?? parsed.IsPremium ?? false);
+        } catch (err) {}
+      }
+    }
+
     if (!isUserPaid) {
       setShowSubscriptionModal(true);
       return;
@@ -161,13 +175,15 @@ export default function ProfileDetailPage() {
 
       if (mob || eml) {
         setContactData({ mobile: mob, email: eml });
+        const total = res.data.totalContactsAllowed || res.data.TotalContactsAllowed || 10;
+        const used = res.data.contactsUsed || res.data.ContactsUsed || 1;
+        setContactQuota({ total, used, remaining: Math.max(0, total - used) });
         toast.success(res.message || "Contact details unlocked!");
       } else {
         setShowSubscriptionModal(true);
       }
     } else {
       toast.error(res.message || "Failed to unlock contact details.");
-      setShowSubscriptionModal(true);
     }
   };
 
@@ -179,11 +195,13 @@ export default function ProfileDetailPage() {
     setActionLoadingType(type);
 
     if (type === 'PHOTO_REQUEST') {
+      setLocalPhotoReqSent(true);
       setProfileData((prev: any) => ({
         ...prev,
         hasRequestedPhoto: true,
         photoRequestStatus: 'SentPending'
       }));
+      toast.success("Photo access request sent successfully!");
     }
 
     const res = await handleInteractionApiCall(profileData.userId, type, status, token);
@@ -283,7 +301,7 @@ export default function ProfileDetailPage() {
 
   const isSpHidden = Boolean(profileData.isPhotoHidden ?? profileData.IsPhotoHidden);
   const isPhotoReqAccepted = rawPhotoReqStatus.includes('ACCEPT');
-  const isPhotoReqSent = hasRequestedPhoto || rawPhotoReqStatus.includes('SENT') || rawPhotoReqStatus.includes('PENDING');
+  const isPhotoReqSent = localPhotoReqSent || hasRequestedPhoto || rawPhotoReqStatus.includes('SENT') || rawPhotoReqStatus.includes('PENDING');
 
   const isPhotoHidden = !isPhotoReqAccepted && (
     isSpHidden 
@@ -294,12 +312,14 @@ export default function ProfileDetailPage() {
   const isVerified = Boolean(profileData.isVerified ?? profileData.IsVerified);
   const isPremium = Boolean(profileData.isPremium ?? profileData.IsPremium ?? isUserPaid);
   const rawPhotoSrc = allPhotos[activePhotoIndex]?.photoUrl || profileData.mainPhotoUrl || profileData.photoUrl;
-  const currentPhotoSrc = getOptimizedImageUrl(rawPhotoSrc);
+  const currentPhotoSrc = getOptimizedImageUrl(rawPhotoSrc, profileData.userId || 1, profileData.gender);
 
   const displayAge = profileData.age || 24;
   const maritalStatus = profileData.maritalStatus || 'Never Married';
   const sect = profileData.sect || 'Sunni';
-  const isOnline = Boolean(profileData.isOnline ?? profileData.IsOnline ?? false);
+  const targetUserIdNum = Number(profileData.userId || profileData.UserId);
+  const currentPresence = onlineUsers[targetUserIdNum];
+  const isOnline = currentPresence ? currentPresence.isOnline : Boolean(profileData.isOnline ?? profileData.IsOnline ?? false);
 
   const isInterestSent = Boolean(
     profileData.isInterestSent || profileData.IsInterestSent || 
@@ -388,13 +408,22 @@ export default function ProfileDetailPage() {
                   <h4 className="font-bold text-base">Photo Protected</h4>
                   <p className="text-xs text-slate-300">This member has protected their profile photos.</p>
                 </div>
-                {!isPhotoReqSent && (
+                {isPhotoReqSent ? (
+                  <div className="px-5 py-2 bg-emerald-600 text-white font-black text-xs rounded-full shadow-lg border border-emerald-400 flex items-center gap-1.5 cursor-default">
+                    <CheckCircle2 size={16} className="text-emerald-200" />
+                    <span>Photo Request Sent</span>
+                  </div>
+                ) : (
                   <button
                     onClick={(e) => handleInteraction(e, 'PHOTO_REQUEST', 'PENDING')}
                     disabled={actionLoading}
-                    className="px-5 py-2 bg-[#d91b5c] text-white font-bold text-xs rounded-full shadow-lg hover:bg-[#b01348] transition-all cursor-pointer flex items-center gap-1.5"
+                    className="px-5 py-2 bg-[#d91b5c] text-white font-bold text-xs rounded-full shadow-lg hover:bg-[#b01348] transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
                   >
-                    <Camera size={14} />
+                    {actionLoading && actionLoadingType === 'PHOTO_REQUEST' ? (
+                      <Loader2 size={14} className="animate-spin text-amber-300" />
+                    ) : (
+                      <Camera size={14} />
+                    )}
                     <span>Request Photo Access</span>
                   </button>
                 )}
@@ -424,10 +453,9 @@ export default function ProfileDetailPage() {
             </div>
           </div>
         </div>
-
-        {/* 🚀 STICKY MINI TABS NAVIGATION BAR (BELOW HERO IMAGE - SCROLL SPY + CLICK TO SCROLL) */}
-        <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-y border-slate-200/80 shadow-xs py-2.5 px-4 my-2 -mx-4 md:mx-0 md:rounded-2xl">
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth">
+                {/* 🚀 CLEAN MINI TABS NAVIGATION BAR (NO SCROLL LINES, SMOOTH SCROLL TO SECTION) */}
+        <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md shadow-xs py-2 px-2 my-2 rounded-2xl">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth">
             {SECTION_TABS.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTabId === tab.id;
@@ -435,13 +463,13 @@ export default function ProfileDetailPage() {
                 <button
                   key={tab.id}
                   onClick={() => scrollToSection(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide whitespace-nowrap transition-all duration-200 cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-extrabold tracking-wide whitespace-nowrap transition-all duration-200 cursor-pointer ${
                     isActive
-                      ? 'bg-[#d91b5c] text-white shadow-xs'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                      ? 'bg-[#d91b5c] text-white shadow-sm'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                   }`}
                 >
-                  <Icon size={13} className={isActive ? 'text-white' : 'text-slate-500'} />
+                  <Icon size={14} className={isActive ? 'text-white' : 'text-slate-500'} />
                   <span>{tab.label}</span>
                 </button>
               );
@@ -449,7 +477,7 @@ export default function ProfileDetailPage() {
           </div>
         </div>
 
-        {/* 📋 PROFILE SECTIONS GRID (DIVIDED INTO DISTINCT CARDS WITH ANCHOR IDs) */}
+        {/* 📋 PROFILE ALL SECTIONS VERTICALLY STACKED (AUTO SCROLLSPY HIGHLIGHTS ACTIVE TAB) */}
         <div className="space-y-6 px-4 md:px-0">
 
           {/* 1. 📌 ABOUT SECTION */}
@@ -484,24 +512,128 @@ export default function ProfileDetailPage() {
             </div>
           </section>
 
+          {/* 📱 DIRECT CANDIDATE CONTACT DETAILS CARD (WHITE BACKGROUND DIRECTLY BELOW ABOUT) */}
+          <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200/80 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-serif font-bold text-lg text-slate-900">Contact Details</h3>
+
+              {/* SOBER VIP QUOTA BADGE FOR PAID MEMBERS */}
+              {isUserPaid && (
+                <div className="px-3 py-1 rounded-full bg-rose-50 border border-rose-200 text-[#d91b5c] font-extrabold text-[11px] flex items-center gap-1.5 shadow-2xs">
+                  <Crown size={13} className="fill-[#d91b5c]" />
+                  <span>{contactQuota ? `${contactQuota.remaining} / ${contactQuota.total} Left` : 'VIP Member'}</span>
+                </div>
+              )}
+            </div>
+
+            {/* INNER AMBER CONTAINER FOR LOCKED STATUS */}
+            {!contactData && (
+              <div className="bg-amber-50/70 border border-amber-200/80 p-4 rounded-2xl flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-300 text-amber-700 flex items-center justify-center shrink-0">
+                    <Lock size={18} />
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-xs text-slate-900">Contact Details</h4>
+                    <p className="text-[11px] font-medium text-slate-500">Use credits to unlock contact info</p>
+                  </div>
+                </div>
+                <div className="px-3 py-1 rounded-full bg-amber-500 text-white font-extrabold text-[10px] uppercase tracking-wider shadow-xs">
+                  {isUserPaid ? (contactQuota ? `${contactQuota.remaining} LEFT` : 'PREMIUM') : 'VIP ONLY'}
+                </div>
+              </div>
+            )}
+
+            {/* FIELDS */}
+            <div className="space-y-3 pt-1">
+              {/* MOBILE NUMBER ROW */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-rose-100 text-[#d91b5c] flex items-center justify-center shrink-0">
+                    <Phone size={16} />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-extrabold uppercase text-slate-400 block">Mobile Number</span>
+                    <span className="text-xs font-extrabold text-slate-800 block truncate">
+                      {contactData ? (contactData.mobile || 'Not Disclosed') : '+91 98XXX XXXXX'}
+                    </span>
+                  </div>
+                </div>
+                {contactData?.mobile && (
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(contactData.mobile);
+                      toast.success("Phone number copied to clipboard!");
+                    }}
+                    className="p-2 rounded-xl bg-white hover:bg-rose-50 text-[#d91b5c] transition-all cursor-pointer border border-rose-200 shrink-0"
+                    title="Copy Phone Number"
+                  >
+                    <Copy size={15} />
+                  </button>
+                )}
+              </div>
+
+              {/* EMAIL ADDRESS ROW */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-rose-100 text-[#d91b5c] flex items-center justify-center shrink-0">
+                    <Mail size={16} />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-extrabold uppercase text-slate-400 block">Email Address</span>
+                    <span className="text-xs font-extrabold text-slate-800 block truncate">
+                      {contactData ? (contactData.email || 'Not Disclosed') : 'axx***@gm***.com'}
+                    </span>
+                  </div>
+                </div>
+                {contactData?.email && (
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(contactData.email);
+                      toast.success("Email address copied to clipboard!");
+                    }}
+                    className="p-2 rounded-xl bg-white hover:bg-rose-50 text-[#d91b5c] transition-all cursor-pointer border border-rose-200 shrink-0"
+                    title="Copy Email Address"
+                  >
+                    <Copy size={15} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* ACTION UNLOCK / UPGRADE BUTTON WITH SMALL FONT */}
+            {!contactData && (
+              <div className="pt-2">
+                <button
+                  onClick={handleUnlockContact}
+                  disabled={actionLoading}
+                  className="w-full py-3 bg-[#d91b5c] hover:bg-[#b01348] text-white font-extrabold text-xs uppercase tracking-wider rounded-2xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-95"
+                >
+                  {actionLoading ? <Loader2 size={15} className="animate-spin text-white" /> : <Lock size={15} />}
+                  <span>{isUserPaid ? 'Unlock Contact Details' : 'Upgrade to Unlock Contact Details'}</span>
+                </button>
+              </div>
+            )}
+          </section>
+
           {/* 2. 👤 BASIC & PERSONAL DETAILS */}
           <section id="section-basic" className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200/80 space-y-4">
             <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
               <div className="w-8 h-8 rounded-full bg-rose-100 text-[#d91b5c] flex items-center justify-center">
                 <User size={18} />
               </div>
-              <h3 className="font-serif font-bold text-lg text-slate-800">Basic & Personal Information</h3>
+              <h3 className="font-serif font-bold text-lg text-slate-800">Basic Details</h3>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <DetailRow label="Age" value={`${displayAge} Years`} />
-              <DetailRow label="Marital Status" value={maritalStatus} />
-              <DetailRow label="Height" value={profileData.height || '5ft 6in'} />
-              <DetailRow label="Weight" value={profileData.weight || 'Not Disclosed'} />
-              <DetailRow label="Complexion" value={profileData.complexion || 'Fair'} />
-              <DetailRow label="Mother Tongue" value={profileData.motherTongue || 'Urdu'} />
-              <DetailRow label="Current City & State" value={`${profileData.currentCityName || 'City'}, ${profileData.currentStateName || 'State'}`} />
-              <DetailRow label="Native Place" value={`${profileData.nativeCityName || profileData.currentCityName || 'City'}, ${profileData.nativeStateName || profileData.currentStateName || 'State'}`} />
+            <div className="space-y-3">
+              <DetailIconRow icon={Heart} label="Marital Status" value={maritalStatus} />
+              <DetailIconRow icon={User} label="Height" value={profileData.height || '5ft 6in'} />
+              <DetailIconRow icon={Calendar} label="Age" value={`${displayAge} Years`} />
+              <DetailIconRow icon={Compass} label="Mother Tongue / Language" value={profileData.motherTongue || 'Urdu'} />
+              <DetailIconRow icon={Moon} label="Religion & Maslak" value={`Islam (${sect})`} />
+              <DetailIconRow icon={Users} label="Caste" value={profileData.caste || 'Syed'} />
+              <DetailIconRow icon={Sparkles} label="Complexion" value={profileData.complexion || 'Fair'} />
+              <DetailIconRow icon={MapPin} label="Current & Native Place" value={`${profileData.currentCityName || 'City'}, ${profileData.currentStateName || 'State'}`} />
             </div>
           </section>
 
@@ -514,12 +646,12 @@ export default function ProfileDetailPage() {
               <h3 className="font-serif font-bold text-lg text-slate-800">Education & Career</h3>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <DetailRow label="Highest Qualification" value={profileData.highestDegree || 'Graduate'} />
-              <DetailRow label="College / University" value={profileData.collegeName || 'Not Disclosed'} />
-              <DetailRow label="Employment Sector" value={profileData.employmentSector || 'Private Sector'} />
-              <DetailRow label="Designation / Profession" value={profileData.designation || profileData.occupationDetails || 'Professional'} />
-              <DetailRow label="Annual Income" value={profileData.annualIncome ? `Earns ${profileData.annualIncome}` : 'Not Disclosed'} highlight />
+            <div className="space-y-3">
+              <DetailIconRow icon={GraduationCap} label="Highest Qualification" value={profileData.highestDegree || 'Graduate'} />
+              <DetailIconRow icon={BookOpen} label="College / University" value={profileData.collegeName || 'Not Disclosed'} />
+              <DetailIconRow icon={Briefcase} label="Employment Sector" value={profileData.employmentSector || 'Private Sector'} />
+              <DetailIconRow icon={User} label="Designation / Profession" value={profileData.designation || profileData.occupationDetails || 'Professional'} />
+              <DetailIconRow icon={Sparkles} label="Annual Income" value={profileData.annualIncome ? `Earns ${profileData.annualIncome}` : 'Not Disclosed'} />
             </div>
           </section>
 
@@ -529,15 +661,15 @@ export default function ProfileDetailPage() {
               <div className="w-8 h-8 rounded-full bg-rose-100 text-[#d91b5c] flex items-center justify-center">
                 <Moon size={18} />
               </div>
-              <h3 className="font-serif font-bold text-lg text-slate-800">Religious & Cultural Background</h3>
+              <h3 className="font-serif font-bold text-lg text-slate-800">Religious Background</h3>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <DetailRow label="Religion" value="Islam" />
-              <DetailRow label="Sect" value={sect} />
-              <DetailRow label="Maslak" value={profileData.maslak || 'Sunni / Hanafi'} />
-              <DetailRow label="Caste / Sub-Caste" value={profileData.caste || 'Syed'} />
-              <DetailRow label="Dietary Preference" value={profileData.dietType || 'Halal Non-Veg'} />
+            <div className="space-y-3">
+              <DetailIconRow icon={Moon} label="Religion" value="Islam" />
+              <DetailIconRow icon={Moon} label="Sect" value={sect} />
+              <DetailIconRow icon={Moon} label="Maslak" value={profileData.maslak || 'Sunni / Hanafi'} />
+              <DetailIconRow icon={Users} label="Caste / Sub-Caste" value={profileData.caste || 'Syed'} />
+              <DetailIconRow icon={Sparkles} label="Dietary Preference" value={profileData.dietType || 'Halal Non-Veg'} />
             </div>
           </section>
 
@@ -550,13 +682,13 @@ export default function ProfileDetailPage() {
               <h3 className="font-serif font-bold text-lg text-slate-800">Family Background</h3>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <DetailRow label="Family Type" value={profileData.familyType || 'Nuclear Family'} />
-              <DetailRow label="Family Status" value={profileData.familyStatus || 'Upper Middle Class'} />
-              <DetailRow label="Father's Occupation" value={profileData.fatherOccupation || 'Business'} />
-              <DetailRow label="Mother's Occupation" value={profileData.motherOccupation || 'Homemaker'} />
-              <DetailRow label="Brothers" value={`${profileData.totalBrothers || 0} Brother(s) (${profileData.marriedBrothers || 0} Married)`} />
-              <DetailRow label="Sisters" value={`${profileData.totalSisters || 0} Sister(s) (${profileData.marriedSisters || 0} Married)`} />
+            <div className="space-y-3">
+              <DetailIconRow icon={Home} label="Family Type" value={profileData.familyType || 'Nuclear Family'} />
+              <DetailIconRow icon={Sparkles} label="Family Status" value={profileData.familyStatus || 'Upper Middle Class'} />
+              <DetailIconRow icon={Briefcase} label="Father's Occupation" value={profileData.fatherOccupation || 'Business'} />
+              <DetailIconRow icon={User} label="Mother's Occupation" value={profileData.motherOccupation || 'Homemaker'} />
+              <DetailIconRow icon={Users} label="Brothers" value={`${profileData.totalBrothers || 0} Brother(s) (${profileData.marriedBrothers || 0} Married)`} />
+              <DetailIconRow icon={Users} label="Sisters" value={`${profileData.totalSisters || 0} Sister(s) (${profileData.marriedSisters || 0} Married)`} />
             </div>
 
             {profileData.familyAbout && (
@@ -578,49 +710,16 @@ export default function ProfileDetailPage() {
               <h3 className="font-serif font-bold text-lg text-slate-800">Partner Preferences</h3>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <DetailRow label="Preferred Age" value={preferences?.minAge ? `${preferences.minAge} to ${preferences.maxAge} Years` : '21 - 32 Years'} />
-              <DetailRow label="Preferred Height" value={preferences?.minHeight ? `${preferences.minHeight} - ${preferences.maxHeight}` : '5ft 2in - 6ft 0in'} />
-              <DetailRow label="Preferred Marital Status" value={preferences?.preferredMaritalStatus || preferences?.maritalStatus || 'Never Married'} />
-              <DetailRow label="Preferred Sect" value={preferences?.preferredSect || preferences?.sect || 'Any Sect'} />
-              <DetailRow label="Preferred Caste" value={preferences?.preferredCaste || preferences?.caste || 'Any Caste'} />
-              <DetailRow label="Preferred Education" value={preferences?.preferredEducation || preferences?.education || 'Graduate / Master'} />
-              <DetailRow label="Preferred Profession" value={preferences?.preferredOccupation || preferences?.occupation || 'Any Profession'} />
-              <DetailRow label="Preferred Location" value={preferences?.preferredState || preferences?.state || 'Any Location'} />
+            <div className="space-y-3">
+              <DetailIconRow icon={Calendar} label="Preferred Age" value={preferences?.minAge ? `${preferences.minAge} to ${preferences.maxAge} Years` : '21 - 32 Years'} />
+              <DetailIconRow icon={User} label="Preferred Height" value={preferences?.minHeight ? `${preferences.minHeight} - ${preferences.maxHeight}` : '5ft 2in - 6ft 0in'} />
+              <DetailIconRow icon={Heart} label="Preferred Marital Status" value={preferences?.preferredMaritalStatus || preferences?.maritalStatus || 'Never Married'} />
+              <DetailIconRow icon={Moon} label="Preferred Sect" value={preferences?.preferredSect || preferences?.sect || 'Any Sect'} />
+              <DetailIconRow icon={Users} label="Preferred Caste" value={preferences?.preferredCaste || preferences?.caste || 'Any Caste'} />
+              <DetailIconRow icon={GraduationCap} label="Preferred Education" value={preferences?.preferredEducation || preferences?.education || 'Graduate / Master'} />
+              <DetailIconRow icon={Briefcase} label="Preferred Profession" value={preferences?.preferredOccupation || preferences?.occupation || 'Any Profession'} />
+              <DetailIconRow icon={MapPin} label="Preferred Location" value={preferences?.preferredState || preferences?.state || 'Any Location'} />
             </div>
-          </section>
-
-          {/* 📱 DIRECT CANDIDATE CONTACT DETAILS CARD */}
-          <section className="bg-gradient-to-br from-slate-900 to-slate-950 text-white rounded-3xl p-6 shadow-lg space-y-4 border border-slate-800">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center border border-rose-500/30">
-                  <Phone size={18} />
-                </div>
-                <h3 className="font-serif font-bold text-lg text-white">Direct Candidate Contact</h3>
-              </div>
-            </div>
-
-            {contactData ? (
-              <div className="space-y-3 bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
-                <DetailRow label="Mobile Number" value={contactData.mobile || 'Unlocked'} dark />
-                <DetailRow label="Email Address" value={contactData.email || 'Unlocked'} dark />
-              </div>
-            ) : (
-              <div className="py-3 text-center space-y-3">
-                <p className="text-xs text-slate-300 max-w-md mx-auto">
-                  Unlock direct contact number to connect for Halal marriage proposal.
-                </p>
-                <button
-                  onClick={handleUnlockContact}
-                  disabled={actionLoading}
-                  className="px-6 py-2.5 bg-gradient-to-r from-[#d91b5c] to-[#e11d48] text-white font-bold text-xs rounded-full shadow-lg hover:shadow-rose-900/40 transition-all cursor-pointer flex items-center gap-2 mx-auto"
-                >
-                  <Lock size={14} />
-                  <span>Unlock Contact Number</span>
-                </button>
-              </div>
-            )}
           </section>
 
         </div>
@@ -819,6 +918,20 @@ function DetailRow({ label, value, highlight = false, dark = false }: { label: s
     }`}>
       <span className={`text-[10px] font-bold uppercase tracking-wider mb-0.5 ${dark ? 'text-slate-400' : 'text-slate-400'}`}>{label}</span>
       <span className={`text-xs font-bold ${dark ? 'text-white' : highlight ? 'text-[#d91b5c]' : 'text-slate-700'}`}>{value}</span>
+    </div>
+  );
+}
+
+function DetailIconRow({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50/70 border border-slate-100">
+      <div className="w-9 h-9 rounded-xl bg-rose-50 text-[#d91b5c] flex items-center justify-center shrink-0 shadow-2xs border border-rose-100">
+        <Icon size={18} />
+      </div>
+      <div>
+        <span className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider block">{label}</span>
+        <span className="text-xs font-extrabold text-slate-800 block">{value}</span>
+      </div>
     </div>
   );
 }

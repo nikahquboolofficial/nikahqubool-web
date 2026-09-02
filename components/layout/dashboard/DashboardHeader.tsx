@@ -57,26 +57,8 @@ export default function DashboardHeader({
           setIsVerified(Boolean(parsed.isVerified ?? parsed.IsVerified ?? false));
           setIsPaid(Boolean(parsed.isPaid ?? parsed.IsPaid ?? false));
         } else {
-          // 🔄 Auto Fetch Logged-in User Profile to ensure Avatar DP works on EVERY page
           const token = getCookie("user_token");
-          if (token) {
-            try {
-              const profileRes = await fetchProfileDetailsApi(0, token);
-              if (profileRes.success && profileRes.data?.profile && profileRes.data.profile.userId > 0) {
-                const profile = profileRes.data.profile;
-                localStorage.setItem("user_details", JSON.stringify(profile));
-                const rawPhoto = profile.mainPhotoUrl || profile.photoUrl || profile.PhotoUrl;
-                setUserPhoto(getOptimizedImageUrl(rawPhoto, profile.userId || 1, profile.gender));
-                setUserName(profile.fullName || 'My Account');
-                setIsVerified(Boolean(profile.isVerified ?? false));
-                setIsPaid(Boolean(profile.isPaid ?? false));
-              } else if (profileRes.isUnauthorized || !profileRes.success) {
-                handleLogout();
-              }
-            } catch (err) {
-              handleLogout();
-            }
-          } else {
+          if (!token) {
             handleLogout();
           }
         }

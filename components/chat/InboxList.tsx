@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useEffect, useState, useRef } from 'react';
 import { Search, MessageSquare, UserX } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -48,10 +48,6 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
 
   useEffect(() => { 
     fetchInbox();
-    const interval = setInterval(() => {
-      fetchInbox();
-    }, 4000);
-    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Crown, Sparkles, ChevronRight, Loader2, User, Heart, Globe, Briefcase, Users, Camera, ArrowLeft } from 'lucide-react';
+import { Crown, Sparkles, ChevronRight, Loader2, User, Heart, Globe, Briefcase, Users, Camera, ArrowLeft, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fetchMasterDataApi, fetchCitiesApi, updateProfileApi, fetchProfileDetailsApi, MasterOption } from '@/lib/api';
 import DobAppPicker from '@/components/profile/DobAppPicker';
@@ -25,16 +25,49 @@ export default function CompleteProfilePage() {
   const [masterData, setMasterData] = useState<{ [key: string]: MasterOption[] }>({});
 
   const [formData, setFormData] = useState({
-    dob: '', height: '5 ft 6 in', weight: '60 kg', complexionId: 1, complexionText: '',
-    maritalStatusId: 1, maritalStatusText: '', religionId: 1, religionText: '',
-    sectId: 1, sectText: '', maslakId: 1, maslakText: '', casteId: 1, casteText: '',
-    motherTongueId: 1, motherTongueText: '', stateId: 0, stateText: '', cityId: 0, cityText: '',
-    educationId: 1, educationText: '', employmentSectorId: 1, employmentSectorText: '',
-    occupationId: 1, occupationText: '', income: '5 - 10 LPA', familyTypeId: 1, familyTypeText: '',
-    familyStatusId: 1, familyStatusText: '', fatherOccupation: 'Business Owner',
-    motherOccupation: 'Homemaker', totalBrothers: 0, marriedBrothers: 0, totalSisters: 0, marriedSisters: 0,
-    namazHabit: 'Regular 5 Times', hijabOrBeard: 'Hijab',
-    photo: null as File | null, photoUrl: '', photoPrivacy: 'All Members'
+    dob: '', 
+    height: '', 
+    weight: '', 
+    complexionId: 0, 
+    complexionText: '',
+    maritalStatusId: 0, 
+    maritalStatusText: '', 
+    religionId: 0, 
+    religionText: '',
+    sectId: 0, 
+    sectText: '', 
+    maslakId: 0, 
+    maslakText: '', 
+    casteId: 0, 
+    casteText: '',
+    motherTongueId: 0, 
+    motherTongueText: '', 
+    stateId: 0, 
+    stateText: '', 
+    cityId: 0, 
+    cityText: '',
+    educationId: 0, 
+    educationText: '', 
+    employmentSectorId: 0, 
+    employmentSectorText: '', 
+    occupationId: 0, 
+    occupationText: '', 
+    income: '', 
+    familyTypeId: 0, 
+    familyTypeText: '',
+    familyStatusId: 0, 
+    familyStatusText: '', 
+    fatherOccupation: '',
+    motherOccupation: '', 
+    totalBrothers: 0, 
+    marriedBrothers: 0, 
+    totalSisters: 0, 
+    marriedSisters: 0,
+    namazHabit: 'Regular 5 Times', 
+    hijabOrBeard: 'Hijab',
+    photo: null as File | null, 
+    photoUrl: '', 
+    photoPrivacy: 'All Members'
   });
 
   const getCookie = (name: string) => {
@@ -44,20 +77,42 @@ export default function CompleteProfilePage() {
     return parts.length === 2 ? parts.pop()?.split(';').shift() : null;
   };
 
+  const handleSessionExpired = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem("user_session");
+      localStorage.removeItem("user_token");
+      document.cookie = "user_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    }
+    router.push('/login');
+  };
+
   useEffect(() => {
+    const session = typeof window !== 'undefined' ? localStorage.getItem("user_session") : null;
+    const userData = session ? JSON.parse(session) : null;
+    const token = userData?.token || getCookie('user_token');
+
+    if (!token) {
+      handleSessionExpired();
+      return;
+    }
+
     const loadAllMasters = async () => {
       const types = ['MARITAL_STATUS', 'RELIGIONS', 'SECTS', 'MASLAKS', 'CASTES', 'MOTHER_TONGUES', 'EDUCATIONS', 'EMPLOYMENT_SECTORS', 'OCCUPATIONS', 'STATES', 'FAMILY_TYPES', 'FAMILY_STATUS', 'Complexion'];
-      const results = await Promise.all(
-        types.map(async (t) => {
-          const data = await fetchMasterDataApi(t);
-          return { key: t === 'Complexion' ? 'COMPLEXIONS' : t, data };
-        })
-      );
-      const masterObj: { [key: string]: MasterOption[] } = {};
-      results.forEach(item => {
-        masterObj[item.key] = item.data;
-      });
-      setMasterData(prev => ({ ...prev, ...masterObj }));
+      try {
+        const results = await Promise.all(
+          types.map(async (t) => {
+            const data = await fetchMasterDataApi(t);
+            return { key: t === 'Complexion' ? 'COMPLEXIONS' : t, data };
+          })
+        );
+        const masterObj: { [key: string]: MasterOption[] } = {};
+        results.forEach(item => {
+          masterObj[item.key] = item.data;
+        });
+        setMasterData(prev => ({ ...prev, ...masterObj }));
+      } catch (err) {
+        console.error("Master data load error", err);
+      }
     };
     loadAllMasters();
   }, []);
@@ -102,17 +157,18 @@ export default function CompleteProfilePage() {
     setApiError('');
     const session = typeof window !== 'undefined' ? localStorage.getItem("user_session") : null;
     const userData = session ? JSON.parse(session) : null;
-    const token = getCookie('user_token') || userData?.token;
+    const token = userData?.token || getCookie('user_token');
 
     if (!token) {
-      setApiError("Authentication token missing. Please login again.");
-      setLoading(false);
+      handleSessionExpired();
       return;
     }
 
     const fd = new FormData();
     fd.append("UserId", String(userData?.userId || 0));
-    fd.append("FullName", userData?.fullName || "User");
+    if (userData?.fullName && userData.fullName !== "User") {
+      fd.append("FullName", userData.fullName);
+    }
     if (formData.dob) fd.append("DateOfBirth", formData.dob);
     fd.append("Height", formData.height);
     fd.append("Weight", formData.weight);
@@ -142,31 +198,40 @@ export default function CompleteProfilePage() {
     fd.append("PhotoPrivacy", formData.photoPrivacy);
     if (formData.photo) fd.append("Photo", formData.photo);
 
-    const res = await updateProfileApi(fd, token);
+    try {
+      const res = await updateProfileApi(fd, token);
 
-    if (res.success) {
-      if (session) {
-        const sessionData = JSON.parse(session);
-        sessionData.isProfileCompleted = true;
-        localStorage.setItem('user_session', JSON.stringify(sessionData));
-      }
-      document.cookie = `is_profile_completed=1; path=/; SameSite=Lax; Secure`;
-
-      try {
-        const userId = userData?.userId || 0;
-        const profileRes = await fetchProfileDetailsApi(userId, token);
-        if (profileRes.success && profileRes.data?.profile) {
-          localStorage.setItem("user_details", JSON.stringify(profileRes.data.profile));
+      if (res.success) {
+        if (session) {
+          try {
+            const sessionData = JSON.parse(session);
+            sessionData.isProfileCompleted = true;
+            localStorage.setItem('user_session', JSON.stringify(sessionData));
+          } catch (e) {}
         }
-      } catch (e) {}
+        const expires = new Date(Date.now() + 7 * 864e5).toUTCString();
+        const isSecure = typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : "";
+        document.cookie = `is_profile_completed=1; expires=${expires}; path=/; SameSite=Lax${isSecure}`;
 
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("user_photo_updated"));
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("user_photo_updated"));
+          window.location.href = "/dashboard";
+        }
+      } else {
+        // SAFE TYPE CHECK FOR ISUNAUTHORIZED
+        if ((res as any)?.isUnauthorized) {
+          handleSessionExpired();
+          return;
+        }
+        setApiError(res.message || "Failed to update profile. Please try again.");
+        setLoading(false);
       }
-
-      router.push("/dashboard");
-    } else {
-      setApiError(res.message);
+    } catch (err: any) {
+      if (err?.status === 401 || err?.response?.status === 401) {
+        handleSessionExpired();
+        return;
+      }
+      setApiError("Network error. Please try again.");
       setLoading(false);
     }
   };
@@ -177,109 +242,164 @@ export default function CompleteProfilePage() {
     if (section === 2) currentFields = ['maritalStatusId', 'religionId', 'sectId', 'maslakId', 'casteId', 'motherTongueId'];
     if (section === 3) currentFields = ['stateId', 'cityId'];
     if (section === 4) currentFields = ['educationId', 'employmentSectorId', 'occupationId', 'income'];
-    if (section === 5) currentFields = ['familyTypeId', 'familyStatusId'];
+    if (section === 5) currentFields = ['familyTypeId', 'familyStatusId', 'fatherOccupation', 'motherOccupation'];
 
-    if (section === 6 && !formData.photo) {
-      setErrors(['photo']);
-      setApiError("Profile photo is mandatory.");
+    if (section === 6) {
+      if (!formData.photo && !formData.photoUrl) {
+        setErrors(['photo']);
+        setApiError("Profile photo is mandatory to complete verification.");
+        return;
+      }
+      handleFinalSubmit();
       return;
     }
 
-    const missing = currentFields.filter(f => !formData[f as keyof typeof formData] || formData[f as keyof typeof formData] === 0);
+    const missing = currentFields.filter(f => {
+      const val = formData[f as keyof typeof formData];
+      return val === undefined || val === null || val === '' || val === 0;
+    });
+
     if (missing.length > 0) {
       setErrors(missing);
-      setApiError("Please fill all mandatory fields.");
+      setApiError("Please select all mandatory fields highlighted in red before proceeding.");
       return;
     }
 
-    if (section === 6) handleFinalSubmit();
-    else setSection(section + 1);
+    setErrors([]);
+    setApiError('');
+    setSection(section + 1);
   };
 
   const percentage = Math.round((section / 6) * 100);
-  const countOptions = Array.from({ length: 11 }, (_, i) => ({ id: i, value: String(i) }));
-  const incomeOptions = ["2-5 LPA", "5-10 LPA", "10-20 LPA", "20-50 LPA", "50 LPA+"].map(i => ({ id: i, value: i }));
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col selection:bg-[#d91b5c] selection:text-white">
-      {/* HEADER NAV */}
-      <nav className="fixed top-0 w-full z-[100] bg-white/95 backdrop-blur-xl border-b-2 border-rose-100 px-4 sm:px-8 py-3.5 sm:py-4 flex justify-between items-center shadow-md shadow-rose-950/5">
-        <img src="/logo.png" alt="Nikah Qubool Logo" className="h-10 sm:h-14 md:h-16 w-auto object-contain" onError={(e) => { (e.target as HTMLImageElement).src = '/logo.jpg'; }} />
-        <div className="px-4 py-2 bg-rose-50 rounded-full border-2 border-rose-200 flex items-center gap-2 shadow-xs">
-          <Crown size={16} className="text-amber-500" />
-          <span className="text-xs sm:text-sm font-black text-[#d91b5c] uppercase tracking-wider">Step {section} of 6</span>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-gradient-to-b from-rose-50/50 via-white to-slate-50 text-slate-800 font-sans pb-16 md:pb-0">
+      
+      {/* HEADER */}
+      <header className="sticky top-0 z-[100] bg-white/90 backdrop-blur-md border-b border-rose-100 shadow-xs">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#d91b5c] to-rose-400 flex items-center justify-center text-white shadow-md shadow-rose-900/20">
+              <Crown size={22} className="text-amber-300" />
+            </div>
+            <div>
+              <span className="text-lg font-black tracking-tight text-slate-900">
+                Nikah<span className="text-[#d91b5c]">Qubool</span>
+              </span>
+              <span className="hidden sm:inline-block ml-2 px-2.5 py-0.5 rounded-full bg-rose-100 text-[#d91b5c] text-[10px] font-black uppercase tracking-wider">
+                Step {section} of 6
+              </span>
+            </div>
+          </div>
 
-      {/* PROGRESS BAR */}
-      <div className="fixed top-[68px] sm:top-[82px] left-0 w-full h-2 bg-slate-200/70 z-[101]">
-        <motion.div animate={{ width: `${percentage}%` }} transition={{ duration: 0.4 }} className="h-full bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-amber-400 shadow-sm" />
-      </div>
+          <div className="flex items-center gap-4">
+            <div className="hidden sm:flex flex-col items-end">
+              <span className="text-xs font-bold text-slate-600">Completion Status</span>
+              <span className="text-sm font-black text-[#d91b5c]">{percentage}% Complete</span>
+            </div>
+            <div className="w-24 sm:w-32 bg-slate-100 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-200">
+              <motion.div 
+                className="bg-gradient-to-r from-[#d91b5c] to-amber-400 h-full rounded-full"
+                animate={{ width: `${percentage}%` }}
+                transition={{ duration: 0.4 }}
+              />
+            </div>
+          </div>
+        </div>
+      </header>
 
       {/* MAIN CONTAINER */}
-      <div className="flex flex-1 pt-28 sm:pt-34 pb-32 md:pb-16 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8">
-        <div className="w-full lg:w-[70%] mx-auto px-2 sm:px-6">
-          <div className="bg-white p-6 sm:p-10 rounded-3xl shadow-xl border-2 border-rose-100">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+
+        {/* API / VALIDATION ERROR BANNER */}
+        {apiError && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }} 
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 rounded-2xl bg-rose-50 border-2 border-rose-300 text-rose-700 text-xs font-extrabold flex items-center gap-3 shadow-md"
+          >
+            <ShieldAlert size={18} className="shrink-0 text-rose-600" />
+            <span>{apiError}</span>
+          </motion.div>
+        )}
+
+        {/* STEP HEADER CARD */}
+        <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-xl shadow-rose-950/5 border border-rose-100 relative overflow-hidden mb-8">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 shadow-xs">
+              {getSectionIcon(section)}
+            </div>
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#d91b5c] bg-rose-100 px-3 py-1 rounded-full">
+                MANDATORY STEP {section} OF 6
+              </span>
+              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-1">
+                {getSectionTitle(section)}
+              </h1>
+            </div>
+          </div>
+
+          {/* STEP CONTENT FORM */}
+          <div className="pt-6 border-t border-slate-100">
             <AnimatePresence mode="wait">
-              <motion.div key={section} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} className="space-y-6">
-                <div>
-                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-rose-50 rounded-full text-[#d91b5c] border border-rose-200 text-[10px] font-black uppercase mb-2 shadow-xs">
-                    <Sparkles size={12} className="text-amber-500" /> Mandatory Step
-                  </div>
-                  <h1 className="text-2xl sm:text-3xl font-serif font-extrabold text-slate-900 flex items-center gap-3">
-                    {getSectionIcon(section)} {getSectionTitle(section)}
-                  </h1>
-                </div>
+              <motion.div
+                key={section}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-6"
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-                {apiError && (
-                  <div className="p-4 bg-rose-50 border-2 border-rose-200 rounded-2xl text-center text-xs font-bold text-rose-600 shadow-xs">
-                    ⚠️ {apiError}
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 pt-2">
                   {section === 1 && (
                     <>
-                      <DobAppPicker value={formData.dob} onChange={(val) => update('dob', val)} hasError={errors.includes('dob')} />
-                      <CustomSelect label="Height" value={formData.height} fieldName="height" isPlainString={true} onChange={(f: string, v: any) => update(f, v)} options={["5 ft 0 in", "5 ft 1 in", "5 ft 2 in", "5 ft 3 in", "5 ft 4 in", "5 ft 5 in", "5 ft 6 in", "5 ft 7 in", "5 ft 8 in", "5 ft 9 in", "5 ft 10 in", "5 ft 11 in", "6 ft 0 in", "6 ft 1 in"].map(h => ({ id: h as any, value: h }))} errors={errors} />
-                      <CustomSelect label="Weight" value={formData.weight} fieldName="weight" isPlainString={true} onChange={(f: string, v: any) => update(f, v)} options={["45 kg", "50 kg", "55 kg", "60 kg", "65 kg", "70 kg", "75 kg", "80 kg", "85 kg", "90 kg", "95 kg", "100 kg"].map(w => ({ id: w as any, value: w }))} errors={errors} />
-                      <CustomSelect label="Complexion" value={formData.complexionText} fieldName="complexionId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.COMPLEXIONS} errors={errors} openUpward={true} />
+                      <div className="md:col-span-2">
+                        <DobAppPicker 
+                          value={formData.dob} 
+                          onChange={(d) => update('dob', d)} 
+                          hasError={errors.includes('dob')}
+                        />
+                      </div>
+                      <CustomSelect label="Height *" value={formData.height} fieldName="height" isPlainString={true} onChange={(f: string, v: any) => update(f, v)} options={heightOptions} errors={errors} />
+                      <CustomSelect label="Weight *" value={formData.weight} fieldName="weight" isPlainString={true} onChange={(f: string, v: any) => update(f, v)} options={weightOptions} errors={errors} />
+                      <CustomSelect label="Complexion *" value={formData.complexionText} fieldName="complexionId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.COMPLEXIONS} errors={errors} openUpward={true} />
                     </>
                   )}
 
                   {section === 2 && (
                     <>
-                      <CustomSelect label="Marital Status" value={formData.maritalStatusText} fieldName="maritalStatusId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.MARITAL_STATUS} errors={errors} />
-                      <CustomSelect label="Religion" value={formData.religionText} fieldName="religionId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.RELIGIONS} errors={errors} />
-                      <CustomSelect label="Sect" value={formData.sectText} fieldName="sectId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.SECTS} errors={errors} />
-                      <CustomSelect label="Maslak" value={formData.maslakText} fieldName="maslakId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.MASLAKS} errors={errors} />
-                      <CustomSelect label="Caste / Community" value={formData.casteText} fieldName="casteId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.CASTES} errors={errors} openUpward={true} />
-                      <CustomSelect label="Mother Tongue" value={formData.motherTongueText} fieldName="motherTongueId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.MOTHER_TONGUES} errors={errors} openUpward={true} />
+                      <CustomSelect label="Marital Status *" value={formData.maritalStatusText} fieldName="maritalStatusId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.MARITAL_STATUS} errors={errors} />
+                      <CustomSelect label="Religion *" value={formData.religionText} fieldName="religionId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.RELIGIONS} errors={errors} />
+                      <CustomSelect label="Sect *" value={formData.sectText} fieldName="sectId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.SECTS} errors={errors} />
+                      <CustomSelect label="Maslak *" value={formData.maslakText} fieldName="maslakId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.MASLAKS} errors={errors} />
+                      <CustomSelect label="Caste / Community *" value={formData.casteText} fieldName="casteId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.CASTES} errors={errors} openUpward={true} />
+                      <CustomSelect label="Mother Tongue *" value={formData.motherTongueText} fieldName="motherTongueId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.MOTHER_TONGUES} errors={errors} openUpward={true} />
                     </>
                   )}
 
                   {section === 3 && (
                     <>
-                      <CustomSelect label="State" value={formData.stateText} fieldName="stateId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); update('cityId', 0); update('cityText', ''); }} options={masterData.STATES} errors={errors} />
-                      <CustomSelect label="City" value={formData.cityText} fieldName="cityId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.CITIES} errors={errors} disabled={!formData.stateId} openUpward={true} />
+                      <CustomSelect label="State *" value={formData.stateText} fieldName="stateId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); update('cityId', 0); update('cityText', ''); }} options={masterData.STATES} errors={errors} />
+                      <CustomSelect label="City *" value={formData.cityText} fieldName="cityId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.CITIES} errors={errors} disabled={!formData.stateId} openUpward={true} />
                     </>
                   )}
 
                   {section === 4 && (
                     <>
-                      <CustomSelect label="Highest Qualification" value={formData.educationText} fieldName="educationId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.EDUCATIONS} errors={errors} />
-                      <CustomSelect label="Employment Sector" value={formData.employmentSectorText} fieldName="employmentSectorId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.EMPLOYMENT_SECTORS} errors={errors} />
-                      <CustomSelect label="Occupation" value={formData.occupationText} fieldName="occupationId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.OCCUPATIONS} errors={errors} openUpward={true} />
-                      <CustomSelect label="Annual Income Range" value={formData.income} fieldName="income" isPlainString={true} onChange={(f: string, v: any) => update(f, v)} options={incomeOptions} errors={errors} openUpward={true} />
+                      <CustomSelect label="Highest Qualification *" value={formData.educationText} fieldName="educationId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.EDUCATIONS} errors={errors} />
+                      <CustomSelect label="Employment Sector *" value={formData.employmentSectorText} fieldName="employmentSectorId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.EMPLOYMENT_SECTORS} errors={errors} />
+                      <CustomSelect label="Occupation *" value={formData.occupationText} fieldName="occupationId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.OCCUPATIONS} errors={errors} openUpward={true} />
+                      <CustomSelect label="Annual Income Range *" value={formData.income} fieldName="income" isPlainString={true} onChange={(f: string, v: any) => update(f, v)} options={incomeOptions} errors={errors} openUpward={true} />
                     </>
                   )}
 
                   {section === 5 && (
                     <>
-                      <CustomSelect label="Family Type" value={formData.familyTypeText} fieldName="familyTypeId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.FAMILY_TYPES} errors={errors} />
-                      <CustomSelect label="Family Status" value={formData.familyStatusText} fieldName="familyStatusId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.FAMILY_STATUS} errors={errors} />
-                      <CompactSelect label="Father's Occupation" options={masterData.OCCUPATIONS || []} value={formData.fatherOccupation} onChange={(val) => update('fatherOccupation', (masterData.OCCUPATIONS || []).find(o => String(o.id) === String(val))?.value || val)} />
-                      <CompactSelect label="Mother's Occupation" options={masterData.OCCUPATIONS || []} value={formData.motherOccupation} onChange={(val) => update('motherOccupation', (masterData.OCCUPATIONS || []).find(o => String(o.id) === String(val))?.value || val)} />
+                      <CustomSelect label="Family Type *" value={formData.familyTypeText} fieldName="familyTypeId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.FAMILY_TYPES} errors={errors} />
+                      <CustomSelect label="Family Status *" value={formData.familyStatusText} fieldName="familyStatusId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.FAMILY_STATUS} errors={errors} />
+                      <CompactSelect label="Father's Occupation *" options={masterData.OCCUPATIONS || []} value={formData.fatherOccupation} onChange={(val) => update('fatherOccupation', (masterData.OCCUPATIONS || []).find(o => String(o.id) === String(val))?.value || val)} hasError={errors.includes('fatherOccupation')} />
+                      <CompactSelect label="Mother's Occupation *" options={masterData.OCCUPATIONS || []} value={formData.motherOccupation} onChange={(val) => update('motherOccupation', (masterData.OCCUPATIONS || []).find(o => String(o.id) === String(val))?.value || val)} hasError={errors.includes('motherOccupation')} />
                     </>
                   )}
 
@@ -318,7 +438,7 @@ export default function CompleteProfilePage() {
                       </>
                     ) : (
                       <>
-                        <span>{section === 6 ? "Complete Profile" : "Save & Continue"}</span>
+                        <span>{section === 6 ? "Complete Profile & Submit" : "Save & Continue"}</span>
                         <ChevronRight size={16} className="text-amber-300" />
                       </>
                     )}
@@ -339,5 +459,27 @@ export default function CompleteProfilePage() {
   );
 }
 
-function getSectionTitle(step: number) { return ["Birth & Attributes", "Religion & Community", "Location Details", "Career & Profession", "Family Details", "Profile Photo"][step - 1]; }
+const heightOptions = [
+  { id: '4 ft 10 in', value: '4 ft 10 in' }, { id: '5 ft 0 in', value: '5 ft 0 in' },
+  { id: '5 ft 2 in', value: '5 ft 2 in' }, { id: '5 ft 4 in', value: '5 ft 4 in' },
+  { id: '5 ft 6 in', value: '5 ft 6 in' }, { id: '5 ft 8 in', value: '5 ft 8 in' },
+  { id: '5 ft 10 in', value: '5 ft 10 in' }, { id: '6 ft 0 in', value: '6 ft 0 in' },
+  { id: '6 ft 2 in', value: '6 ft 2 in' }
+];
+
+const weightOptions = Array.from({ length: 50 }, (_, i) => {
+  const kg = 45 + i;
+  return { id: `${kg} kg`, value: `${kg} kg` };
+});
+
+const incomeOptions = [
+  { id: 'Below 3 LPA', value: 'Below 3 LPA' },
+  { id: '3 - 5 LPA', value: '3 - 5 LPA' },
+  { id: '5 - 10 LPA', value: '5 - 10 LPA' },
+  { id: '10 - 15 LPA', value: '10 - 15 LPA' },
+  { id: '15 - 25 LPA', value: '15 - 25 LPA' },
+  { id: '25+ LPA', value: '25+ LPA' }
+];
+
+function getSectionTitle(step: number) { return ["Birth & Personal Details", "Religion & Community", "Location Details", "Education & Profession", "Family Details", "Profile Photo"][step - 1]; }
 function getSectionIcon(step: number) { const props = { size: 22, className: "text-[#d91b5c] shrink-0" }; return [<User key="1" {...props}/>, <Heart key="2" {...props}/>, <Globe key="3" {...props}/>, <Briefcase key="4" {...props}/>, <Users key="5" {...props}/>, <Camera key="6" {...props}/>][step - 1]; }

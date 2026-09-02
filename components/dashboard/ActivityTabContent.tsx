@@ -143,45 +143,51 @@ export default function ActivityTabContent({
   const handleInteraction = async (receiverUserId: number, type: string, status: string = 'PENDING') => {
     const token = getToken();
 
-    if (type === 'INTEREST') {
+    if (type === 'INTEREST' && status === 'ACCEPTED') {
       triggerFlyingHearts();
     }
 
-    setProfiles((prevProfiles) =>
-      prevProfiles.map((p) => {
-        if (p.userId === receiverUserId) {
-          if (type === 'SHORTLIST') {
-            const currentIsShort = Boolean(p.isShortlisted ?? p.IsShortlisted);
-            return { ...p, isShortlisted: !currentIsShort, IsShortlisted: !currentIsShort };
-          }
-          if (type === 'INTEREST') {
-            const newStatus = status === 'ACCEPTED' ? 'Accepted' : status === 'DECLINED' ? 'Declined' : 'SentPending';
-            return { ...p, interestStatus: newStatus, InterestStatus: newStatus };
-          }
-          if (type === 'PHOTO_REQUEST') {
-            if (status === 'ACCEPTED') {
-              return { 
-                ...p, 
-                photoRequestStatus: 'ACCEPTED', 
-                isPhotoApproved: true, 
-                isPhotoHidden: false, 
-                isPhotoRequestReceived: false 
-              };
+    // ⚡ INSTANT CARD REMOVAL IF ACCEPTED OR DECLINED IN PENDING LIST TABS
+    if (status === 'ACCEPTED' || status === 'DECLINED' || activeTab === 'interests-received' || activeTab === 'gallery-requests-received') {
+      setProfiles((prev) => prev.filter((p) => (p.userId || p.UserId) !== receiverUserId));
+      setTotalRecords((prev) => Math.max(0, prev - 1));
+    } else {
+      setProfiles((prevProfiles) =>
+        prevProfiles.map((p) => {
+          if ((p.userId || p.UserId) === receiverUserId) {
+            if (type === 'SHORTLIST') {
+              const currentIsShort = Boolean(p.isShortlisted ?? p.IsShortlisted);
+              return { ...p, isShortlisted: !currentIsShort, IsShortlisted: !currentIsShort };
             }
-            if (status === 'DECLINED') {
-              return { 
-                ...p, 
-                photoRequestStatus: 'DECLINED', 
-                isPhotoApproved: false, 
-                isPhotoRequestReceived: false 
-              };
+            if (type === 'INTEREST') {
+              const newStatus = status === 'ACCEPTED' ? 'Accepted' : status === 'DECLINED' ? 'Declined' : 'SentPending';
+              return { ...p, interestStatus: newStatus, InterestStatus: newStatus };
             }
-            return { ...p, hasRequestedPhoto: true, HasRequestedPhoto: true, photoRequestStatus: 'PENDING' };
+            if (type === 'PHOTO_REQUEST') {
+              if (status === 'ACCEPTED') {
+                return { 
+                  ...p, 
+                  photoRequestStatus: 'ACCEPTED', 
+                  isPhotoApproved: true, 
+                  isPhotoHidden: false, 
+                  isPhotoRequestReceived: false 
+                };
+              }
+              if (status === 'DECLINED') {
+                return { 
+                  ...p, 
+                  photoRequestStatus: 'DECLINED', 
+                  isPhotoApproved: false, 
+                  isPhotoRequestReceived: false 
+                };
+              }
+              return { ...p, hasRequestedPhoto: true, HasRequestedPhoto: true, photoRequestStatus: 'PENDING' };
+            }
           }
-        }
-        return p;
-      })
-    );
+          return p;
+        })
+      );
+    }
 
     setActionState((prev) => ({ ...prev, [receiverUserId]: true }));
     setActionTypeState((prev) => ({ ...prev, [receiverUserId]: type }));

@@ -192,24 +192,15 @@ export default function VIPCleanDashboardPage() {
   };
 
   const handleInitiateChat = async (profile: any) => {
-    const token = getToken();
     let isPaid = Boolean(profile.isCurrentUserPaid ?? profile.IsCurrentUserPaid ?? isCurrentUserPaid);
     
     if (!isPaid && typeof window !== "undefined") {
-      const stored = localStorage.getItem("user_details");
+      const stored = localStorage.getItem("user_details") || localStorage.getItem("user_session");
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
-          isPaid = Boolean(parsed.isPaid || parsed.IsPaid || parsed.isCurrentUserPaid || parsed.IsCurrentUserPaid || parsed.isPremium || parsed.IsPremium);
+          isPaid = Boolean(parsed.isPaid ?? parsed.IsPaid ?? parsed.isCurrentUserPaid ?? parsed.IsCurrentUserPaid ?? parsed.isPremium ?? parsed.IsPremium ?? false);
         } catch (e) {}
-      }
-    }
-
-    if (!isPaid && token) {
-      const subRes = await fetchActiveSubscriptionApi(token);
-      if (subRes.success && subRes.data) {
-        isPaid = true;
-        setIsCurrentUserPaid(true);
       }
     }
 

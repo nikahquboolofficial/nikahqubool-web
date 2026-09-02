@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -163,9 +163,10 @@ export default function GalleryManagementPage() {
   };
 
   const handlePrivacyChange = async (newPrivacy: string) => {
-    setPrivacy(newPrivacy);
+    const textPrivacy = (newPrivacy === '1' || newPrivacy.includes('All')) ? 'All Members' : (newPrivacy === '2' || newPrivacy.includes('Premium')) ? 'Premium Only' : (newPrivacy === '3' || newPrivacy.includes('Approved')) ? 'Only Approved' : newPrivacy;
+    setPrivacy(textPrivacy);
     const token = getToken();
-    const res = await updatePhotoPrivacyApi(newPrivacy, token);
+    const res = await updatePhotoPrivacyApi(textPrivacy, token);
     if (res.success) {
       toast.success("Photo privacy updated!");
     } else {
@@ -218,9 +219,9 @@ export default function GalleryManagementPage() {
   };
 
   const privacyOptions = [
-    { id: 1, value: "All Members" },
-    { id: 2, value: "Premium Only" },
-    { id: 3, value: "Only Approved" }
+    { id: "All Members", value: "All Members" },
+    { id: "Premium Only", value: "Premium Only" },
+    { id: "Only Approved", value: "Only Approved" }
   ];
 
   const isMainSelected = selectedPhoto ? Boolean(selectedPhoto.isMain ?? selectedPhoto.IsMain) : false;

@@ -1,29 +1,32 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from 'react';
-import { ChevronDown, Search, X, Check } from 'lucide-react';
+import { ChevronDown, Check, Search, X } from 'lucide-react';
 
 interface Option {
   id: number | string;
   value: string;
 }
 
-// COMPACT SINGLE SELECT WITH UPWARD/DOWNWARD POPOVER
+interface CompactSelectProps {
+  label?: string;
+  options: Option[];
+  value: number | string;
+  onChange: (val: number | string) => void;
+  placeholder?: string;
+  openUpward?: boolean;
+  hasError?: boolean;
+}
+
 export function CompactSelect({ 
   label, 
   options = [], 
   value, 
   onChange, 
-  placeholder = "Select Option...",
-  openUpward = false
-}: { 
-  label?: string; 
-  options: Option[]; 
-  value: number | string; 
-  onChange: (val: any) => void; 
-  placeholder?: string; 
-  openUpward?: boolean;
-}) {
+  placeholder = "Select Option...", 
+  openUpward = false,
+  hasError = false
+}: CompactSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -36,12 +39,20 @@ export function CompactSelect({
 
   return (
     <div className="space-y-1.5 text-left relative">
-      {label && <label className="text-[11px] font-extrabold uppercase text-slate-700 block">{label}</label>}
+      {label && (
+        <label className={`text-[11px] font-extrabold uppercase tracking-wider block ${hasError ? 'text-rose-600' : 'text-slate-700'}`}>
+          {label}
+        </label>
+      )}
       
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-900 flex items-center justify-between outline-none focus:border-[#d91b5c] transition-all cursor-pointer"
+        className={`w-full border-2 rounded-2xl px-4 py-3.5 text-xs font-bold flex items-center justify-between outline-none transition-all cursor-pointer shadow-xs ${
+          hasError 
+            ? 'border-rose-500 bg-rose-50/40 text-rose-700' 
+            : 'bg-slate-50 border-slate-300 focus:border-[#d91b5c] text-slate-900'
+        }`}
       >
         <span className={selectedOpt ? "text-slate-900 font-extrabold" : "text-slate-400"}>
           {selectedOpt ? selectedOpt.value : placeholder}
@@ -216,3 +227,5 @@ export function MultiSelectDropdown({
     </div>
   );
 }
+
+export default CompactSelect;

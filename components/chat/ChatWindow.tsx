@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Send, ArrowLeft, MoreVertical, CheckCheck, Heart, ShieldAlert, UserX, Smile, ChevronDown, Loader2, CheckCircle2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -97,30 +97,6 @@ export default function ChatWindow({
     };
 
     loadData();
-
-    // ⚡ 3-SECOND REALTIME BACKUP POLLING FOR INSTANT MESSAGE DELIVERY
-    const interval = setInterval(async () => {
-      const res = await fetchChatHistoryApi(receiverId, 1, 100, token);
-      if (res.success && res.data) {
-        const rawData = res.data?.data ?? res.data ?? [];
-        const formatted = rawData.map((m: any, idx: number) => ({
-          uniqueKey: `hist-${m.messageId ?? m.MessageId ?? idx}`,
-          messageId: m.messageId ?? m.MessageId,
-          senderId: m.senderId ?? m.SenderId, 
-          text: m.messageText ?? m.MessageText, 
-          timestamp: new Date(m.sentAt ?? m.SentAt ?? Date.now()),
-          isRead: (m.isRead === 1 || m.isRead === true || m.IsRead === 1 || m.IsRead === true) ? 1 : 0
-        }));
-        setMessages(prev => {
-          const currentIds = prev.map(p => p.messageId).join(',');
-          const newIds = formatted.map((f: any) => f.messageId).join(',');
-          if (currentIds === newIds) return prev;
-          return formatted;
-        });
-      }
-    }, 3000);
-
-    return () => clearInterval(interval);
   }, [receiverId]);
 
   useEffect(() => {

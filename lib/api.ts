@@ -1,5 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.nikahqubool.in/api";
-//const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://localhost:7204/api";
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.nikahqubool.in/api";
 
 // ⚡ Dynamic SignalR Hub URL
 export const SIGNALR_HUB_URL = API_BASE_URL.replace(/\/api\/?$/, '') + "/chatHub";
