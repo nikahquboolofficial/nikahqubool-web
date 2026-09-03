@@ -16,12 +16,14 @@ export default function Footer() {
           {/* BRAND COLUMN */}
           <div className="lg:col-span-5 space-y-4 text-center lg:text-left">
             <div className="flex flex-col items-center lg:items-start">
-              <Link href="/">
-                <span className="font-serif font-black text-3xl tracking-tight text-white block">
-                  Nikah Qubool
-                </span>
+              <Link href="/" className="inline-block group">
+                <img
+                  src="/nikah-qubool-logo.png"
+                  alt="Nikah Qubool Logo"
+                  className="h-14 sm:h-16 md:h-18 w-auto max-w-[260px] sm:max-w-[320px] object-contain transition-transform duration-200 group-hover:scale-105"
+                />
               </Link>
-              <p className="text-xs font-bold text-amber-300 uppercase tracking-widest mt-1">
+              <p className="text-xs font-bold text-amber-300 uppercase tracking-widest mt-2">
                 Halal & Trusted Matrimony Platform
               </p>
             </div>
@@ -70,14 +72,19 @@ export default function Footer() {
                 <span>🛡️</span> Trust & Legal
               </h4>
               <ul className="space-y-2.5">
-                {['Terms Conditions', 'Privacy Policy'].map((item, i) => (
+                {[
+                  { label: 'Terms & Conditions', path: '/terms-conditions' },
+                  { label: 'Privacy Policy', path: '/privacy-policy' },
+                  { label: 'Refund Policy', path: '/refund-policy' },
+                  { label: 'Service & Pricing', path: '/pricing-policy' },
+                ].map((item, i) => (
                   <li key={i}>
-                    <a 
-                      href={`/${item.toLowerCase().replace(/\s+/g, '-')}`}
+                    <Link
+                      href={item.path}
                       className="text-xs font-medium text-slate-300 hover:text-rose-400 hover:translate-x-1 transition-all block py-1"
                     >
-                      › {item}
-                    </a>
+                      › {item.label}
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -108,8 +115,33 @@ export default function Footer() {
 
         </div>
 
+        {/* POPULAR SEARCHES SEO SECTION */}
+        <div className="mt-12 pt-8 border-t border-slate-800">
+          <h4 className="font-bold uppercase tracking-widest text-xs text-amber-300 mb-3 flex items-center gap-1.5 justify-center lg:justify-start">
+            <span>🔎</span> Popular Matrimony Searches
+          </h4>
+          <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-4 gap-y-2 text-xs text-slate-400">
+            {[
+              { label: 'Sunni Rishte in Delhi', slug: 'sunni-rishte-in-delhi' },
+              { label: 'Muslim Matrimony Mumbai', slug: 'muslim-matrimony-in-mumbai' },
+              { label: 'Syed Rishte Lucknow', slug: 'syed-rishte-in-lucknow' },
+              { label: 'Deobandi Matrimony Hyderabad', slug: 'deobandi-matrimony-in-hyderabad' },
+              { label: 'Muslim Doctor Rishte', slug: 'muslim-doctor-rishte' },
+              { label: 'Muslim Engineer Rishte', slug: 'muslim-engineer-rishte' },
+            ].map((item, idx) => (
+              <Link
+                key={idx}
+                href={`/matrimony/${item.slug}`}
+                className="hover:text-rose-400 transition-colors text-[11px] font-medium"
+              >
+                • {item.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+
         {/* COPYRIGHT BAR */}
-        <div className="mt-14 pt-6 border-t border-slate-800 text-center">
+        <div className="mt-8 pt-6 border-t border-slate-900 text-center">
           <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
             © 2026 Nikah Qubool • A PROUD DIGITAL PROPERTY OF IT CREATIVE SOLUTION
           </p>

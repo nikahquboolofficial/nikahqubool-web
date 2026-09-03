@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,6 +8,7 @@ import {
   Phone, Flame, UserCheck, ChevronDown, Crown, MessageSquare, Eye, Award
 } from 'lucide-react';
 import HeroRegisterForm from '@/components/home/HeroRegisterForm';
+import BrowseProfilesSection from '@/components/home/BrowseProfilesSection';
 import { useAuthModal } from '@/context/AuthModalContext';
 
 export default function HomePage() {
@@ -484,6 +485,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* 🧭 BROWSE PROFILES BY CATEGORY SECTION */}
+      <BrowseProfilesSection />
 
       {/* ❓ FREQUENTLY ASKED QUESTIONS */}
       <section className="relative py-20 md:py-28 px-6 bg-slate-50 overflow-hidden">

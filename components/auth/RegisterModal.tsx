@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Phone, Mail, Users, ShieldCheck, ArrowRight, Loader2 } from 'lucide-react';
@@ -167,20 +168,17 @@ export default function RegisterModal({ isOpen, onClose }: RegisterModalProps) {
           {/* CLOSE BUTTON */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-white/20 hover:bg-white text-white hover:text-slate-900 flex items-center justify-center font-bold text-xs transition-all cursor-pointer shadow-xs"
+            className="absolute top-3.5 right-3.5 z-20 w-8 h-8 rounded-full bg-slate-100 hover:bg-rose-500 text-slate-700 hover:text-white border border-slate-200 flex items-center justify-center font-extrabold text-sm transition-all cursor-pointer shadow-sm active:scale-95"
           >
             ✕
           </button>
 
           {/* CLEAN WHITE HEADER */}
           <div className="bg-white px-6 pt-7 pb-3 text-center text-slate-900 border-b border-slate-100 relative">
-            <span className="font-serif font-black text-2xl tracking-tight text-[#d91b5c] block mb-1">
-              Nikah Qubool
-            </span>
-            <h2 className="font-sans font-bold text-lg text-slate-900">
+            <h2 className="font-sans font-extrabold text-xl text-slate-900">
               {!showOtpStep ? 'Free Registration' : 'Verify Mobile OTP'}
             </h2>
-            <p className="text-xs font-medium text-slate-500 mt-0.5">
+            <p className="text-xs font-medium text-slate-500 mt-1">
               {!showOtpStep ? 'Find your perfect halal life partner' : `OTP sent to +91 ${mobileNumber}`}
             </p>
           </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
@@ -405,8 +406,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeAll} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9990]" />
             <motion.div initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: "spring", damping: 25, stiffness: 220 }} className="fixed top-0 left-0 bottom-0 w-[88%] max-w-sm bg-white z-[9999] shadow-2xl flex flex-col border-r-2 border-rose-100 text-slate-800">
               <div className="p-4 flex justify-between items-center border-b-2 border-rose-100 bg-slate-50">
-                 <img src="/logo.png" alt="Nikah Qubool" className="h-12 sm:h-14 w-auto object-contain" onError={(e) => { (e.target as HTMLImageElement).src = '/logo.jpg'; }} />
-                 <button onClick={closeAll} className="p-2 bg-white rounded-full text-slate-700 border-2 border-slate-200 hover:bg-slate-100 cursor-pointer"><X size={20}/></button>
+                <img src="/nikah-qubool-logo.png" alt="Nikah Qubool Logo" className="h-10 sm:h-12 w-auto max-w-[190px] object-contain object-left" />
+                <button onClick={closeAll} className="p-2 bg-white rounded-full text-slate-700 border-2 border-slate-200 hover:bg-slate-100 cursor-pointer"><X size={20}/></button>
               </div>
               <div className="flex-1 overflow-y-auto p-5 space-y-3.5">
                 <Link href="/dashboard" onClick={closeAll} className="flex items-center gap-3 p-4 bg-slate-50 text-slate-900 font-black rounded-2xl text-xs uppercase tracking-wider border-2 border-slate-200 hover:border-rose-300">

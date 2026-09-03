@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
@@ -76,12 +77,14 @@ export default function DashboardHeader({
   return (
     <header className="h-16 md:h-20 bg-white/95 backdrop-blur-xl border-b border-slate-200 sticky top-0 z-[100] px-4 md:px-8 flex items-center justify-between shadow-xs text-slate-900 selection:bg-[#d91b5c] selection:text-white">
       
-      {/* 👑 STYLISH NIKAH QUBOOL TEXT BRAND LOGO */}
+      {/* 👑 BRAND LOGO IMAGE */}
       <div className="flex items-center gap-3">
         <Link href="/dashboard" className="flex items-center gap-2 group">
-          <span className="font-serif font-black text-xl sm:text-2xl tracking-tight text-[#d91b5c]">
-            Nikah Qubool
-          </span>
+          <img
+            src="/nikah-qubool-logo.png"
+            alt="Nikah Qubool Logo"
+            className="h-10 sm:h-12 md:h-13 w-auto max-w-[190px] sm:max-w-[250px] object-contain object-left transition-transform duration-200 group-hover:scale-105"
+          />
         </Link>
       </div>
 

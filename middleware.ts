@@ -43,7 +43,11 @@ export function middleware(request: NextRequest) {
     '/terms-conditions'
   ];
 
-  const isPublicRoute = publicRoutes.includes(pathname);
+  const isPublicRoute = 
+    publicRoutes.includes(pathname) || 
+    pathname.startsWith('/matrimony') ||
+    pathname.startsWith('/refund-policy') ||
+    pathname.startsWith('/pricing-policy');
 
   // 2. CASE 1: Agar Token nahi hai (User Unauthenticated hai)
   if (!token) {
