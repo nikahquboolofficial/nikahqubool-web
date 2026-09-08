@@ -62,14 +62,18 @@ export default function ProfileCard({
   const caste = profile.caste || profile.Caste || '';
   const displayAge = (!profile.age || profile.age <= 0) ? 24 : profile.age;
 
+  const displayName = profile.fullName || profile.FullName || profile.name || profile.Name || 'Member';
   const interestStatus = String(profile.interestStatus || profile.InterestStatus || 'None');
   const isInterestSent = Boolean(
     profile.isInterestSent || profile.IsInterestSent || 
-    interestStatus === 'SentPending' || interestStatus.includes('Sent') ||
-    interestStatus === 'SENT' || interestStatus === 'PENDING' || interestStatus === 'Sent'
+    interestStatus === 'SentPending' || interestStatus === 'Sent' || interestStatus === 'SENT'
   );
-  const isInterestReceived = interestStatus === 'ReceivedPending' || interestStatus === 'Received' || interestStatus === 'RECEIVED';
-  const isConnected = interestStatus === 'Accepted' || interestStatus === 'ACCEPTED' || Boolean(profile.isCanChat ?? profile.IsCanChat);
+  const isInterestReceived = Boolean(
+    profile.isInterestReceived || profile.IsInterestReceived ||
+    interestStatus === 'ReceivedPending' || interestStatus === 'Received' || 
+    interestStatus === 'RECEIVED' || interestStatus === 'SentToMe' || interestStatus === 'Incoming'
+  );
+  const isConnected = interestStatus === 'Accepted' || interestStatus === 'ACCEPTED';
   const isShortlisted = Boolean(profile.isShortlisted || profile.IsShortlisted);
 
   const isFullScreenCard = activeTab === 'best-matches' || activeTab === 'online' || activeTab === 'matches';
@@ -118,14 +122,25 @@ export default function ProfileCard({
           }}
         />
 
-        {/* 🟢 TOP LEFT MATCH SCORE BADGE (BEST MATCHES & ONLINE TABS ONLY) */}
-        <div className="absolute top-3.5 left-3.5 z-40 pointer-events-none">
-          {isFullScreenCard && (
-            <span className="bg-slate-950/80 backdrop-blur-md text-emerald-400 text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-md border border-emerald-400/30 tracking-wide">
-              <Sparkles size={11} className="text-amber-300 fill-amber-300" />
-              <span>{profile.matchScore || (88 + (profile.userId % 11))}% Match</span>
-            </span>
-          )}
+        {/* 🟢 TOP LEFT MATCH SCORE BADGE & TOP RIGHT INTEREST BADGE */}
+        <div className="absolute top-3.5 inset-x-3.5 z-40 pointer-events-none flex items-center justify-between gap-2">
+          <div>
+            {activeTab === 'best-matches' && (
+              <span className="bg-slate-950/80 backdrop-blur-md text-emerald-400 text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-md border border-emerald-400/30 tracking-wide">
+                <Sparkles size={11} className="text-amber-300 fill-amber-300" />
+                <span>{profile.matchScore || (85 + ((userIdNum * 7) % 13))}% Match</span>
+              </span>
+            )}
+          </div>
+
+          <div>
+            {isInterestReceived && (activeTab === 'visitors' || activeTab === 'profiles-viewed' || activeTab === 'viewed-my-profile') && (
+              <span className="bg-black/50 backdrop-blur-md text-white border border-white/30 text-[10px] font-extrabold uppercase px-3 py-1 rounded-full shadow-md tracking-wider flex items-center gap-1">
+                <Sparkles size={11} className="text-amber-300 fill-amber-300" />
+                <span>Also Sent Interest</span>
+              </span>
+            )}
+          </div>
         </div>
 
         {/* 🌓 DARK GRADIENT SHADOW OVERLAY FOR TEXT READABILITY */}
@@ -136,7 +151,7 @@ export default function ProfileCard({
           
           {/* 1. NAME & AGE ONLY (BOLD) + VERIFIED TICK + CROWN + ONLINE GREEN DOT */}
           <h3 className="font-serif font-extrabold text-base md:text-lg tracking-tight flex items-center gap-1 text-white leading-tight">
-            <span className="truncate">{profile.fullName || 'Member'}, {displayAge}</span>
+            <span className="truncate">{displayName}, {displayAge}</span>
             {isVerified && (
               <span title="Verified Profile" className="flex-shrink-0">
                 <CheckCircle2 size={15} className="fill-emerald-500 text-slate-950" />
@@ -209,18 +224,11 @@ export default function ProfileCard({
 
         {/* 🔴 ACTION BUTTONS ROW (SITTING DIRECTLY AT VERY BOTTOM EDGE OF CARD IMAGE) */}
         <div className="absolute bottom-3 inset-x-4 z-40">
-        {/* CARD TOP BADGE FOR RECEIVED INTEREST IN VISITS/CONTACTS */}
-        {isInterestReceived && (activeTab === 'visitors' || activeTab === 'profiles-viewed' || activeTab === 'viewed-my-profile') && (
-          <div className="mb-2 bg-[#d91b5c]/90 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-wider py-1 px-3 rounded-full text-center border border-rose-300/40 shadow-xs">
-            ✨ Also sent you an interest request
-          </div>
-        )}
-
         {/* 🌟 ACTION BUTTONS BAR */}
         <div className="flex items-center justify-center gap-3 pt-1">
           
           {/* RULE 1: IF GALLERY REQUEST RECEIVED -> SHOW PHOTO ACCEPT / DECLINE (ICON ONLY) */}
-          {activeTab === 'gallery-requests-received' ? (
+          {(activeTab === 'gallery-requests-received' || activeTab === 'photo-requests') ? (
             <div className="flex items-center justify-center gap-4 w-full">
               <motion.button 
                 type="button"
@@ -229,7 +237,7 @@ export default function ProfileCard({
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  onInteraction(profile.userId, 'GALLERY_REQUEST', 'ACCEPTED');
+                  onInteraction(profile.userId, 'PHOTO_REQUEST', 'ACCEPTED');
                 }}
                 disabled={actionLoading}
                 className="w-11 h-11 rounded-full bg-[#e6f7ec] hover:bg-[#d1fae5] text-[#16a34a] border-2 border-emerald-400 font-extrabold flex items-center justify-center shadow-md cursor-pointer transition-all shrink-0"
@@ -244,7 +252,7 @@ export default function ProfileCard({
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  onInteraction(profile.userId, 'GALLERY_REQUEST', 'DECLINED');
+                  onInteraction(profile.userId, 'PHOTO_REQUEST', 'DECLINED');
                 }}
                 disabled={actionLoading}
                 className="w-11 h-11 rounded-full bg-[#fde8e8] hover:bg-[#ffe4e6] text-[#f43f5e] border-2 border-rose-400 font-extrabold flex items-center justify-center shadow-md cursor-pointer transition-all shrink-0"

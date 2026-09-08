@@ -28,9 +28,19 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
 
   const getToken = (): string | null => getCookie("user_token");
 
+  const parseUtcDate = (dateVal: any) => {
+    if (!dateVal) return new Date();
+    if (typeof dateVal === 'object' && dateVal instanceof Date) return dateVal;
+    let str = String(dateVal).trim();
+    if (!str.endsWith('Z') && !str.includes('+') && !str.includes('Z')) {
+      str += 'Z';
+    }
+    return new Date(str);
+  };
+
   const formatChatTime = (dateString: string) => {
     if (!dateString) return "";
-    const messageDate = new Date(dateString);
+    const messageDate = parseUtcDate(dateString);
     const now = new Date();
     const isToday = messageDate.toDateString() === now.toDateString();
     if (isToday) return messageDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
@@ -53,18 +63,24 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
   useEffect(() => {
     if (!connection) return;
 
-    const handleReceiveMessage = (senderId: any, messageText: string) => {
+    const handleReceiveMessage = (senderId: any, rId: any, messageText: string, msgId?: any, sentAt?: string) => {
       const incomingSenderId = Number(senderId);
+      const incomingReceiverId = Number(rId);
+
       setChats((prevChats) => {
-        const index = prevChats.findIndex(c => Number(c.userId ?? c.UserId) === incomingSenderId);
-        const isOpen = Number(selectedIdRef.current) === incomingSenderId;
+        const index = prevChats.findIndex(c => {
+          const cId = Number(c.userId ?? c.UserId);
+          return cId === incomingSenderId || cId === incomingReceiverId;
+        });
+
+        const isOpen = Number(selectedIdRef.current) === incomingSenderId || Number(selectedIdRef.current) === incomingReceiverId;
 
         if (index !== -1) {
           const updated = [...prevChats];
           const target = { ...updated[index] };
           target.lastMessage = messageText;
-          target.lastMessageTime = new Date().toISOString();
-          if (!isOpen) {
+          target.lastMessageTime = sentAt || new Date().toISOString();
+          if (!isOpen && incomingSenderId === Number(target.userId ?? target.UserId)) {
             target.unreadCount = (target.unreadCount ?? target.UnreadCount ?? 0) + 1;
           }
           updated.splice(index, 1);

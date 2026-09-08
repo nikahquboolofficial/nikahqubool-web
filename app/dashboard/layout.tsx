@@ -147,7 +147,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       return;
     }
     if (res.success && res.data) {
-      const c = res.data.counts || res.data.Counts || {};
+      const c = res.data.tabCounts || res.data.TabCounts || res.data.counts || res.data.Counts || {};
       let notes = res.data.notifications || res.data.Notifications || res.data.recentNotifications || [];
       
       if (notes && !Array.isArray(notes) && typeof notes === 'object') {
@@ -156,19 +156,19 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
       setNotificationsList(Array.isArray(notes) ? notes : []);
       setCounts({
-        requestsCount: c.requestsCount || c.RequestsCount || 0,
-        acceptedCount: c.acceptedCount || c.AcceptedCount || 0,
-        photosCount: c.photosCount || c.PhotosCount || 0,
-        visitorsCount: c.visitorsCount || c.VisitorsCount || 0,
-        matchesCount: c.matchesCount || c.MatchesCount || 0,
-        shortlistedCount: c.shortlistedCount || c.ShortlistedCount || 0,
+        requestsCount: Number(c.requestsCount ?? c.RequestsCount ?? 0),
+        acceptedCount: Number(c.acceptedCount ?? c.AcceptedCount ?? 0),
+        photosCount: Number(c.photosCount ?? c.PhotosCount ?? 0),
+        visitorsCount: Number(c.visitorsCount ?? c.VisitorsCount ?? 0),
+        matchesCount: Number(c.matchesCount ?? c.MatchesCount ?? 0),
+        shortlistedCount: Number(c.shortlistedCount ?? c.ShortlistedCount ?? 0),
       });
     }
   }, [getToken, handleLogout]);
 
   useEffect(() => {
     loadNotificationCounts();
-  }, [pathname, loadNotificationCounts]);
+  }, [pathname, isNotificationOpen, loadNotificationCounts]);
 
   const handleNotificationAction = async (senderUserId: number, type: string, status: string) => {
     const token = getToken();
@@ -329,12 +329,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          {cat.count > 0 ? (
-                            <span className="bg-[#d91b5c] text-white text-[10px] font-black px-3 py-1 rounded-full shadow-xs">
+                          {cat.count > 0 && (
+                            <span className="bg-[#d91b5c] text-white text-[10px] font-black px-3 py-1 rounded-full shadow-xs animate-pulse">
                               {cat.count} New
                             </span>
-                          ) : (
-                            <span className="bg-slate-200 text-slate-600 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-slate-300">0</span>
                           )}
                           <ChevronRight size={16} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
                         </div>

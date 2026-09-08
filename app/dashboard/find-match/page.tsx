@@ -12,6 +12,7 @@ import { toast, Toaster } from 'sonner';
 import { searchMatchesApi, handleInteractionApiCall } from '@/lib/api';
 import { checkDailyViewLimit, formatTimeRemaining } from '@/lib/limitUtils';
 import ProfileCard from '@/components/dashboard/ProfileCard';
+import ProfileCardSkeleton from '@/components/dashboard/ProfileCardSkeleton';
 import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
 
 // MASTER OPTIONS LIST
@@ -60,7 +61,7 @@ export default function FindMatchesPage() {
 
   const getToken = useCallback(() => getCookie("user_token"), []);
 
-  const loadMatches = useCallback(async (pageNum: number = 1, append: boolean = false) => {
+  const loadMatches = useCallback(async (pageNum: number = 1, append: boolean = false, overrideFilters?: typeof filters) => {
     const token = getToken();
     if (!token) {
       router.push('/');
@@ -70,17 +71,19 @@ export default function FindMatchesPage() {
     if (pageNum === 1) setLoading(true);
     else setFetchingMore(true);
 
+    const activeFilters = overrideFilters || filters;
+
     const payload = {
       searchText: "",
-      ageMin: filters.ageMin,
-      ageMax: filters.ageMax,
-      maritalStatus: filters.maritalStatus,
-      sect: filters.sect,
-      caste: filters.caste,
-      states: filters.states,
-      cities: isUserPaid ? filters.cities : [],
-      education: isUserPaid ? filters.education : [],
-      employedIn: isUserPaid ? filters.employedIn : [],
+      ageMin: activeFilters.ageMin,
+      ageMax: activeFilters.ageMax,
+      maritalStatus: activeFilters.maritalStatus,
+      sect: activeFilters.sect,
+      caste: activeFilters.caste,
+      states: activeFilters.states,
+      cities: isUserPaid ? activeFilters.cities : [],
+      education: isUserPaid ? activeFilters.education : [],
+      employedIn: isUserPaid ? activeFilters.employedIn : [],
       pageNumber: pageNum,
       pageSize: 12
     };
@@ -145,7 +148,7 @@ export default function FindMatchesPage() {
   }, [loading, fetchingMore, hasMore, dailyLimitReached, isUserPaid, loadMatches]);
 
   const handleReset = () => {
-    setFilters({
+    const defaultFilters = {
       ageMin: 18, ageMax: 45,
       heightMin: 4.0, heightMax: 6.5,
       maritalStatus: [],
@@ -155,8 +158,10 @@ export default function FindMatchesPage() {
       cities: [],
       education: [],
       employedIn: [],
-    });
-    toast.success("Filters reset to default.");
+    };
+    setFilters(defaultFilters);
+    loadMatches(1, false, defaultFilters);
+    setShowFilters(false);
   };
 
   const openCategorySheet = (categoryKey: string, isLocked: boolean = false) => {
@@ -235,25 +240,18 @@ export default function FindMatchesPage() {
       `}</style>
 
       {/* --- STICKY TOP HEADER --- */}
-      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-xl border-b-2 border-rose-100 px-4 py-3.5 shadow-md shadow-rose-950/5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold font-serif text-lg text-slate-900 uppercase tracking-tight">Find Matches</span>
-              {!isUserPaid && (
-                <span className="px-3 py-1 rounded-full bg-rose-50 text-[#d91b5c] text-[10px] font-black uppercase border border-rose-200 flex items-center gap-1 shadow-xs">
-                  <Sparkles size={11} className="text-amber-500" /> Free Plan
-                </span>
-              )}
-            </div>
-          </div>
+      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-xl border-b border-slate-200 px-4 py-3 shadow-xs">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+          <h1 className="font-serif font-extrabold text-base sm:text-lg text-slate-900 uppercase tracking-tight truncate">
+            Find Matches
+          </h1>
 
           <button 
             type="button"
             onClick={() => setShowFilters(true)} 
-            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white rounded-full shadow-md shadow-rose-900/20 font-black uppercase text-xs tracking-wider active:scale-95 transition-all cursor-pointer border border-rose-300/30"
+            className="flex items-center gap-1.5 px-4 py-2 bg-[#d91b5c] hover:bg-[#b01348] text-white rounded-full font-extrabold uppercase text-[11px] tracking-wider active:scale-95 transition-all cursor-pointer shrink-0 shadow-xs"
           >
-            <SlidersHorizontal size={15} className="text-amber-300" />
+            <SlidersHorizontal size={14} className="text-amber-300" />
             <span>Filter</span>
           </button>
         </div>
@@ -262,20 +260,21 @@ export default function FindMatchesPage() {
       {/* --- PROFILES GRID --- */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {loading ? (
-          <div className="min-h-[400px] flex flex-col items-center justify-center text-slate-800">
-            <Loader2 className="animate-spin mb-3 text-[#d91b5c]" size={48} />
-            <span className="font-black text-xs uppercase tracking-widest text-slate-500">Finding Verified Matches...</span>
+          <div className="py-4">
+            <ProfileCardSkeleton count={4} />
           </div>
         ) : profiles.length === 0 ? (
-          <div className="min-h-[320px] bg-white rounded-3xl p-10 text-center border-2 border-rose-100 flex flex-col items-center justify-center space-y-3 shadow-xl max-w-md mx-auto">
-            <div className="w-16 h-16 rounded-full bg-rose-50 border-2 border-rose-200 flex items-center justify-center text-[#d91b5c] mb-1">
-              <Users2 size={32} />
+          <div className="py-16 px-4 text-center max-w-md mx-auto space-y-4">
+            <div className="w-16 h-16 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center text-[#d91b5c] mx-auto shadow-xs">
+              <Users2 size={28} />
             </div>
-            <h3 className="text-lg font-extrabold uppercase text-slate-900">No Matches Found</h3>
-            <p className="text-xs text-slate-500 font-semibold max-w-xs">Try resetting or broadening your search filters to discover more life partners.</p>
+            <div className="space-y-1">
+              <h3 className="text-base font-serif font-extrabold uppercase text-slate-900 tracking-tight">No Matches Found</h3>
+              <p className="text-xs text-slate-500 font-semibold max-w-xs mx-auto leading-relaxed">Try resetting or broadening your search filters to discover more life partners.</p>
+            </div>
             <button 
               onClick={handleReset} 
-              className="mt-3 px-6 py-2.5 bg-[#d91b5c] text-white font-bold text-xs uppercase tracking-wider rounded-full shadow-sm hover:brightness-110 cursor-pointer"
+              className="px-6 py-2.5 bg-slate-950 hover:bg-slate-900 text-white font-black text-xs uppercase tracking-wider rounded-full shadow-sm cursor-pointer transition-all"
             >
               Reset Filters
             </button>
@@ -354,28 +353,49 @@ export default function FindMatchesPage() {
         )}
       </main>
 
-      {/* --- FILTER DRAWER --- */}
+      {/* --- NATIVE APP STYLE SOBER FILTER DRAWER --- */}
       <AnimatePresence>
         {showFilters && (
           <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowFilters(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]" />
-            <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="fixed right-0 top-0 h-full w-full max-w-md bg-white z-[70] flex flex-col shadow-2xl text-slate-800">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowFilters(false)} className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[60]" />
+            <motion.div 
+              initial={{ x: '100%' }} 
+              animate={{ x: 0 }} 
+              exit={{ x: '100%' }} 
+              transition={{ type: 'spring', damping: 25, stiffness: 220 }} 
+              className="fixed inset-y-0 right-0 h-[100dvh] w-full sm:max-w-md bg-white z-[70] flex flex-col shadow-2xl overflow-hidden border-l border-slate-200 text-slate-900"
+            >
               
-              {/* Drawer Header */}
-              <div className="p-5 border-b-2 border-rose-100 flex justify-between items-center bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white sticky top-0 z-10">
-                <div className="flex items-center gap-2">
-                  <SlidersHorizontal size={18} className="text-amber-300" />
-                  <h3 className="text-lg font-serif font-extrabold uppercase tracking-tight">Refine Matches</h3>
+              {/* Drawer Header (Clean Sober White Theme) */}
+              <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white text-slate-900 shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-rose-50 text-[#d91b5c] border border-rose-100 flex items-center justify-center">
+                    <SlidersHorizontal size={16} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-serif font-extrabold uppercase tracking-tight leading-none text-slate-900">Filter Matches</h3>
+                    <span className="text-[10px] text-slate-500 font-medium">Refine candidates by criteria</span>
+                  </div>
                 </div>
-                <button onClick={() => setShowFilters(false)} className="p-1.5 bg-white/20 hover:bg-white text-white hover:text-slate-900 rounded-full transition-all cursor-pointer"><X size={18}/></button>
+
+                <div className="flex items-center gap-2">
+                  <button 
+                    type="button"
+                    onClick={handleReset}
+                    className="text-[11px] font-bold uppercase text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-full transition-all cursor-pointer border border-slate-200"
+                  >
+                    Reset All
+                  </button>
+                  <button onClick={() => setShowFilters(false)} className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 rounded-full transition-all cursor-pointer"><X size={18}/></button>
+                </div>
               </div>
 
-              {/* FILTER SECTIONS */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar pb-32">
+              {/* FILTER SECTIONS (Scrollable Content Body) */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-24 no-scrollbar bg-slate-50/50">
                 
                 {/* BASIC CRITERIA CARD */}
-                <div className="bg-slate-50 rounded-3xl p-5 border-2 border-slate-200 shadow-xs space-y-6">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-[#d91b5c] block">Basic Criteria</span>
+                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs space-y-4">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-[#d91b5c] block border-b border-slate-100 pb-2">Basic Criteria</span>
 
                   <DualRange min={18} max={60} valMin={filters.ageMin} valMax={filters.ageMax} onChangeMin={(v: number)=>setFilters({...filters, ageMin:v})} onChangeMax={(v: number)=>setFilters({...filters, ageMax:v})} title="Age Range" label="yrs" />
 
@@ -389,20 +409,23 @@ export default function FindMatchesPage() {
                 </div>
 
                 {/* RELIGION & COMMUNITY CARD */}
-                <div className="bg-slate-50 rounded-3xl p-5 border-2 border-slate-200 shadow-xs space-y-4">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-[#d91b5c] block">Religion & Community</span>
+                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs space-y-3">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-[#d91b5c] block border-b border-slate-100 pb-2">Religion & Community</span>
                   
-                  <CategoryRow title="Sect" count={filters.sect.length} onClick={() => openCategorySheet('SECT')} />
+                  <CategoryRow title="Sect / Maslak" count={filters.sect.length} onClick={() => openCategorySheet('SECT')} />
                   <CategoryRow title="Caste" count={filters.caste.length} onClick={() => openCategorySheet('CASTE')} />
                   <CategoryRow title="State Location" count={filters.states.length} onClick={() => openCategorySheet('STATE')} />
                 </div>
 
-                {/* PREMIUM FILTERS CARD (PRO 👑) */}
-                <div className="bg-rose-50/50 rounded-3xl p-5 border-2 border-rose-200 shadow-xs space-y-4 relative">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[11px] font-black uppercase tracking-wider text-[#d91b5c] block">Premium Filters</span>
-                    <span className="px-3 py-1 rounded-full bg-amber-400/20 text-amber-700 text-[10px] font-black uppercase flex items-center gap-1 border border-amber-400/30">
-                      <Crown size={12} className="text-amber-600" /> PRO
+                {/* PREMIUM ADVANCED FILTERS CARD (VIP PRO 👑) */}
+                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs space-y-3 relative">
+                  <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                    <div className="flex items-center gap-1.5">
+                      <Crown size={15} className="text-amber-500 fill-amber-400" />
+                      <span className="text-[11px] font-black uppercase tracking-wider text-[#d91b5c]">VIP Advanced Filters</span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 text-[9px] font-black uppercase shadow-2xs">
+                      PRO ONLY
                     </span>
                   </div>
 
@@ -413,12 +436,21 @@ export default function FindMatchesPage() {
 
               </div>
 
-              {/* ACTION BAR (RESET ↺ + FIND MATCHES) */}
-              <div className="absolute bottom-0 left-0 right-0 p-5 bg-white border-t-2 border-rose-100 flex items-center gap-3 z-50 shadow-2xl">
+              {/* ⚡ FIXED ACTION FOOTER (ALWAYS 100% VISIBLE ABOVE MOBILE BOTTOM NAV) */}
+              <div className="p-4 pb-20 sm:pb-4 bg-white border-t border-slate-200 flex items-center gap-2.5 shrink-0 shadow-lg z-30">
+                <button 
+                  type="button"
+                  onClick={() => setShowFilters(false)} 
+                  className="px-3.5 py-3 rounded-xl border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs uppercase tracking-wider transition-all cursor-pointer shrink-0 active:scale-95 shadow-xs"
+                  title="Close Filters"
+                >
+                  Close
+                </button>
+
                 <button 
                   type="button"
                   onClick={handleReset} 
-                  className="w-13 h-13 rounded-2xl border-2 border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center justify-center transition-all cursor-pointer"
+                  className="w-11 h-11 rounded-xl border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 flex items-center justify-center transition-all cursor-pointer shrink-0 active:scale-95 shadow-xs"
                   title="Reset Filters"
                 >
                   <RotateCcw size={18} />
@@ -426,11 +458,11 @@ export default function FindMatchesPage() {
 
                 <button 
                   type="button"
-                  onClick={() => { setShowFilters(false); loadMatches(); }} 
-                  className="flex-1 py-4 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 border border-rose-300/30"
+                  onClick={() => { setShowFilters(false); loadMatches(1, false); }} 
+                  className="flex-1 py-3 bg-[#d91b5c] hover:bg-[#b01348] text-white rounded-xl font-black text-xs uppercase tracking-wider shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
                 >
                   <Search size={16} className="text-amber-300" />
-                  <span>Search Matches</span>
+                  <span>Apply</span>
                 </button>
               </div>
 
@@ -439,19 +471,22 @@ export default function FindMatchesPage() {
         )}
       </AnimatePresence>
 
-      {/* BOTTOM SHEET SELECTION MODAL */}
+      {/* MULTI-SELECT BOTTOM SHEET MODAL */}
       <AnimatePresence>
         {activeBottomSheet && (
           <div className="fixed inset-0 z-[100] flex items-end justify-center">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setActiveBottomSheet(null)} className="absolute inset-0 bg-black/60 backdrop-blur-xs" />
-            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="relative bg-white rounded-t-[36px] max-w-md w-full p-6 space-y-4 z-10 max-h-[70vh] flex flex-col shadow-2xl border-t-2 border-rose-100 text-slate-800">
+            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 220 }} className="relative bg-white rounded-t-[36px] max-w-md w-full p-6 space-y-4 z-10 max-h-[75vh] flex flex-col shadow-2xl border-t-2 border-rose-100 text-slate-800">
               
               <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto" />
               
               <div className="flex justify-between items-center border-b-2 border-slate-100 pb-3">
-                <h3 className="text-base font-serif font-extrabold uppercase text-[#d91b5c]">
-                  {activeBottomSheet.replace('_', ' ')}
-                </h3>
+                <div>
+                  <h3 className="text-base font-serif font-extrabold uppercase text-[#d91b5c]">
+                    Select {activeBottomSheet.replace('_', ' ')}
+                  </h3>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase">Multiple options allowed</span>
+                </div>
                 <button onClick={() => setActiveBottomSheet(null)} className="p-1.5 bg-slate-100 rounded-full text-slate-600 hover:bg-slate-200 transition-all cursor-pointer"><X size={18}/></button>
               </div>
 
@@ -464,7 +499,7 @@ export default function FindMatchesPage() {
                       onClick={() => handleToggleOption(activeBottomSheet, opt)}
                       className={`p-4 rounded-2xl border-2 flex items-center justify-between cursor-pointer transition-all ${
                         isSelected 
-                          ? 'border-[#d91b5c] bg-rose-50 text-[#d91b5c] font-black' 
+                          ? 'border-[#d91b5c] bg-rose-50 text-[#d91b5c] font-black shadow-2xs' 
                           : 'border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold'
                       }`}
                     >
@@ -478,6 +513,14 @@ export default function FindMatchesPage() {
                   );
                 })}
               </div>
+
+              <button
+                type="button"
+                onClick={() => setActiveBottomSheet(null)}
+                className="w-full py-3.5 bg-slate-950 hover:bg-slate-900 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-md transition-all active:scale-95 cursor-pointer text-center"
+              >
+                Done
+              </button>
             </motion.div>
           </div>
         )}
@@ -563,18 +606,34 @@ function CategoryRow({ title, count, onClick, isLocked = false }: { title: strin
   return (
     <div 
       onClick={onClick}
-      className="bg-white border-2 border-slate-200 rounded-2xl p-4 flex items-center justify-between cursor-pointer hover:border-rose-300 hover:bg-rose-50/30 transition-all shadow-xs"
+      className={`rounded-xl p-3.5 flex items-center justify-between cursor-pointer transition-all border shadow-2xs group ${
+        isLocked 
+          ? 'bg-amber-50/40 border-amber-200/80 hover:border-amber-400' 
+          : 'bg-white border-slate-200 hover:border-rose-300 hover:bg-rose-50/20'
+      }`}
     >
-      <div className="flex items-center gap-2">
-        <h4 className="text-xs font-black text-slate-800 uppercase">{title}</h4>
-        {isLocked && <Crown size={14} className="text-amber-500" />}
+      <div className="flex items-center gap-2.5">
+        {isLocked ? (
+          <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+            <Lock size={12} />
+          </div>
+        ) : (
+          <div className="w-1.5 h-1.5 rounded-full bg-[#d91b5c]" />
+        )}
+        <h4 className="text-xs font-bold text-slate-800 uppercase tracking-tight">{title}</h4>
       </div>
 
       <div className="flex items-center gap-2">
-        <span className="text-[11px] font-black text-[#d91b5c]">
-          {count === 0 ? 'Any' : `${count} selected`}
-        </span>
-        <ChevronRight size={16} className="text-slate-400" />
+        {isLocked ? (
+          <span className="text-[10px] font-extrabold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200 flex items-center gap-1">
+            <Lock size={10} /> Locked (VIP)
+          </span>
+        ) : (
+          <span className={`text-[11px] font-bold ${count > 0 ? 'text-[#d91b5c] bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200 font-black' : 'text-slate-400'}`}>
+            {count === 0 ? 'Any' : `${count} selected`}
+          </span>
+        )}
+        <ChevronRight size={15} className="text-slate-400 group-hover:translate-x-0.5 transition-transform" />
       </div>
     </div>
   );

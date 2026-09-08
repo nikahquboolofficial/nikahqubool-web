@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -381,7 +381,6 @@ export default function EditMyProfilePage() {
       if (res.success) {
         toast.success("Partner preferences saved successfully!");
         await loadUserData();
-        setMobileSubScreenOpen(false);
       } else {
         toast.error(res.message || "Failed to update partner preferences.");
       }
@@ -435,7 +434,6 @@ export default function EditMyProfilePage() {
     if (res.success) {
       toast.success("Profile section saved successfully!");
       await loadUserData();
-      setMobileSubScreenOpen(false);
     } else {
       toast.error(res.message || "Failed to update profile.");
     }
@@ -521,40 +519,44 @@ export default function EditMyProfilePage() {
           {/* SIDEBAR OVERVIEW */}
           <div className={`md:col-span-4 lg:col-span-4 bg-white md:rounded-3xl p-0 md:p-5 border-0 md:border-2 md:border-rose-100 shadow-none md:shadow-xl space-y-0 md:space-y-4 ${mobileSubScreenOpen ? 'hidden md:block' : 'block'}`}>
             
-            <div className="bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] p-4 text-white flex items-center justify-between shadow-md md:hidden sticky top-0 z-30">
+            <div className="bg-white border-b border-slate-200 p-4 text-slate-900 flex items-center justify-between shadow-xs md:hidden sticky top-0 z-30">
               <div className="flex items-center gap-3">
-                <button type="button" onClick={() => router.push('/dashboard/my-profile')} className="p-1.5 hover:bg-white/20 rounded-full cursor-pointer">
+                <button type="button" onClick={() => router.push('/dashboard/my-profile')} className="p-1.5 hover:bg-rose-50 rounded-full cursor-pointer text-[#d91b5c]">
                   <ArrowLeft size={20} />
                 </button>
-                <h1 className="font-serif font-black text-base uppercase tracking-wider text-white">Edit My Profile</h1>
+                <h1 className="font-serif font-extrabold text-base uppercase tracking-wider text-slate-900">Edit My Profile</h1>
               </div>
-              <button type="button" onClick={() => router.push('/dashboard/my-profile')} className="p-1.5 hover:bg-white/20 rounded-full cursor-pointer">
-                <Eye size={18} className="text-amber-300" />
+              <button type="button" onClick={() => router.push('/dashboard/my-profile')} className="p-1.5 hover:bg-rose-50 rounded-full cursor-pointer text-[#d91b5c]">
+                <Eye size={18} />
               </button>
             </div>
 
-            {/* AVATAR CARD */}
-            <div className="p-4 sm:p-5 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white flex items-center gap-4 shadow-lg border-b md:border border-rose-300/30 md:rounded-2xl">
-              <div className="relative flex-shrink-0">
-                <img 
-                  src={formData.PhotoUrl} 
-                  alt="Avatar" 
-                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover object-top border-2 border-white shadow-md"
-                  onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }}
-                />
-                <button 
-                  type="button" 
-                  onClick={() => router.push('/dashboard/gallery')} 
-                  className="absolute -bottom-1 -right-1 px-2 py-0.5 rounded-xl bg-amber-400 text-slate-950 font-black text-[10px] uppercase tracking-tight shadow-md hover:scale-105 transition-transform cursor-pointer flex items-center gap-1 border border-amber-300"
-                >
-                  <Plus size={12} className="stroke-[3]" /> Add Photos
-                </button>
+            {/* AVATAR CARD (CLEAN & SOBRE WHITE THEME - NO YELLOW BADGE OVER IMAGE) */}
+            <div className="p-4 sm:p-5 bg-white text-slate-900 flex items-center justify-between gap-4 shadow-xs border border-slate-200 md:rounded-2xl">
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="shrink-0">
+                  <img 
+                    src={formData.PhotoUrl} 
+                    alt="Avatar" 
+                    className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl object-cover object-top border-2 border-rose-100 shadow-xs"
+                    onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }}
+                  />
+                </div>
+
+                <div className="space-y-0.5 min-w-0">
+                  <h3 className="font-serif font-extrabold text-base truncate uppercase tracking-tight text-slate-900">{formData.FullName}</h3>
+                  <p className="text-[11px] font-bold text-slate-500 truncate">{formData.Age} yrs | {formData.MaritalStatusText} | {formData.StateName}</p>
+                </div>
               </div>
 
-              <div className="space-y-0.5 min-w-0">
-                <h3 className="font-serif font-extrabold text-base sm:text-lg truncate uppercase tracking-tight text-white">{formData.FullName}</h3>
-                <p className="text-[11px] font-bold text-rose-100 truncate">{formData.Age} yrs | {formData.MaritalStatusText} | {formData.StateName}</p>
-              </div>
+              <button 
+                type="button" 
+                onClick={() => router.push('/dashboard/gallery')} 
+                className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-[#d91b5c] font-black text-[11px] uppercase tracking-wider shadow-xs transition-colors cursor-pointer flex items-center gap-1 shrink-0 border border-rose-200"
+              >
+                <Plus size={13} className="stroke-[2.5]" />
+                <span>Photos</span>
+              </button>
             </div>
 
             {/* SECTIONS LIST */}
@@ -595,17 +597,17 @@ export default function EditMyProfilePage() {
           {/* FORM CONTAINER WITH EXTRA BOTTOM PADDING (pb-48 TO PREVENT DROPDOWN CLIPPING) */}
           <div className={`fixed inset-0 z-[500] bg-white flex flex-col md:relative md:inset-auto md:z-auto md:col-span-8 lg:col-span-8 md:bg-white md:rounded-3xl md:border-2 md:border-rose-100 md:shadow-xl md:overflow-hidden md:max-h-[85vh] ${!mobileSubScreenOpen ? 'hidden md:flex' : 'flex'}`}>
             
-            {/* FIXED TOP HEADER */}
-            <div className="sticky top-0 z-30 p-4 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white flex items-center justify-between shadow-md flex-shrink-0">
+            {/* FIXED TOP HEADER (SOBER WHITE THEME) */}
+            <div className="sticky top-0 z-30 p-4 bg-white text-slate-900 border-b border-slate-200 flex items-center justify-between shadow-xs flex-shrink-0">
               <div className="flex items-center gap-3">
                 <button 
                   type="button" 
                   onClick={() => setMobileSubScreenOpen(false)} 
-                  className="p-1.5 hover:bg-white/20 rounded-full cursor-pointer md:hidden text-white"
+                  className="p-1.5 hover:bg-rose-50 rounded-full cursor-pointer md:hidden text-[#d91b5c]"
                 >
                   <ArrowLeft size={20} />
                 </button>
-                <h2 className="font-serif font-black text-base uppercase tracking-wider text-white">
+                <h2 className="font-serif font-extrabold text-base uppercase tracking-wider text-slate-900">
                   {sectionMenuItems.find(s => s.id === currentSection)?.label}
                 </h2>
               </div>
@@ -618,7 +620,7 @@ export default function EditMyProfilePage() {
                     minHeight: '5.0', maxHeight: '6.2', sectId: 1, casteIds: [1],
                     educationIds: [1], occupationIds: [1], languageIds: [1], stateIds: [], cityIds: []
                   })}
-                  className="px-3 py-1 bg-amber-400 text-slate-950 font-black text-xs rounded-xl hover:bg-amber-500 cursor-pointer shadow-xs flex items-center gap-1 uppercase"
+                  className="px-3 py-1 bg-rose-50 hover:bg-rose-100 text-[#d91b5c] font-black text-xs rounded-xl cursor-pointer shadow-xs flex items-center gap-1 uppercase border border-rose-200"
                 >
                   <RotateCcw size={12} /> Reset
                 </button>
@@ -629,9 +631,20 @@ export default function EditMyProfilePage() {
             <div className="flex-1 overflow-y-auto p-5 sm:p-7 pb-48 space-y-6">
               
               {loading ? (
-                <div className="py-20 text-center text-[#d91b5c]">
-                  <Loader2 size={42} className="animate-spin mx-auto mb-2 text-[#d91b5c]" />
-                  <span className="text-xs font-black uppercase tracking-wider text-slate-500">Loading Section Data...</span>
+                <div className="space-y-6 animate-pulse py-4">
+                  <div className="w-14 h-14 bg-slate-200 rounded-full mx-auto" />
+                  <div className="space-y-4 pt-2">
+                    <div className="w-32 h-4 bg-slate-300 rounded-md" />
+                    <div className="w-full h-11 bg-slate-200 rounded-2xl" />
+                  </div>
+                  <div className="space-y-4 pt-2">
+                    <div className="w-40 h-4 bg-slate-300 rounded-md" />
+                    <div className="w-full h-11 bg-slate-200 rounded-2xl" />
+                  </div>
+                  <div className="space-y-4 pt-2">
+                    <div className="w-36 h-4 bg-slate-300 rounded-md" />
+                    <div className="w-full h-24 bg-slate-200 rounded-2xl" />
+                  </div>
                 </div>
               ) : (
                 <>

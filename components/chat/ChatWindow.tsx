@@ -36,6 +36,7 @@ export default function ChatWindow({
   const [blockStatus, setBlockStatus] = useState({ isBlockedByMe: false, isBlockedByOther: false });
   const [proposalState, setProposalState] = useState<'NONE' | 'PENDING' | 'ACCEPTED' | 'DECLINED'>('NONE');
   const [proposalLoading, setProposalLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -66,21 +67,32 @@ export default function ChatWindow({
     router.push('/dashboard/profile');
   };
 
+  const parseUtcDate = (dateVal: any) => {
+    if (!dateVal) return new Date();
+    if (typeof dateVal === 'object' && dateVal instanceof Date) return dateVal;
+    let str = String(dateVal).trim();
+    if (!str.endsWith('Z') && !str.includes('+') && !str.includes('Z')) {
+      str += 'Z';
+    }
+    return new Date(str);
+  };
+
   useEffect(() => {
     if (!receiverId) return;
     const token = getToken();
     if (!token) return;
 
     const loadData = async () => {
+      setLoading(true);
       const res = await fetchChatHistoryApi(receiverId, 1, 100, token);
       if (res.success && res.data) {
         const rawData = res.data?.data ?? res.data ?? [];
         const formatted = rawData.map((m: any, idx: number) => ({
-          uniqueKey: `hist-${m.messageId ?? m.MessageId ?? idx}`,
+          uniqueKey: `hist-${m.messageId ?? m.MessageId ?? 'idx'}-${idx}-${Math.random()}`,
           messageId: m.messageId ?? m.MessageId,
           senderId: m.senderId ?? m.SenderId, 
           text: m.messageText ?? m.MessageText, 
-          timestamp: new Date(m.sentAt ?? m.SentAt ?? Date.now()),
+          timestamp: parseUtcDate(m.sentAt ?? m.SentAt ?? Date.now()),
           isRead: (m.isRead === 1 || m.isRead === true || m.IsRead === 1 || m.IsRead === true) ? 1 : 0
         }));
         setMessages(formatted);
@@ -94,6 +106,7 @@ export default function ChatWindow({
           isBlockedByOther: Boolean(bData.isBlockedByOther ?? bData.IsBlockedByOther)
         });
       }
+      setLoading(false);
     };
 
     loadData();
@@ -102,7 +115,7 @@ export default function ChatWindow({
   useEffect(() => {
     if (!connection || !receiverId) return;
 
-    const handleReceiveMessage = (senderId: any, messageText: string, msgId?: any) => {
+    const handleReceiveMessage = (senderId: any, rId: any, messageText: string, msgId?: any, sentAt?: string) => {
       const incomingSenderId = Number(senderId);
       if (incomingSenderId === Number(receiverId)) {
         const newMsgId = msgId ?? Date.now();
@@ -113,7 +126,7 @@ export default function ChatWindow({
             messageId: newMsgId,
             senderId: incomingSenderId, 
             text: messageText, 
-            timestamp: new Date(), 
+            timestamp: sentAt ? new Date(sentAt) : new Date(), 
             isRead: 1 
           }];
         });

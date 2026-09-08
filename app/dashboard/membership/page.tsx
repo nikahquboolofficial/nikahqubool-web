@@ -148,9 +148,23 @@ export default function MembershipPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center text-[#d91b5c] font-black text-xs uppercase tracking-widest gap-3">
-        <Loader2 className="animate-spin text-[#d91b5c]" size={48} />
-        <span>Loading Plans...</span>
+      <div className="min-h-screen bg-slate-50 p-4 sm:p-6 max-w-5xl mx-auto space-y-6 animate-pulse pt-6">
+        <div className="w-48 h-8 bg-slate-300 rounded-md mx-auto" />
+        <div className="w-64 h-4 bg-slate-200 rounded-md mx-auto" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
+              <div className="w-24 h-5 bg-slate-300 rounded-md" />
+              <div className="w-36 h-8 bg-slate-400 rounded-md" />
+              <div className="space-y-2 pt-2">
+                <div className="w-full h-3 bg-slate-200 rounded-md" />
+                <div className="w-5/6 h-3 bg-slate-200 rounded-md" />
+                <div className="w-4/6 h-3 bg-slate-200 rounded-md" />
+              </div>
+              <div className="w-full h-11 bg-slate-300 rounded-2xl" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

@@ -1,8 +1,8 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   Share2, Edit2, CheckCircle2, ChevronRight, Crown, Settings, 
   UserCheck, MessageSquare, Eye, Sparkles, Shield, CreditCard, 
@@ -16,7 +16,29 @@ import VerificationModal from '@/components/profile/VerificationModal';
 
 export default function MySelfProfilePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [activeTab, setActiveTab] = useState<'premium' | 'settings'>('premium');
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const qTab = searchParams.get('tab') as 'premium' | 'settings';
+      const storedTab = sessionStorage.getItem('my_profile_active_tab') as 'premium' | 'settings';
+      if (qTab) {
+        setActiveTab(qTab);
+        sessionStorage.setItem('my_profile_active_tab', qTab);
+      } else if (storedTab) {
+        setActiveTab(storedTab);
+      }
+    }
+  }, [searchParams]);
+
+  const handleTabSelect = (tab: 'premium' | 'settings') => {
+    setActiveTab(tab);
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem('my_profile_active_tab', tab);
+    }
+  };
   const [profileData, setProfileData] = useState<any>(null);
   const [cheapestPlan, setCheapestPlan] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -78,6 +100,38 @@ export default function MySelfProfilePage() {
   const fullName = profileData?.fullName || 'Member Profile';
   const isVerified = Boolean(profileData?.isVerified ?? profileData?.IsVerified ?? false);
   const profileCompletion = profileData?.profileCompletion || 85;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-28 pt-6">
+        <div className="max-w-xl mx-auto px-4 space-y-6 animate-pulse">
+          {/* Header Bar Skeleton */}
+          <div className="flex items-center justify-between py-2">
+            <div className="w-32 h-6 bg-slate-200 rounded-md" />
+            <div className="w-10 h-10 bg-slate-200 rounded-full" />
+          </div>
+
+          {/* Profile Card Skeleton */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm text-center space-y-4">
+            <div className="w-28 h-28 rounded-full bg-slate-200 mx-auto shadow-xs" />
+            <div className="w-44 h-6 bg-slate-300 rounded-md mx-auto" />
+            <div className="w-32 h-5 bg-slate-200 rounded-full mx-auto" />
+            <div className="grid grid-cols-2 gap-2 max-w-xs mx-auto pt-2">
+              <div className="h-10 bg-slate-200 rounded-xl" />
+              <div className="h-10 bg-slate-200 rounded-xl" />
+            </div>
+          </div>
+
+          {/* Section Options Skeleton */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm space-y-3">
+            <div className="w-full h-12 bg-slate-200 rounded-2xl" />
+            <div className="w-full h-12 bg-slate-200 rounded-2xl" />
+            <div className="w-full h-12 bg-slate-200 rounded-2xl" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-28 pt-4 selection:bg-[#d91b5c] selection:text-white">
@@ -173,7 +227,7 @@ export default function MySelfProfilePage() {
           <div className="pt-2 grid grid-cols-2 gap-2 max-w-xs mx-auto">
             <button
               type="button"
-              onClick={() => setActiveTab('premium')}
+              onClick={() => handleTabSelect('premium')}
               className={`py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer border-2 ${
                 activeTab === 'premium'
                   ? 'bg-slate-950 text-white border-slate-950 shadow-md'
@@ -185,7 +239,7 @@ export default function MySelfProfilePage() {
 
             <button
               type="button"
-              onClick={() => setActiveTab('settings')}
+              onClick={() => handleTabSelect('settings')}
               className={`py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer border-2 ${
                 activeTab === 'settings'
                   ? 'bg-slate-950 text-white border-slate-950 shadow-md'

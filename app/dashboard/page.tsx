@@ -8,6 +8,7 @@ import { toast, Toaster } from 'sonner';
 import { fetchDashboardApi, handleInteractionApiCall, fetchActiveSubscriptionApi } from '@/lib/api';
 import { checkDailyViewLimit, formatTimeRemaining } from '@/lib/limitUtils';
 import ProfileCard from '@/components/dashboard/ProfileCard';
+import ProfileCardSkeleton from '@/components/dashboard/ProfileCardSkeleton';
 import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
 
 function LiveCountdownDisplay() {
@@ -241,7 +242,12 @@ export default function VIPCleanDashboardPage() {
                 <button
                   key={t.id}
                   type="button"
-                  onClick={() => setActiveTab(t.id)}
+                  onClick={() => {
+                    if (activeTab !== t.id) {
+                      setProfiles([]);
+                      setActiveTab(t.id);
+                    }
+                  }}
                   className={`py-2 px-3 rounded-full text-xs font-bold tracking-wide flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer ${
                     isActive 
                       ? 'bg-slate-950 text-white font-black shadow-sm' 
@@ -258,25 +264,26 @@ export default function VIPCleanDashboardPage() {
 
         {/* PROFILES GRID */}
         {loading ? (
-          <div className="min-h-[420px] flex flex-col items-center justify-center text-[#d91b5c]">
-            <Loader2 size={48} className="animate-spin mb-3 text-[#d91b5c]" />
-            <span className="text-xs font-black uppercase tracking-widest text-slate-500">Discovering Verified Profiles...</span>
+          <div className="py-4">
+            <ProfileCardSkeleton count={4} />
           </div>
         ) : profiles.length === 0 ? (
-          <div className="bg-white rounded-3xl p-12 text-center border-2 border-rose-100 shadow-xl max-w-md mx-auto space-y-4">
-            <div className="w-18 h-18 rounded-full bg-rose-50 border-2 border-rose-200 text-[#d91b5c] flex items-center justify-center mx-auto shadow-xs">
-              <Sparkles size={36} className="text-amber-500" />
+          <div className="py-16 px-4 text-center max-w-md mx-auto space-y-4">
+            <div className="w-16 h-16 rounded-full bg-rose-50 border border-rose-100 text-[#d91b5c] flex items-center justify-center mx-auto shadow-xs">
+              <Sparkles size={28} className="text-[#d91b5c]" />
             </div>
-            <h3 className="text-lg font-serif font-extrabold text-slate-900 uppercase">No Profiles Available</h3>
-            <p className="text-slate-500 text-xs font-semibold max-w-xs mx-auto leading-relaxed">
-              {activeTab === 'online' 
-                ? 'There are currently no members online right now. Switch to Best Matches to explore profiles.'
-                : 'There are currently no profiles available in this category. Check back later.'}
-            </p>
+            <div className="space-y-1">
+              <h3 className="text-base font-serif font-extrabold uppercase text-slate-900 tracking-tight">No Profiles Available</h3>
+              <p className="text-slate-500 text-xs font-semibold max-w-xs mx-auto leading-relaxed">
+                {activeTab === 'online' 
+                  ? 'There are currently no members online right now. Switch to Best Matches to explore profiles.'
+                  : 'There are currently no profiles available in this category. Check back later.'}
+              </p>
+            </div>
             <button 
               type="button"
               onClick={() => setActiveTab('best-matches')} 
-              className="px-7 py-3 rounded-full bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white text-xs font-black uppercase tracking-wider cursor-pointer shadow-lg shadow-rose-900/20 border border-rose-300/30"
+              className="px-6 py-2.5 rounded-full bg-slate-950 hover:bg-slate-900 text-white text-xs font-black uppercase tracking-wider cursor-pointer shadow-sm transition-all"
             >
               Explore Best Matches
             </button>

@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import { fetchDashboardApi, handleInteractionApiCall } from '@/lib/api';
 import ProfileCard from '@/components/dashboard/ProfileCard';
+import ProfileCardSkeleton from '@/components/dashboard/ProfileCardSkeleton';
 
 type MainCategory = 'all' | 'interests' | 'visitors' | 'gallery' | 'contacts' | 'shortlist';
 
@@ -85,10 +86,15 @@ function ActivityPageContent() {
 
   const getToken = useCallback((): string | null => getCookie("user_token"), []);
 
+  const activeSubTabRef = useRef(activeSubTab);
+  useEffect(() => {
+    activeSubTabRef.current = activeSubTab;
+  }, [activeSubTab]);
+
   useEffect(() => {
     const qCat = searchParams.get('cat') as MainCategory;
     const qTab = searchParams.get('tab');
-    if (qCat && qCat !== activeCat) setActiveCat(qCat);
+    if (qCat && CATEGORY_SUBTABS[qCat] && qCat !== activeCat) setActiveCat(qCat);
     if (qTab && qTab !== activeSubTab) setActiveSubTab(qTab);
   }, [searchParams, activeCat, activeSubTab]);
 
@@ -99,21 +105,19 @@ function ActivityPageContent() {
       return;
     }
 
-    // ⚡ INSTANT RENDER FROM CACHE IF AVAILABLE (0 MILLISECONDS DELAY!)
-    if (pageNum === 1 && tabCacheRef.current[tabName]) {
-      const cached = tabCacheRef.current[tabName];
-      setProfiles(cached.profiles);
-      if (cached.counts) setTabCounts(cached.counts);
-      setHasMore(cached.hasMore);
-      setLoading(false); // 🚫 NO LOADING SPINNER OVERLAY!
-    } else if (pageNum === 1 && !tabCacheRef.current[tabName]) {
+    if (pageNum === 1) {
+      setProfiles([]);
       setLoading(true);
-    } else if (pageNum > 1) {
+    } else {
       setFetchingMore(true);
     }
 
-    // 🌐 SILENT BACKGROUND REVALIDATION (STAYS 100% FRESH SILENTLY)
     const res = await fetchDashboardApi(tabName, pageNum, token);
+
+    // 🛡️ PREVENT RACE CONDITION: Discard response if user switched to another tab while request was in-flight!
+    if (activeSubTabRef.current !== tabName) {
+      return;
+    }
 
     if (res.isUnauthorized) {
       toast.dismiss();
@@ -124,17 +128,7 @@ function ActivityPageContent() {
 
     if (res.success && res.data) {
       const list = res.data.profiles || res.data.Profiles || [];
-      const counts = res.data.counts || res.data.Counts || {};
-
-      const newProfilesList = append ? [...(tabCacheRef.current[tabName]?.profiles || []), ...list] : list;
-      const updatedCounts = (counts && Object.keys(counts).length > 0) ? counts : tabCacheRef.current[tabName]?.counts;
-      const updatedHasMore = list.length >= 12;
-
-      tabCacheRef.current[tabName] = {
-        profiles: newProfilesList,
-        counts: updatedCounts,
-        hasMore: updatedHasMore
-      };
+      const counts = res.data.tabCounts || res.data.TabCounts || res.data.counts || res.data.Counts || {};
 
       if (append) {
         setProfiles((prev) => [...prev, ...list]);
@@ -146,7 +140,7 @@ function ActivityPageContent() {
         setTabCounts(counts);
       }
 
-      setHasMore(updatedHasMore);
+      setHasMore(list.length >= 12);
     }
 
     setLoading(false);
@@ -162,24 +156,12 @@ function ActivityPageContent() {
     setActiveCat(cat);
     const firstSubTab = CATEGORY_SUBTABS[cat]?.[0]?.id || 'requests';
     setActiveSubTab(firstSubTab);
-
-    // ⚡ Instant Cache Switch (0 ms)
-    if (tabCacheRef.current[firstSubTab]) {
-      setProfiles(tabCacheRef.current[firstSubTab].profiles);
-      setHasMore(tabCacheRef.current[firstSubTab].hasMore);
-      setLoading(false);
-    }
+    router.replace(`/dashboard/activity?cat=${cat}&tab=${firstSubTab}`, { scroll: false });
   };
 
   const handleSubTabChange = (subTabId: string) => {
     setActiveSubTab(subTabId);
-
-    // ⚡ Instant Cache Switch (0 ms)
-    if (tabCacheRef.current[subTabId]) {
-      setProfiles(tabCacheRef.current[subTabId].profiles);
-      setHasMore(tabCacheRef.current[subTabId].hasMore);
-      setLoading(false);
-    }
+    router.replace(`/dashboard/activity?cat=${activeCat}&tab=${subTabId}`, { scroll: false });
   };
 
   const handleLoadMore = () => {
@@ -320,7 +302,6 @@ function ActivityPageContent() {
             {currentSubTabs.map((sub) => {
               const SubIcon = sub.icon;
               const isSubActive = activeSubTab === sub.id;
-              const cnt = sub.countKey ? tabCounts[sub.countKey] || 0 : 0;
               return (
                 <button
                   key={sub.id}
@@ -334,36 +315,32 @@ function ActivityPageContent() {
                 >
                   <SubIcon size={12} className={isSubActive ? 'text-amber-300' : 'text-slate-600'} />
                   <span>{sub.label}</span>
-                  {cnt > 0 && (
-                    <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${isSubActive ? 'bg-white text-slate-900' : 'bg-slate-900 text-white'}`}>
-                      {cnt}
-                    </span>
-                  )}
                 </button>
               );
             })}
           </div>
         )}
 
-        {/* 🚀 PROFILES GRID WITH ZERO FLICKERING & ZERO JUMP LOADING */}
-        {loading && profiles.length === 0 ? (
-          <div className="min-h-[420px] flex flex-col items-center justify-center text-[#d91b5c]">
-            <Loader2 size={44} className="animate-spin mb-3 text-[#d91b5c]" />
-            <span className="text-xs font-bold uppercase tracking-widest text-slate-500">Loading Activity Profiles...</span>
+        {/* 🚀 PROFILES GRID WITH ZERO FLICKERING & NATIVE APP SKELETON SHIMMER LOADING */}
+        {loading ? (
+          <div className="py-4">
+            <ProfileCardSkeleton count={4} />
           </div>
         ) : profiles.length === 0 ? (
-          <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-sm max-w-md mx-auto space-y-4 my-6">
-            <div className="w-16 h-16 rounded-full bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center mx-auto shadow-xs">
-              <Sparkles size={32} className="text-amber-500" />
+          <div className="py-16 px-4 text-center max-w-md mx-auto space-y-4">
+            <div className="w-16 h-16 rounded-full bg-rose-50 border border-rose-100 text-[#d91b5c] flex items-center justify-center mx-auto shadow-xs">
+              <Sparkles size={28} className="text-[#d91b5c]" />
             </div>
-            <h3 className="text-lg font-serif font-extrabold text-slate-900">No Activity Recorded</h3>
-            <p className="text-slate-500 text-xs font-medium max-w-xs mx-auto leading-relaxed">
-              There are currently no profiles under this activity category. Switch categories to view other records.
-            </p>
+            <div className="space-y-1">
+              <h3 className="text-base font-serif font-extrabold uppercase text-slate-900 tracking-tight">No Activity Recorded</h3>
+              <p className="text-slate-500 text-xs font-semibold max-w-xs mx-auto leading-relaxed">
+                There are currently no profiles under this activity category. Switch categories to view other records.
+              </p>
+            </div>
             <button 
               type="button"
               onClick={() => handleCatChange('interests')} 
-              className="px-6 py-2.5 rounded-full bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold tracking-wide cursor-pointer shadow-sm"
+              className="px-6 py-2.5 rounded-full bg-slate-950 hover:bg-slate-900 text-white text-xs font-black uppercase tracking-wider cursor-pointer shadow-sm transition-all"
             >
               View Interests
             </button>

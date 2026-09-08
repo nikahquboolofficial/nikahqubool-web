@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 export const dynamic = 'force-dynamic';
 
@@ -675,8 +675,13 @@ function SettingsContent() {
 export default function AccountSettingsPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center text-[#d91b5c] p-8">
-        <Loader2 size={36} className="animate-spin" />
+      <div className="min-h-screen bg-slate-50 p-4 sm:p-6 max-w-xl mx-auto space-y-4 animate-pulse pt-6">
+        <div className="w-44 h-7 bg-slate-300 rounded-md" />
+        <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
+          <div className="w-36 h-5 bg-slate-300 rounded-md" />
+          <div className="w-full h-11 bg-slate-200 rounded-2xl" />
+          <div className="w-full h-11 bg-slate-200 rounded-2xl" />
+        </div>
       </div>
     }>
       <SettingsContent />

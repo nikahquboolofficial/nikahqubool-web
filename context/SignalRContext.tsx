@@ -1,7 +1,7 @@
 "use client";
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import * as signalR from "@microsoft/signalr";
-import { SIGNALR_HUB_URL } from '@/lib/api';
+import { SIGNALR_HUB_URL, API_BASE_URL } from '@/lib/api';
 
 interface PresenceInfo {
   isOnline: boolean;
@@ -44,7 +44,6 @@ export function SignalRProvider({ children }: { children: React.ReactNode }) {
     if (!token) return;
 
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5027/api";
       const res = await fetch(`${API_BASE_URL}/Chat/online-statuses`, {
         method: "POST",
         headers: {

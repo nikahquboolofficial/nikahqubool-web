@@ -133,6 +133,11 @@ export default function ProfileDetailPage() {
       setProfileData(p);
       setGallery(res.data.gallery || res.data.Gallery || []);
       setPreferences(res.data.preferences || res.data.Preferences || null);
+
+      // 👁️ Automatically record PROFILE_VIEW in UserInteractions table
+      if (targetUserId > 0) {
+        handleInteractionApiCall(targetUserId, 'PROFILE_VIEW', 'VIEW', token).catch(() => {});
+      }
     } else if (showFullLoader) {
       toast.error(res.message || "Failed to load profile details.");
     }
@@ -179,6 +184,9 @@ export default function ProfileDetailPage() {
         const used = res.data.contactsUsed || res.data.ContactsUsed || 1;
         setContactQuota({ total, used, remaining: Math.max(0, total - used) });
         toast.success(res.message || "Contact details unlocked!");
+
+        // 📞 Record CONTACT_VIEW interaction in UserInteractions table
+        handleInteractionApiCall(profileData.userId, 'CONTACT_VIEW', 'VIEWED', token).catch(() => {});
       } else {
         setShowSubscriptionModal(true);
       }
@@ -262,9 +270,32 @@ export default function ProfileDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center text-[#d91b5c]">
-        <Loader2 className="animate-spin mb-3 text-[#d91b5c]" size={48} />
-        <span className="font-black text-xs uppercase tracking-widest text-slate-500">Loading Candidate Details...</span>
+      <div className="min-h-screen bg-slate-50 p-4 md:p-6 max-w-4xl mx-auto space-y-6 animate-pulse pt-6">
+        {/* Profile Card Header Skeleton */}
+        <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row items-center gap-6">
+            <div className="w-32 h-32 rounded-3xl bg-slate-200 shrink-0 shadow-xs" />
+            <div className="flex-1 space-y-3 w-full text-center sm:text-left">
+              <div className="w-48 h-6 bg-slate-300 rounded-md mx-auto sm:mx-0" />
+              <div className="w-36 h-4 bg-slate-200 rounded-md mx-auto sm:mx-0" />
+              <div className="w-64 h-4 bg-slate-200 rounded-md mx-auto sm:mx-0" />
+              <div className="flex gap-2 justify-center sm:justify-start pt-2">
+                <div className="w-28 h-9 bg-slate-300 rounded-2xl" />
+                <div className="w-28 h-9 bg-slate-300 rounded-2xl" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Section Cards Skeleton */}
+        <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm space-y-4">
+          <div className="w-40 h-5 bg-slate-300 rounded-md" />
+          <div className="space-y-3 pt-2">
+            <div className="w-full h-4 bg-slate-200 rounded-md" />
+            <div className="w-5/6 h-4 bg-slate-200 rounded-md" />
+            <div className="w-4/6 h-4 bg-slate-200 rounded-md" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -493,19 +524,12 @@ export default function ProfileDetailPage() {
               "{profileData.aboutMe || 'Looking for a respectful, family-oriented partner for a happy and blessed Nikah.'}"
             </p>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
+            <div className="grid grid-cols-2 gap-3 pt-2">
               <div className="bg-rose-50/50 p-3 rounded-2xl border border-rose-100 text-center">
                 <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Profile For</span>
                 <span className="text-xs font-bold text-[#d91b5c]">{profileData.profileCreatedFor || 'Self'}</span>
               </div>
               <div className="bg-rose-50/50 p-3 rounded-2xl border border-rose-100 text-center">
-                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Match Score</span>
-                <span className="text-xs font-bold text-emerald-600 flex items-center justify-center gap-1">
-                  <Sparkles size={12} className="fill-amber-400 text-amber-400" />
-                  <span>{profileData.matchScore || 92}% Match</span>
-                </span>
-              </div>
-              <div className="bg-rose-50/50 p-3 rounded-2xl border border-rose-100 text-center col-span-2 sm:col-span-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Verification</span>
                 <span className="text-xs font-bold text-slate-700">{isVerified ? 'Verified Member' : 'Standard Profile'}</span>
               </div>

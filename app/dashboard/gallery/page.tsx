@@ -260,8 +260,10 @@ export default function GalleryManagementPage() {
 
         {/* 📸 3-SLOT DYNAMIC GALLERY GRID */}
         {loading ? (
-          <div className="min-h-[220px] flex items-center justify-center text-[#d91b5c]">
-            <Loader2 size={36} className="animate-spin" />
+          <div className="grid grid-cols-3 gap-3.5 pt-2 animate-pulse">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="aspect-[3/4] rounded-2xl bg-slate-200 shadow-sm" />
+            ))}
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-3.5 pt-2">

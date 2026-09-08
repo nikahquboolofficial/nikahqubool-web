@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -90,8 +90,10 @@ export default function PaymentInfoPage() {
         </div>
 
         {loading ? (
-          <div className="min-h-[250px] flex items-center justify-center text-[#d91b5c]">
-            <Loader2 size={36} className="animate-spin" />
+          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4 animate-pulse">
+            <div className="w-40 h-6 bg-slate-300 rounded-md" />
+            <div className="w-56 h-4 bg-slate-200 rounded-md" />
+            <div className="w-full h-12 bg-slate-200 rounded-2xl" />
           </div>
         ) : (
           <>

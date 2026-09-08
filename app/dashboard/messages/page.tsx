@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useState, useEffect, Suspense } from 'react';
 import InboxList from '@/components/chat/InboxList';
 import ChatWindow from '@/components/chat/ChatWindow';
@@ -83,9 +83,21 @@ function MessagesContainer() {
 export default function MessagesPage() {
   return (
     <Suspense fallback={
-      <div className="flex h-screen flex-col items-center justify-center text-[#d91b5c] font-black text-xs uppercase tracking-widest gap-3 bg-slate-50">
-        <Loader2 size={42} className="animate-spin text-[#d91b5c]" />
-        <span>Loading Messenger...</span>
+      <div className="flex h-screen w-full bg-slate-50 p-4 animate-pulse">
+        <div className="w-full md:w-96 h-full bg-white rounded-3xl p-4 border border-slate-200 space-y-4">
+          <div className="w-32 h-6 bg-slate-300 rounded-md" />
+          <div className="space-y-3 pt-2">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl">
+                <div className="w-12 h-12 rounded-full bg-slate-200 shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="w-28 h-4 bg-slate-300 rounded-md" />
+                  <div className="w-40 h-3 bg-slate-200 rounded-md" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     }>
       <MessagesContainer />
