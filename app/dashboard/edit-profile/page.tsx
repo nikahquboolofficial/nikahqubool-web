@@ -43,7 +43,8 @@ export default function EditMyProfilePage() {
     DateOfBirth: '',
     PhotoUrl: '/placeholder.png',
 
-    // Section 1: Intro
+    // Section 1: Intro / Bio
+    AboutMe: '',
     FamilyAbout: '',
 
     // Section 3: Personal Details
@@ -56,6 +57,8 @@ export default function EditMyProfilePage() {
     SectText: '',
     Caste: 1,
     CasteText: '',
+    Maslak: 1,
+    MaslakText: '',
     MotherTongue: 1,
     MotherTongueText: '',
     Disability: 'No',
@@ -75,22 +78,35 @@ export default function EditMyProfilePage() {
     DietType: 'Halal Only',
     SmokeHabit: 'No',
     DrinkHabit: 'No',
+    Hobbies: '',
+    Interests: '',
 
     // Section 6: Address
     CurrentStateId: 0,
     StateName: '',
     CurrentCityId: 0,
     CityName: '',
+    NativePlaceStateId: 0,
+    NativeStateName: '',
+    NativePlaceCityId: 0,
+    NativeCityName: '',
 
     // Section 7: Family Details
     FamilyType: 1,
     FamilyStatus: 1,
-    FatherOccupation: 'Business Owner',
-    MotherOccupation: 'Homemaker',
+    FatherName: '',
+    MotherName: '',
+    FatherOccupationId: 1,
+    FatherOccupation: '',
+    MotherOccupationId: 1,
+    MotherOccupation: '',
     TotalBrothers: 0,
     MarriedBrothers: 0,
     TotalSisters: 0,
-    MarriedSisters: 0
+    MarriedSisters: 0,
+
+    // Partner Expectations
+    PartnerExpectations: ''
   });
 
   // Partner Preferences State (Multi-select State & City)
@@ -155,7 +171,8 @@ export default function EditMyProfilePage() {
       const types = [
         'MARITAL_STATUS', 'RELIGIONS', 'SECTS', 'MASLAKS', 
         'CASTES', 'MOTHER_TONGUES', 'EDUCATIONS', 'EMPLOYMENT_SECTORS', 
-        'OCCUPATIONS', 'STATES', 'FAMILY_TYPES', 'FAMILY_STATUS', 'Complexion'
+        'OCCUPATIONS', 'STATES', 'FAMILY_TYPES', 'FAMILY_STATUS', 'Complexion',
+        'HOBBIES', 'INTERESTS', 'PROFILE_CREATED_FOR'
       ];
       const results = await Promise.all(
         types.map(async (t) => {
@@ -176,7 +193,7 @@ export default function EditMyProfilePage() {
     loadAllMasters();
   }, []);
 
-  // Cities for Address Section (Fetches dynamically on state change)
+  // Cities for Address Section (Current State)
   useEffect(() => {
     if (formData.CurrentStateId > 0) {
       fetchCitiesApi(formData.CurrentStateId).then(cities => setMasterData(prev => ({ ...prev, CITIES: cities })));
@@ -184,6 +201,15 @@ export default function EditMyProfilePage() {
       setMasterData(prev => ({ ...prev, CITIES: [] }));
     }
   }, [formData.CurrentStateId]);
+
+  // Cities for Native Place Section
+  useEffect(() => {
+    if (formData.NativePlaceStateId > 0) {
+      fetchCitiesApi(formData.NativePlaceStateId).then(cities => setMasterData(prev => ({ ...prev, NATIVE_CITIES: cities })));
+    } else {
+      setMasterData(prev => ({ ...prev, NATIVE_CITIES: [] }));
+    }
+  }, [formData.NativePlaceStateId]);
 
   // Cities for Partner Preferences (Fetches based on first selected state)
   useEffect(() => {
@@ -249,55 +275,70 @@ export default function EditMyProfilePage() {
         ...prev,
         UserId: p.userId || p.UserId || userId,
         FullName: getValidText(p.fullName || p.FullName, 'Member'),
-        MobileNumber: getValidText(p.mobileNumber || p.MobileNumber, '+919876543210'),
-        Email: getValidText(p.email || p.Email, 'user@nikahqubool.com'),
+        MobileNumber: getValidText(p.mobileNumber || p.MobileNumber, ''),
+        Email: getValidText(p.email || p.Email, ''),
         ProfileCreatedFor: getValidId(p.profileCreatedForId ?? p.ProfileCreatedForId, p.profileCreatedFor, currentMasters.PROFILE_CREATED_FOR, 1),
-        ProfileCreatedForText: getValidText(p.profileCreatedFor || p.ProfileCreatedFor, 'Self'),
+        ProfileCreatedForText: getValidText(p.profileCreatedForName || p.profileCreatedFor || p.ProfileCreatedFor, 'Self'),
         Age: p.age || 24,
         Gender: getValidText(p.gender || p.Gender, 'Female'),
         DateOfBirth: parsedDob,
         DateOfBirthFormatted: p.dateOfBirth ? new Date(p.dateOfBirth).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'N/A',
         PhotoUrl: getOptimizedImageUrl(p.mainPhotoUrl || p.photoUrl),
 
+        AboutMe: p.aboutMe || p.AboutMe || '',
         FamilyAbout: p.familyAbout || p.aboutFamily || '',
         Height: getValidText(p.height || p.Height, '5 ft 6 in'),
         Weight: getValidText(p.weight || p.Weight, '60 kg'),
         Complexion: getValidId(p.complexionId ?? p.ComplexionId, p.complexion, currentMasters.COMPLEXIONS, 1),
         MaritalStatus: getValidId(p.maritalStatusId ?? p.MaritalStatusId, p.maritalStatus, currentMasters.MARITAL_STATUS, 1),
-        MaritalStatusText: getValidText(p.maritalStatus || p.MaritalStatus, 'Never Married'),
+        MaritalStatusText: getValidText(p.maritalStatusName || p.maritalStatus || p.MaritalStatus, 'Never Married'),
         Sect: getValidId(p.sectId ?? p.SectId, p.sect, currentMasters.SECTS, 1),
-        SectText: getValidText(p.sect || p.Sect, 'Sunni'),
+        SectText: getValidText(p.sectName || p.sect || p.Sect, 'Sunni'),
         Caste: getValidId(p.casteId ?? p.CasteId, p.caste, currentMasters.CASTES, 1),
-        CasteText: getValidText(p.caste || p.Caste, 'General'),
+        CasteText: getValidText(p.casteName || p.caste || p.Caste, 'General'),
+        Maslak: getValidId(p.maslakId ?? p.MaslakId, p.maslak, currentMasters.MASLAKS, 1),
+        MaslakText: getValidText(p.maslakName || p.maslak || p.Maslak, ''),
         MotherTongue: getValidId(p.motherTongueId ?? p.MotherTongueId, p.motherTongue, currentMasters.MOTHER_TONGUES, 1),
-        MotherTongueText: getValidText(p.motherTongue || p.MotherTongue, 'Hindi'),
+        MotherTongueText: getValidText(p.motherTongueName || p.motherTongue || p.MotherTongue, 'Hindi'),
 
         HighestDegree: getValidId(p.highestDegreeId ?? p.HighestDegreeId, p.highestDegree, currentMasters.EDUCATIONS, 1),
-        HighestDegreeText: getValidText(p.highestDegree || p.HighestDegree, 'Graduate'),
+        HighestDegreeText: getValidText(p.highestDegreeName || p.highestDegree || p.HighestDegree, 'Graduate'),
         CollegeName: p.collegeName || p.CollegeName || '',
         EmploymentSector: getValidId(p.employmentSectorId ?? p.EmploymentSectorId, p.employmentSector, currentMasters.EMPLOYMENT_SECTORS, 1),
         Designation: getValidId(p.designationId ?? p.DesignationId, p.designation, currentMasters.OCCUPATIONS, 1),
-        DesignationText: getValidText(p.designation || p.Designation, 'Professional'),
+        DesignationText: getValidText(p.designationName || p.designation || p.Designation, 'Professional'),
         OccupationDetails: p.occupationDetails || p.OccupationDetails || '',
         AnnualIncome: getValidText(p.annualIncome || p.AnnualIncome, '5 - 10 LPA'),
 
         DietType: getValidText(p.dietType || p.DietType, 'Halal Only'),
         SmokeHabit: getValidText(p.smokeHabit || p.SmokeHabit, 'No'),
         DrinkHabit: getValidText(p.drinkHabit || p.DrinkHabit, 'No'),
+        Hobbies: p.hobbies || p.Hobbies || '',
+        Interests: p.interests || p.Interests || '',
 
         CurrentStateId: Number(p.currentStateId ?? p.CurrentStateId ?? 0),
         StateName: getValidText(p.currentStateName || p.stateName, 'State N/A'),
         CurrentCityId: Number(p.currentCityId ?? p.CurrentCityId ?? 0),
         CityName: getValidText(p.currentCityName || p.cityName, 'City N/A'),
+        NativePlaceStateId: Number(p.nativePlaceStateId ?? p.NativePlaceStateId ?? 0),
+        NativeStateName: getValidText(p.nativeStateName || p.NativeStateName, ''),
+        NativePlaceCityId: Number(p.nativePlaceCityId ?? p.NativePlaceCityId ?? 0),
+        NativeCityName: getValidText(p.nativeCityName || p.NativeCityName, ''),
 
         FamilyType: getValidId(p.familyTypeId ?? p.FamilyTypeId, p.familyType, currentMasters.FAMILY_TYPES, 1),
         FamilyStatus: getValidId(p.familyStatusId ?? p.FamilyStatusId, p.familyStatus, currentMasters.FAMILY_STATUS, 1),
-        FatherOccupation: getValidText(p.fatherOccupation || p.FatherOccupation, 'Business Owner'),
-        MotherOccupation: getValidText(p.motherOccupation || p.MotherOccupation, 'Homemaker'),
+        FatherName: p.fatherName || p.FatherName || '',
+        MotherName: p.motherName || p.MotherName || '',
+        FatherOccupationId: getValidId(p.fatherOccupationId ?? p.FatherOccupationId, p.fatherOccupationName || p.fatherOccupation || p.FatherOccupation, currentMasters.OCCUPATIONS, 1),
+        MotherOccupationId: getValidId(p.motherOccupationId ?? p.MotherOccupationId, p.motherOccupationName || p.motherOccupation || p.MotherOccupation, currentMasters.OCCUPATIONS, 1),
+        FatherOccupation: getValidText(p.fatherOccupationName || p.fatherOccupation || p.FatherOccupation, ''),
+        MotherOccupation: getValidText(p.motherOccupationName || p.motherOccupation || p.MotherOccupation, ''),
         TotalBrothers: Number(p.totalBrothers || 0),
         MarriedBrothers: Number(p.marriedBrothers || 0),
         TotalSisters: Number(p.totalSisters || 0),
-        MarriedSisters: Number(p.marriedSisters || 0)
+        MarriedSisters: Number(p.marriedSisters || 0),
+
+        PartnerExpectations: p.partnerExpectations || p.PartnerExpectations || ''
       }));
 
       if (pref && Object.keys(pref).length > 0) {
@@ -378,6 +419,14 @@ export default function EditMyProfilePage() {
       };
 
       const res = await savePartnerPreferencesApi(prefPayload, token);
+
+      if (formData.PartnerExpectations) {
+        const prefFd = new FormData();
+        prefFd.append("UserId", String(formData.UserId));
+        prefFd.append("PartnerExpectations", formData.PartnerExpectations);
+        await updateProfileApi(prefFd, token);
+      }
+
       if (res.success) {
         toast.success("Partner preferences saved successfully!");
         await loadUserData();
@@ -396,21 +445,27 @@ export default function EditMyProfilePage() {
       MotherTongue: masterData.MOTHER_TONGUES,
       Sect: masterData.SECTS,
       Caste: masterData.CASTES,
+      Maslak: masterData.MASLAKS,
       HighestDegree: masterData.EDUCATIONS,
       EmploymentSector: masterData.EMPLOYMENT_SECTORS,
       Designation: masterData.OCCUPATIONS,
       CurrentStateId: masterData.STATES,
       CurrentCityId: masterData.CITIES,
+      NativePlaceStateId: masterData.STATES,
+      NativePlaceCityId: masterData.NATIVE_CITIES,
       FamilyType: masterData.FAMILY_TYPES,
       FamilyStatus: masterData.FAMILY_STATUS,
+      FatherOccupationId: masterData.OCCUPATIONS,
+      MotherOccupationId: masterData.OCCUPATIONS,
       Complexion: masterData.COMPLEXIONS,
       ProfileCreatedFor: masterData.PROFILE_CREATED_FOR
     };
 
     const uiOnlyKeys = [
-      'DateOfBirthFormatted', 'MaritalStatusText', 'SectText', 'CasteText', 
+      'DateOfBirthFormatted', 'MaritalStatusText', 'SectText', 'CasteText', 'MaslakText',
       'MotherTongueText', 'HighestDegreeText', 'DesignationText', 'StateName', 
-      'CityName', 'NamazHabit', 'HijabOrBeard', 'Age', 'MobileNumber', 'ProfileCreatedForText', 'PhotoUrl'
+      'CityName', 'NativeStateName', 'NativeCityName', 'FatherOccupation', 'MotherOccupation',
+      'NamazHabit', 'HijabOrBeard', 'Age', 'MobileNumber', 'ProfileCreatedForText', 'PhotoUrl'
     ];
 
     Object.keys(formData).forEach((key) => {
@@ -656,10 +711,21 @@ export default function EditMyProfilePage() {
                   {currentSection === 'intro' && (
                     <div className="space-y-4">
                       <div className="space-y-1.5">
+                        <label className="text-[11px] font-extrabold uppercase text-slate-700">About Me / Bio</label>
+                        <textarea 
+                          rows={4} 
+                          value={formData.AboutMe || ''} 
+                          onChange={(e) => setFormData({ ...formData, AboutMe: e.target.value })} 
+                          placeholder="Write a brief introduction about yourself, personality, interests..." 
+                          className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
                         <label className="text-[11px] font-extrabold uppercase text-slate-700">About My Family</label>
                         <textarea 
-                          rows={5} 
-                          value={formData.FamilyAbout} 
+                          rows={4} 
+                          value={formData.FamilyAbout || ''} 
                           onChange={(e) => setFormData({ ...formData, FamilyAbout: e.target.value })} 
                           placeholder="Share background about your family values, culture..." 
                           className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
@@ -748,19 +814,37 @@ export default function EditMyProfilePage() {
                         />
                       </div>
 
-                      <CompactSelect 
-                        label="Sect" 
-                        options={masterData.SECTS || []} 
-                        value={formData.Sect} 
-                        onChange={(val) => setFormData({ ...formData, Sect: val })} 
-                      />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <CompactSelect 
+                          label="Sect" 
+                          options={masterData.SECTS || []} 
+                          value={formData.Sect} 
+                          onChange={(val) => setFormData({ ...formData, Sect: val })} 
+                        />
 
-                      <CompactSelect 
-                        label="Caste" 
-                        options={masterData.CASTES || []} 
-                        value={formData.Caste} 
-                        onChange={(val) => setFormData({ ...formData, Caste: val })} 
-                      />
+                        <CompactSelect 
+                          label="Maslak" 
+                          options={masterData.MASLAKS || []} 
+                          value={formData.Maslak} 
+                          onChange={(val) => setFormData({ ...formData, Maslak: val })} 
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <CompactSelect 
+                          label="Caste" 
+                          options={masterData.CASTES || []} 
+                          value={formData.Caste} 
+                          onChange={(val) => setFormData({ ...formData, Caste: val })} 
+                        />
+
+                        <CompactSelect 
+                          label="Complexion" 
+                          options={masterData.COMPLEXIONS || []} 
+                          value={formData.Complexion} 
+                          onChange={(val) => setFormData({ ...formData, Complexion: val })} 
+                        />
+                      </div>
 
                       <CompactSelect 
                         label="Mother Tongue" 
@@ -853,35 +937,106 @@ export default function EditMyProfilePage() {
                         options={drinkOptions} 
                         value={formData.DrinkHabit} 
                         onChange={(val) => setFormData({ ...formData, DrinkHabit: String(val) })} 
-                        openUpward={true}
                       />
+
+                      {/* ✅ HOBBIES & INTERESTS */}
+                      {masterData.HOBBIES && masterData.HOBBIES.length > 0 ? (
+                        <MultiSelectDropdown 
+                          label="Hobbies (Multi-Select)"
+                          options={masterData.HOBBIES}
+                          selectedIds={formData.Hobbies ? formData.Hobbies.split(',').map((s: string) => s.trim()).filter(Boolean) : []}
+                          onChange={(ids) => setFormData({ ...formData, Hobbies: ids.join(',') })}
+                        />
+                      ) : (
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-extrabold uppercase text-slate-700">Hobbies</label>
+                          <input 
+                            type="text"
+                            value={formData.Hobbies || ''} 
+                            onChange={(e) => setFormData({ ...formData, Hobbies: e.target.value })} 
+                            placeholder="e.g. Reading, Cooking, Traveling, Photography..." 
+                            className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-3.5 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
+                          />
+                        </div>
+                      )}
+
+                      {masterData.INTERESTS && masterData.INTERESTS.length > 0 ? (
+                        <MultiSelectDropdown 
+                          label="Interests (Multi-Select)"
+                          options={masterData.INTERESTS}
+                          selectedIds={formData.Interests ? formData.Interests.split(',').map((s: string) => s.trim()).filter(Boolean) : []}
+                          onChange={(ids) => setFormData({ ...formData, Interests: ids.join(',') })}
+                          openUpward={true}
+                        />
+                      ) : (
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-extrabold uppercase text-slate-700">Interests</label>
+                          <input 
+                            type="text"
+                            value={formData.Interests || ''} 
+                            onChange={(e) => setFormData({ ...formData, Interests: e.target.value })} 
+                            placeholder="e.g. Technology, Art, Sports, Nature..." 
+                            className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-3.5 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {/* 6. ADDRESS SECTION (DYNAMIC STATE-CITY SELECTION) */}
+                  {/* 6. ADDRESS SECTION (CURRENT & NATIVE LOCATION) */}
                   {currentSection === 'address' && (
-                    <div className="space-y-4">
-                      <CompactSelect 
-                        label="Current State" 
-                        options={masterData.STATES || []} 
-                        value={formData.CurrentStateId} 
-                        onChange={(val) => {
-                          const newStateId = Number(val);
-                          setFormData((prev: any) => ({ ...prev, CurrentStateId: newStateId, CurrentCityId: 0, CityName: '' }));
-                        }} 
-                      />
+                    <div className="space-y-5">
+                      <div className="p-4 bg-[#d91b5c]/5 rounded-2xl border border-[#d91b5c]/20 font-bold text-xs text-[#d91b5c] uppercase tracking-wider">
+                        Current Location
+                      </div>
 
-                      <CompactSelect 
-                        label="Current City" 
-                        options={masterData.CITIES || []} 
-                        value={formData.CurrentCityId} 
-                        onChange={(val) => setFormData({ ...formData, CurrentCityId: val })} 
-                        openUpward={true}
-                      />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <CompactSelect 
+                          label="Current State" 
+                          options={masterData.STATES || []} 
+                          value={formData.CurrentStateId} 
+                          onChange={(val) => {
+                            const newStateId = Number(val);
+                            setFormData((prev: any) => ({ ...prev, CurrentStateId: newStateId, CurrentCityId: 0, CityName: '' }));
+                          }} 
+                        />
+
+                        <CompactSelect 
+                          label="Current City" 
+                          options={masterData.CITIES || []} 
+                          value={formData.CurrentCityId} 
+                          onChange={(val) => setFormData({ ...formData, CurrentCityId: Number(val) })} 
+                        />
+                      </div>
+
+                      <div className="p-4 bg-slate-100 rounded-2xl border border-slate-200 font-bold text-xs text-slate-700 uppercase tracking-wider">
+                        Native Place / Hometown Location
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <CompactSelect 
+                          label="Native State" 
+                          options={masterData.STATES || []} 
+                          value={formData.NativePlaceStateId} 
+                          onChange={(val) => {
+                            const newStateId = Number(val);
+                            setFormData((prev: any) => ({ ...prev, NativePlaceStateId: newStateId, NativePlaceCityId: 0, NativeCityName: '' }));
+                          }} 
+                          openUpward={true}
+                        />
+
+                        <CompactSelect 
+                          label="Native City" 
+                          options={masterData.NATIVE_CITIES || []} 
+                          value={formData.NativePlaceCityId} 
+                          onChange={(val) => setFormData({ ...formData, NativePlaceCityId: Number(val) })} 
+                          openUpward={true}
+                        />
+                      </div>
                     </div>
                   )}
 
-                  {/* 7. FAMILY DETAILS SECTION (WITH OPEN-UPWARD DROPDOWNS) */}
+                  {/* 7. FAMILY DETAILS SECTION */}
                   {currentSection === 'family' && (
                     <div className="space-y-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -974,7 +1129,7 @@ export default function EditMyProfilePage() {
                     </div>
                   )}
 
-                  {/* 8. PARTNER PREFERENCES SECTION (MULTI-SELECT STATE & CITY) */}
+                  {/* 8. PARTNER PREFERENCES SECTION */}
                   {currentSection === 'partner' && (
                     <div className="space-y-5">
                       <MultiSelectDropdown 
@@ -1018,7 +1173,6 @@ export default function EditMyProfilePage() {
                         options={masterData.STATES || []} 
                         selectedIds={partnerPref.stateIds || []} 
                         onChange={(ids) => setPartnerPref({ ...partnerPref, stateIds: ids, cityIds: [] })} 
-                        openUpward={true}
                       />
 
                       <MultiSelectDropdown 
@@ -1026,8 +1180,18 @@ export default function EditMyProfilePage() {
                         options={masterData.PREF_CITIES || []} 
                         selectedIds={partnerPref.cityIds || []} 
                         onChange={(ids) => setPartnerPref({ ...partnerPref, cityIds: ids })} 
-                        openUpward={true}
                       />
+
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] font-extrabold uppercase text-slate-700">Partner Expectations & Requirements</label>
+                        <textarea 
+                          rows={4} 
+                          value={formData.PartnerExpectations || ''} 
+                          onChange={(e) => setFormData({ ...formData, PartnerExpectations: e.target.value })} 
+                          placeholder="Describe specific qualities, values, or family expectations you are looking for in a partner..." 
+                          className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
+                        />
+                      </div>
                     </div>
                   )}
                 </>

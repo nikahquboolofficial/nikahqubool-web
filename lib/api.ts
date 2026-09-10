@@ -31,6 +31,26 @@ export const formatLastSeen = (lastSeenDate?: string | Date | null) => {
   return `Last seen ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
 };
 
+// 🧼 Professional Error Message Sanitizer
+export const sanitizeErrorMessage = (msg: string | undefined | null): string => {
+  if (!msg) return 'Service temporarily unavailable. Please try again.';
+  const lower = String(msg).toLowerCase();
+  
+  if (
+    lower.includes('cannot open server') ||
+    lower.includes('ip address') ||
+    lower.includes('firewall') ||
+    lower.includes('sql') ||
+    lower.includes('exception') ||
+    lower.includes('connection string') ||
+    msg.length > 80
+  ) {
+    return 'Service temporarily unavailable. Please try again in a few moments.';
+  }
+
+  return msg;
+};
+
 // 🔓 Public: Profile Created For Master
 export const fetchProfileCreatedForOptions = async (): Promise<MasterOption[]> => {
   if (masterOptionsCache && masterOptionsCache.length > 0) return masterOptionsCache;
@@ -321,7 +341,53 @@ export const blockUserApiCall = async (targetUserId: number, token: string | nul
   }
 };
 
-export const unblockUserApiCall = blockUserApiCall;
+export const unblockUserApiCall = async (targetUserId: number, token: string | null | undefined) => {
+  if (!token) return { success: false, isUnauthorized: true, message: "Unauthorized token" };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/User/unblock-user`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ targetUserId })
+    });
+
+    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
+    const data = await res.json();
+    return { 
+      success: Boolean(data.success ?? data.Success), 
+      message: data.message ?? data.Message ?? "User unblocked successfully." 
+    };
+  } catch (error) {
+    return { success: false, message: "Failed to connect to server." };
+  }
+};
+
+export const reportUserApiCall = async (targetUserId: number, token: string | null | undefined, reason: string = 'Inappropriate Behavior') => {
+  if (!token) return { success: false, isUnauthorized: true, message: "Unauthorized token" };
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/User/report-user`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ targetUserId, reason })
+    });
+
+    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
+    const data = await res.json();
+    return { 
+      success: Boolean(data.success ?? data.Success ?? true), 
+      message: data.message ?? data.Message ?? "Profile reported successfully." 
+    };
+  } catch (error) {
+    return { success: false, message: "Failed to connect to server." };
+  }
+};
 
 // ===========================================================================
 // 💬 CHAT SYSTEM APIs (Token MANDATORY)
@@ -701,5 +767,39 @@ export const verifySelfieFaceMatchApi = async (token: string | null | undefined)
     return { success: Boolean(data.success || data.Success), message: data.message || data.Message || "Selfie face match verified successfully!" };
   } catch (e) {
     return { success: false, message: "Failed to process selfie verification." };
+  }
+};
+
+// 🔒 Protected: Fetch Blocked Users List API
+export const fetchBlockedUsersApi = async (token: string | null | undefined) => {
+  if (!token) return { success: false, data: [] };
+  try {
+    const res = await fetch(`${API_BASE_URL}/User/get-blocked-users`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    const json = await res.json();
+    const list = Array.isArray(json.data) ? json.data : (Array.isArray(json.Data) ? json.Data : []);
+    return { success: Boolean(json.success || json.Success), data: list };
+  } catch (e) {
+    return { success: false, data: [] };
+  }
+};
+
+// 🔒 Protected: Update Photo Privacy API
+export const updatePhotoPrivacyApiCall = async (privacy: string, token: string | null | undefined) => {
+  if (!token) return { success: false, message: "Unauthorized access." };
+  try {
+    const res = await fetch(`${API_BASE_URL}/User/update-photo-privacy`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ privacy })
+    });
+    const data = await res.json();
+    return { success: Boolean(data.success || data.Success || data.Success === 1), message: data.message || data.Message || "Photo privacy updated successfully." };
+  } catch (e) {
+    return { success: false, message: "Failed to update photo privacy." };
   }
 };

@@ -51,17 +51,34 @@ export default function DashboardHeader({
           } catch (e) {}
         }
 
-        if (parsed && (parsed.mainPhotoUrl || parsed.photoUrl || parsed.PhotoUrl || parsed.mainPhoto || parsed.photo || parsed.userId)) {
-          const rawPhoto = parsed.mainPhotoUrl || parsed.photoUrl || parsed.PhotoUrl || parsed.mainPhoto || parsed.photo;
+        const rawPhoto = parsed?.mainPhotoUrl || parsed?.photoUrl || parsed?.PhotoUrl || parsed?.mainPhoto || parsed?.photo;
+        const token = getCookie("user_token");
+
+        if (parsed && (rawPhoto || parsed.userId)) {
           setUserPhoto(getOptimizedImageUrl(rawPhoto, parsed.userId || 1, parsed.gender));
           setUserName(parsed.fullName || parsed.FullName || 'My Account');
           setIsVerified(Boolean(parsed.isVerified ?? parsed.IsVerified ?? false));
           setIsPaid(Boolean(parsed.isPaid ?? parsed.IsPaid ?? false));
-        } else {
-          const token = getCookie("user_token");
-          if (!token) {
-            handleLogout();
-          }
+        }
+
+        if (token && (!rawPhoto || rawPhoto === '/placeholder.png')) {
+          try {
+            const userId = parsed?.userId || 0;
+            const res = await fetchProfileDetailsApi(userId, token);
+            if (res.success && res.data) {
+              const profile = res.data.profile || res.data.Profile || res.data;
+              const freshPhoto = profile.mainPhotoUrl || profile.photoUrl || profile.PhotoUrl || profile.mainPhoto || profile.photo;
+              if (freshPhoto) {
+                setUserPhoto(getOptimizedImageUrl(freshPhoto, profile.userId || userId || 1, profile.gender));
+                setUserName(profile.fullName || profile.FullName || 'My Account');
+                const updatedSession = { ...(parsed || {}), mainPhotoUrl: freshPhoto, photoUrl: freshPhoto, photo: freshPhoto };
+                localStorage.setItem('user_details', JSON.stringify(updatedSession));
+                localStorage.setItem('user_session', JSON.stringify(updatedSession));
+              }
+            }
+          } catch (err) {}
+        } else if (!token && !parsed) {
+          handleLogout();
         }
       }
     };

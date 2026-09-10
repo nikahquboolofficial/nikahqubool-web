@@ -259,8 +259,9 @@ export default function ChatWindow({
     }
   };
 
-  const isBlocked = blockStatus.isBlockedByMe || blockStatus.isBlockedByOther;
-  const displayAvatar = photoUrl ? getOptimizedImageUrl(photoUrl) : `https://ui-avatars.com/api/?name=${encodeURIComponent(userName ?? 'User')}&background=FFF0F3&color=870c3f&bold=true`;
+  const isDeletedUser = userName === "Deleted User" || String(userName).toLowerCase().includes("deleted");
+  const isBlocked = blockStatus.isBlockedByMe || blockStatus.isBlockedByOther || isDeletedUser;
+  const displayAvatar = isDeletedUser ? "/placeholder.png" : (photoUrl ? getOptimizedImageUrl(photoUrl) : `https://ui-avatars.com/api/?name=${encodeURIComponent(userName ?? 'User')}&background=FFF0F3&color=870c3f&bold=true`);
 
   return (
     <div className="flex flex-col h-full w-full bg-[#efeae2]/30 relative overflow-hidden selection:bg-[#d91b5c] selection:text-white">
@@ -271,25 +272,25 @@ export default function ChatWindow({
           <ArrowLeft size={20} />
         </button>
 
-        <div onClick={handleViewProfile} className="flex items-center gap-3 group cursor-pointer">
+        <div onClick={isDeletedUser ? undefined : handleViewProfile} className={`flex items-center gap-3 group ${isDeletedUser ? 'cursor-default' : 'cursor-pointer'}`}>
           <div className="relative shrink-0 w-10 h-10 md:w-11 md:h-11">
             <img 
               src={displayAvatar} 
-              className="w-10 h-10 md:w-11 md:h-11 rounded-full shadow-sm border-2 border-white/40 object-cover object-top group-hover:scale-105 transition-transform shrink-0" 
+              className="w-10 h-10 md:w-11 md:h-11 rounded-full shadow-sm border-2 border-white/40 object-cover object-top shrink-0" 
               alt="avatar"
               onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }}
             />
-            {isOnline && (
+            {isOnline && !isDeletedUser && (
               <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-400 border-2 border-[#d91b5c] rounded-full z-20 shadow-sm animate-pulse" />
             )}
           </div>
 
           <div className="flex flex-col">
-            <h3 className="font-serif font-extrabold text-sm md:text-base leading-tight uppercase tracking-tight flex items-center gap-1.5 text-white group-hover:underline">
-              {userName ?? 'Member'} <Heart size={14} className="fill-amber-300 text-amber-300" />
+            <h3 className={`font-serif font-extrabold text-sm md:text-base leading-tight uppercase tracking-tight flex items-center gap-1.5 text-white ${isDeletedUser ? '' : 'group-hover:underline'}`}>
+              {isDeletedUser ? "Deleted User" : (userName ?? 'Member')} {!isDeletedUser && <Heart size={14} className="fill-amber-300 text-amber-300" />}
             </h3>
             <span className="text-[10px] font-black text-rose-100 uppercase tracking-widest mt-0.5">
-              {isOnline ? "Online" : formatLastSeen(lastSeenTime)}
+              {isDeletedUser ? "Account Deleted" : (isOnline ? "Online" : formatLastSeen(lastSeenTime))}
             </span>
           </div>
         </div>
@@ -436,9 +437,11 @@ export default function ChatWindow({
         {isBlocked ? (
           <div className="p-3 bg-rose-50 rounded-2xl text-center border border-rose-200">
             <p className="text-xs font-extrabold text-slate-600 uppercase tracking-wide">
-              {blockStatus.isBlockedByMe ? "You have blocked this account." : "You can't reply to this conversation."}
+              {isDeletedUser 
+                ? "This account has been deleted. You can't reply to this conversation." 
+                : (blockStatus.isBlockedByMe ? "You have blocked this account." : "You can't reply to this conversation.")}
             </p>
-            {blockStatus.isBlockedByMe && (
+            {blockStatus.isBlockedByMe && !isDeletedUser && (
               <button type="button" onClick={handleToggleBlock} className="text-xs font-black text-[#d91b5c] underline mt-1 cursor-pointer">
                 Unblock User
               </button>

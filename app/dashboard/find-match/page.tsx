@@ -189,10 +189,9 @@ export default function FindMatchesPage() {
     setActionLoading(false);
 
     if (res && (res.success)) {
-      toast.success(res.message || "Connected successfully!");
       setProfiles(prev => prev.filter(p => (p.userId || p.UserId) !== receiverId));
     } else {
-      toast.error(res?.message || "Action failed");
+      toast.error("Unable to update action. Please try again.");
     }
   };
 
@@ -206,16 +205,11 @@ export default function FindMatchesPage() {
   };
 
   const handleInitiateChat = (user: any) => {
-    let isPaid = Boolean(user.isCurrentUserPaid ?? user.IsCurrentUserPaid ?? isUserPaid);
-    if (!isPaid && typeof window !== "undefined") {
-      const stored = localStorage.getItem("user_details") || localStorage.getItem("user_session");
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          isPaid = Boolean(parsed.isPaid ?? parsed.IsPaid ?? parsed.isCurrentUserPaid ?? parsed.IsCurrentUserPaid);
-        } catch (e) {}
-      }
-    }
+    const isPaid = Boolean(
+      user.isCanChat ?? user.IsCanChat ?? 
+      user.isCurrentUserPaid ?? user.IsCurrentUserPaid ?? 
+      isUserPaid
+    );
 
     if (isPaid) {
       sessionStorage.setItem('active_chat_target', JSON.stringify({

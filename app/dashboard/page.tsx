@@ -90,9 +90,28 @@ export default function VIPCleanDashboardPage() {
 
     if (res.success && res.data) {
       const list = res.data.profiles || res.data.Profiles || [];
-      const userPaid = Boolean(res.data.isCurrentUserPaid ?? res.data.IsCurrentUserPaid ?? list[0]?.isCurrentUserPaid ?? list[0]?.IsCurrentUserPaid);
+      const userPaid = Boolean(
+        res.data.isCurrentUserPaid ?? res.data.IsCurrentUserPaid ?? 
+        list[0]?.isCanChat ?? list[0]?.IsCanChat ?? 
+        list[0]?.isCurrentUserPaid ?? list[0]?.IsCurrentUserPaid ?? false
+      );
       
       setIsCurrentUserPaid(userPaid);
+
+      // Sync live paid status into localStorage user_details if present
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("user_details");
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            if (parsed.isPaid !== userPaid || parsed.isCurrentUserPaid !== userPaid) {
+              parsed.isPaid = userPaid;
+              parsed.isCurrentUserPaid = userPaid;
+              localStorage.setItem("user_details", JSON.stringify(parsed));
+            }
+          } catch (e) {}
+        }
+      }
 
       const limitState = checkDailyViewLimit(list.length, userPaid);
       setDailyLimitReached(limitState.isLimitReached && !userPaid);
@@ -153,7 +172,8 @@ export default function VIPCleanDashboardPage() {
 
     setProfiles((prevProfiles) =>
       prevProfiles.map((p) => {
-        if (p.userId === receiverUserId) {
+        const uId = Number(p.userId || p.UserId || 0);
+        if (uId === receiverUserId) {
           if (type === 'SHORTLIST') {
             const currentIsShort = Boolean(p.isShortlisted ?? p.IsShortlisted);
             return { ...p, isShortlisted: !currentIsShort, IsShortlisted: !currentIsShort };
@@ -193,17 +213,11 @@ export default function VIPCleanDashboardPage() {
   };
 
   const handleInitiateChat = async (profile: any) => {
-    let isPaid = Boolean(profile.isCurrentUserPaid ?? profile.IsCurrentUserPaid ?? isCurrentUserPaid);
-    
-    if (!isPaid && typeof window !== "undefined") {
-      const stored = localStorage.getItem("user_details") || localStorage.getItem("user_session");
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          isPaid = Boolean(parsed.isPaid ?? parsed.IsPaid ?? parsed.isCurrentUserPaid ?? parsed.IsCurrentUserPaid ?? parsed.isPremium ?? parsed.IsPremium ?? false);
-        } catch (e) {}
-      }
-    }
+    const isPaid = Boolean(
+      profile.isCanChat ?? profile.IsCanChat ?? 
+      profile.isCurrentUserPaid ?? profile.IsCurrentUserPaid ?? 
+      isCurrentUserPaid
+    );
 
     if (isPaid) {
       sessionStorage.setItem('active_chat_target', JSON.stringify({
@@ -291,17 +305,20 @@ export default function VIPCleanDashboardPage() {
         ) : (
           <div className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {profiles.map((profile) => (
-                <ProfileCard
-                  key={profile.userId}
-                  profile={profile}
-                  actionLoading={actionState[profile.userId] || false}
-                  actionLoadingType={actionTypeState[profile.userId] || null}
-                  onInteraction={handleInteraction}
-                  onViewProfile={handleViewProfile}
-                  onInitiateChat={handleInitiateChat}
-                />
-              ))}
+              {profiles.map((profile) => {
+                const uId = Number(profile.userId || profile.UserId || 0);
+                return (
+                  <ProfileCard
+                    key={uId}
+                    profile={profile}
+                    actionLoading={actionState[uId] || false}
+                    actionLoadingType={actionTypeState[uId] || null}
+                    onInteraction={handleInteraction}
+                    onViewProfile={handleViewProfile}
+                    onInitiateChat={handleInitiateChat}
+                  />
+                );
+              })}
             </div>
 
             {/* 🔒 24-HOUR DAILY 20 PROFILES VIEW LIMIT CARD (FOR FREE UNPAID USERS) */}

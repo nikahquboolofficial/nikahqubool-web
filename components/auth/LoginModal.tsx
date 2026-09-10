@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, Lock, Loader2, LogIn, ShieldCheck, ArrowRight } from 'lucide-react';
-import { sendOtpApi, verifyOtpApi } from '@/lib/api';
+import { sendOtpApi, verifyOtpApi, sanitizeErrorMessage } from '@/lib/api';
 import { handleAuthSuccessRedirect } from '@/lib/auth';
 
 interface LoginModalProps {
@@ -61,7 +61,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
       setOtp(new Array(6).fill(''));
       setError('');
     } else {
-      setApiMessage(res.message);
+      setApiMessage(sanitizeErrorMessage(res.message));
     }
     setLoading(false);
     setLoadingAction('');
@@ -88,7 +88,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
       onClose();
       handleAuthSuccessRedirect(res, router);
     } else {
-      setApiMessage(res.message || 'Login verification failed');
+      setApiMessage(sanitizeErrorMessage(res.message || 'Login verification failed'));
       setLoading(false);
       setLoadingAction('');
     }

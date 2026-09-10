@@ -1,13 +1,9 @@
 import type { NextConfig } from 'next';
 
-const nextConfig: NextConfig = {
+const nextConfig: any = {
   typescript: {
     // TypeScript errors ko ignore karke build complete karne ke liye
     ignoreBuildErrors: true,
-  },
-  eslint: {
-    // ESLint warning/errors ko ignore karne ke liye
-    ignoreDuringBuilds: true,
   },
   images: {
     remotePatterns: [

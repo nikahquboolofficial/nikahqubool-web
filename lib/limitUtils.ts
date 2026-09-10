@@ -5,19 +5,7 @@ export interface DailyLimitState {
 }
 
 export function checkDailyViewLimit(newLoadedCount: number, isPaidParam: boolean): DailyLimitState {
-  let isPaid = isPaidParam;
-
-  if (!isPaid && typeof window !== "undefined") {
-    try {
-      const storedUser = localStorage.getItem("user_details") || localStorage.getItem("user_session");
-      if (storedUser) {
-        const parsed = JSON.parse(storedUser);
-        if (parsed.isPaid || parsed.IsPaid || parsed.isCurrentUserPaid || parsed.IsCurrentUserPaid || parsed.isPremium || parsed.IsPremium) {
-          isPaid = true;
-        }
-      }
-    } catch (e) {}
-  }
+  const isPaid = isPaidParam;
 
   if (isPaid) {
     return { isLimitReached: false, remainingMs: 0, count: 0 };

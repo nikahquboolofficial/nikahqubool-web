@@ -6,14 +6,16 @@ import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { 
   Bell, Heart, ArrowLeft, Check, Save, 
   PauseCircle, Trash2, Power, Loader2, Sliders, ChevronRight, 
-  LogOut, ShieldAlert, CheckCircle2, UserCheck, AlertTriangle
+  LogOut, ShieldAlert, CheckCircle2, UserCheck, AlertTriangle,
+  Crown, Eye, ShieldCheck, UserX, Lock, Unlock, Shield
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast, Toaster } from 'sonner';
 import { 
   fetchMasterDataApi, fetchCitiesApi, savePartnerPreferencesApi,
-  deactivateAccountApi, deleteAccountApi, MasterOption 
+  deactivateAccountApi, deleteAccountApi, fetchBlockedUsersApi,
+  unblockUserApiCall, updatePhotoPrivacyApiCall, MasterOption 
 } from '@/lib/api';
 import { CompactSelect, MultiSelectDropdown } from '@/components/profile/CompactSelect';
 
@@ -47,14 +49,22 @@ function SettingsContent() {
 
   const [masterData, setMasterData] = useState<{ [key: string]: MasterOption[] }>({});
 
-  // 3. Pause / Deactivate Modal State
+  // 3. Privacy & Blocked Users State
+  const [privacySubTab, setPrivacySubTab] = useState<'photo' | 'blocked'>('photo');
+  const [photoPrivacy, setPhotoPrivacy] = useState<string>('All Members');
+  const [savingPhotoPrivacy, setSavingPhotoPrivacy] = useState(false);
+  const [blockedUsers, setBlockedUsers] = useState<any[]>([]);
+  const [loadingBlockedUsers, setLoadingBlockedUsers] = useState(false);
+  const [unblockingUserId, setUnblockingUserId] = useState<number | null>(null);
+
+  // 4. Pause / Deactivate Modal State
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [pauseReason, setPauseReason] = useState("Found my partner on Nikah Qubool");
   const [customReason, setCustomReason] = useState("");
   const [isAccountPaused, setIsAccountPaused] = useState(false);
   const [pausingLoading, setPausingLoading] = useState(false);
 
-  // 4. Delete Account Modal State
+  // 5. Delete Account Modal State
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingLoading, setDeletingLoading] = useState(false);
 
@@ -67,13 +77,15 @@ function SettingsContent() {
 
   const getToken = useCallback((): string | null => getCookie("user_token"), []);
 
-  const handleLogout = useCallback(() => {
+  const handleLogout = useCallback((showToast: boolean = true) => {
     document.cookie = "user_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     if (typeof window !== "undefined") {
       localStorage.clear();
       sessionStorage.clear();
     }
-    toast.success("Logged out successfully.");
+    if (showToast) {
+      toast.success("Logged out successfully.");
+    }
     setTimeout(() => {
       router.push('/');
     }, 600);
@@ -106,6 +118,19 @@ function SettingsContent() {
     return () => { isMounted = false; };
   }, [activeTab]);
 
+  // Load Blocked Users when Privacy tab -> Blocked subtab is active
+  useEffect(() => {
+    if (activeTab !== 'privacy' || privacySubTab !== 'blocked') return;
+    const token = getToken();
+    if (!token) return;
+
+    setLoadingBlockedUsers(true);
+    fetchBlockedUsersApi(token).then((res) => {
+      setBlockedUsers(res.data || []);
+      setLoadingBlockedUsers(false);
+    });
+  }, [activeTab, privacySubTab, getToken]);
+
   // Fetch Cities when State changes
   useEffect(() => {
     if (prefData.stateId > 0) {
@@ -137,6 +162,32 @@ function SettingsContent() {
     }
   };
 
+  const handleSavePhotoPrivacy = async () => {
+    const token = getToken();
+    setSavingPhotoPrivacy(true);
+    const res = await updatePhotoPrivacyApiCall(photoPrivacy, token);
+    setSavingPhotoPrivacy(false);
+    if (res.success) {
+      toast.success("Photo privacy settings updated successfully!");
+    } else {
+      toast.error(res.message || "Failed to update photo privacy.");
+    }
+  };
+
+  const handleUnblockUser = async (targetUserId: number) => {
+    const token = getToken();
+    setUnblockingUserId(targetUserId);
+    const res = await unblockUserApiCall(targetUserId, token);
+    setUnblockingUserId(null);
+
+    if (res.success) {
+      setBlockedUsers(prev => prev.filter(u => (u.userId ?? u.UserId) !== targetUserId));
+      toast.success("User unblocked successfully!");
+    } else {
+      toast.error(res.message || "Failed to unblock user.");
+    }
+  };
+
   const handleConfirmPauseAccount = async () => {
     const token = getToken();
     const finalReason = pauseReason === "Other" ? customReason : pauseReason;
@@ -146,7 +197,7 @@ function SettingsContent() {
     if (res.success) {
       setIsAccountPaused(true);
       setShowPauseModal(false);
-      toast.success("Your profile is now paused and hidden from search results.");
+      handleLogout(false);
     } else {
       toast.error(res.message || "Failed to pause account.");
     }
@@ -184,6 +235,7 @@ function SettingsContent() {
     switch (activeTab) {
       case 'notifications': return "Notification Settings";
       case 'preferences': return "Partner Preferences";
+      case 'privacy': return "Profile & Photo Privacy";
       case 'manage': return "Manage Account";
       default: return "Settings";
     }
@@ -195,7 +247,7 @@ function SettingsContent() {
 
       <div className="max-w-xl mx-auto px-4 md:px-6 space-y-6">
         
-        {/* 📌 TOP INLINE HEADER (SAME STYLE AS GALLERY PAGE) */}
+        {/* 📌 TOP INLINE HEADER */}
         <div className="flex items-center gap-3 py-2 border-b border-slate-200">
           <button 
             type="button" 
@@ -288,7 +340,49 @@ function SettingsContent() {
                 <ChevronRight size={20} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-1 transition-all" />
               </div>
 
-              {/* OPTION 3: MANAGE ACCOUNT */}
+              {/* OPTION 3: PROFILE PRIVACY & BLOCKED USERS */}
+              <div 
+                onClick={() => setActiveTab('privacy')}
+                className="p-5 flex items-center justify-between cursor-pointer hover:bg-rose-50/40 transition-all group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-rose-50 text-[#d91b5c] border-2 border-rose-200 flex items-center justify-center group-hover:scale-105 transition-transform">
+                    <Shield size={22} />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-sm uppercase text-slate-900 tracking-tight flex items-center gap-2">
+                      <span>Profile & Photo Privacy</span>
+                    </h3>
+                    <p className="text-xs font-semibold text-slate-500 mt-0.5">
+                      Manage photo visibility & blocked members
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight size={20} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-1 transition-all" />
+              </div>
+
+              {/* OPTION 4: PAYMENT & SUBSCRIPTION INFO */}
+              <div 
+                onClick={() => router.push('/dashboard/payment-info')}
+                className="p-5 flex items-center justify-between cursor-pointer hover:bg-rose-50/40 transition-all group"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 border-2 border-amber-200 flex items-center justify-center group-hover:scale-105 transition-transform">
+                    <Crown size={22} className="fill-amber-500 text-amber-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-sm uppercase text-slate-900 tracking-tight flex items-center gap-1.5">
+                      <span>Payment & VIP Subscription</span>
+                    </h3>
+                    <p className="text-xs font-semibold text-slate-500 mt-0.5">
+                      View active plan details, validity & transactions
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight size={20} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-1 transition-all" />
+              </div>
+
+              {/* OPTION 5: MANAGE ACCOUNT */}
               <div 
                 onClick={() => setActiveTab('manage')}
                 className="p-5 flex items-center justify-between cursor-pointer hover:bg-rose-50/40 transition-all group"
@@ -315,7 +409,7 @@ function SettingsContent() {
             <div className="pt-4 text-center">
               <button
                 type="button"
-                onClick={handleLogout}
+                onClick={() => handleLogout()}
                 className="w-full max-w-xs mx-auto py-3.5 px-6 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-black text-xs uppercase tracking-wider border-2 border-rose-200 shadow-sm active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
               >
                 <LogOut size={18} className="text-rose-600" />
@@ -479,29 +573,227 @@ function SettingsContent() {
           </motion.div>
         )}
 
-        {/* ⚙️ 4. MANAGE ACCOUNT SUB-SCREEN */}
-        {activeTab === 'manage' && (
+        {/* 🛡️ 4. PROFILE PRIVACY & BLOCKED USERS SUB-SCREEN */}
+        {activeTab === 'privacy' && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-6 md:p-8 border-2 border-rose-100 shadow-xl space-y-6">
-            <div className="flex items-center gap-3 border-b-2 border-slate-100 pb-4">
-              <div className="p-2.5 bg-rose-50 rounded-2xl text-[#d91b5c] border border-rose-200">
+            
+            {/* SUB-TABS PILLS: PHOTO PRIVACY / BLOCKED USERS */}
+            <div className="flex items-center bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setPrivacySubTab('photo')}
+                className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  privacySubTab === 'photo'
+                    ? 'bg-white text-[#d91b5c] shadow-sm border border-rose-100'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Eye size={16} />
+                <span>Photo Privacy</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPrivacySubTab('blocked')}
+                className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  privacySubTab === 'blocked'
+                    ? 'bg-white text-[#d91b5c] shadow-sm border border-rose-100'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <UserX size={16} />
+                <span>Blocked Users</span>
+              </button>
+            </div>
+
+            {/* 📸 SUB-TAB 1: PHOTO PRIVACY */}
+            {privacySubTab === 'photo' && (
+              <div className="space-y-6 pt-2">
+                <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+                  <div className="p-2.5 bg-rose-50 rounded-2xl text-[#d91b5c] border border-rose-200">
+                    <Eye size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-serif font-extrabold uppercase text-slate-900">Photo Visibility Control</h3>
+                    <p className="text-xs font-semibold text-slate-500">Choose who can view your uploaded photos</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {[
+                    {
+                      id: "All Members",
+                      title: "All Members",
+                      desc: "All registered candidates can view your photos (Recommended for higher proposal responses)."
+                    },
+                    {
+                      id: "Premium Only",
+                      title: "Premium Only",
+                      desc: "Only active VIP & Premium paid members can view your full profile photos."
+                    },
+                    {
+                      id: "Only Approved",
+                      title: "Only Approved",
+                      desc: "Photos remain protected and require your explicit approval per request."
+                    }
+                  ].map((option) => (
+                    <label 
+                      key={option.id}
+                      onClick={() => setPhotoPrivacy(option.id)}
+                      className={`flex items-start gap-3.5 p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                        photoPrivacy === option.id 
+                          ? 'bg-rose-50/60 border-[#d91b5c] ring-2 ring-rose-500/10' 
+                          : 'bg-slate-50 border-slate-200 hover:border-rose-200'
+                      }`}
+                    >
+                      <input 
+                        type="radio" 
+                        name="photoPrivacy" 
+                        value={option.id} 
+                        checked={photoPrivacy === option.id}
+                        onChange={() => setPhotoPrivacy(option.id)}
+                        className="mt-0.5 w-4 h-4 accent-[#d91b5c] cursor-pointer shrink-0" 
+                      />
+                      <div>
+                        <h4 className="text-xs font-black uppercase text-slate-900">{option.title}</h4>
+                        <p className="text-[11px] font-semibold text-slate-500 mt-0.5 leading-relaxed">{option.desc}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+
+                <button 
+                  type="button" 
+                  onClick={handleSavePhotoPrivacy}
+                  disabled={savingPhotoPrivacy}
+                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 cursor-pointer border border-rose-300/30 flex items-center justify-center gap-2"
+                >
+                  {savingPhotoPrivacy ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  <span>Save Photo Privacy Settings</span>
+                </button>
+              </div>
+            )}
+
+            {/* 🚫 SUB-TAB 2: BLOCKED USERS LIST */}
+            {privacySubTab === 'blocked' && (
+              <div className="space-y-6 pt-2">
+                <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+                  <div className="p-2.5 bg-rose-50 rounded-2xl text-[#d91b5c] border border-rose-200">
+                    <UserX size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-serif font-extrabold uppercase text-slate-900">Blocked Members</h3>
+                    <p className="text-xs font-semibold text-slate-500">Unblock members to restore profile visibility & messaging</p>
+                  </div>
+                </div>
+
+                {loadingBlockedUsers ? (
+                  <div className="space-y-3">
+                    {[1, 2].map((i) => (
+                      <div key={i} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between animate-pulse">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-slate-300 rounded-full" />
+                          <div className="space-y-2">
+                            <div className="w-32 h-4 bg-slate-300 rounded-md" />
+                            <div className="w-20 h-3 bg-slate-200 rounded-md" />
+                          </div>
+                        </div>
+                        <div className="w-20 h-8 bg-slate-300 rounded-xl" />
+                      </div>
+                    ))}
+                  </div>
+                ) : blockedUsers.length === 0 ? (
+                  <div className="p-8 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 space-y-3">
+                    <div className="w-14 h-14 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto border border-rose-200">
+                      <UserX size={28} />
+                    </div>
+                    <h4 className="font-serif font-extrabold text-sm uppercase text-slate-800">No Blocked Members</h4>
+                    <p className="text-xs font-semibold text-slate-500 max-w-xs mx-auto leading-relaxed">
+                      You haven't blocked any members yet. Users you block from profile views or chat windows will appear here.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {blockedUsers.map((user) => {
+                      const uId = user.userId ?? user.UserId;
+                      const uName = user.fullName ?? user.FullName ?? `Member #${uId}`;
+                      const uPhoto = user.photoUrl ?? user.PhotoUrl;
+                      const isUnblocking = unblockingUserId === uId;
+
+                      return (
+                        <div 
+                          key={uId} 
+                          className="p-4 bg-white rounded-2xl border-2 border-slate-100 hover:border-rose-200 shadow-sm flex items-center justify-between gap-3 transition-all"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-11 h-11 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center overflow-hidden shrink-0 border border-slate-200">
+                              {uPhoto ? (
+                                <img src={uPhoto} alt={uName} className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-xs uppercase">{uName.substring(0, 2)}</span>
+                              )}
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-extrabold text-slate-900">{uName}</h4>
+                              <span className="text-[10px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full inline-block mt-0.5">
+                                Status: Blocked
+                              </span>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleUnblockUser(uId)}
+                            disabled={isUnblocking}
+                            className="px-4 py-2 bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-700 font-extrabold text-xs uppercase tracking-wider rounded-xl border border-slate-200 cursor-pointer flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
+                          >
+                            {isUnblocking ? (
+                              <Loader2 size={14} className="animate-spin text-rose-600" />
+                            ) : (
+                              <Unlock size={14} className="text-rose-600" />
+                            )}
+                            <span>Unblock</span>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+              </div>
+            )}
+
+          </motion.div>
+        )}
+
+        {/* ⚙️ 5. MANAGE ACCOUNT SUB-SCREEN (CLEAN SOBER DESIGN) */}
+        {activeTab === 'manage' && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-6 md:p-8 border-2 border-slate-100 shadow-xl space-y-6">
+            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+              <div className="p-2.5 bg-slate-100 rounded-2xl text-slate-700 border border-slate-200">
                 <Power size={22} />
               </div>
               <div>
                 <h2 className="text-base font-serif font-extrabold uppercase text-slate-900">Manage Account Status</h2>
-                <p className="text-xs font-semibold text-slate-500">Pause profile visibility or delete account permanently</p>
+                <p className="text-xs font-semibold text-slate-500">Control your account visibility and permanent account settings</p>
               </div>
             </div>
 
             <div className="space-y-4">
               
-              {/* PAUSE ACCOUNT OPTION */}
-              <div className="p-5 bg-amber-50/70 rounded-3xl border-2 border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              {/* PAUSE ACCOUNT CARD - SOBER ELEGANT */}
+              <div className="p-5 bg-amber-50/50 rounded-2xl border border-amber-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="space-y-1">
-                  <h4 className="font-serif font-extrabold text-sm uppercase text-slate-900 flex items-center gap-2">
-                    <PauseCircle size={18} className="text-amber-600" /> Pause / Deactivate Account
-                  </h4>
-                  <p className="text-xs font-semibold text-slate-600">
-                    Temporarily hide your profile from all members while keeping your match data intact.
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                      <PauseCircle size={18} />
+                    </div>
+                    <h4 className="font-extrabold text-xs uppercase text-slate-900">
+                      Pause Profile Visibility
+                    </h4>
+                  </div>
+                  <p className="text-[11px] font-semibold text-slate-600 pl-10 leading-relaxed">
+                    Temporarily hide profile from search results. Logging in anytime restores full access automatically.
                   </p>
                 </div>
                 <button 
@@ -513,30 +805,35 @@ function SettingsContent() {
                       setShowPauseModal(true);
                     }
                   }} 
-                  className={`px-5 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider cursor-pointer shadow-sm shrink-0 ${
+                  className={`px-4 py-2.5 rounded-xl font-extrabold text-xs uppercase tracking-wider cursor-pointer shadow-xs shrink-0 transition-all ${
                     isAccountPaused
                       ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                      : 'bg-amber-500 hover:bg-amber-600 text-slate-950'
+                      : 'bg-amber-600 hover:bg-amber-700 text-white'
                   }`}
                 >
-                  {isAccountPaused ? 'Reactivate Profile' : 'Pause Profile'}
+                  {isAccountPaused ? 'Reactivate Profile' : 'Deactivate Profile'}
                 </button>
               </div>
 
-              {/* DELETE ACCOUNT OPTION */}
-              <div className="p-5 bg-rose-50/70 rounded-3xl border-2 border-rose-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              {/* DELETE ACCOUNT CARD - SOBER ELEGANT */}
+              <div className="p-5 bg-rose-50/50 rounded-2xl border border-rose-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="space-y-1">
-                  <h4 className="font-serif font-extrabold text-sm uppercase text-rose-900 flex items-center gap-2">
-                    <Trash2 size={18} className="text-rose-600" /> Delete Account
-                  </h4>
-                  <p className="text-xs font-semibold text-slate-600">
-                    Permanently delete your profile, photos, and match history from Nikah Qubool.
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
+                      <Trash2 size={18} />
+                    </div>
+                    <h4 className="font-extrabold text-xs uppercase text-rose-950">
+                      Delete Account Permanently
+                    </h4>
+                  </div>
+                  <p className="text-[11px] font-semibold text-slate-600 pl-10 leading-relaxed">
+                    Permanently delete your profile data, photos, and match history. This action cannot be undone.
                   </p>
                 </div>
                 <button 
                   type="button" 
                   onClick={() => setShowDeleteModal(true)} 
-                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs rounded-2xl uppercase tracking-wider cursor-pointer shadow-sm shrink-0"
+                  className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl uppercase tracking-wider cursor-pointer shadow-xs shrink-0 transition-all"
                 >
                   Delete Account
                 </button>

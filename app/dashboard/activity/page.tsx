@@ -11,6 +11,7 @@ import { toast, Toaster } from 'sonner';
 import { fetchDashboardApi, handleInteractionApiCall } from '@/lib/api';
 import ProfileCard from '@/components/dashboard/ProfileCard';
 import ProfileCardSkeleton from '@/components/dashboard/ProfileCardSkeleton';
+import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
 
 type MainCategory = 'all' | 'interests' | 'visitors' | 'gallery' | 'contacts' | 'shortlist';
 
@@ -27,36 +28,50 @@ const CATEGORY_SUBTABS: Record<MainCategory, SubTabConfig[]> = {
   ],
   interests: [
     { id: 'requests', label: 'Received', countKey: 'requestsCount', icon: Inbox },
-    { id: 'interests-sent', label: 'Sent', icon: Send },
+    { id: 'interests-sent', label: 'Sent', countKey: 'interestsSentCount', icon: Send },
     { id: 'accepted', label: 'Accepted', countKey: 'acceptedCount', icon: CheckCircle2 },
   ],
   visitors: [
     { id: 'visitors', label: 'Visited Me', countKey: 'visitorsCount', icon: Flame },
-    { id: 'profiles-viewed', label: 'I Visited', icon: Eye },
+    { id: 'profiles-viewed', label: 'I Visited', countKey: 'profilesViewedCount', icon: Eye },
   ],
   gallery: [
     { id: 'gallery-requests-received', label: 'Received', countKey: 'photosCount', icon: Inbox },
-    { id: 'gallery-requests', label: 'Sent', icon: Lock },
-    { id: 'gallery-requests-accepted', label: 'Accepted', icon: CheckCircle2 },
+    { id: 'gallery-requests', label: 'Sent', countKey: 'photoRequestsSentCount', icon: Lock },
+    { id: 'gallery-requests-accepted', label: 'Accepted', countKey: 'acceptedCount', icon: CheckCircle2 },
   ],
   contacts: [
-    { id: 'contact-views', label: 'I Viewed', icon: Eye },
-    { id: 'contact-views-received', label: 'Viewed Mine', icon: Eye },
+    { id: 'contact-views', label: 'I Viewed', countKey: 'contactViewsCount', icon: Eye },
+    { id: 'contact-views-received', label: 'Viewed Mine', countKey: 'contactViewsReceivedCount', icon: Eye },
   ],
   shortlist: [
     { id: 'shortlisted-by-me', label: 'Shortlisted By Me', countKey: 'shortlistedCount', icon: Bookmark },
+    { id: 'shortlisted-me', label: 'Shortlisted Me', countKey: 'shortlistedMeCount', icon: Bookmark },
   ],
+};
+
+const resolveCatAndTab = (rawCatParam: string | null, rawTabParam: string | null): { cat: MainCategory; tab: string } => {
+  const cat: MainCategory = (rawCatParam && CATEGORY_SUBTABS[rawCatParam as MainCategory]) 
+    ? (rawCatParam as MainCategory) 
+    : 'interests';
+  
+  const validSubTabs = CATEGORY_SUBTABS[cat] || [];
+  const defaultSubTab = validSubTabs[0]?.id || 'requests';
+  const tab = (rawTabParam && validSubTabs.some(s => s.id === rawTabParam))
+    ? rawTabParam
+    : defaultSubTab;
+
+  return { cat, tab };
 };
 
 function ActivityPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const queryCat = (searchParams.get('cat') as MainCategory) || 'interests';
-  const queryTab = searchParams.get('tab') || 'requests';
+  const { cat: initialCat, tab: initialTab } = resolveCatAndTab(searchParams.get('cat'), searchParams.get('tab'));
 
-  const [activeCat, setActiveCat] = useState<MainCategory>(queryCat);
-  const [activeSubTab, setActiveSubTab] = useState<string>(queryTab);
+  const [activeCat, setActiveCat] = useState<MainCategory>(initialCat);
+  const [activeSubTab, setActiveSubTab] = useState<string>(initialTab);
 
   const [profiles, setProfiles] = useState<any[]>([]);
   const [page, setPage] = useState(1);
@@ -92,10 +107,14 @@ function ActivityPageContent() {
   }, [activeSubTab]);
 
   useEffect(() => {
-    const qCat = searchParams.get('cat') as MainCategory;
-    const qTab = searchParams.get('tab');
-    if (qCat && CATEGORY_SUBTABS[qCat] && qCat !== activeCat) setActiveCat(qCat);
-    if (qTab && qTab !== activeSubTab) setActiveSubTab(qTab);
+    const { cat: targetCat, tab: targetTab } = resolveCatAndTab(searchParams.get('cat'), searchParams.get('tab'));
+    if (targetCat !== activeCat) {
+      setActiveCat(targetCat);
+    }
+    if (targetTab !== activeSubTab) {
+      setActiveSubTab(targetTab);
+      activeSubTabRef.current = targetTab;
+    }
   }, [searchParams, activeCat, activeSubTab]);
 
   const loadActivityData = useCallback(async (tabName: string, pageNum: number, append: boolean = false) => {
@@ -112,39 +131,50 @@ function ActivityPageContent() {
       setFetchingMore(true);
     }
 
-    const res = await fetchDashboardApi(tabName, pageNum, token);
+    try {
+      const res = await fetchDashboardApi(tabName, pageNum, token);
 
-    // 🛡️ PREVENT RACE CONDITION: Discard response if user switched to another tab while request was in-flight!
-    if (activeSubTabRef.current !== tabName) {
-      return;
-    }
-
-    if (res.isUnauthorized) {
-      toast.dismiss();
-      toast.error("Session expired.");
-      router.push('/');
-      return;
-    }
-
-    if (res.success && res.data) {
-      const list = res.data.profiles || res.data.Profiles || [];
-      const counts = res.data.tabCounts || res.data.TabCounts || res.data.counts || res.data.Counts || {};
-
-      if (append) {
-        setProfiles((prev) => [...prev, ...list]);
-      } else {
-        setProfiles(list);
+      // 🛡️ RACE CONDITION SHIELD: If active subtab changed while API call was in flight, discard stale response!
+      if (activeSubTabRef.current !== tabName) {
+        return;
       }
 
-      if (counts && Object.keys(counts).length > 0) {
-        setTabCounts(counts);
+      if (res.isUnauthorized) {
+        toast.dismiss();
+        toast.error("Session expired.");
+        router.push('/');
+        return;
       }
 
-      setHasMore(list.length >= 12);
-    }
+      if (res.success && res.data) {
+        const rawProfiles = Array.isArray(res.data) 
+          ? res.data 
+          : (res.data?.profiles || res.data?.Profiles || res.data?.data?.profiles || res.data?.data?.Profiles || (Array.isArray(res.data?.data) ? res.data.data : []));
+        
+        const counts = res.data?.tabCounts || res.data?.TabCounts || res.data?.counts || res.data?.Counts || res.data?.data?.tabCounts || res.data?.data?.TabCounts || {};
 
-    setLoading(false);
-    setFetchingMore(false);
+        if (append) {
+          setProfiles((prev) => [...prev, ...rawProfiles]);
+        } else {
+          setProfiles(rawProfiles);
+        }
+
+        if (counts && Object.keys(counts).length > 0) {
+          setTabCounts(counts);
+        }
+
+        setHasMore(rawProfiles.length >= 12);
+      }
+    } catch (e) {
+      if (activeSubTabRef.current === tabName) {
+        toast.error("Failed to load activity profiles.");
+      }
+    } finally {
+      if (activeSubTabRef.current === tabName) {
+        setLoading(false);
+        setFetchingMore(false);
+      }
+    }
   }, [getToken, router]);
 
   useEffect(() => {
@@ -153,14 +183,16 @@ function ActivityPageContent() {
   }, [activeSubTab, loadActivityData]);
 
   const handleCatChange = (cat: MainCategory) => {
-    setActiveCat(cat);
     const firstSubTab = CATEGORY_SUBTABS[cat]?.[0]?.id || 'requests';
+    setActiveCat(cat);
     setActiveSubTab(firstSubTab);
+    activeSubTabRef.current = firstSubTab;
     router.replace(`/dashboard/activity?cat=${cat}&tab=${firstSubTab}`, { scroll: false });
   };
 
   const handleSubTabChange = (subTabId: string) => {
     setActiveSubTab(subTabId);
+    activeSubTabRef.current = subTabId;
     router.replace(`/dashboard/activity?cat=${activeCat}&tab=${subTabId}`, { scroll: false });
   };
 
@@ -206,12 +238,8 @@ function ActivityPageContent() {
     const res = await handleInteractionApiCall(receiverUserId, type, status, token);
     setActionState((prev) => ({ ...prev, [receiverUserId]: false }));
 
-    if (res.success) {
-      toast.dismiss();
-      toast.success(res.message || "Action updated instantly");
-    } else {
-      toast.dismiss();
-      toast.error(res.message || "Action failed");
+    if (!res.success) {
+      toast.error("Unable to update action. Please try again.");
       loadActivityData(activeSubTab, 1, false);
     }
   };
@@ -229,22 +257,16 @@ function ActivityPageContent() {
   };
 
   const handleInitiateChat = (profile: any) => {
-    let isPaid = Boolean(profile.isCurrentUserPaid ?? profile.IsCurrentUserPaid);
-    if (!isPaid && typeof window !== "undefined") {
-      const stored = localStorage.getItem("user_details") || localStorage.getItem("user_session");
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          isPaid = Boolean(parsed.isPaid ?? parsed.IsPaid ?? parsed.isCurrentUserPaid ?? parsed.IsCurrentUserPaid ?? parsed.isPremium ?? parsed.IsPremium ?? false);
-        } catch (e) {}
-      }
-    }
+    const isPaid = Boolean(
+      profile.isCanChat ?? profile.IsCanChat ?? 
+      profile.isCurrentUserPaid ?? profile.IsCurrentUserPaid
+    );
     
     if (isPaid) {
       sessionStorage.setItem('active_chat_target', JSON.stringify({
-        userId: profile.userId,
-        fullName: profile.fullName,
-        photoUrl: profile.photoUrl || profile.mainPhotoUrl || ''
+        userId: profile.userId || profile.UserId,
+        fullName: profile.fullName || profile.FullName,
+        photoUrl: profile.photoUrl || profile.mainPhotoUrl || profile.PhotoUrl || ''
       }));
       router.push('/dashboard/messages');
     } else {
@@ -347,17 +369,20 @@ function ActivityPageContent() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pt-2">
-            {profiles.map((profile) => (
-              <ProfileCard
-                key={profile.userId}
-                profile={profile}
-                activeTab={activeSubTab}
-                actionLoading={actionState[profile.userId] || false}
-                onInteraction={handleInteraction}
-                onViewProfile={handleViewProfile}
-                onInitiateChat={handleInitiateChat}
-              />
-            ))}
+            {profiles.map((profile) => {
+              const uId = Number(profile.userId || profile.UserId || 0);
+              return (
+                <ProfileCard
+                  key={uId}
+                  profile={profile}
+                  activeTab={activeSubTab}
+                  actionLoading={actionState[uId] || false}
+                  onInteraction={handleInteraction}
+                  onViewProfile={handleViewProfile}
+                  onInitiateChat={handleInitiateChat}
+                />
+              );
+            })}
           </div>
         )}
 
@@ -379,49 +404,10 @@ function ActivityPageContent() {
       </div>
 
       {/* 👑 VIP PREMIUM SUBSCRIPTION MODAL */}
-      <AnimatePresence>
-        {showSubscriptionModal && (
-          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center space-y-4 shadow-2xl border-2 border-rose-100 relative"
-            >
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 flex items-center justify-center mx-auto shadow-lg shadow-amber-500/20">
-                <Crown size={36} className="fill-slate-950" />
-              </div>
-
-              <div className="space-y-1">
-                <h3 className="text-xl font-serif font-black text-slate-900 uppercase">Upgrade to VIP</h3>
-                <p className="text-xs text-slate-600 font-bold">
-                  Direct Messaging is unlocked for active VIP members!
-                </p>
-              </div>
-
-              <div className="pt-2 space-y-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowSubscriptionModal(false);
-                    router.push('/dashboard/membership');
-                  }}
-                  className="w-full py-3 rounded-full bg-gradient-to-r from-[#d91b5c] to-rose-600 hover:brightness-110 text-white font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 active:scale-95 transition-all cursor-pointer"
-                >
-                  View Membership Plans
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowSubscriptionModal(false)}
-                  className="w-full py-2.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer"
-                >
-                  Maybe Later
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <SubscriptionModal 
+        isOpen={showSubscriptionModal} 
+        onClose={() => setShowSubscriptionModal(false)} 
+      />
 
     </div>
   );

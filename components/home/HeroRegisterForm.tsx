@@ -57,11 +57,13 @@ export default function HeroRegisterForm() {
   const handleProfileForChange = (val: string) => {
     setProfileFor(val);
     const selectedOpt = options.find(o => o.id.toString() === val.toString());
-    const lowerVal = selectedOpt ? selectedOpt.value.toLowerCase() : '';
-    if (['son', 'brother'].includes(lowerVal)) setGender('male');
-    else if (['daughter', 'sister'].includes(lowerVal)) setGender('female');
+    const lowerVal = selectedOpt ? selectedOpt.value.toLowerCase().trim() : '';
+
+    if (['son', 'brother'].some(k => lowerVal.includes(k))) setGender('male');
+    else if (['daughter', 'sister'].some(k => lowerVal.includes(k))) setGender('female');
     else setGender('');
-    setErrors(prev => ({ ...prev, profileFor: '' }));
+
+    setErrors(prev => ({ ...prev, profileFor: '', gender: '' }));
   };
 
   const handleInputChange = (field: string, val: string) => {
@@ -73,6 +75,11 @@ export default function HeroRegisterForm() {
     }
   };
 
+  const selectedOpt = options.find(o => o.id.toString() === profileFor.toString());
+  const lowerVal = selectedOpt ? selectedOpt.value.toLowerCase().trim() : '';
+  const isAutoGender = ['son', 'brother', 'daughter', 'sister'].some(k => lowerVal.includes(k));
+  const showGenderSelection = Boolean(selectedOpt && !isAutoGender);
+
   const handleRegisterSubmit = async () => {
     setApiMessage('');
     let errs = { profileFor: '', gender: '', fullName: '', mobileNumber: '', email: '' };
@@ -83,10 +90,9 @@ export default function HeroRegisterForm() {
     if (!/^[6-9]\d{9}$/.test(mobileNumber)) { errs.mobileNumber = 'Valid 10-digit number required'; fail = true; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { errs.email = 'Valid email required'; fail = true; }
 
-    const selectedOpt = options.find(o => o.id.toString() === profileFor.toString());
-    const lowerVal = selectedOpt ? selectedOpt.value.toLowerCase() : '';
-    if (['self', 'relative/friend'].includes(lowerVal) && !gender) {
-      errs.gender = 'Gender required'; fail = true;
+    if (showGenderSelection && !gender) {
+      errs.gender = 'Please select Groom or Bride';
+      fail = true;
     }
 
     setErrors(errs);
@@ -166,8 +172,7 @@ export default function HeroRegisterForm() {
     }
   };
 
-  const selectedOpt = options.find(o => o.id.toString() === profileFor.toString());
-  const showGenderSelection = selectedOpt && ['self', 'relative/friend'].includes(selectedOpt.value.toLowerCase());
+
 
   return (
     <>

@@ -88,7 +88,10 @@ export default function CompleteProfilePage() {
 
   useEffect(() => {
     const session = typeof window !== 'undefined' ? localStorage.getItem("user_session") : null;
-    const userData = session ? JSON.parse(session) : null;
+    let userData: any = null;
+    if (session) {
+      try { userData = JSON.parse(session); } catch (e) {}
+    }
     const token = userData?.token || getCookie('user_token');
 
     if (!token) {
@@ -156,7 +159,10 @@ export default function CompleteProfilePage() {
     setLoading(true);
     setApiError('');
     const session = typeof window !== 'undefined' ? localStorage.getItem("user_session") : null;
-    const userData = session ? JSON.parse(session) : null;
+    let userData: any = null;
+    if (session) {
+      try { userData = JSON.parse(session); } catch (e) {}
+    }
     const token = userData?.token || getCookie('user_token');
 
     if (!token) {
@@ -202,13 +208,28 @@ export default function CompleteProfilePage() {
       const res = await updateProfileApi(fd, token);
 
       if (res.success) {
-        if (session) {
-          try {
-            const sessionData = JSON.parse(session);
-            sessionData.isProfileCompleted = true;
-            localStorage.setItem('user_session', JSON.stringify(sessionData));
-          } catch (e) {}
+        let updatedSessionData: any = session ? JSON.parse(session) : {};
+        updatedSessionData.isProfileCompleted = true;
+
+        try {
+          const profileRes = await fetchProfileDetailsApi(Number(userData?.userId || 0), token);
+          if (profileRes.success && profileRes.data) {
+            const pData = profileRes.data.profile || profileRes.data.Profile || profileRes.data;
+            const mainPhoto = pData.mainPhotoUrl || pData.photoUrl || pData.PhotoUrl || pData.mainPhoto || pData.photo || '';
+            if (mainPhoto) {
+              updatedSessionData.mainPhotoUrl = mainPhoto;
+              updatedSessionData.photoUrl = mainPhoto;
+              updatedSessionData.photo = mainPhoto;
+              updatedSessionData.mainPhoto = mainPhoto;
+            }
+          }
+        } catch (e) {}
+
+        if (typeof window !== "undefined") {
+          localStorage.setItem('user_session', JSON.stringify(updatedSessionData));
+          localStorage.setItem('user_details', JSON.stringify(updatedSessionData));
         }
+
         const expires = new Date(Date.now() + 7 * 864e5).toUTCString();
         const isSecure = typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : "";
         document.cookie = `is_profile_completed=1; expires=${expires}; path=/; SameSite=Lax${isSecure}`;
@@ -276,20 +297,17 @@ export default function CompleteProfilePage() {
     <div className="min-h-screen bg-gradient-to-b from-rose-50/50 via-white to-slate-50 text-slate-800 font-sans pb-16 md:pb-0">
       
       {/* HEADER */}
-      <header className="sticky top-0 z-[100] bg-white/90 backdrop-blur-md border-b border-rose-100 shadow-xs">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#d91b5c] to-rose-400 flex items-center justify-center text-white shadow-md shadow-rose-900/20">
-              <Crown size={22} className="text-amber-300" />
-            </div>
-            <div>
-              <span className="text-lg font-black tracking-tight text-slate-900">
-                Nikah<span className="text-[#d91b5c]">Qubool</span>
-              </span>
-              <span className="hidden sm:inline-block ml-2 px-2.5 py-0.5 rounded-full bg-rose-100 text-[#d91b5c] text-[10px] font-black uppercase tracking-wider">
-                Step {section} of 6
-              </span>
-            </div>
+      <header className="sticky top-0 z-[100] bg-white/95 backdrop-blur-xl border-b border-slate-200 shadow-xs">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-18 sm:h-24 flex items-center justify-between">
+          <div className="flex items-center gap-3 shrink-0">
+            <img
+              src="/nikah-qubool-logo.png"
+              alt="Nikah Qubool Logo"
+              className="h-11 sm:h-13 md:h-15 w-auto max-w-[210px] sm:max-w-[270px] object-contain object-left"
+            />
+            <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full bg-rose-100 text-[#d91b5c] text-[10px] font-black uppercase tracking-wider">
+              Step {section} of 6
+            </span>
           </div>
 
           <div className="flex items-center gap-4">

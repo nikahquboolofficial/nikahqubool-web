@@ -98,7 +98,12 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
 
   const handleChatClick = async (chat: any) => {
     const targetUserId = chat.userId ?? chat.UserId;
-    onSelectUser(chat);
+    const isDeleted = Boolean(
+      chat.isDeleted ?? chat.IsDeleted ?? 
+      (chat.accountState && String(chat.accountState).toLowerCase().includes('del'))
+    );
+    const chatToPass = isDeleted ? { ...chat, fullName: "Deleted User", FullName: "Deleted User", photoUrl: "/placeholder.png" } : chat;
+    onSelectUser(chatToPass);
 
     const unread = chat.unreadCount ?? chat.UnreadCount ?? 0;
     if (unread > 0) {
@@ -159,12 +164,26 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
       <div className="flex-1 min-h-0 overflow-y-auto p-2.5 space-y-1.5 bg-white">
         {filteredChats.map((chat) => {
           const uId = Number(chat.userId ?? chat.UserId);
-          const fName = chat.fullName ?? chat.FullName ?? "User";
+          const isDeleted = Boolean(
+            chat.isDeleted ?? chat.IsDeleted ?? 
+            (chat.accountState && String(chat.accountState).toLowerCase().includes('del'))
+          );
+          const isAdminBlocked = Boolean(
+            chat.isAdminBlocked ?? chat.IsAdminBlocked ?? 
+            (chat.accountState && String(chat.accountState).toLowerCase().includes('admin'))
+          );
+          const isDeactive = Boolean(
+            chat.isDeactive ?? chat.IsDeactive ?? 
+            (chat.accountState && String(chat.accountState).toLowerCase().includes('deact')) ?? 
+            (chat.accountState && String(chat.accountState).toLowerCase().includes('pause'))
+          );
+
+          const fName = isDeleted ? "Deleted User" : (chat.fullName ?? chat.FullName ?? "User");
           const lastMsg = chat.lastMessage ?? chat.LastMessage ?? "Start a conversation...";
           const lastTime = chat.lastMessageTime ?? chat.LastMessageTime;
           const unread = chat.unreadCount ?? chat.UnreadCount ?? 0;
           const isSelected = Number(selectedId) === uId;
-          const isUserOnline = onlineUsers[uId] ? onlineUsers[uId].isOnline : Boolean(chat.isOnline ?? chat.IsOnline);
+          const isUserOnline = !isDeleted && !isDeactive && (onlineUsers[uId] ? onlineUsers[uId].isOnline : Boolean(chat.isOnline ?? chat.IsOnline));
 
           // 🎯 INSTAGRAM / FACEBOOK STYLE BLOCK PREVIEW TEXT
           const isBlockedByMe = Boolean(chat.isBlockedByMe ?? chat.IsBlockedByMe);
@@ -172,11 +191,14 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
           const isBlocked = Boolean(chat.isBlocked ?? chat.IsBlocked);
           
           let displayPreview = lastMsg;
-          if (isBlockedByMe) displayPreview = "You blocked this user";
+          if (isDeleted) displayPreview = "Account Deleted";
+          else if (isDeactive) displayPreview = "Account Paused";
+          else if (isAdminBlocked) displayPreview = "User Unavailable";
+          else if (isBlockedByMe) displayPreview = "You blocked this user";
           else if (isBlockedByOther || isBlocked) displayPreview = "User unavailable";
 
           const rawPhoto = chat.photoUrl ?? chat.PhotoUrl;
-          const pUrl = rawPhoto ? getOptimizedImageUrl(rawPhoto) : `https://ui-avatars.com/api/?name=${encodeURIComponent(fName)}&background=FFF0F3&color=870c3f&bold=true`;
+          const pUrl = isDeleted ? "/placeholder.png" : (rawPhoto ? getOptimizedImageUrl(rawPhoto) : `https://ui-avatars.com/api/?name=${encodeURIComponent(fName)}&background=FFF0F3&color=870c3f&bold=true`);
 
           return (
             <div 

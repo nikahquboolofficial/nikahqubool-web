@@ -34,7 +34,15 @@ export const getOptimizedImageUrl = (
     return cleanPath;
   }
 
-  // Relative path (e.g. "user-profiles/abc.webp") ko Cloudflare CDN ke sath join karein
+// Relative path (e.g. "user-profiles/abc.webp") ko Cloudflare CDN ke sath join karein
   const relative = cleanPath.startsWith('/') ? cleanPath.slice(1) : cleanPath;
   return `${CDN_BASE_URL}/${relative}`;
+};
+
+export const getBlurredPhotoUrl = (
+  path?: string | null,
+  userId: number = 1,
+  gender: string = 'Female'
+): string => {
+  return getOptimizedImageUrl(path, userId, gender);
 };

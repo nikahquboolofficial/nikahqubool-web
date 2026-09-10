@@ -83,36 +83,42 @@ export default function ActivityTabContent({
     if (pageNum === 1) setLoading(true);
     else setFetchingMore(true);
 
-    const res = await fetchDashboardApi(activeTab, pageNum, token);
+    try {
+      const res = await fetchDashboardApi(activeTab, pageNum, token);
 
-    if (res.isUnauthorized) {
-      toast.dismiss();
-      toast.error("Session expired.");
-      router.push('/');
-      return;
-    }
-
-    if (res.success && res.data) {
-      const list = res.data.profiles || res.data.Profiles || [];
-      if (list.length > 0 && list[0].totalRecords) {
-        setTotalRecords(list[0].totalRecords);
-      } else {
-        setTotalRecords(list.length);
+      if (res.isUnauthorized) {
+        toast.dismiss();
+        toast.error("Session expired.");
+        router.push('/');
+        return;
       }
 
-      if (append) {
-        setProfiles((prev) => [...prev, ...list]);
+      if (res.success && res.data) {
+        const list = Array.isArray(res.data) 
+          ? res.data 
+          : (res.data?.profiles || res.data?.Profiles || res.data?.data?.profiles || res.data?.data?.Profiles || (Array.isArray(res.data?.data) ? res.data.data : []));
+        if (list.length > 0 && (list[0].totalRecords || list[0].TotalRecords)) {
+          setTotalRecords(list[0].totalRecords || list[0].TotalRecords);
+        } else {
+          setTotalRecords(list.length);
+        }
+
+        if (append) {
+          setProfiles((prev) => [...prev, ...list]);
+        } else {
+          setProfiles(list);
+        }
+
+        setHasMore(list.length >= 12);
       } else {
-        setProfiles(list);
+        toast.error(res.message || "Failed to load activity profiles.");
       }
-
-      setHasMore(list.length >= 12);
-    } else {
-      toast.error(res.message || "Failed to load activity profiles.");
+    } catch (e) {
+      toast.error("Network error loading activity.");
+    } finally {
+      setLoading(false);
+      setFetchingMore(false);
     }
-
-    setLoading(false);
-    setFetchingMore(false);
   }, [activeTab, getToken, router]);
 
   useEffect(() => {
@@ -212,16 +218,10 @@ export default function ActivityTabContent({
   };
 
   const handleInitiateChat = (profile: any) => {
-    let isPaid = Boolean(profile.isCurrentUserPaid ?? profile.IsCurrentUserPaid);
-    if (!isPaid && typeof window !== "undefined") {
-      const stored = localStorage.getItem("user_details") || localStorage.getItem("user_session");
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          isPaid = Boolean(parsed.isPaid ?? parsed.IsPaid ?? parsed.isCurrentUserPaid ?? parsed.IsCurrentUserPaid);
-        } catch (e) {}
-      }
-    }
+    const isPaid = Boolean(
+      profile.isCanChat ?? profile.IsCanChat ?? 
+      profile.isCurrentUserPaid ?? profile.IsCurrentUserPaid
+    );
 
     if (isPaid) {
       sessionStorage.setItem('active_chat_target', JSON.stringify({
@@ -321,18 +321,21 @@ export default function ActivityTabContent({
         ) : (
           <div className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {profiles.map((profile) => (
-                <ProfileCard
-                  key={profile.userId}
-                  profile={profile}
-                  activeTab={activeTab}
-                  actionLoading={actionState[profile.userId] || false}
-                  actionLoadingType={actionTypeState[profile.userId] || null}
-                  onInteraction={handleInteraction}
-                  onViewProfile={handleViewProfile}
-                  onInitiateChat={handleInitiateChat}
-                />
-              ))}
+              {profiles.map((profile) => {
+                const uId = Number(profile.userId || profile.UserId || 0);
+                return (
+                  <ProfileCard
+                    key={uId}
+                    profile={profile}
+                    activeTab={activeTab}
+                    actionLoading={actionState[uId] || false}
+                    actionLoadingType={actionTypeState[uId] || null}
+                    onInteraction={handleInteraction}
+                    onViewProfile={handleViewProfile}
+                    onInitiateChat={handleInitiateChat}
+                  />
+                );
+              })}
             </div>
 
             {/* INFINITE SCROLL BOTTOM LOADING INDICATOR */}

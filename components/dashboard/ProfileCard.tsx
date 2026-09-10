@@ -31,24 +31,74 @@ export default function ProfileCard({
   const { onlineUsers } = useSignalR();
   const [localHearts, setLocalHearts] = useState<{ id: number; x: number }[]>([]);
 
-  const userIdNum = Number(profile.userId || profile.UserId);
+  const userIdNum = Number(profile.userId || profile.UserId || 0);
   const presence = onlineUsers[userIdNum];
   const isOnline = presence ? presence.isOnline : Boolean(profile.isOnline ?? profile.IsOnline ?? false);
   const isVerified = Boolean(profile.isVerified ?? profile.IsVerified ?? false);
-  const isPremium = Boolean(profile.isPremium ?? profile.IsPremium ?? false);
+  const isTargetPremium = Boolean(profile.isPremium ?? profile.IsPremium ?? false);
+  let localPaid = false;
+  if (typeof window !== "undefined") {
+    try {
+      const stored = localStorage.getItem("user_details");
+      if (stored) {
+        const u = JSON.parse(stored);
+        const val = (v: any) => v === true || v === 1 || v === "1" || v === "true";
+        if (
+          val(u.isPaid) || val(u.IsPaid) ||
+          val(u.isCurrentUserPaid) || val(u.IsCurrentUserPaid) ||
+          val(u.isCanChat) || val(u.IsCanChat) ||
+          val(u.isUserPaid) || val(u.IsUserPaid) ||
+          String(u.membershipType || u.MembershipType || '').toLowerCase().includes('paid') ||
+          String(u.membershipType || u.MembershipType || '').toLowerCase().includes('vip') ||
+          String(u.membershipType || u.MembershipType || '').toLowerCase().includes('premium') ||
+          (u.membershipTypeId && Number(u.membershipTypeId) > 1)
+        ) {
+          localPaid = true;
+        }
+      }
+    } catch (e) {}
+  }
 
-  const rawPrivacy = String(profile.photoPrivacy || profile.PhotoPrivacy || 'All Members').toLowerCase().replace(/\s+/g, '');
-  const rawPhotoReqStatus = String(profile.photoRequestStatus || profile.PhotoRequestStatus || profile.galleryRequestStatus || profile.GalleryRequestStatus || '').toUpperCase();
-  const isPhotoReqAccepted = rawPhotoReqStatus.includes('ACCEPT');
-
-  const isPhotoHidden = !isPhotoReqAccepted && (
-    Boolean(profile.isPhotoHidden ?? profile.IsPhotoHidden ?? false) ||
-    (rawPrivacy.includes('approved') && !isPhotoReqAccepted) ||
-    (rawPrivacy.includes('premium') && !isPremium)
+  const isCurrentUserPaid = Boolean(
+    profile.isCurrentUserPaid ?? profile.IsCurrentUserPaid ?? 
+    profile.isCanChat ?? profile.IsCanChat ?? localPaid
   );
 
+  const rawPrivacy = String(profile.photoPrivacy || profile.PhotoPrivacy || 'All Members').toLowerCase().replace(/\s+/g, '');
+  const hasRequestedPhoto = Boolean(profile.hasRequestedPhoto ?? profile.HasRequestedPhoto);
+  const rawPhotoReqStatus = String(
+    profile.photoRequestStatus || profile.PhotoRequestStatus || 
+    profile.galleryRequestStatus || profile.GalleryRequestStatus || ''
+  ).trim();
+  const rawPhotoReqStatusUpper = rawPhotoReqStatus.toUpperCase();
+
+  const isPhotoReqAccepted = (
+    rawPhotoReqStatusUpper === 'ACCEPTED' || 
+    rawPhotoReqStatusUpper === 'SENTACCEPTED' || 
+    rawPhotoReqStatusUpper === 'APPROVED' ||
+    Boolean(profile.isPhotoReqAccepted ?? profile.IsPhotoReqAccepted)
+  );
+
+  const isPhotoReqSent = hasRequestedPhoto || rawPhotoReqStatusUpper === 'SENTPENDING';
+
+  // Check exact 3 photo privacy settings: "All Members", "Premium Only", "Only Approved"
+  let isPhotoHidden = false;
+
+  if (isPhotoReqAccepted) {
+    isPhotoHidden = false;
+  } else if (rawPrivacy.includes('approved')) {
+    // 1. "Only Approved" -> Hidden until candidate explicitly approves photo request
+    isPhotoHidden = true;
+  } else if (rawPrivacy.includes('premium')) {
+    // 2. "Premium Only" -> Hidden for Free members, visible for Premium members
+    isPhotoHidden = !isCurrentUserPaid;
+  } else {
+    // 3. "All Members" / Public -> Visible to all logged-in members
+    isPhotoHidden = false;
+  }
+
   const rawPhoto = profile.mainPhotoUrl || profile.MainPhotoUrl || profile.photoUrl || profile.PhotoUrl || profile.mainPhoto || profile.MainPhoto || profile.profilePhoto || profile.ProfilePhoto || profile.avatarUrl || profile.AvatarUrl || (profile.userPhotos && profile.userPhotos[0]?.photoUrl) || (profile.UserPhotos && profile.UserPhotos[0]?.PhotoUrl);
-  const photo = getOptimizedImageUrl(rawPhoto, profile.userId || profile.UserId || 1, profile.gender || profile.Gender);
+  const photo = getOptimizedImageUrl(rawPhoto, userIdNum, profile.gender || profile.Gender);
   
   const rawLocation = profile.location || profile.Location || profile.fullLocation || profile.FullLocation;
   const state = profile.stateName || profile.StateName || profile.currentStateName || profile.CurrentStateName || profile.state || profile.State || (rawLocation && rawLocation.includes(',') ? rawLocation.split(',')[1]?.trim() : '') || '';
@@ -105,17 +155,17 @@ export default function ProfileCard({
         } bg-slate-950 overflow-hidden cursor-pointer`} 
         onClick={(e) => {
           e.stopPropagation();
-          onViewProfile(profile.userId);
+          onViewProfile(userIdNum);
         }}
       >
         <img 
           src={photo} 
-          alt={profile.fullName}
+          alt={displayName}
           className={`w-full h-full object-cover object-top transition-all duration-700 group-hover:scale-105 ${
             isPhotoHidden ? 'blur-2xl scale-110 opacity-80' : 'opacity-100'
           }`}
           onError={(e) => { 
-            const fallback = getFallbackPhoto(profile.userId || profile.UserId || 1, profile.gender || profile.Gender);
+            const fallback = getFallbackPhoto(userIdNum, profile.gender || profile.Gender);
             if ((e.target as HTMLImageElement).src !== fallback) {
               (e.target as HTMLImageElement).src = fallback;
             }
@@ -157,7 +207,7 @@ export default function ProfileCard({
                 <CheckCircle2 size={15} className="fill-emerald-500 text-slate-950" />
               </span>
             )}
-            {isPremium && (
+            {isTargetPremium && (
               <span title="VIP Premium Member" className="flex-shrink-0">
                 <Crown size={15} className="fill-amber-400 text-amber-400" />
               </span>
@@ -199,24 +249,34 @@ export default function ProfileCard({
 
         </div>
 
-        {/* 💖 LOCAL RISING HEARTS OVERLAY */}
+        {/* 💖 LOCAL RISING HEARTS OVERLAY (POP FROM INTEREST BUTTON CENTER) */}
         <div className="absolute inset-0 pointer-events-none z-50 overflow-hidden">
           <AnimatePresence>
             {localHearts.map((heart) => (
               <motion.div
                 key={heart.id}
-                initial={{ opacity: 1, y: '75%', x: `calc(50% + ${heart.x}px)`, scale: 0.5, rotate: 0 }}
-                animate={{ 
-                  opacity: [1, 1, 0], 
-                  y: '15%', 
-                  x: `calc(50% + ${heart.x * 1.6}px)`, 
-                  scale: [0.5, 1.4, 1.8],
-                  rotate: [0, -15, 15, 0]
+                initial={{ 
+                  opacity: 1, 
+                  bottom: '50px', 
+                  left: '23%', 
+                  x: heart.x, 
+                  scale: 0.4, 
+                  rotate: 0 
                 }}
-                transition={{ duration: 1.5, ease: "easeOut" }}
-                className="absolute text-[#d91b5c] drop-shadow-[0_4px_10px_rgba(135,12,63,0.5)]"
+                animate={{ 
+                  opacity: [0.9, 1, 0], 
+                  bottom: '220px', 
+                  x: heart.x * 2.2, 
+                  scale: [0.4, 1.3, 1.6],
+                  rotate: [0, -18, 18, 0]
+                }}
+                transition={{ duration: 1.6, ease: "easeOut" }}
+                className="absolute text-[#d91b5c] filter drop-shadow-[0_4px_12px_rgba(217,27,92,0.7)]"
               >
-                <Heart size={32} className="fill-[#d91b5c] text-[#d91b5c]" />
+                <div className="relative flex items-center justify-center">
+                  <Heart size={28} className="fill-gradient-to-tr from-[#d91b5c] via-[#e11d48] to-[#f43f5e] fill-[#d91b5c] text-[#d91b5c]" />
+                  <Sparkles size={12} className="absolute -top-1 -right-1 text-amber-300 fill-amber-300 animate-spin" />
+                </div>
               </motion.div>
             ))}
           </AnimatePresence>
@@ -237,7 +297,7 @@ export default function ProfileCard({
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  onInteraction(profile.userId, 'PHOTO_REQUEST', 'ACCEPTED');
+                  onInteraction(userIdNum, 'PHOTO_REQUEST', 'ACCEPTED');
                 }}
                 disabled={actionLoading}
                 className="w-11 h-11 rounded-full bg-[#e6f7ec] hover:bg-[#d1fae5] text-[#16a34a] border-2 border-emerald-400 font-extrabold flex items-center justify-center shadow-md cursor-pointer transition-all shrink-0"
@@ -252,7 +312,7 @@ export default function ProfileCard({
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  onInteraction(profile.userId, 'PHOTO_REQUEST', 'DECLINED');
+                  onInteraction(userIdNum, 'PHOTO_REQUEST', 'DECLINED');
                 }}
                 disabled={actionLoading}
                 className="w-11 h-11 rounded-full bg-[#fde8e8] hover:bg-[#ffe4e6] text-[#f43f5e] border-2 border-rose-400 font-extrabold flex items-center justify-center shadow-md cursor-pointer transition-all shrink-0"
@@ -272,7 +332,7 @@ export default function ProfileCard({
                   e.stopPropagation();
                   e.preventDefault();
                   triggerLocalHearts();
-                  onInteraction(profile.userId, 'INTEREST', 'ACCEPTED');
+                  onInteraction(userIdNum, 'INTEREST', 'ACCEPTED');
                 }}
                 disabled={actionLoading}
                 className="w-12 h-12 rounded-full bg-[#e6f7ec] hover:bg-[#d1fae5] text-[#16a34a] border-2 border-emerald-400 font-extrabold flex items-center justify-center shadow-lg cursor-pointer active:scale-95 transition-all shrink-0"
@@ -288,7 +348,7 @@ export default function ProfileCard({
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  onInteraction(profile.userId, 'INTEREST', 'DECLINED');
+                  onInteraction(userIdNum, 'INTEREST', 'DECLINED');
                 }}
                 disabled={actionLoading}
                 className="w-12 h-12 rounded-full bg-[#fde8e8] hover:bg-[#ffe4e6] text-[#f43f5e] border-2 border-rose-400 font-extrabold flex items-center justify-center shadow-lg cursor-pointer active:scale-95 transition-all shrink-0"
@@ -312,13 +372,13 @@ export default function ProfileCard({
                       e.preventDefault();
                       if (!isInterestSent && !isConnected) {
                         triggerLocalHearts();
-                        onInteraction(profile.userId, 'INTEREST', 'PENDING');
+                        onInteraction(userIdNum, 'INTEREST', 'PENDING');
                       }
                     }}
                     disabled={actionLoading || isInterestSent || isConnected}
-                    className={`w-11 h-11 rounded-full shadow-md flex items-center justify-center transition-all duration-200 ${
+                    className={`w-11 h-11 rounded-full shadow-md flex items-center justify-center transition-all duration-300 ${
                       isInterestSent || isConnected
-                        ? 'bg-[#2A2D32] border-2 border-[#3F444D] cursor-not-allowed opacity-90' 
+                        ? 'bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-600 border-2 border-emerald-300 text-white shadow-emerald-950/50 cursor-not-allowed opacity-95' 
                         : 'bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white border-2 border-rose-300/40 cursor-pointer shadow-rose-950/40'
                     }`}
                     aria-label="Send Interest"
@@ -327,12 +387,14 @@ export default function ProfileCard({
                     {(actionLoading && (actionLoadingType === 'INTEREST' || !actionLoadingType)) ? (
                       <Loader2 size={18} className="animate-spin text-white" />
                     ) : isInterestSent || isConnected ? (
-                      <Heart size={20} className="fill-[#8E95A2] text-[#8E95A2]" />
+                      <Check size={20} className="text-white stroke-[3]" />
                     ) : (
                       <Heart size={20} className="fill-white text-white drop-shadow-xs" />
                     )}
                   </motion.button>
-                  <span className="text-[10px] font-extrabold text-white uppercase tracking-wider drop-shadow-sm">
+                  <span className={`text-[10px] font-extrabold uppercase tracking-wider drop-shadow-sm ${
+                    isInterestSent || isConnected ? 'text-emerald-400 font-black' : 'text-white'
+                  }`}>
                     {isInterestSent ? 'Sent' : isConnected ? 'Connected' : 'Interest'}
                   </span>
                 </div>
@@ -374,7 +436,7 @@ export default function ProfileCard({
                   onClick={(e) => {
                     e.stopPropagation();
                     e.preventDefault();
-                    onInteraction(profile.userId, 'SHORTLIST', profile.isShortlisted ? 'REMOVED' : 'ACTIVE');
+                    onInteraction(userIdNum, 'SHORTLIST', profile.isShortlisted ? 'REMOVED' : 'ACTIVE');
                   }}
                   disabled={actionLoading}
                   className={`w-11 h-11 rounded-full shadow-md flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 border-2 ${
