@@ -13,6 +13,7 @@ import {
   formatLastSeen
 } from '@/lib/api';
 import { getOptimizedImageUrl } from '@/lib/imageUtils';
+import { getAuthToken } from '@/lib/auth';
 import { toast } from 'sonner';
 
 const QUICK_EMOJIS = ["❤️", "😂", "🔥", "👍", "😍", "😊", "🙏", "🎉", "😭", "😮", "💖", "✨"];
@@ -23,17 +24,29 @@ export default function ChatWindow({
   photoUrl, 
   initialIsOnline, 
   initialLastSeen, 
+  initialAccountState,
   onBack 
 }: any) {
   const router = useRouter();
-  const { connection, onlineUsers } = useSignalR();
+  const { connection, onlineUsers, typingUsers, sendTyping } = useSignalR();
 
   const [msg, setMsg] = useState("");
   const [messages, setMessages] = useState<any[]>([]);
   const [showMenu, setShowMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
-  const [blockStatus, setBlockStatus] = useState({ isBlockedByMe: false, isBlockedByOther: false });
+  const typingTimeoutRef = useRef<any>(null);
+  const [blockStatus, setBlockStatus] = useState<{
+    isBlockedByMe: boolean;
+    isBlockedByOther: boolean;
+    isTargetDeleted?: boolean;
+    isTargetDeactivated?: boolean;
+    isTargetAdminBlocked?: boolean;
+    targetAccountState?: string;
+  }>({ 
+    isBlockedByMe: false, 
+    isBlockedByOther: false 
+  });
   const [proposalState, setProposalState] = useState<'NONE' | 'PENDING' | 'ACCEPTED' | 'DECLINED'>('NONE');
   const [proposalLoading, setProposalLoading] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -48,23 +61,49 @@ export default function ChatWindow({
     return null;
   };
 
-  const getToken = (): string | null => getCookie("user_token");
+  const getToken = (): string | null => getAuthToken();
 
   // Dynamic Presence Status
   const currentPresence = onlineUsers[Number(receiverId)];
-  const isOnline = currentPresence ? currentPresence.isOnline : Boolean(initialIsOnline);
+  const isOnline = currentPresence ? Boolean(currentPresence.isOnline) : false;
   const lastSeenTime = currentPresence ? currentPresence.lastSeen : (initialLastSeen ?? null);
 
-  // 🔒 Session-based navigation to /dashboard/profile
+  const stateStr = String(initialAccountState || blockStatus.targetAccountState || '').toLowerCase();
+
+  const isDeletedUser = Boolean(
+    userName === "Deleted User" || 
+    (userName && String(userName).toLowerCase().includes("deleted")) ||
+    stateStr.includes("del") ||
+    blockStatus.isTargetDeleted
+  );
+
+  const isDeactiveUser = !isDeletedUser && Boolean(
+    userName === "Deactivated User" ||
+    (userName && String(userName).toLowerCase().includes("deactivated")) ||
+    stateStr.includes("deact") ||
+    stateStr.includes("pause") ||
+    blockStatus.isTargetDeactivated
+  );
+
+  const isAdminBlockedUser = !isDeletedUser && !isDeactiveUser && Boolean(
+    userName === "User Unavailable" ||
+    stateStr.includes("admin") ||
+    blockStatus.isTargetAdminBlocked
+  );
+
+  // 🔒 Session & Query-based navigation to /dashboard/profile
   const handleViewProfile = (e: React.MouseEvent) => {
     e.preventDefault();
+    if (isDeletedUser || isDeactiveUser || isAdminBlockedUser) {
+      return;
+    }
     if (typeof window !== "undefined") {
       sessionStorage.setItem("viewing_profile_target", JSON.stringify({ 
         userId: Number(receiverId),
         targetUserId: Number(receiverId)
       }));
     }
-    router.push('/dashboard/profile');
+    router.push('/dashboard/profile?userId=' + receiverId);
   };
 
   const parseUtcDate = (dateVal: any) => {
@@ -103,7 +142,11 @@ export default function ChatWindow({
         const bData = blockRes.data ?? {};
         setBlockStatus({
           isBlockedByMe: Boolean(bData.isBlockedByMe ?? bData.IsBlockedByMe),
-          isBlockedByOther: Boolean(bData.isBlockedByOther ?? bData.IsBlockedByOther)
+          isBlockedByOther: Boolean(bData.isBlockedByOther ?? bData.IsBlockedByOther),
+          isTargetDeleted: Boolean(bData.isTargetDeleted ?? bData.IsTargetDeleted),
+          isTargetDeactivated: Boolean(bData.isTargetDeactivated ?? bData.IsTargetDeactivated),
+          isTargetAdminBlocked: Boolean(bData.isTargetAdminBlocked ?? bData.IsTargetAdminBlocked),
+          targetAccountState: bData.targetAccountState ?? bData.TargetAccountState ?? 'Active'
         });
       }
       setLoading(false);
@@ -112,11 +155,32 @@ export default function ChatWindow({
     loadData();
   }, [receiverId]);
 
+  const playMessageChime = () => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.15);
+    } catch (e) {}
+  };
+
   useEffect(() => {
     if (!connection || !receiverId) return;
 
     const handleReceiveMessage = (senderId: any, rId: any, messageText: string, msgId?: any, sentAt?: string) => {
       const incomingSenderId = Number(senderId);
+      const incomingReceiverId = Number(rId);
+
       if (incomingSenderId === Number(receiverId)) {
         const newMsgId = msgId ?? Date.now();
         setMessages(prev => {
@@ -130,6 +194,7 @@ export default function ChatWindow({
             isRead: 1 
           }];
         });
+        playMessageChime();
         markChatReadApi(incomingSenderId, getToken()).catch(() => {});
       }
     };
@@ -174,9 +239,13 @@ export default function ChatWindow({
     const token = getToken();
     if (!token) return;
 
-    const currentMsgText = msg;
+    const currentMsgText = msg.trim();
     setMsg(""); 
     setShowEmojiPicker(false);
+
+    // Cancel typing
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    sendTyping(Number(receiverId), false);
 
     const tempId = `temp-${Date.now()}`;
     const optimisticMsg = {
@@ -191,13 +260,7 @@ export default function ChatWindow({
     setMessages(prev => [...prev, optimisticMsg]);
     scrollToBottom("smooth");
 
-    // ⚡ SignalR Instant Broadcast Event
-    if (connection && connection.state === "Connected") {
-      try {
-        connection.invoke("SendMessage", Number(receiverId), currentMsgText).catch(() => {});
-      } catch (e) {}
-    }
-
+    // ⚡ Send message via API (which archives to DB, caches to Redis RAM, and broadcasts via SignalR)
     const res = await sendChatMessageApi(Number(receiverId), currentMsgText, "Text", token);
     if (res.success && res.data) {
       const realId = res.data?.messageId ?? res.data?.MessageId;
@@ -207,7 +270,7 @@ export default function ChatWindow({
     } else {
       setMessages(prev => prev.filter(m => m.uniqueKey !== tempId));
       setMsg(currentMsgText);
-      alert(res.message ?? "Failed to send message.");
+      toast.error(res.message ?? "Failed to send message.");
     }
   };
 
@@ -259,9 +322,35 @@ export default function ChatWindow({
     }
   };
 
-  const isDeletedUser = userName === "Deleted User" || String(userName).toLowerCase().includes("deleted");
-  const isBlocked = blockStatus.isBlockedByMe || blockStatus.isBlockedByOther || isDeletedUser;
-  const displayAvatar = isDeletedUser ? "/placeholder.png" : (photoUrl ? getOptimizedImageUrl(photoUrl) : `https://ui-avatars.com/api/?name=${encodeURIComponent(userName ?? 'User')}&background=FFF0F3&color=870c3f&bold=true`);
+  const isBlocked = blockStatus.isBlockedByMe || blockStatus.isBlockedByOther || isDeletedUser || isDeactiveUser || isAdminBlockedUser;
+
+  const displayAvatar = (isDeletedUser || isDeactiveUser || isAdminBlockedUser) 
+    ? "/placeholder.png" 
+    : (photoUrl ? getOptimizedImageUrl(photoUrl) : `https://ui-avatars.com/api/?name=${encodeURIComponent(userName ?? 'User')}&background=FFF0F3&color=870c3f&bold=true`);
+
+  const displayName = isDeletedUser 
+    ? "Deleted User" 
+    : (isDeactiveUser 
+      ? "Deactivated User" 
+      : (isAdminBlockedUser 
+        ? "User Unavailable" 
+        : (userName ?? 'Member')));
+
+  const displayStatus = isDeletedUser 
+    ? "Account Deleted" 
+    : (isDeactiveUser 
+      ? "Account Deactivated" 
+      : (isAdminBlockedUser 
+        ? "Unavailable" 
+        : (isOnline ? "Online" : formatLastSeen(lastSeenTime))));
+
+  const getBlockNoticeMessage = () => {
+    if (isDeletedUser) return "This account has been deleted. You can't reply to this conversation.";
+    if (isDeactiveUser) return "This account has been deactivated. You can't reply to this conversation.";
+    if (isAdminBlockedUser) return "This user is unavailable. You can't reply to this conversation.";
+    if (blockStatus.isBlockedByMe) return "You have blocked this account.";
+    return "You can't reply to this conversation.";
+  };
 
   return (
     <div className="flex flex-col h-full w-full bg-[#efeae2]/30 relative overflow-hidden selection:bg-[#d91b5c] selection:text-white">
@@ -272,7 +361,7 @@ export default function ChatWindow({
           <ArrowLeft size={20} />
         </button>
 
-        <div onClick={isDeletedUser ? undefined : handleViewProfile} className={`flex items-center gap-3 group ${isDeletedUser ? 'cursor-default' : 'cursor-pointer'}`}>
+        <div onClick={handleViewProfile} className={`flex items-center gap-3 group ${(isDeletedUser || isDeactiveUser || isAdminBlockedUser) ? 'cursor-default' : 'cursor-pointer'}`}>
           <div className="relative shrink-0 w-10 h-10 md:w-11 md:h-11">
             <img 
               src={displayAvatar} 
@@ -280,17 +369,17 @@ export default function ChatWindow({
               alt="avatar"
               onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }}
             />
-            {isOnline && !isDeletedUser && (
+            {isOnline && !isDeletedUser && !isDeactiveUser && !isAdminBlockedUser && (
               <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-400 border-2 border-[#d91b5c] rounded-full z-20 shadow-sm animate-pulse" />
             )}
           </div>
 
           <div className="flex flex-col">
-            <h3 className={`font-serif font-extrabold text-sm md:text-base leading-tight uppercase tracking-tight flex items-center gap-1.5 text-white ${isDeletedUser ? '' : 'group-hover:underline'}`}>
-              {isDeletedUser ? "Deleted User" : (userName ?? 'Member')} {!isDeletedUser && <Heart size={14} className="fill-amber-300 text-amber-300" />}
+            <h3 className={`font-serif font-extrabold text-sm md:text-base leading-tight uppercase tracking-tight flex items-center gap-1.5 text-white ${(isDeletedUser || isDeactiveUser || isAdminBlockedUser) ? '' : 'group-hover:underline'}`}>
+              {displayName} {(!isDeletedUser && !isDeactiveUser && !isAdminBlockedUser) && <Heart size={14} className="fill-amber-300 text-amber-300" />}
             </h3>
             <span className="text-[10px] font-black text-rose-100 uppercase tracking-widest mt-0.5">
-              {isDeletedUser ? "Account Deleted" : (isOnline ? "Online" : formatLastSeen(lastSeenTime))}
+              {displayStatus}
             </span>
           </div>
         </div>
@@ -315,7 +404,7 @@ export default function ChatWindow({
               </button>
               <button 
                 type="button"
-                onClick={() => { alert(`User ${userName} reported.`); setShowMenu(false); }}
+                onClick={() => { alert(`User ${displayName} reported.`); setShowMenu(false); }}
                 className="w-full px-4 py-2.5 text-left text-xs font-black flex items-center gap-2.5 hover:bg-slate-50 text-slate-700 transition-colors cursor-pointer"
               >
                 <ShieldAlert size={16} className="text-amber-500" /> Report Profile
@@ -332,14 +421,14 @@ export default function ChatWindow({
         className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 space-y-6 bg-[#fbf8f5] scroll-smooth"
       >
         {/* 💌 PROPOSAL ACTION BANNER FOR RECIPIENT */}
-        {proposalState === 'PENDING' && (
+        {proposalState === 'PENDING' && !isDeletedUser && !isDeactiveUser && !isAdminBlockedUser && (
           <div className="bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] p-5 rounded-3xl text-white shadow-xl border-2 border-rose-300/40 text-center space-y-3 my-2">
             <div className="flex items-center justify-center gap-2 text-amber-300">
               <Heart size={22} className="fill-amber-300" />
               <h4 className="text-base font-serif font-black tracking-tight">Nikah Proposal Request Received</h4>
             </div>
             <p className="text-xs text-rose-100 font-medium">
-              {userName} has sent you a soulmate proposal request. Accept proposal to start private messaging!
+              {displayName} has sent you a soulmate proposal request. Accept proposal to start private messaging!
             </p>
             <div className="flex justify-center gap-3 pt-1">
               <button
@@ -406,6 +495,20 @@ export default function ChatWindow({
             })}
           </div>
         ))}
+
+        {/* ✍️ REAL-TIME VIP TYPING INDICATOR BUBBLE */}
+        {Boolean(typingUsers[Number(receiverId)]) && (
+          <div className="flex justify-start">
+            <div className="bg-white border border-rose-200 rounded-2xl rounded-bl-none px-4 py-2 shadow-xs flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase text-[#d91b5c] tracking-wider">typing</span>
+              <span className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#d91b5c] animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#d91b5c] animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#d91b5c] animate-bounce" style={{ animationDelay: '300ms' }} />
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       {showScrollBottom && (
@@ -437,11 +540,9 @@ export default function ChatWindow({
         {isBlocked ? (
           <div className="p-3 bg-rose-50 rounded-2xl text-center border border-rose-200">
             <p className="text-xs font-extrabold text-slate-600 uppercase tracking-wide">
-              {isDeletedUser 
-                ? "This account has been deleted. You can't reply to this conversation." 
-                : (blockStatus.isBlockedByMe ? "You have blocked this account." : "You can't reply to this conversation.")}
+              {getBlockNoticeMessage()}
             </p>
-            {blockStatus.isBlockedByMe && !isDeletedUser && (
+            {blockStatus.isBlockedByMe && !isDeletedUser && !isDeactiveUser && !isAdminBlockedUser && (
               <button type="button" onClick={handleToggleBlock} className="text-xs font-black text-[#d91b5c] underline mt-1 cursor-pointer">
                 Unblock User
               </button>
@@ -458,7 +559,14 @@ export default function ChatWindow({
             </button>
             <input 
               value={msg} 
-              onChange={(e) => setMsg(e.target.value)}
+              onChange={(e) => {
+                setMsg(e.target.value);
+                sendTyping(Number(receiverId), true);
+                if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+                typingTimeoutRef.current = setTimeout(() => {
+                  sendTyping(Number(receiverId), false);
+                }, 2000);
+              }}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
               placeholder="Type a message..." 
               className="flex-1 py-2 text-xs sm:text-sm outline-none font-bold text-slate-800 bg-transparent placeholder-slate-400"

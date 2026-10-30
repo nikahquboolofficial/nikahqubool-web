@@ -9,20 +9,57 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { toast, Toaster } from 'sonner';
-import { searchMatchesApi, handleInteractionApiCall } from '@/lib/api';
+import { searchMatchesApi, handleInteractionApiCall, fetchMasterDataApi } from '@/lib/api';
 import { checkDailyViewLimit, formatTimeRemaining } from '@/lib/limitUtils';
 import ProfileCard from '@/components/dashboard/ProfileCard';
 import ProfileCardSkeleton from '@/components/dashboard/ProfileCardSkeleton';
 import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
+import { getAuthToken } from '@/lib/auth';
 
-// MASTER OPTIONS LIST
-const MARITAL_STATUS_OPTIONS = ["Never Married", "Awaiting Divorce", "Divorced", "Widowed", "Separated"];
-const SECT_OPTIONS = ["Sunni", "Shia", "Barelvi", "Deobandi", "Ahle Hadees"];
-const CASTE_OPTIONS = ["Sheikh", "Syed", "Pathan", "Khan", "Ansari", "Qureshi", "Siddiqui", "Farooqui"];
-const STATE_OPTIONS = ["Maharashtra", "Uttar Pradesh", "Delhi", "Bihar", "West Bengal", "Telangana", "Karnataka", "Punjab"];
-const CITY_OPTIONS = ["Mumbai", "Delhi", "Lucknow", "Bareilly", "Kolkata", "Hyderabad", "Patna", "Pune"];
-const DEGREE_OPTIONS = ["B.Tech", "M.Tech", "MBA", "MBBS", "MD", "B.Sc", "Doctorate", "CA / CS"];
-const PROFESSION_OPTIONS = ["Private Sector", "Govt / PSU", "Business / Entrepreneur", "Doctor", "Engineer", "Teacher / Academic"];
+// COMPREHENSIVE MASTER FALLBACK DATA
+const MASTER_FALLBACKS: Record<string, string[]> = {
+  MARITAL_STATUS: ["Never Married", "Divorced", "Widowed", "Awaiting Divorce", "Annulled"],
+  SECT: ["Sunni", "Shia", "Deobandi", "Barelvi", "Ahle Hadith", "Salafi", "Jamaat-e-Islami", "Other"],
+  CASTE: [
+    "Shaikh / Sheikh", "Syed", "Pathan / Khan", "Ansari / Momin", "Qureshi / Baig", "Siddiqui", 
+    "Farooqui", "Usmani", "Alvi", "Abbasi", "Hashmi", "Mirza", "Mughal", "Malik", 
+    "Choudhary / Jat Muslim", "Mansoori / Dhunia", "Rayeen / Kunjra", "Idrisi / Darzi", 
+    "Saifi / Lohar / Najjari", "Rangrez", "Ghosi", "Meo / Mewati", "Other"
+  ],
+  STATE: [
+    "Uttar Pradesh", "Delhi", "Maharashtra", "Bihar", "Karnataka", "Telangana", 
+    "West Bengal", "Madhya Pradesh", "Rajasthan", "Gujarat", "Punjab", "Haryana", 
+    "Jharkhand", "Uttarakhand", "Jammu and Kashmir", "Andhra Pradesh", "Tamil Nadu", "Kerala"
+  ],
+  CITY: [
+    "Bareilly", "Lucknow", "Delhi", "Mumbai", "Kanpur", "Agra", "Varanasi", 
+    "Meerut", "Aligarh", "Moradabad", "Rampur", "Saharanpur", "Gorakhpur", 
+    "Hyderabad", "Bengaluru", "Patna", "Kolkata", "Pune", "Ahmedabad", "Jaipur", "Bhopal", "Indore"
+  ],
+  EDUCATION: [
+    "B.Tech / B.E.", "B.Sc", "B.Com", "B.A.", "B.CA", "M.Tech / M.E.", "M.Sc", 
+    "M.Com", "M.A.", "MCA", "MBA", "MBBS / MD", "BDS", "LL.B / LL.M", "High School / Diploma", "Ph.D / Doctorate"
+  ],
+  PROFESSION: [
+    "Software Engineer / IT Professional", "Doctor / Healthcare", "Teacher / Professor", 
+    "Chartered Accountant / Finance", "Businessperson / Entrepreneur", "Government / Public Sector", 
+    "Private Sector", "Civil Engineer", "Defense / Civil Services", "Banking Professional", "Homemaker", "Other"
+  ]
+};
+
+const DEFAULT_FILTERS = {
+  ageMin: 18, ageMax: 50,
+  heightMin: 4.5, heightMax: 6.8,
+  maritalStatus: [] as string[],
+  sect: [] as string[],
+  caste: [] as string[],
+  states: [] as string[],
+  cities: [] as string[], // 🔒 Paid
+  education: [] as string[], // 🔒 Paid
+  employedIn: [] as string[], // 🔒 Paid
+};
+
+const STORAGE_KEY = "nikah_find_match_saved_filters";
 
 export default function FindMatchesPage() {
   const router = useRouter();
@@ -37,29 +74,66 @@ export default function FindMatchesPage() {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   
   const [activeBottomSheet, setActiveBottomSheet] = useState<string | null>(null);
+  const [sheetSearch, setSheetSearch] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
+  // DYNAMIC MASTER OPTIONS STATE
+  const [masterOptions, setMasterOptions] = useState<Record<string, string[]>>(MASTER_FALLBACKS);
+
   // FILTERS STATE
-  const [filters, setFilters] = useState({
-    ageMin: 18, ageMax: 45,
-    heightMin: 4.0, heightMax: 6.5,
-    maritalStatus: [] as string[],
-    sect: [] as string[],
-    caste: [] as string[],
-    states: [] as string[],
-    cities: [] as string[], // 🔒 Paid
-    education: [] as string[], // 🔒 Paid
-    employedIn: [] as string[], // 🔒 Paid
-  });
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
 
-  const getCookie = (name: string) => {
-    if (typeof document === "undefined") return null;
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    return parts.length === 2 ? parts.pop()?.split(';').shift() : null;
-  };
+  const getToken = useCallback(() => getAuthToken(), []);
 
-  const getToken = useCallback(() => getCookie("user_token"), []);
+  // 1. Load saved filters from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === 'object') {
+            setFilters(prev => ({ ...prev, ...parsed }));
+          }
+        } catch (e) {}
+      }
+    }
+  }, []);
+
+  // 2. Load dynamic master options from API on mount
+  useEffect(() => {
+    const loadMasters = async () => {
+      try {
+        const [marital, sects, castes, states, educations, occupations] = await Promise.all([
+          fetchMasterDataApi('MARITAL_STATUS').catch(() => []),
+          fetchMasterDataApi('SECTS').catch(() => []),
+          fetchMasterDataApi('CASTES').catch(() => []),
+          fetchMasterDataApi('STATES').catch(() => []),
+          fetchMasterDataApi('EDUCATIONS').catch(() => []),
+          fetchMasterDataApi('OCCUPATIONS').catch(() => [])
+        ]);
+
+        const extractValues = (list: any[], fallback: string[]) => {
+          if (Array.isArray(list) && list.length > 0) {
+            const vals = list.map((item: any) => String(item.value || item.Value || item.name || item.Name || '').trim()).filter(Boolean);
+            if (vals.length > 0) return Array.from(new Set([...vals, ...fallback]));
+          }
+          return fallback;
+        };
+
+        setMasterOptions({
+          MARITAL_STATUS: extractValues(marital, MASTER_FALLBACKS.MARITAL_STATUS),
+          SECT: extractValues(sects, MASTER_FALLBACKS.SECT),
+          CASTE: extractValues(castes, MASTER_FALLBACKS.CASTE),
+          STATE: extractValues(states, MASTER_FALLBACKS.STATE),
+          CITY: MASTER_FALLBACKS.CITY,
+          EDUCATION: extractValues(educations, MASTER_FALLBACKS.EDUCATION),
+          PROFESSION: extractValues(occupations, MASTER_FALLBACKS.PROFESSION)
+        });
+      } catch (e) {}
+    };
+    loadMasters();
+  }, []);
 
   const loadMatches = useCallback(async (pageNum: number = 1, append: boolean = false, overrideFilters?: typeof filters) => {
     const token = getToken();
@@ -77,6 +151,8 @@ export default function FindMatchesPage() {
       searchText: "",
       ageMin: activeFilters.ageMin,
       ageMax: activeFilters.ageMax,
+      heightMin: activeFilters.heightMin,
+      heightMax: activeFilters.heightMax,
       maritalStatus: activeFilters.maritalStatus,
       sect: activeFilters.sect,
       caste: activeFilters.caste,
@@ -128,7 +204,7 @@ export default function FindMatchesPage() {
     loadMatches(1, false);
   }, [filters]);
 
-  // 🚀 AUTOMATIC INFINITE SCROLL PAGING (TRIGGERED NEAR BOTTOM OF SCROLL)
+  // 🚀 AUTOMATIC INFINITE SCROLL PAGING
   useEffect(() => {
     const handleScroll = () => {
       if (loading || fetchingMore || !hasMore) return;
@@ -147,21 +223,23 @@ export default function FindMatchesPage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [loading, fetchingMore, hasMore, dailyLimitReached, isUserPaid, loadMatches]);
 
-  const handleReset = () => {
-    const defaultFilters = {
-      ageMin: 18, ageMax: 45,
-      heightMin: 4.0, heightMax: 6.5,
-      maritalStatus: [],
-      sect: [],
-      caste: [],
-      states: [],
-      cities: [],
-      education: [],
-      employedIn: [],
-    };
-    setFilters(defaultFilters);
-    loadMatches(1, false, defaultFilters);
+  const handleApplyFilters = () => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(filters));
+    }
     setShowFilters(false);
+    toast.success("Filters applied and saved!");
+    loadMatches(1, false);
+  };
+
+  const handleReset = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+    setFilters(DEFAULT_FILTERS);
+    loadMatches(1, false, DEFAULT_FILTERS);
+    setShowFilters(false);
+    toast.info("Filters cleared.");
   };
 
   const openCategorySheet = (categoryKey: string, isLocked: boolean = false) => {
@@ -169,6 +247,7 @@ export default function FindMatchesPage() {
       setShowUpgradeModal(true);
       return;
     }
+    setSheetSearch("");
     setActiveBottomSheet(categoryKey);
   };
 
@@ -223,8 +302,52 @@ export default function FindMatchesPage() {
     }
   };
 
+  function getOptionsForSheet(sheetKey: string) {
+    const list = masterOptions[sheetKey] || MASTER_FALLBACKS[sheetKey] || [];
+    if (!sheetSearch.trim()) return list;
+    return list.filter(item => item.toLowerCase().includes(sheetSearch.toLowerCase().trim()));
+  }
+
+  function getIsSelected(sheetKey: string, opt: string) {
+    switch (sheetKey) {
+      case 'MARITAL_STATUS': return filters.maritalStatus.includes(opt);
+      case 'SECT': return filters.sect.includes(opt);
+      case 'CASTE': return filters.caste.includes(opt);
+      case 'STATE': return filters.states.includes(opt);
+      case 'CITY': return filters.cities.includes(opt);
+      case 'EDUCATION': return filters.education.includes(opt);
+      case 'PROFESSION': return filters.employedIn.includes(opt);
+      default: return false;
+    }
+  }
+
+  function handleToggleOption(sheetKey: string, opt: string) {
+    switch (sheetKey) {
+      case 'MARITAL_STATUS': toggleOption('maritalStatus', opt); break;
+      case 'SECT': toggleOption('sect', opt); break;
+      case 'CASTE': toggleOption('caste', opt); break;
+      case 'STATE': toggleOption('states', opt); break;
+      case 'CITY': toggleOption('cities', opt); break;
+      case 'EDUCATION': toggleOption('education', opt); break;
+      case 'PROFESSION': toggleOption('employedIn', opt); break;
+    }
+  }
+
+  function getSelectedCount(sheetKey: string) {
+    switch (sheetKey) {
+      case 'MARITAL_STATUS': return filters.maritalStatus.length;
+      case 'SECT': return filters.sect.length;
+      case 'CASTE': return filters.caste.length;
+      case 'STATE': return filters.states.length;
+      case 'CITY': return filters.cities.length;
+      case 'EDUCATION': return filters.education.length;
+      case 'PROFESSION': return filters.employedIn.length;
+      default: return 0;
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-32 selection:bg-[#d91b5c] selection:text-white">
+    <div className="min-h-screen bg-gradient-to-b from-[#FAF8F5] via-white to-[#FAF8F5] text-slate-900 font-sans pb-32 selection:bg-[#d91b5c] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
       <style jsx global>{`
@@ -234,16 +357,21 @@ export default function FindMatchesPage() {
       `}</style>
 
       {/* --- STICKY TOP HEADER --- */}
-      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-xl border-b border-slate-200 px-4 py-3 shadow-xs">
+      <div className="sticky top-16 md:top-20 z-40 bg-white/90 backdrop-blur-xl border-b border-rose-100/80 px-4 py-3 shadow-[0_4px_12px_rgba(0,0,0,0.03)]">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
-          <h1 className="font-serif font-extrabold text-base sm:text-lg text-slate-900 uppercase tracking-tight truncate">
-            Find Matches
-          </h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="font-serif font-black text-base sm:text-lg text-slate-900 uppercase tracking-tight truncate">
+              Find Matches
+            </h1>
+            <span className="text-[11px] font-black bg-rose-50 text-[#d91b5c] px-2.5 py-0.5 rounded-full border border-rose-200/60">
+              {profiles.length} Profiles
+            </span>
+          </div>
 
           <button 
             type="button"
             onClick={() => setShowFilters(true)} 
-            className="flex items-center gap-1.5 px-4 py-2 bg-[#d91b5c] hover:bg-[#b01348] text-white rounded-full font-extrabold uppercase text-[11px] tracking-wider active:scale-95 transition-all cursor-pointer shrink-0 shadow-xs"
+            className="flex items-center gap-1.5 px-4.5 py-2 bg-gradient-to-r from-[#d91b5c] to-rose-600 hover:brightness-110 text-white rounded-full font-black uppercase text-[11px] tracking-wider active:scale-95 transition-all cursor-pointer shrink-0 shadow-[0_4px_12px_rgba(217,27,92,0.25)] border border-rose-300/30"
           >
             <SlidersHorizontal size={14} className="text-amber-300" />
             <span>Filter</span>
@@ -360,7 +488,7 @@ export default function FindMatchesPage() {
               className="fixed inset-y-0 right-0 h-[100dvh] w-full sm:max-w-md bg-white z-[70] flex flex-col shadow-2xl overflow-hidden border-l border-slate-200 text-slate-900"
             >
               
-              {/* Drawer Header (Clean Sober White Theme) */}
+              {/* Drawer Header */}
               <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white text-slate-900 shrink-0">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-rose-50 text-[#d91b5c] border border-rose-100 flex items-center justify-center">
@@ -368,7 +496,7 @@ export default function FindMatchesPage() {
                   </div>
                   <div>
                     <h3 className="text-base font-serif font-extrabold uppercase tracking-tight leading-none text-slate-900">Filter Matches</h3>
-                    <span className="text-[10px] text-slate-500 font-medium">Refine candidates by criteria</span>
+                    <span className="text-[10px] text-slate-500 font-medium">Select criteria for your ideal matches</span>
                   </div>
                 </div>
 
@@ -407,7 +535,7 @@ export default function FindMatchesPage() {
                   <span className="text-[11px] font-black uppercase tracking-wider text-[#d91b5c] block border-b border-slate-100 pb-2">Religion & Community</span>
                   
                   <CategoryRow title="Sect / Maslak" count={filters.sect.length} onClick={() => openCategorySheet('SECT')} />
-                  <CategoryRow title="Caste" count={filters.caste.length} onClick={() => openCategorySheet('CASTE')} />
+                  <CategoryRow title="Caste / Community" count={filters.caste.length} onClick={() => openCategorySheet('CASTE')} />
                   <CategoryRow title="State Location" count={filters.states.length} onClick={() => openCategorySheet('STATE')} />
                 </div>
 
@@ -430,7 +558,7 @@ export default function FindMatchesPage() {
 
               </div>
 
-              {/* ⚡ FIXED ACTION FOOTER (ALWAYS 100% VISIBLE ABOVE MOBILE BOTTOM NAV) */}
+              {/* ⚡ FIXED ACTION FOOTER */}
               <div className="p-4 pb-20 sm:pb-4 bg-white border-t border-slate-200 flex items-center gap-2.5 shrink-0 shadow-lg z-30">
                 <button 
                   type="button"
@@ -452,11 +580,11 @@ export default function FindMatchesPage() {
 
                 <button 
                   type="button"
-                  onClick={() => { setShowFilters(false); loadMatches(1, false); }} 
+                  onClick={handleApplyFilters} 
                   className="flex-1 py-3 bg-[#d91b5c] hover:bg-[#b01348] text-white rounded-xl font-black text-xs uppercase tracking-wider shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
                 >
                   <Search size={16} className="text-amber-300" />
-                  <span>Apply</span>
+                  <span>Apply & Save</span>
                 </button>
               </div>
 
@@ -465,12 +593,12 @@ export default function FindMatchesPage() {
         )}
       </AnimatePresence>
 
-      {/* MULTI-SELECT BOTTOM SHEET MODAL */}
+      {/* MULTI-SELECT BOTTOM SHEET MODAL WITH SEARCH */}
       <AnimatePresence>
         {activeBottomSheet && (
           <div className="fixed inset-0 z-[100] flex items-end justify-center">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setActiveBottomSheet(null)} className="absolute inset-0 bg-black/60 backdrop-blur-xs" />
-            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 220 }} className="relative bg-white rounded-t-[36px] max-w-md w-full p-6 space-y-4 z-10 max-h-[75vh] flex flex-col shadow-2xl border-t-2 border-rose-100 text-slate-800">
+            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 220 }} className="relative bg-white rounded-t-[36px] max-w-md w-full p-6 space-y-4 z-10 max-h-[80vh] flex flex-col shadow-2xl border-t-2 border-rose-100 text-slate-800">
               
               <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto" />
               
@@ -479,33 +607,52 @@ export default function FindMatchesPage() {
                   <h3 className="text-base font-serif font-extrabold uppercase text-[#d91b5c]">
                     Select {activeBottomSheet.replace('_', ' ')}
                   </h3>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase">Multiple options allowed</span>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase">
+                    {getSelectedCount(activeBottomSheet) > 0 ? `${getSelectedCount(activeBottomSheet)} selected` : 'Multi-select allowed'}
+                  </span>
                 </div>
                 <button onClick={() => setActiveBottomSheet(null)} className="p-1.5 bg-slate-100 rounded-full text-slate-600 hover:bg-slate-200 transition-all cursor-pointer"><X size={18}/></button>
               </div>
 
-              <div className="flex-1 overflow-y-auto space-y-2 py-2 pr-1 no-scrollbar">
+              {/* Search in Options */}
+              <div className="relative">
+                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder={`Search ${activeBottomSheet.replace('_', ' ')}...`}
+                  value={sheetSearch}
+                  onChange={(e) => setSheetSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 text-xs font-bold outline-none bg-slate-50 rounded-xl border border-slate-200 text-slate-800 focus:border-[#d91b5c] transition-colors"
+                />
+              </div>
+
+              <div className="flex-1 overflow-y-auto space-y-2 py-2 pr-1 no-scrollbar max-h-[45vh]">
                 {getOptionsForSheet(activeBottomSheet).map((opt) => {
                   const isSelected = getIsSelected(activeBottomSheet, opt);
                   return (
                     <div 
                       key={opt} 
                       onClick={() => handleToggleOption(activeBottomSheet, opt)}
-                      className={`p-4 rounded-2xl border-2 flex items-center justify-between cursor-pointer transition-all ${
+                      className={`p-3.5 rounded-2xl border-2 flex items-center justify-between cursor-pointer transition-all ${
                         isSelected 
                           ? 'border-[#d91b5c] bg-rose-50 text-[#d91b5c] font-black shadow-2xs' 
                           : 'border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold'
                       }`}
                     >
                       <span className="text-xs uppercase">{opt}</span>
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
                         isSelected ? 'bg-[#d91b5c] text-white shadow-xs' : 'border-2 border-slate-300'
                       }`}>
-                        {isSelected && <Check size={14} strokeWidth={3} />}
+                        {isSelected && <Check size={12} strokeWidth={3} />}
                       </div>
                     </div>
                   );
                 })}
+                {getOptionsForSheet(activeBottomSheet).length === 0 && (
+                  <div className="py-6 text-center text-xs text-slate-400 font-semibold">
+                    No options match your search.
+                  </div>
+                )}
               </div>
 
               <button
@@ -528,56 +675,9 @@ export default function FindMatchesPage() {
 
     </div>
   );
-
-  function getOptionsForSheet(sheetKey: string) {
-    switch (sheetKey) {
-      case 'MARITAL_STATUS': return MARITAL_STATUS_OPTIONS;
-      case 'SECT': return SECT_OPTIONS;
-      case 'CASTE': return CASTE_OPTIONS;
-      case 'STATE': return STATE_OPTIONS;
-      case 'CITY': return CITY_OPTIONS;
-      case 'EDUCATION': return DEGREE_OPTIONS;
-      case 'PROFESSION': return PROFESSION_OPTIONS;
-      default: return [];
-    }
-  }
-
-  function getIsSelected(sheetKey: string, opt: string) {
-    switch (sheetKey) {
-      case 'MARITAL_STATUS': return filters.maritalStatus.includes(opt);
-      case 'SECT': return filters.sect.includes(opt);
-      case 'CASTE': return filters.caste.includes(opt);
-      case 'STATE': return filters.states.includes(opt);
-      case 'CITY': return filters.cities.includes(opt);
-      case 'EDUCATION': return filters.education.includes(opt);
-      case 'PROFESSION': return filters.employedIn.includes(opt);
-      default: return false;
-    }
-  }
-
-  function handleToggleOption(sheetKey: string, opt: string) {
-    switch (sheetKey) {
-      case 'MARITAL_STATUS': toggleOption('maritalStatus', opt); break;
-      case 'SECT': toggleOption('sect', opt); break;
-      case 'CASTE': toggleOption('caste', opt); break;
-      case 'STATE': toggleOption('states', opt); break;
-      case 'CITY': toggleOption('cities', opt); break;
-      case 'EDUCATION': toggleOption('education', opt); break;
-      case 'PROFESSION': toggleOption('employedIn', opt); break;
-    }
-  }
 }
 
 // HELPER COMPONENTS
-function MiniDetail({ icon, label }: any) {
-  return (
-    <div className="flex items-center gap-2 text-slate-700 bg-slate-50 p-2.5 rounded-xl border border-slate-200 overflow-hidden">
-      <div className="text-[#d91b5c] shrink-0">{icon}</div>
-      <span className="text-[11px] font-bold uppercase truncate tracking-tight">{label}</span>
-    </div>
-  );
-}
-
 function DualRange({ min, max, valMin, valMax, onChangeMin, onChangeMax, label, title, step = 1 }: any) {
   const minPos = ((valMin - min) / (max - min)) * 100;
   const maxPos = ((valMax - min) / (max - min)) * 100;
@@ -585,7 +685,9 @@ function DualRange({ min, max, valMin, valMax, onChangeMin, onChangeMax, label, 
     <div className="space-y-2">
       <div className="flex justify-between items-center">
         <label className="text-[11px] font-black uppercase text-slate-700">{title}</label>
-        <span className="text-[11px] font-black text-[#d91b5c] bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200">{valMin} - {valMax} {label}</span>
+        <span className="text-[11px] font-black text-[#d91b5c] bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200">
+          {valMin} {label} - {valMax} {label}
+        </span>
       </div>
       <div className="relative h-2 bg-slate-200 rounded-full mx-1">
         <div className="absolute h-full bg-[#d91b5c] rounded-full" style={{ left: `${minPos}%`, right: `${100 - maxPos}%` }} />

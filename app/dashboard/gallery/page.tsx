@@ -8,6 +8,7 @@ import { toast, Toaster } from 'sonner';
 import { fetchProfileDetailsApi, uploadGalleryPhotoApi, setMainPhotoApi, deleteGalleryPhotoApi, updatePhotoPrivacyApi } from '@/lib/api';
 import { CompactSelect } from '@/components/profile/CompactSelect';
 import { getOptimizedImageUrl } from '@/lib/imageUtils';
+import { syncUserProfilePhoto } from '@/lib/auth';
 
 export default function GalleryManagementPage() {
   const router = useRouter();
@@ -29,23 +30,8 @@ export default function GalleryManagementPage() {
   const getToken = useCallback(() => getCookie("user_token"), []);
 
   const updateSessionPhoto = (mainPhotoUrl: string) => {
-    if (typeof window !== "undefined") {
-      ['user_details', 'user_session'].forEach(key => {
-        const stored = localStorage.getItem(key);
-        if (stored) {
-          try {
-            const parsed = JSON.parse(stored);
-            parsed.mainPhotoUrl = mainPhotoUrl;
-            parsed.photoUrl = mainPhotoUrl;
-            parsed.PhotoUrl = mainPhotoUrl;
-            parsed.photo = mainPhotoUrl;
-            parsed.mainPhoto = mainPhotoUrl;
-            localStorage.setItem(key, JSON.stringify(parsed));
-          } catch (e) {}
-        }
-      });
-      window.dispatchEvent(new Event("user_photo_updated"));
-    }
+    if (!mainPhotoUrl) return;
+    syncUserProfilePhoto(mainPhotoUrl);
   };
 
   const loadGalleryData = useCallback(async () => {
@@ -113,9 +99,9 @@ export default function GalleryManagementPage() {
       return;
     }
 
-    // 🛡️ FILE SIZE VALIDATION (MAX 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("File size is too large. Maximum allowed photo size is 10MB.");
+    // 🛡️ FILE SIZE VALIDATION (MAX 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File size is too large. Maximum allowed photo size is 5MB.");
       return;
     }
 
@@ -136,21 +122,27 @@ export default function GalleryManagementPage() {
     const res = await uploadGalleryPhotoApi(formData, token);
 
     if (res.success) {
+      const resAny = res as any;
+      const returnedPhotoUrl = resAny.data?.photoUrl || resAny.photoUrl;
+
       // 🔄 IF REPLACING AN EXISTING PHOTO
       if (selectedPhoto && oldPhotoId) {
-        const resAny = res as any;
         const newPhotoId = resAny.data?.photoId || resAny.data?.PhotoId || resAny.photoId || resAny.PhotoId;
         
         if (isReplacingMain && newPhotoId) {
           await setMainPhotoApi(newPhotoId, token);
-          if (resAny.data?.photoUrl || resAny.photoUrl) {
-            updateSessionPhoto(resAny.data?.photoUrl || resAny.photoUrl);
+          if (returnedPhotoUrl) {
+            updateSessionPhoto(returnedPhotoUrl);
           }
         } else if (oldPhotoId && !isReplacingMain) {
           await deleteGalleryPhotoApi(oldPhotoId, token);
         }
         toast.success("Photo replaced successfully!");
       } else {
+        // If this is the user's first photo or marked as main, sync everywhere
+        if ((photos.length === 0 || resAny.isMain || resAny.data?.isMain) && returnedPhotoUrl) {
+          updateSessionPhoto(returnedPhotoUrl);
+        }
         toast.success(res.message || "Photo uploaded successfully!");
       }
 
@@ -227,13 +219,13 @@ export default function GalleryManagementPage() {
   const isMainSelected = selectedPhoto ? Boolean(selectedPhoto.isMain ?? selectedPhoto.IsMain) : false;
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-28 pt-4 selection:bg-[#d91b5c] selection:text-white">
+    <div className="min-h-screen bg-gradient-to-b from-[#FAF8F5] via-white to-[#FAF8F5] font-sans text-slate-900 pb-28 pt-4 selection:bg-[#d91b5c] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
-      <div className="max-w-xl mx-auto px-4 md:px-6 space-y-6">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         
         {/* HEADER */}
-        <div className="flex items-center gap-3 py-2 border-b border-slate-200">
+        <div className="flex items-center gap-3 py-2 border-b border-rose-100">
           <button 
             type="button" 
             onClick={() => router.back()} 
@@ -243,30 +235,45 @@ export default function GalleryManagementPage() {
           >
             <ArrowLeft size={22} className="stroke-[2.5]" />
           </button>
-          <h1 className="text-xl font-extrabold tracking-tight text-slate-900">
-            Gallery & Photo Privacy
-          </h1>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-serif font-extrabold tracking-tight text-slate-900">
+              Gallery & Photo Privacy
+            </h1>
+            <p className="text-xs font-semibold text-slate-500">
+              Manage your personal pictures & choose who can view them
+            </p>
+          </div>
         </div>
 
         {/* TITLE BANNER */}
-        <div className="space-y-1 bg-white p-5 rounded-3xl border-2 border-rose-100 shadow-md">
-          <h2 className="text-xl sm:text-2xl font-serif font-black text-slate-900 leading-tight">
-            Manage Profile Photos
-          </h2>
-          <p className="text-xs font-semibold text-slate-500">
-            Max 3 photos allowed (1 Main Profile Picture mandatory + 2 Gallery photos)
-          </p>
+        <div className="bg-white p-6 rounded-3xl border border-rose-100/80 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-rose-50 border border-rose-200 text-[#d91b5c] text-[10px] font-black uppercase tracking-wider">
+              <Sparkles size={12} />
+              <span>Verified Photo Protection</span>
+            </div>
+            <h2 className="text-lg sm:text-xl font-serif font-black text-slate-900">
+              Manage Profile Photos
+            </h2>
+            <p className="text-xs font-semibold text-slate-500 max-w-md">
+              Upload up to 3 photos (1 Main Profile Picture + 2 Gallery photos). Profiles with photos get 10x more responses.
+            </p>
+          </div>
+          <div className="px-4 py-2 bg-[#FAF8F5] rounded-2xl border border-rose-100 text-center shrink-0">
+            <span className="text-xs font-bold text-slate-500 block">Photos Added</span>
+            <span className="text-xl font-black text-[#d91b5c]">{photos.length} / 3</span>
+          </div>
         </div>
 
-        {/* 📸 3-SLOT DYNAMIC GALLERY GRID */}
+        {/* 📸 3-SLOT DYNAMIC GALLERY GRID (RESPONSIVE 3-COLUMN LAYOUT) */}
         {loading ? (
-          <div className="grid grid-cols-3 gap-3.5 pt-2 animate-pulse">
+          <div className="grid grid-cols-3 gap-2.5 sm:gap-5 pt-2">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="aspect-[3/4] rounded-2xl bg-slate-200 shadow-sm" />
+              <div key={i} className="aspect-[3/4] rounded-2xl sm:rounded-3xl shimmer-luxury shadow-sm border border-rose-100/50" />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-3.5 pt-2">
+          <div className="grid grid-cols-3 gap-2.5 sm:gap-5 pt-2">
             
             {photos.map((photo, idx) => {
               const isMain = Boolean(photo.isMain ?? photo.IsMain);
@@ -275,7 +282,7 @@ export default function GalleryManagementPage() {
                 <div 
                   key={idx} 
                   onClick={() => setSelectedPhoto({ ...photo, resolvedUrl: imageUrl })}
-                  className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-slate-950 shadow-md border-2 border-slate-200 cursor-pointer group hover:border-[#d91b5c] transition-all"
+                  className="relative aspect-[3/4] rounded-2xl sm:rounded-3xl overflow-hidden bg-slate-950 shadow-md border-2 border-rose-100/80 cursor-pointer group hover:border-[#d91b5c] hover:shadow-xl transition-all"
                 >
                   <img 
                     src={imageUrl} 
@@ -284,11 +291,23 @@ export default function GalleryManagementPage() {
                     onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }} 
                   />
                   
-                  {isMain && (
-                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white text-[9px] font-black uppercase text-center py-1 tracking-wider">
-                      MAIN PROFILE
+                  {isMain ? (
+                    <div className="absolute top-2 left-2 sm:top-3 sm:left-3 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white text-[9px] sm:text-[10px] font-black uppercase px-2 py-0.5 sm:px-3 sm:py-1 rounded-full shadow-md tracking-wider flex items-center gap-1 border border-white/20">
+                      <Star size={10} className="fill-amber-300 text-amber-300 sm:w-3 sm:h-3" />
+                      <span className="hidden xs:inline">Main</span>
+                      <span className="xs:hidden">Main</span>
+                    </div>
+                  ) : (
+                    <div className="absolute top-2 left-2 sm:top-3 sm:left-3 bg-black/60 backdrop-blur-md text-white text-[9px] sm:text-[10px] font-bold uppercase px-2 py-0.5 sm:px-3 sm:py-1 rounded-full shadow-md tracking-wider">
+                      #{idx + 1}
                     </div>
                   )}
+
+                  <div className="absolute inset-x-0 bottom-0 p-2 sm:p-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <span className="text-white text-[10px] sm:text-xs font-black uppercase tracking-wider bg-white/20 backdrop-blur-md px-2 py-1 sm:px-3.5 sm:py-1.5 rounded-full border border-white/30 text-center">
+                      Manage
+                    </span>
+                  </div>
                 </div>
               );
             })}
@@ -297,7 +316,7 @@ export default function GalleryManagementPage() {
             {Array.from({ length: Math.max(0, 3 - photos.length) }).map((_, idx) => (
               <label 
                 key={idx} 
-                className="relative aspect-[3/4] rounded-2xl border-2 border-dashed border-rose-300 bg-rose-50/50 hover:bg-rose-100/60 flex flex-col items-center justify-center cursor-pointer transition-all shadow-xs group"
+                className="relative aspect-[3/4] rounded-2xl sm:rounded-3xl border-2 border-dashed border-rose-300/80 bg-rose-50/40 hover:bg-rose-100/50 flex flex-col items-center justify-center cursor-pointer transition-all shadow-xs group p-2 sm:p-6 text-center"
               >
                 <input 
                   type="file" 
@@ -310,11 +329,14 @@ export default function GalleryManagementPage() {
                 {uploading ? (
                   <Loader2 size={24} className="animate-spin text-[#d91b5c]" />
                 ) : (
-                  <div className="flex flex-col items-center gap-1">
-                    <div className="w-10 h-10 rounded-full bg-[#d91b5c] text-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
-                      <Plus size={22} className="stroke-[3]" />
+                  <div className="flex flex-col items-center gap-1 sm:gap-2">
+                    <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-[#d91b5c] text-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                      <Plus size={18} className="stroke-[3] sm:w-6 sm:h-6" />
                     </div>
-                    <span className="text-[10px] font-black text-[#d91b5c] uppercase mt-1">Add Photo</span>
+                    <div>
+                      <span className="text-[10px] sm:text-xs font-black text-[#d91b5c] uppercase block">Add</span>
+                      <span className="text-[8px] sm:text-[10px] font-semibold text-slate-500 hidden sm:block mt-0.5">JPG, PNG, WEBP</span>
+                    </div>
                   </div>
                 )}
               </label>
@@ -324,7 +346,7 @@ export default function GalleryManagementPage() {
         )}
 
         {/* 🔒 PRIVACY DROPDOWN SELECTION */}
-        <div className="pt-2 bg-white p-5 rounded-3xl border-2 border-rose-100 shadow-md space-y-2">
+        <div className="bg-white p-6 rounded-3xl border border-rose-100/80 shadow-md space-y-2">
           <CompactSelect 
             label="Photo Privacy Settings" 
             options={privacyOptions} 

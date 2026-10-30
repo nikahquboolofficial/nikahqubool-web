@@ -85,7 +85,7 @@ function VerifySelfieContent() {
     }
 
     setVerifying(true);
-    const res = await verifySelfieFaceMatchApi(token);
+    const res = await verifySelfieFaceMatchApi(capturedSelfie || '', token);
     setVerifying(false);
 
     if (res.success) {

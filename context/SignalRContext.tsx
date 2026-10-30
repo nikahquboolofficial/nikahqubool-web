@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import * as signalR from "@microsoft/signalr";
 import { SIGNALR_HUB_URL, API_BASE_URL } from '@/lib/api';
 
@@ -12,6 +12,8 @@ interface SignalRContextType {
   connection: signalR.HubConnection | null;
   isConnected: boolean;
   onlineUsers: Record<number, PresenceInfo>;
+  typingUsers: Record<number, boolean>;
+  sendTyping: (receiverId: number, isTyping: boolean) => void;
   fetchBulkOnlineStatuses: (userIds: number[]) => Promise<void>;
 }
 
@@ -19,6 +21,8 @@ const SignalRContext = createContext<SignalRContextType>({
   connection: null,
   isConnected: false,
   onlineUsers: {},
+  typingUsers: {},
+  sendTyping: () => {},
   fetchBulkOnlineStatuses: async () => {}
 });
 
@@ -36,9 +40,10 @@ export function SignalRProvider({ children }: { children: React.ReactNode }) {
   const [connection, setConnection] = useState<signalR.HubConnection | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<Record<number, PresenceInfo>>({});
+  const [typingUsers, setTypingUsers] = useState<Record<number, boolean>>({});
   const connRef = useRef<signalR.HubConnection | null>(null);
 
-  const fetchBulkOnlineStatuses = async (userIds: number[]) => {
+  const fetchBulkOnlineStatuses = useCallback(async (userIds: number[]) => {
     if (!userIds || userIds.length === 0) return;
     const token = getCookie("user_token");
     if (!token) return;
@@ -56,19 +61,28 @@ export function SignalRProvider({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         const data = await res.json();
         setOnlineUsers(prev => {
+          let hasChange = false;
           const updated = { ...prev };
           Object.keys(data).forEach(idStr => {
             const id = Number(idStr);
-            updated[id] = {
-              isOnline: Boolean(data[idStr].isOnline),
-              lastSeen: data[idStr].lastSeen
-            };
+            const isOnline = Boolean(data[idStr].isOnline);
+            const lastSeen = data[idStr].lastSeen;
+            if (!prev[id] || prev[id].isOnline !== isOnline || prev[id].lastSeen !== lastSeen) {
+              updated[id] = { isOnline, lastSeen };
+              hasChange = true;
+            }
           });
-          return updated;
+          return hasChange ? updated : prev;
         });
       }
     } catch (e) {
       // Silent error handling for background presence fetch
+    }
+  }, []);
+
+  const sendTyping = (receiverId: number, isTyping: boolean) => {
+    if (connRef.current && connRef.current.state === signalR.HubConnectionState.Connected && receiverId > 0) {
+      connRef.current.invoke("SendTypingNotification", receiverId, isTyping).catch(() => {});
     }
   };
 
@@ -81,7 +95,7 @@ export function SignalRProvider({ children }: { children: React.ReactNode }) {
       .withUrl(SIGNALR_HUB_URL, {
         accessTokenFactory: () => token
       })
-      .configureLogging(signalR.LogLevel.None)
+      .configureLogging(process.env.NODE_ENV === 'development' ? signalR.LogLevel.Warning : signalR.LogLevel.None)
       .withAutomaticReconnect([0, 1000, 2000, 5000, 10000, 15000, 30000])
       .build();
 
@@ -89,6 +103,13 @@ export function SignalRProvider({ children }: { children: React.ReactNode }) {
       setOnlineUsers(prev => ({
         ...prev,
         [Number(userId)]: { isOnline: Boolean(status), lastSeen: lastSeen ?? new Date().toISOString() }
+      }));
+    });
+
+    conn.on("UserTyping", (senderId: number | string, isTyping: boolean) => {
+      setTypingUsers(prev => ({
+        ...prev,
+        [Number(senderId)]: Boolean(isTyping)
       }));
     });
 
@@ -110,9 +131,18 @@ export function SignalRProvider({ children }: { children: React.ReactNode }) {
         connRef.current = conn;
         setConnection(conn);
       })
-      .catch(() => {
-        // Silent catch, auto-reconnect will handle
+      .catch((err) => {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn("SignalR connection attempt warning:", err);
+        }
       });
+
+    // 💓 Regular Heartbeat Ping (Every 45 seconds to keep Redis sliding session alive)
+    const heartbeatInterval = setInterval(() => {
+      if (connRef.current && connRef.current.state === signalR.HubConnectionState.Connected) {
+        connRef.current.invoke("HeartbeatPing").catch(() => {});
+      }
+    }, 45000);
 
     // 📱 Mobile Sleep / Tab Focus Auto-Sync Listener
     const handleVisibilityChange = () => {
@@ -121,6 +151,8 @@ export function SignalRProvider({ children }: { children: React.ReactNode }) {
           connRef.current.start()
             .then(() => setIsConnected(true))
             .catch(() => {});
+        } else if (connRef.current && connRef.current.state === signalR.HubConnectionState.Connected) {
+          connRef.current.invoke("HeartbeatPing").catch(() => {});
         }
       }
     };
@@ -128,9 +160,11 @@ export function SignalRProvider({ children }: { children: React.ReactNode }) {
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
+      clearInterval(heartbeatInterval);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       if (connRef.current) {
         connRef.current.off("UserStatusChanged");
+        connRef.current.off("UserTyping");
         if (connRef.current.state !== signalR.HubConnectionState.Disconnected) {
           connRef.current.stop().catch(() => {});
         }
@@ -139,7 +173,7 @@ export function SignalRProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <SignalRContext.Provider value={{ connection, isConnected, onlineUsers, fetchBulkOnlineStatuses }}>
+    <SignalRContext.Provider value={{ connection, isConnected, onlineUsers, typingUsers, sendTyping, fetchBulkOnlineStatuses }}>
       {children}
     </SignalRContext.Provider>
   );

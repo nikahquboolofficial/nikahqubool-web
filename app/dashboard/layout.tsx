@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -14,15 +14,16 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import DashboardHeader from '@/components/layout/dashboard/DashboardHeader';
 import DashboardBottomNav from '@/components/layout/dashboard/DashboardBottomNav';
-import { fetchDashboardApi, handleInteractionApiCall } from '@/lib/api';
+import { fetchDashboardApi, fetchNotificationCountsApi, handleInteractionApiCall } from '@/lib/api';
 import GlobalPresence from '@/components/layout/GlobalPresence';
 import { SignalRProvider } from '@/context/SignalRContext';
 
-import { clearAuthCookies } from '@/lib/auth';
+import { clearAuthCookies, getAuthToken } from '@/lib/auth';
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const lastFetchedCountsRef = useRef<number>(0);
 
   // 💬 MOBILE CHAT STATE
   const [isChatOpenOnMobile, setIsChatOpenOnMobile] = useState(false);
@@ -113,7 +114,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   const markKeyAsRead = (key: string) => {
     setReadKeys((prev) => {
-      const updated = { ...prev, [key]: true };
+      const updated = { ...prev };
+      updated[key] = true;
       try {
         sessionStorage.setItem('read_notifications', JSON.stringify(updated));
       } catch (e) {}
@@ -121,53 +123,56 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const getCookie = (name: string): string | null => {
-    if (typeof document === "undefined") return null;
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) {
-      const val = parts.pop()?.split(';').shift();
-      return val ?? null;
-    }
-    return null;
-  };
+  const getToken = useCallback((): string | null => getAuthToken(), []);
 
-  const getToken = useCallback((): string | null => getCookie("user_token"), []);
-
-  const loadNotificationCounts = useCallback(async () => {
+  // ⚡ ULTRA-FAST NON-BLOCKING NOTIFICATION COUNTS (<5ms)
+  const loadNotificationCounts = useCallback(async (forceRefresh = false) => {
     const token = getToken();
-    if (!token) {
-      handleLogout();
-      return;
-    }
+    if (!token) return;
 
-    const res = await fetchDashboardApi('best-matches', 1, token);
-    if (res.isUnauthorized || !res.success) {
-      handleLogout();
+    // Deduplicate calls within 25 seconds unless forced (e.g. drawer opened)
+    const now = Date.now();
+    if (!forceRefresh && now - lastFetchedCountsRef.current < 25000) {
       return;
     }
-    if (res.success && res.data) {
-      const c = res.data.tabCounts || res.data.TabCounts || res.data.counts || res.data.Counts || {};
-      let notes = res.data.notifications || res.data.Notifications || res.data.recentNotifications || [];
-      
-      if (notes && !Array.isArray(notes) && typeof notes === 'object') {
-        notes = Object.values(notes).flat();
+    lastFetchedCountsRef.current = now;
+
+    if (isNotificationOpen) {
+      const res = await fetchDashboardApi('best-matches', 1, token);
+      if (res.success && res.data) {
+        const c = res.data.tabCounts || res.data.TabCounts || res.data.counts || res.data.Counts || {};
+        let notes = res.data.notifications || res.data.Notifications || res.data.recentNotifications || [];
+        if (notes && !Array.isArray(notes) && typeof notes === 'object') {
+          notes = Object.values(notes).flat();
+        }
+        setNotificationsList(Array.isArray(notes) ? notes : []);
+        setCounts({
+          requestsCount: Number(c.requestsCount ?? c.RequestsCount ?? 0),
+          acceptedCount: Number(c.acceptedCount ?? c.AcceptedCount ?? 0),
+          photosCount: Number(c.photosCount ?? c.PhotosCount ?? 0),
+          visitorsCount: Number(c.visitorsCount ?? c.VisitorsCount ?? 0),
+          matchesCount: Number(c.matchesCount ?? c.MatchesCount ?? 0),
+          shortlistedCount: Number(c.shortlistedCount ?? c.ShortlistedCount ?? 0),
+        });
       }
-
-      setNotificationsList(Array.isArray(notes) ? notes : []);
-      setCounts({
-        requestsCount: Number(c.requestsCount ?? c.RequestsCount ?? 0),
-        acceptedCount: Number(c.acceptedCount ?? c.AcceptedCount ?? 0),
-        photosCount: Number(c.photosCount ?? c.PhotosCount ?? 0),
-        visitorsCount: Number(c.visitorsCount ?? c.VisitorsCount ?? 0),
-        matchesCount: Number(c.matchesCount ?? c.MatchesCount ?? 0),
-        shortlistedCount: Number(c.shortlistedCount ?? c.ShortlistedCount ?? 0),
-      });
+    } else {
+      const res = await fetchNotificationCountsApi(token);
+      if (res.success && res.data) {
+        const c = res.data;
+        setCounts(prev => ({
+          ...prev,
+          requestsCount: Number(c.requestsCount ?? c.RequestsCount ?? prev.requestsCount),
+          acceptedCount: Number(c.acceptedCount ?? c.AcceptedCount ?? prev.acceptedCount),
+          photosCount: Number(c.photosCount ?? c.PhotosCount ?? prev.photosCount),
+          visitorsCount: Number(c.visitorsCount ?? c.VisitorsCount ?? prev.visitorsCount),
+          shortlistedCount: Number(c.shortlistedCount ?? c.ShortlistedCount ?? prev.shortlistedCount),
+        }));
+      }
     }
-  }, [getToken, handleLogout]);
+  }, [getToken, isNotificationOpen]);
 
   useEffect(() => {
-    loadNotificationCounts();
+    loadNotificationCounts(isNotificationOpen);
   }, [pathname, isNotificationOpen, loadNotificationCounts]);
 
   const handleNotificationAction = async (senderUserId: number, type: string, status: string) => {
@@ -230,7 +235,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     + (readKeys['other-visitors'] ? 0 : counts.visitorsCount);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 selection:bg-[#d91b5c] selection:text-white">
+    <div className="min-h-screen bg-[#FAF8F5] flex flex-col font-sans text-slate-900 selection:bg-[#d91b5c] selection:text-white">
       
       {/* 🟢 WEBSITE-WIDE REALTIME ONLINE PRESENCE */}
       <GlobalPresence />

@@ -6,10 +6,12 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
   Bell, MessageSquare, ChevronDown, User, 
-  LogOut, Edit3, Search, Crown, CheckCircle2, HeartHandshake, Settings, ArrowLeft
+  LogOut, Edit3, Search, Crown, CheckCircle2, HeartHandshake, Settings, ArrowLeft, Rocket
 } from 'lucide-react';
 import { getOptimizedImageUrl, getFallbackPhoto } from '@/lib/imageUtils';
-import { fetchProfileDetailsApi } from '@/lib/api';
+import { fetchProfileDetailsApi, fetchBoostStatusApi } from '@/lib/api';
+import { getAuthToken } from '@/lib/auth';
+import BoostModal from '@/components/dashboard/BoostModal';
 
 interface HeaderProps {
   unreadCount?: number;
@@ -31,14 +33,8 @@ export default function DashboardHeader({
   const [userName, setUserName] = useState<string>('My Account');
   const [isVerified, setIsVerified] = useState<boolean>(false);
   const [isPaid, setIsPaid] = useState<boolean>(false);
-
-  const getCookie = (name: string): string | null => {
-    if (typeof document === "undefined") return null;
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop()?.split(';').shift() ?? null;
-    return null;
-  };
+  const [isBoostModalOpen, setIsBoostModalOpen] = useState<boolean>(false);
+  const [isBoosted, setIsBoosted] = useState<boolean>(false);
 
   useEffect(() => {
     const updatePhotoFromStorage = async () => {
@@ -52,7 +48,7 @@ export default function DashboardHeader({
         }
 
         const rawPhoto = parsed?.mainPhotoUrl || parsed?.photoUrl || parsed?.PhotoUrl || parsed?.mainPhoto || parsed?.photo;
-        const token = getCookie("user_token");
+        const token = getAuthToken();
 
         if (parsed && (rawPhoto || parsed.userId)) {
           setUserPhoto(getOptimizedImageUrl(rawPhoto, parsed.userId || 1, parsed.gender));
@@ -77,22 +73,44 @@ export default function DashboardHeader({
               }
             }
           } catch (err) {}
-        } else if (!token && !parsed) {
-          handleLogout();
         }
       }
     };
 
+    const checkBoostStatus = async () => {
+      const token = getAuthToken();
+      if (!token) return;
+      try {
+        const res = await fetchBoostStatusApi(token);
+        if (res.success && res.data) {
+          setIsBoosted(Boolean(res.data.isBoosted ?? res.data.IsBoosted));
+        }
+      } catch (e) {}
+    };
+
     updatePhotoFromStorage();
+    checkBoostStatus();
+
+    const handleBoostUpdated = (e: any) => {
+      if (e?.detail) {
+        setIsBoosted(Boolean(e.detail.isBoosted ?? e.detail.IsBoosted));
+      } else {
+        checkBoostStatus();
+      }
+    };
 
     if (typeof window !== "undefined") {
       window.addEventListener("user_photo_updated", updatePhotoFromStorage);
-      return () => window.removeEventListener("user_photo_updated", updatePhotoFromStorage);
+      window.addEventListener("boost_updated", handleBoostUpdated);
+      return () => {
+        window.removeEventListener("user_photo_updated", updatePhotoFromStorage);
+        window.removeEventListener("boost_updated", handleBoostUpdated);
+      };
     }
   }, [pathname]);
 
   return (
-    <header className="h-16 md:h-20 bg-white/95 backdrop-blur-xl border-b border-slate-200 sticky top-0 z-[100] px-4 md:px-8 flex items-center justify-between shadow-xs text-slate-900 selection:bg-[#d91b5c] selection:text-white">
+    <header className="h-16 md:h-20 bg-white/90 backdrop-blur-2xl border-b border-rose-100/80 sticky top-0 z-[100] px-4 md:px-8 flex items-center justify-between shadow-[0_4px_20px_-4px_rgba(217,27,92,0.06)] text-slate-900 selection:bg-[#d91b5c] selection:text-white">
       
       {/* 👑 BRAND LOGO IMAGE */}
       <div className="flex items-center gap-3">
@@ -106,38 +124,58 @@ export default function DashboardHeader({
       </div>
 
       {/* DESKTOP NAVIGATION */}
-      <nav className="hidden lg:flex items-center gap-8 h-full">
+      <nav className="hidden lg:flex items-center gap-3 h-full">
         <Link 
           href="/dashboard" 
-          className={`text-xs font-bold uppercase tracking-wider transition-all py-2 border-b-2 ${pathname === '/dashboard' ? 'text-[#d91b5c] border-[#d91b5c]' : 'text-slate-700 hover:text-[#d91b5c] border-transparent'}`}
+          className={`text-xs font-black uppercase tracking-wider transition-all px-3.5 py-1.5 rounded-full ${
+            pathname === '/dashboard' 
+              ? 'bg-rose-50 text-[#d91b5c] border border-rose-200/80 shadow-xs' 
+              : 'text-slate-600 hover:text-[#d91b5c] hover:bg-rose-50/50'
+          }`}
         >
           Dashboard
         </Link>
 
         <Link 
           href="/dashboard/activity" 
-          className={`text-xs font-bold uppercase tracking-wider transition-all py-2 border-b-2 flex items-center gap-1.5 ${pathname.startsWith('/dashboard/activity') ? 'text-[#d91b5c] border-[#d91b5c]' : 'text-slate-700 hover:text-[#d91b5c] border-transparent'}`}
+          className={`text-xs font-black uppercase tracking-wider transition-all px-3.5 py-1.5 rounded-full flex items-center gap-1.5 ${
+            pathname.startsWith('/dashboard/activity') 
+              ? 'bg-rose-50 text-[#d91b5c] border border-rose-200/80 shadow-xs' 
+              : 'text-slate-600 hover:text-[#d91b5c] hover:bg-rose-50/50'
+          }`}
         >
-          <HeartHandshake size={16} className="text-[#d91b5c]" /> Activity
+          <HeartHandshake size={15} className="text-[#d91b5c]" /> Activity
         </Link>
 
         <Link 
           href="/dashboard/find-match" 
-          className={`text-xs font-bold uppercase tracking-wider transition-all py-2 border-b-2 ${pathname.startsWith('/dashboard/find-match') ? 'text-[#d91b5c] border-[#d91b5c]' : 'text-slate-700 hover:text-[#d91b5c] border-transparent'}`}
+          className={`text-xs font-black uppercase tracking-wider transition-all px-3.5 py-1.5 rounded-full ${
+            pathname.startsWith('/dashboard/find-match') 
+              ? 'bg-rose-50 text-[#d91b5c] border border-rose-200/80 shadow-xs' 
+              : 'text-slate-600 hover:text-[#d91b5c] hover:bg-rose-50/50'
+          }`}
         >
           Find Matches
         </Link>
 
         <Link 
           href="/dashboard/messages" 
-          className={`text-xs font-bold uppercase tracking-wider transition-all py-2 border-b-2 flex items-center gap-1.5 ${pathname.startsWith('/dashboard/messages') ? 'text-[#d91b5c] border-[#d91b5c]' : 'text-slate-700 hover:text-[#d91b5c] border-transparent'}`}
+          className={`text-xs font-black uppercase tracking-wider transition-all px-3.5 py-1.5 rounded-full flex items-center gap-1.5 ${
+            pathname.startsWith('/dashboard/messages') 
+              ? 'bg-rose-50 text-[#d91b5c] border border-rose-200/80 shadow-xs' 
+              : 'text-slate-600 hover:text-[#d91b5c] hover:bg-rose-50/50'
+          }`}
         >
-          Messages
+          <MessageSquare size={15} className="text-[#d91b5c]" /> Messages
         </Link>
 
         <Link 
           href="/dashboard/my-profile" 
-          className={`text-xs font-bold uppercase tracking-wider transition-all py-2 border-b-2 ${pathname.startsWith('/dashboard/my-profile') ? 'text-[#d91b5c] border-[#d91b5c]' : 'text-slate-700 hover:text-[#d91b5c] border-transparent'}`}
+          className={`text-xs font-black uppercase tracking-wider transition-all px-3.5 py-1.5 rounded-full ${
+            pathname.startsWith('/dashboard/my-profile') 
+              ? 'bg-rose-50 text-[#d91b5c] border border-rose-200/80 shadow-xs' 
+              : 'text-slate-600 hover:text-[#d91b5c] hover:bg-rose-50/50'
+          }`}
         >
           My Profile
         </Link>
@@ -148,52 +186,86 @@ export default function DashboardHeader({
         
         <Link 
           href="/dashboard/membership"
-          className="hidden sm:flex items-center gap-1.5 bg-gradient-to-r from-[#d91b5c] to-rose-600 hover:from-rose-600 hover:to-[#d91b5c] text-white px-4 py-2 rounded-full font-bold text-xs shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 border border-rose-300/30"
+          className="hidden sm:inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-500 via-rose-500 to-[#d91b5c] hover:brightness-110 text-white px-4 py-2 rounded-full font-black text-xs shadow-[0_4px_14px_rgba(217,27,92,0.25)] transition-all transform hover:-translate-y-0.5 border border-white/20"
         >
-          <Crown size={15} className="text-amber-300 fill-amber-300 animate-pulse" />
+          <Crown size={15} className="text-amber-200 fill-amber-200 animate-pulse" />
           <span>Upgrade VIP</span>
         </Link>
+
+        {/* 🚀 NIKAH FOREVER STYLE PROFILE BOOST BUTTON */}
+        <button
+          type="button"
+          onClick={() => setIsBoostModalOpen(true)}
+          className={`relative p-2 sm:p-2.5 rounded-full transition-all cursor-pointer flex items-center justify-center ${
+            isBoosted 
+              ? 'bg-[#E21E5B] text-white ring-2 ring-[#E21E5B]/40 shadow-[0_0_15px_rgba(226,30,91,0.5)] animate-pulse'
+              : 'bg-rose-50 hover:bg-[#E21E5B] text-[#E21E5B] hover:text-white border border-rose-200/60 shadow-xs'
+          }`}
+          title={isBoosted ? "Profile Boost Active! (Rank #1)" : "Boost Profile (Get 10X Views)"}
+          aria-label="Boost Profile"
+        >
+          <Rocket size={19} className={isBoosted ? "fill-white" : "fill-[#E21E5B] hover:fill-white"} />
+          {isBoosted && (
+            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-white shadow-xs" />
+          )}
+        </button>
 
         {/* NOTIFICATIONS BELL */}
         <button 
           onClick={onOpenNotifications}
-          className="relative p-2 rounded-full hover:bg-slate-100 text-slate-700 transition-colors cursor-pointer"
+          className="relative p-2.5 rounded-full hover:bg-rose-50 text-slate-700 hover:text-[#d91b5c] transition-colors cursor-pointer border border-transparent hover:border-rose-100"
           aria-label="Notifications"
         >
           <Bell size={20} />
           {unreadCount > 0 && (
-            <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-[#d91b5c] rounded-full ring-2 ring-white" />
+            <span className="absolute top-1 right-1 min-w-[17px] h-[17px] bg-[#d91b5c] text-white text-[9px] font-black rounded-full flex items-center justify-center px-0.5 border-2 border-white shadow-xs animate-pulse">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
           )}
         </button>
 
-        {/* USER PROFILE AVATAR DP (DESKTOP ONLY - HIDDEN ON MOBILE VIEW AS REQUESTED) */}
+        {/* USER PROFILE AVATAR DP (DESKTOP ONLY) */}
         <div className="relative group hidden md:flex">
           <Link 
             href="/dashboard/my-profile" 
-            className="flex items-center gap-2 p-1 rounded-full hover:bg-slate-100 transition-colors"
+            className="flex items-center gap-2.5 py-1 px-2.5 rounded-full bg-rose-50/60 hover:bg-rose-100/60 border border-rose-200/60 transition-all duration-200 shadow-xs"
           >
-            <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden border-2 border-[#d91b5c] shadow-sm bg-slate-100">
+            <div className="relative w-9 h-9 rounded-full overflow-hidden border-2 border-[#d91b5c] shadow-xs bg-slate-100">
               <img 
                 src={userPhoto} 
                 alt={userName} 
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover object-top"
                 onError={(e) => { 
-                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80';
+                  (e.target as HTMLImageElement).src = '/placeholder.png';
                 }}
               />
             </div>
             <div className="hidden md:block text-left">
-              <p className="text-xs font-extrabold text-slate-900 leading-tight truncate max-w-[110px]">
-                {userName}
-              </p>
-              <p className="text-[10px] text-[#d91b5c] font-semibold flex items-center gap-1">
-                {isPaid ? 'VIP Member' : 'Free Member'}
+              <div className="flex items-center gap-1">
+                <p className="text-xs font-black text-slate-900 leading-tight truncate max-w-[110px]">
+                  {userName}
+                </p>
+                {isVerified && <CheckCircle2 size={12} className="fill-emerald-500 text-white shrink-0" />}
+              </div>
+              <p className="text-[10px] text-[#d91b5c] font-bold flex items-center gap-0.5">
+                {isPaid ? (
+                  <span className="flex items-center gap-1 text-amber-600 font-extrabold"><Crown size={10} className="fill-amber-500" /> VIP</span>
+                ) : (
+                  <span>Free Member</span>
+                )}
               </p>
             </div>
           </Link>
         </div>
 
       </div>
+
+      {/* 🚀 BOOST MODAL */}
+      <BoostModal 
+        isOpen={isBoostModalOpen} 
+        onClose={() => setIsBoostModalOpen(false)} 
+        onBoostSuccess={() => setIsBoosted(true)} 
+      />
 
     </header>
   );

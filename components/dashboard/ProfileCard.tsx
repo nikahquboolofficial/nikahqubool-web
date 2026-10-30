@@ -2,11 +2,11 @@
 
 import React, { useState } from 'react';
 import { 
-  Heart, Star, Lock, Check, X, MessageCircle, 
-  MapPin, GraduationCap, Briefcase, Loader2, CheckCircle2, Crown, Sparkles, ShieldCheck
+  Heart, Bookmark, Lock, Check, X, MessageCircle, 
+  MapPin, GraduationCap, Briefcase, Loader2, CheckCircle2, Crown, Sparkles, ShieldCheck, Camera, Rocket
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getOptimizedImageUrl, getFallbackPhoto, getBlurredPhotoUrl } from '@/lib/imageUtils';
+import { getOptimizedImageUrl, getFallbackPhoto } from '@/lib/imageUtils';
 import { useSignalR } from '@/context/SignalRContext';
 
 export interface ProfileCardProps {
@@ -33,9 +33,11 @@ export default function ProfileCard({
 
   const userIdNum = Number(profile.userId || profile.UserId || 0);
   const presence = onlineUsers[userIdNum];
-  const isOnline = presence ? presence.isOnline : Boolean(profile.isOnline ?? profile.IsOnline ?? false);
+  const isOnline = presence ? Boolean(presence.isOnline) : false;
   const isVerified = Boolean(profile.isVerified ?? profile.IsVerified ?? false);
   const isTargetPremium = Boolean(profile.isPremium ?? profile.IsPremium ?? false);
+  const isProfileBoosted = Boolean(profile.isBoosted ?? profile.IsBoosted ?? false);
+
   let localPaid = false;
   if (typeof window !== "undefined") {
     try {
@@ -69,31 +71,23 @@ export default function ProfileCard({
   const rawPhotoReqStatus = String(
     profile.photoRequestStatus || profile.PhotoRequestStatus || 
     profile.galleryRequestStatus || profile.GalleryRequestStatus || ''
-  ).trim();
-  const rawPhotoReqStatusUpper = rawPhotoReqStatus.toUpperCase();
+  ).trim().toUpperCase();
 
   const isPhotoReqAccepted = (
-    rawPhotoReqStatusUpper === 'ACCEPTED' || 
-    rawPhotoReqStatusUpper === 'SENTACCEPTED' || 
-    rawPhotoReqStatusUpper === 'APPROVED' ||
+    rawPhotoReqStatus === 'ACCEPTED' || 
+    rawPhotoReqStatus === 'SENTACCEPTED' || 
+    rawPhotoReqStatus === 'APPROVED' ||
     Boolean(profile.isPhotoReqAccepted ?? profile.IsPhotoReqAccepted)
   );
 
-  const isPhotoReqSent = hasRequestedPhoto || rawPhotoReqStatusUpper === 'SENTPENDING';
-
-  // Check exact 3 photo privacy settings: "All Members", "Premium Only", "Only Approved"
   let isPhotoHidden = false;
-
   if (isPhotoReqAccepted) {
     isPhotoHidden = false;
   } else if (rawPrivacy.includes('approved')) {
-    // 1. "Only Approved" -> Hidden until candidate explicitly approves photo request
     isPhotoHidden = true;
   } else if (rawPrivacy.includes('premium')) {
-    // 2. "Premium Only" -> Hidden for Free members, visible for Premium members
     isPhotoHidden = !isCurrentUserPaid;
   } else {
-    // 3. "All Members" / Public -> Visible to all logged-in members
     isPhotoHidden = false;
   }
 
@@ -103,11 +97,11 @@ export default function ProfileCard({
   const rawLocation = profile.location || profile.Location || profile.fullLocation || profile.FullLocation;
   const state = profile.stateName || profile.StateName || profile.currentStateName || profile.CurrentStateName || profile.state || profile.State || (rawLocation && rawLocation.includes(',') ? rawLocation.split(',')[1]?.trim() : '') || '';
   const city = profile.cityName || profile.CityName || profile.currentCityName || profile.CurrentCityName || profile.city || profile.City || profile.currentCity || profile.CurrentCity || (rawLocation && rawLocation.includes(',') ? rawLocation.split(',')[0]?.trim() : '') || '';
-  const displayLocation = (city && state) ? `${city}, ${state}` : (city || state || rawLocation || 'Location N/A');
+  const displayLocation = (city && state) ? `${city}, ${state}` : (city || state || rawLocation || 'India');
 
-  const edu = profile.education || profile.Education || profile.highestDegree || profile.HighestDegree || 'Education N/A';
-  const job = profile.profession || profile.Profession || profile.designation || profile.Designation || profile.employmentSector || profile.job || profile.Job || 'Professional';
-  const income = profile.annualIncome || profile.AnnualIncome || profile.income || profile.Income || '';
+  const edu = profile.education || profile.Education || profile.highestDegree || profile.HighestDegree || '';
+  const job = profile.profession || profile.Profession || profile.designation || profile.Designation || profile.employmentSector || profile.job || profile.Job || '';
+  const rawIncome = profile.annualIncome || profile.AnnualIncome || profile.income || profile.Income || '';
   const sect = profile.sect || profile.Sect || '';
   const caste = profile.caste || profile.Caste || '';
   const displayAge = (!profile.age || profile.age <= 0) ? 24 : profile.age;
@@ -126,10 +120,27 @@ export default function ProfileCard({
   const isConnected = interestStatus === 'Accepted' || interestStatus === 'ACCEPTED';
   const isShortlisted = Boolean(profile.isShortlisted || profile.IsShortlisted);
 
-  const isFullScreenCard = activeTab === 'best-matches' || activeTab === 'online' || activeTab === 'matches';
+  const photosCount = Number(profile.photosCount || profile.PhotosCount || (profile.userPhotos?.length || (rawPhoto ? 1 : 0)));
+
+  // 📝 Line 2: Job/Profession • City, State • Sect/Caste (Exact target screenshot structure)
+  const displayJob = job && job !== 'Professional' ? job : (edu && edu !== 'Education N/A' ? edu : 'Professional');
+  const displayCommunity = [sect, caste].filter(Boolean).join('/') || (sect || caste || 'Sunni');
+  const metaLine2 = [displayJob, displayLocation, displayCommunity].filter(Boolean).join(' • ');
+
+  // 💰 Line 3: Income formatted cleanly: "Earns Rs. 20 - 35 Lakh"
+  const formatIncome = (inc: any) => {
+    if (!inc || String(inc).trim() === '' || String(inc).toLowerCase().includes('no income')) {
+      return 'Earns Not Disclosed';
+    }
+    const s = String(inc).trim();
+    if (s.toLowerCase().startsWith('earns')) return s;
+    if (s.toLowerCase().startsWith('rs') || s.startsWith('₹')) return `Earns ${s}`;
+    return `Earns Rs. ${s}`;
+  };
+  const displayIncome = formatIncome(rawIncome);
 
   const triggerLocalHearts = () => {
-    const newHearts = Array.from({ length: 6 }).map((_, i) => ({
+    const newHearts = Array.from({ length: 7 }).map((_, i) => ({
       id: Date.now() + i + Math.random(),
       x: (Math.random() - 0.5) * 120
     }));
@@ -141,333 +152,272 @@ export default function ProfileCard({
   };
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ scale: 1, opacity: 1 }}
-      className="bg-white rounded-3xl overflow-hidden border border-slate-200/80 shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col group relative selection:bg-[#d91b5c] selection:text-white"
+    <article 
+      className="bg-black rounded-3xl overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.16)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.25)] transition-all duration-300 relative group flex flex-col select-none border border-slate-800/40"
+      style={{ scrollSnapAlign: 'center', scrollSnapStop: 'always' }}
     >
-      {/* 🖼️ ELEGANT MATCH CARD CONTAINER (FULL HEIGHT ON MOBILE, PROPORTIONED RESPONSIVE GRID ON DESKTOP) */}
+      {/* 🖼️ CARD MEDIA CONTAINER */}
       <div 
-        className={`relative w-full ${
-          isFullScreenCard 
-            ? 'h-[calc(100vh-150px)] min-h-[500px] max-h-[640px] md:h-[500px] md:min-h-[480px] md:max-h-[540px] md:aspect-[4/5]' 
-            : 'aspect-[4/5] min-h-[480px] max-h-[520px]'
-        } bg-slate-950 overflow-hidden cursor-pointer`} 
+        className="relative w-full h-[530px] sm:h-[500px] md:h-[515px] overflow-hidden cursor-pointer" 
         onClick={(e) => {
           e.stopPropagation();
           onViewProfile(userIdNum);
         }}
       >
+        {/* PHOTO */}
         <img 
           src={photo} 
           alt={displayName}
-          className={`w-full h-full object-cover object-top transition-all duration-700 group-hover:scale-105 ${
-            isPhotoHidden ? 'blur-2xl scale-110 opacity-80' : 'opacity-100'
+          className={`w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-[1.03] ${
+            isPhotoHidden ? 'blur-2xl scale-110 opacity-75' : 'opacity-100'
           }`}
           onError={(e) => { 
             const fallback = getFallbackPhoto(userIdNum, profile.gender || profile.Gender);
             if ((e.target as HTMLImageElement).src !== fallback) {
               (e.target as HTMLImageElement).src = fallback;
             }
+          }} 
+        />
+
+        {/* 🌓 EXACT NIKAH FOREVER GRADIENT OVERLAY (Seamless transparent to black) */}
+        <div 
+          className="absolute inset-x-0 bottom-0 pointer-events-none z-10"
+          style={{
+            height: '62%',
+            background: 'linear-gradient(rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.42) 28%, rgba(0, 0, 0, 0.88) 72%, #000000 100%)'
           }}
         />
 
-        {/* 🟢 TOP LEFT MATCH SCORE BADGE & TOP RIGHT INTEREST BADGE */}
-        <div className="absolute top-3.5 inset-x-3.5 z-40 pointer-events-none flex items-center justify-between gap-2">
-          <div>
-            {activeTab === 'best-matches' && (
-              <span className="bg-slate-950/80 backdrop-blur-md text-emerald-400 text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-md border border-emerald-400/30 tracking-wide">
-                <Sparkles size={11} className="text-amber-300 fill-amber-300" />
-                <span>{profile.matchScore || (85 + ((userIdNum * 7) % 13))}% Match</span>
-              </span>
-            )}
-          </div>
-
-          <div>
-            {isInterestReceived && (activeTab === 'visitors' || activeTab === 'profiles-viewed' || activeTab === 'viewed-my-profile') && (
-              <span className="bg-black/50 backdrop-blur-md text-white border border-white/30 text-[10px] font-extrabold uppercase px-3 py-1 rounded-full shadow-md tracking-wider flex items-center gap-1">
-                <Sparkles size={11} className="text-amber-300 fill-amber-300" />
-                <span>Also Sent Interest</span>
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* 🌓 DARK GRADIENT SHADOW OVERLAY FOR TEXT READABILITY */}
-        <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent pointer-events-none z-30" />
-
-        {/* 📝 CANDIDATE TEXT DETAILS OVERLAY (STRUCTURED 5-LINE LAYOUT WITH GAP ABOVE BUTTONS) */}
-        <div className="absolute bottom-[96px] inset-x-3.5 z-40 text-white pointer-events-none space-y-0.5 drop-shadow-md">
-          
-          {/* 1. NAME & AGE ONLY (BOLD) + VERIFIED TICK + CROWN + ONLINE GREEN DOT */}
-          <h3 className="font-serif font-extrabold text-base md:text-lg tracking-tight flex items-center gap-1 text-white leading-tight">
-            <span className="truncate">{displayName}, {displayAge}</span>
-            {isVerified && (
-              <span title="Verified Profile" className="flex-shrink-0">
-                <CheckCircle2 size={15} className="fill-emerald-500 text-slate-950" />
-              </span>
-            )}
-            {isTargetPremium && (
-              <span title="VIP Premium Member" className="flex-shrink-0">
-                <Crown size={15} className="fill-amber-400 text-amber-400" />
-              </span>
-            )}
-            {isOnline && (
-              <span title="Online Now" className="flex-shrink-0 relative flex h-2 w-2 ml-0.5 mb-0.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400 border border-slate-950"></span>
-              </span>
-            )}
-          </h3>
-
-          {/* 2. STATE & CITY (CLEAN LINE) */}
-          <p className="text-[11px] font-medium text-slate-200/90 flex items-center gap-1 truncate tracking-wide">
-            <MapPin size={11} className="text-amber-400 flex-shrink-0" />
-            <span className="truncate">
-              {displayLocation}
+        {/* 🟢 TOP LEFT: BOOSTED OR ONLINE BADGE */}
+        <div className="absolute top-3.5 left-3.5 z-20 pointer-events-none flex items-center gap-1.5">
+          {isProfileBoosted && (
+            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 via-rose-500 to-[#E21E5B] text-white text-[11px] font-black tracking-tight shadow-[0_2px_10px_rgba(226,30,91,0.5)] border border-white/20 animate-pulse">
+              <Rocket size={12} className="fill-white" />
+              Boosted
             </span>
-          </p>
-
-          {/* 3. SECT & CASTE (CLEAN SEPARATE LINE) */}
-          {(sect || caste) && (
-            <p className="text-[11px] font-medium text-slate-300/90 truncate tracking-wide">
-              {sect}{caste ? ` / ${caste}` : ''}
-            </p>
           )}
-
-          {/* 4. PROFESSION & EDUCATION */}
-          <p className="text-[11px] font-normal text-slate-300/80 truncate tracking-wide">
-            {job} • {edu}
-          </p>
-
-          {/* 5. ANNUAL INCOME (CLEAR GAP ABOVE BUTTONS) */}
-          {income && (
-            <p className="text-[11px] font-bold text-amber-300 tracking-wide truncate">
-              Earns {income}
-            </p>
+          {isOnline && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-white text-[11px] font-semibold tracking-tight shadow-md">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              Online
+            </span>
           )}
-
         </div>
 
-        {/* 💖 LOCAL RISING HEARTS OVERLAY (POP FROM INTEREST BUTTON CENTER) */}
-        <div className="absolute inset-0 pointer-events-none z-50 overflow-hidden">
+        {/* 📸 TOP RIGHT: GALLERY COUNT / VERIFIED BADGE */}
+        <div className="absolute top-3.5 right-3.5 z-20 pointer-events-none flex items-center gap-1.5">
+          {photosCount > 1 && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-white text-[11px] font-bold shadow-md">
+              <Camera size={13} className="text-white/90" />
+              {photosCount}
+            </span>
+          )}
+          {isTargetPremium && (
+            <span title="VIP Premium Member" className="w-7 h-7 rounded-full bg-black/50 backdrop-blur-md border border-amber-300/50 text-amber-300 flex items-center justify-center shadow-md">
+              <Crown size={14} className="fill-amber-300" />
+            </span>
+          )}
+        </div>
+
+        {/* 💖 LOCAL RISING HEARTS ANIMATION */}
+        <div className="absolute inset-0 pointer-events-none z-30 overflow-hidden">
           <AnimatePresence>
             {localHearts.map((heart) => (
               <motion.div
                 key={heart.id}
-                initial={{ 
-                  opacity: 1, 
-                  bottom: '50px', 
-                  left: '23%', 
-                  x: heart.x, 
-                  scale: 0.4, 
-                  rotate: 0 
-                }}
+                initial={{ opacity: 1, bottom: '60px', left: '50%', x: heart.x, scale: 0.5 }}
                 animate={{ 
-                  opacity: [0.9, 1, 0], 
-                  bottom: '220px', 
+                  opacity: [1, 1, 0], 
+                  bottom: '260px', 
                   x: heart.x * 2.2, 
-                  scale: [0.4, 1.3, 1.6],
-                  rotate: [0, -18, 18, 0]
+                  scale: [0.5, 1.4, 1.8],
+                  rotate: [0, -15, 15, 0]
                 }}
-                transition={{ duration: 1.6, ease: "easeOut" }}
-                className="absolute text-[#d91b5c] filter drop-shadow-[0_4px_12px_rgba(217,27,92,0.7)]"
+                transition={{ duration: 1.5, ease: "easeOut" }}
+                className="absolute text-[#E21E5B] filter drop-shadow-[0_4px_16px_rgba(226,30,91,0.8)]"
               >
-                <div className="relative flex items-center justify-center">
-                  <Heart size={28} className="fill-gradient-to-tr from-[#d91b5c] via-[#e11d48] to-[#f43f5e] fill-[#d91b5c] text-[#d91b5c]" />
-                  <Sparkles size={12} className="absolute -top-1 -right-1 text-amber-300 fill-amber-300 animate-spin" />
-                </div>
+                <Heart size={32} className="fill-[#E21E5B] text-[#E21E5B]" />
               </motion.div>
             ))}
           </AnimatePresence>
         </div>
 
-        {/* 🔴 ACTION BUTTONS ROW (SITTING DIRECTLY AT VERY BOTTOM EDGE OF CARD IMAGE) */}
-        <div className="absolute bottom-3 inset-x-4 z-40">
-        {/* 🌟 ACTION BUTTONS BAR */}
-        <div className="flex items-center justify-center gap-3 pt-1">
+        {/* 📝 PROFILE DETAILS & CIRCULAR ACTIONS OVERLAY */}
+        <div className="absolute bottom-0 inset-x-0 p-4 pb-5 z-20 flex flex-col justify-end text-white space-y-3 pointer-events-auto">
           
-          {/* RULE 1: IF GALLERY REQUEST RECEIVED -> SHOW PHOTO ACCEPT / DECLINE (ICON ONLY) */}
-          {(activeTab === 'gallery-requests-received' || activeTab === 'photo-requests') ? (
-            <div className="flex items-center justify-center gap-4 w-full">
-              <motion.button 
-                type="button"
-                whileHover={{ scale: 1.1, y: -2 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  onInteraction(userIdNum, 'PHOTO_REQUEST', 'ACCEPTED');
-                }}
-                disabled={actionLoading}
-                className="w-11 h-11 rounded-full bg-[#e6f7ec] hover:bg-[#d1fae5] text-[#16a34a] border-2 border-emerald-400 font-extrabold flex items-center justify-center shadow-md cursor-pointer transition-all shrink-0"
-                title="Accept Photo Request"
-              >
-                {actionLoading ? <Loader2 size={16} className="animate-spin text-[#16a34a]" /> : <Check size={20} className="text-[#16a34a] stroke-[3]" />}
-              </motion.button>
-              <motion.button 
-                type="button"
-                whileHover={{ scale: 1.1, y: -2 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  onInteraction(userIdNum, 'PHOTO_REQUEST', 'DECLINED');
-                }}
-                disabled={actionLoading}
-                className="w-11 h-11 rounded-full bg-[#fde8e8] hover:bg-[#ffe4e6] text-[#f43f5e] border-2 border-rose-400 font-extrabold flex items-center justify-center shadow-md cursor-pointer transition-all shrink-0"
-                title="Decline Photo Request"
-              >
-                <X size={20} className="text-[#f43f5e] stroke-[3]" />
-              </motion.button>
-            </div>
-          ) : (isInterestReceived || activeTab === 'requests') ? (
-            /* RULE 2: IF INTEREST REQUEST RECEIVED -> SHOW ICON ONLY BUTTONS (GREEN CHECK & RED CROSS) */
-            <div className="flex items-center justify-center gap-5 w-full">
-              <motion.button 
-                type="button"
-                whileHover={{ scale: 1.12, y: -2 }}
-                whileTap={{ scale: 0.85 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  triggerLocalHearts();
-                  onInteraction(userIdNum, 'INTEREST', 'ACCEPTED');
-                }}
-                disabled={actionLoading}
-                className="w-12 h-12 rounded-full bg-[#e6f7ec] hover:bg-[#d1fae5] text-[#16a34a] border-2 border-emerald-400 font-extrabold flex items-center justify-center shadow-lg cursor-pointer active:scale-95 transition-all shrink-0"
-                title="Accept Proposal"
-              >
-                {actionLoading ? <Loader2 size={18} className="animate-spin text-[#16a34a]" /> : <Check size={24} className="text-[#16a34a] stroke-[3]" />}
-              </motion.button>
+          {/* NAME, AGE & METADATA (EXACT NIKAH FOREVER FORMAT) */}
+          <div className="space-y-1 text-left pointer-events-none">
+            {/* Line 1: Mohd Saif, 26 [Verified Star/Badge] */}
+            <h4 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-1.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+              <span>{displayName}, {displayAge}</span>
+              {isVerified && (
+                <span title="Verified Profile" className="inline-flex items-center text-amber-400 shrink-0">
+                  <CheckCircle2 size={17} className="fill-amber-400 text-black shrink-0" />
+                </span>
+              )}
+            </h4>
 
-              <motion.button 
-                type="button"
-                whileHover={{ scale: 1.12, y: -2 }}
-                whileTap={{ scale: 0.85 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  onInteraction(userIdNum, 'INTEREST', 'DECLINED');
-                }}
-                disabled={actionLoading}
-                className="w-12 h-12 rounded-full bg-[#fde8e8] hover:bg-[#ffe4e6] text-[#f43f5e] border-2 border-rose-400 font-extrabold flex items-center justify-center shadow-lg cursor-pointer active:scale-95 transition-all shrink-0"
-                title="Decline Proposal"
-              >
-                <X size={24} className="text-[#f43f5e] stroke-[3]" />
-              </motion.button>
-            </div>
-          ) : (
-            /* RULE 3: NORMAL TABS (SHORTLIST, MESSAGE, INTEREST) */
-            <div className="flex items-start justify-center gap-5 w-full">
-              {/* 1. ❤️ INTEREST BUTTON (HIDDEN IN ACCEPTED TAB) */}
-              {activeTab !== 'accepted' && (
-                <div className="flex flex-col items-center gap-1">
+            {/* Line 2: Management / Executive • New Delhi, India • Sunni/Sheikh */}
+            {metaLine2 && (
+              <p className="text-xs text-white/90 font-medium leading-relaxed drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] line-clamp-1">
+                {metaLine2}
+              </p>
+            )}
+
+            {/* Line 3: Dedicated Income Line: Earns Rs. 20 - 35 Lakh */}
+            <p className="text-xs sm:text-sm font-semibold text-white/95 flex items-center gap-1 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
+              <span>{displayIncome}</span>
+            </p>
+          </div>
+
+          {/* 🔘 EXACT NIKAH FOREVER 3-BUTTON CIRCULAR ACTION DECK */}
+          <div 
+            className="pt-1 flex items-center justify-center gap-6 sm:gap-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            
+            {/* INCOMING INTEREST PROPOSAL DECK: DECLINE / ACCEPT */}
+            {(isInterestReceived || activeTab === 'requests') ? (
+              <div className="flex items-center justify-center gap-8 w-full">
+                {/* DECLINE */}
+                <div className="flex flex-col items-center gap-1.5 min-w-[60px]">
                   <motion.button 
                     type="button"
-                    whileHover={(isInterestSent || isConnected) ? {} : { scale: 1.12, y: -2 }}
-                    whileTap={(isInterestSent || isConnected) ? {} : { scale: 0.85 }}
+                    whileHover={{ scale: 1.08 }}
+                    whileTap={{ scale: 0.92 }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      e.preventDefault();
+                      onInteraction(userIdNum, 'INTEREST', 'DECLINED');
+                    }}
+                    disabled={actionLoading}
+                    className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md border border-white/25 text-rose-300 hover:bg-rose-600 hover:text-white flex items-center justify-center shadow-lg transition-all cursor-pointer"
+                    aria-label="Decline proposal"
+                  >
+                    <X size={20} className="stroke-[2.5]" />
+                  </motion.button>
+                  <span className="text-[11px] font-medium text-white/90">Decline</span>
+                </div>
+
+                {/* ACCEPT */}
+                <div className="flex flex-col items-center gap-1.5 min-w-[60px]">
+                  <motion.button 
+                    type="button"
+                    whileHover={{ scale: 1.08 }}
+                    whileTap={{ scale: 0.92 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      triggerLocalHearts();
+                      onInteraction(userIdNum, 'INTEREST', 'ACCEPTED');
+                    }}
+                    disabled={actionLoading}
+                    className="w-12 h-12 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center shadow-[0_6px_20px_rgba(16,185,129,0.4)] transition-all cursor-pointer"
+                    aria-label="Accept proposal"
+                  >
+                    {actionLoading ? <Loader2 size={20} className="animate-spin text-white" /> : <Check size={22} className="stroke-[2.8]" />}
+                  </motion.button>
+                  <span className="text-[11px] font-bold text-white">Accept</span>
+                </div>
+              </div>
+            ) : (
+              /* DEFAULT HOME / MATCHES DECK: SHORTLIST (LEFT) • MESSAGE (MIDDLE) • INTEREST (RIGHT) */
+              <>
+                {/* 1. SHORTLIST (LEFT) */}
+                <div className="flex flex-col items-center gap-1.5 min-w-[58px]">
+                  <motion.button 
+                    type="button"
+                    whileHover={{ scale: 1.08 }}
+                    whileTap={{ scale: 0.92 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onInteraction(userIdNum, 'SHORTLIST', isShortlisted ? 'REMOVED' : 'ACTIVE');
+                    }}
+                    disabled={actionLoading}
+                    className={`w-12 h-12 rounded-full backdrop-blur-md border flex items-center justify-center shadow-lg transition-all cursor-pointer ${
+                      isShortlisted 
+                        ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-amber-400/30' 
+                        : 'bg-white/15 hover:bg-white/25 text-white border-white/25'
+                    }`}
+                    aria-label={isShortlisted ? "Shortlisted" : "Shortlist"}
+                  >
+                    {(actionLoading && actionLoadingType === 'SHORTLIST') ? (
+                      <Loader2 size={18} className="animate-spin text-amber-400" />
+                    ) : (
+                      <Bookmark 
+                        size={20} 
+                        className={isShortlisted ? 'fill-current stroke-[2]' : 'fill-none stroke-[2]'} 
+                      />
+                    )}
+                  </motion.button>
+                  <span className={`text-[11px] ${isShortlisted ? 'font-bold text-amber-300' : 'font-medium text-white/90'}`}>
+                    {isShortlisted ? 'Shortlisted' : 'Shortlist'}
+                  </span>
+                </div>
+
+                {/* 2. MESSAGE (MIDDLE) */}
+                <div className="flex flex-col items-center gap-1.5 min-w-[58px]">
+                  <motion.button 
+                    type="button"
+                    whileHover={{ scale: 1.08 }}
+                    whileTap={{ scale: 0.92 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onInitiateChat) onInitiateChat(profile);
+                    }}
+                    disabled={actionLoading}
+                    className="w-12 h-12 rounded-full bg-[#4F46E5] hover:bg-[#4338CA] backdrop-blur-md border border-indigo-400/30 text-white flex items-center justify-center shadow-[0_4px_16px_rgba(79,70,229,0.35)] transition-all cursor-pointer"
+                    aria-label="Message"
+                  >
+                    {(actionLoading && actionLoadingType === 'CHAT') ? (
+                      <Loader2 size={18} className="animate-spin text-white" />
+                    ) : (
+                      <MessageCircle size={20} className="stroke-[2] fill-white/20" />
+                    )}
+                  </motion.button>
+                  <span className="text-[11px] font-medium text-white/90">Message</span>
+                </div>
+
+                {/* 3. INTEREST / HEART (RIGHT) */}
+                <div className="flex flex-col items-center gap-1.5 min-w-[58px]">
+                  <motion.button 
+                    type="button"
+                    whileHover={(isInterestSent || isConnected) ? {} : { scale: 1.08 }}
+                    whileTap={(isInterestSent || isConnected) ? {} : { scale: 0.92 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
                       if (!isInterestSent && !isConnected) {
                         triggerLocalHearts();
                         onInteraction(userIdNum, 'INTEREST', 'PENDING');
                       }
                     }}
                     disabled={actionLoading || isInterestSent || isConnected}
-                    className={`w-11 h-11 rounded-full shadow-md flex items-center justify-center transition-all duration-300 ${
+                    className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
                       isInterestSent || isConnected
-                        ? 'bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-600 border-2 border-emerald-300 text-white shadow-emerald-950/50 cursor-not-allowed opacity-95' 
-                        : 'bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white border-2 border-rose-300/40 cursor-pointer shadow-rose-950/40'
+                        ? 'bg-white/90 text-[#E21E5B] border-2 border-[#E21E5B] cursor-default shadow-lg' 
+                        : 'bg-[#E21E5B] hover:bg-[#CE1B53] text-white shadow-[0_6px_20px_rgba(226,30,91,0.5)] cursor-pointer'
                     }`}
-                    aria-label="Send Interest"
-                    title={isInterestSent ? 'Interest Sent' : isConnected ? 'Connected' : 'Send Interest'}
+                    aria-label={isInterestSent ? 'Sent' : isConnected ? 'Connected' : 'Interest'}
                   >
                     {(actionLoading && (actionLoadingType === 'INTEREST' || !actionLoadingType)) ? (
-                      <Loader2 size={18} className="animate-spin text-white" />
-                    ) : isInterestSent || isConnected ? (
-                      <Check size={20} className="text-white stroke-[3]" />
+                      <Loader2 size={20} className="animate-spin text-white" />
                     ) : (
-                      <Heart size={20} className="fill-white text-white drop-shadow-xs" />
+                      <Heart 
+                        size={22} 
+                        className={isInterestSent || isConnected ? 'fill-[#E21E5B] stroke-[2]' : 'fill-white text-white stroke-[0]'} 
+                      />
                     )}
                   </motion.button>
-                  <span className={`text-[10px] font-extrabold uppercase tracking-wider drop-shadow-sm ${
-                    isInterestSent || isConnected ? 'text-emerald-400 font-black' : 'text-white'
-                  }`}>
+                  <span className={`text-[11px] font-bold ${isInterestSent || isConnected ? 'text-rose-200' : 'text-white'}`}>
                     {isInterestSent ? 'Sent' : isConnected ? 'Connected' : 'Interest'}
                   </span>
                 </div>
-              )}
+              </>
+            )}
 
-              {/* 2. 💬 CHAT BUTTON */}
-              <div className="flex flex-col items-center gap-1">
-                <motion.button 
-                  type="button"
-                  whileHover={{ scale: 1.12, y: -2 }}
-                  whileTap={{ scale: 0.85 }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    if (onInitiateChat) onInitiateChat(profile);
-                  }}
-                  disabled={actionLoading}
-                  className="w-11 h-11 rounded-full bg-slate-900 hover:bg-[#d91b5c] text-white border-2 border-slate-700 shadow-md flex items-center justify-center cursor-pointer active:scale-95 transition-colors"
-                  aria-label="Direct Message"
-                  title="Send Message"
-                >
-                  {(actionLoading && actionLoadingType === 'CHAT') ? (
-                    <Loader2 size={18} className="animate-spin text-white" />
-                  ) : (
-                    <MessageCircle size={20} className="fill-white text-white" />
-                  )}
-                </motion.button>
-                <span className="text-[10px] font-extrabold text-white uppercase tracking-wider drop-shadow-sm">
-                  Chat
-                </span>
-              </div>
-
-              {/* 3. ⭐ SHORTLIST STAR BUTTON */}
-              <div className="flex flex-col items-center gap-1">
-                <motion.button 
-                  type="button"
-                  whileHover={{ scale: 1.12, y: -2 }}
-                  whileTap={{ scale: 0.85 }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    onInteraction(userIdNum, 'SHORTLIST', profile.isShortlisted ? 'REMOVED' : 'ACTIVE');
-                  }}
-                  disabled={actionLoading}
-                  className={`w-11 h-11 rounded-full shadow-md flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-95 border-2 ${
-                    profile.isShortlisted 
-                      ? 'bg-amber-50 text-amber-500 border-amber-300' 
-                      : 'bg-white hover:bg-rose-50 text-[#d91b5c] border-slate-200'
-                  }`}
-                  aria-label="Shortlist Profile"
-                  title={profile.isShortlisted ? "Shortlisted" : "Shortlist Profile"}
-                >
-                  {(actionLoading && actionLoadingType === 'SHORTLIST') ? (
-                    <Loader2 size={18} className="animate-spin text-amber-500" />
-                  ) : (
-                    <Star 
-                      size={20} 
-                      className={profile.isShortlisted ? 'fill-amber-500 text-amber-500' : 'text-amber-500 fill-none'} 
-                    />
-                  )}
-                </motion.button>
-                <span className="text-[10px] font-extrabold text-white uppercase tracking-wider drop-shadow-sm">
-                  {profile.isShortlisted ? 'Saved' : 'Shortlist'}
-                </span>
-              </div>
-            </div>
-          )}
-
-        </div>
+          </div>
 
         </div>
 
       </div>
-    </motion.div>
+    </article>
   );
 }

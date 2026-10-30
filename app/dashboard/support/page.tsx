@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -28,13 +28,13 @@ export default function HelpAndSupportPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-28 pt-4 selection:bg-[#d91b5c] selection:text-white">
+    <div className="min-h-screen bg-gradient-to-b from-[#FAF8F5] via-white to-[#FAF8F5] font-sans text-slate-900 pb-28 pt-4 selection:bg-[#d91b5c] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
-      <div className="max-w-2xl mx-auto px-4 space-y-6">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         
         {/* HEADER BAR */}
-        <div className="flex items-center gap-3 py-2 border-b border-slate-200">
+        <div className="flex items-center gap-3 py-2 border-b border-rose-100">
           <button 
             type="button" 
             onClick={() => router.back()} 
@@ -45,9 +45,12 @@ export default function HelpAndSupportPage() {
             <ArrowLeft size={22} className="stroke-[2.5]" />
           </button>
           <div>
-            <h1 className="text-xl font-extrabold tracking-tight text-slate-900">
+            <h1 className="text-xl sm:text-2xl font-serif font-extrabold tracking-tight text-slate-900">
               Help & Customer Support
             </h1>
+            <p className="text-xs font-semibold text-slate-500">
+              Reach our matrimonial advisory team anytime
+            </p>
           </div>
         </div>
 

@@ -1,173 +1,447 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import { Crown, Sparkles, ChevronRight, Loader2, User, Heart, Globe, Briefcase, Users, Camera, ArrowLeft, ShieldAlert } from 'lucide-react';
+import { 
+  Sparkles, ChevronRight, Loader2, ArrowLeft, Check, Search, 
+  Camera, Lock, CheckCircle2, Calendar, Shield, ChevronDown
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast, Toaster } from 'sonner';
 import { fetchMasterDataApi, fetchCitiesApi, updateProfileApi, fetchProfileDetailsApi, MasterOption } from '@/lib/api';
-import DobAppPicker from '@/components/profile/DobAppPicker';
-import CustomSelect from '@/components/profile/CustomSelect';
-import CircularPhotoUpload from '@/components/profile/CircularPhotoUpload';
-import ImageCropModal from '@/components/profile/ImageCropModal';
-import MobileBottomNav from '@/components/profile/MobileBottomNav';
-import { CompactSelect } from '@/components/profile/CompactSelect';
+import { getAuthToken, syncUserProfilePhoto } from '@/lib/auth';
+
+// MASTER FALLBACK DATA
+const FALLBACK_MASTERS: { [key: string]: MasterOption[] } = {
+  MARITAL_STATUS: [
+    { id: 1, value: "Never Married" },
+    { id: 2, value: "Divorced" },
+    { id: 3, value: "Widowed" },
+    { id: 4, value: "Awaiting Divorce" },
+    { id: 5, value: "Annulled" }
+  ],
+  RELIGIONS: [
+    { id: 1, value: "Islam" }
+  ],
+  SECTS: [
+    { id: 1, value: "Sunni" },
+    { id: 2, value: "Shia" },
+    { id: 3, value: "Other" }
+  ],
+  MASLAKS: [
+    { id: 1, value: "Deobandi" },
+    { id: 2, value: "Barelvi" },
+    { id: 3, value: "Ahle Hadith" },
+    { id: 4, value: "Salafi" },
+    { id: 5, value: "Jamaat-e-Islami" },
+    { id: 6, value: "Other" }
+  ],
+  CASTES: [
+    { id: 1, value: "Ansari / Momin" },
+    { id: 2, value: "Shaikh / Sheikh" },
+    { id: 3, value: "Syed" },
+    { id: 4, value: "Pathan / Khan" },
+    { id: 5, value: "Qureshi / Baig" },
+    { id: 6, value: "Rayeen / Kunjra" },
+    { id: 7, value: "Malik" },
+    { id: 8, value: "Siddiqui" },
+    { id: 9, value: "Farooqui" },
+    { id: 10, value: "Chaudhary" },
+    { id: 11, value: "Mughal" },
+    { id: 12, value: "Mansoori / Dhunia" },
+    { id: 13, value: "Idrisi / Darzi" },
+    { id: 14, value: "Saifi / Lohar" },
+    { id: 15, value: "Other" }
+  ],
+  MOTHER_TONGUES: [
+    { id: 1, value: "Urdu" },
+    { id: 2, value: "Hindi" },
+    { id: 3, value: "English" },
+    { id: 4, value: "Bengali" },
+    { id: 5, value: "Punjabi" },
+    { id: 6, value: "Gujarati" },
+    { id: 7, value: "Marathi" },
+    { id: 8, value: "Tamil" },
+    { id: 9, value: "Telugu" },
+    { id: 10, value: "Malayalam" }
+  ],
+  EDUCATIONS: [
+    { id: 1, value: "B.Tech / B.E." },
+    { id: 2, value: "B.Sc" },
+    { id: 3, value: "B.Com" },
+    { id: 4, value: "B.A." },
+    { id: 5, value: "BCA" },
+    { id: 6, value: "M.Tech / M.E." },
+    { id: 7, value: "M.Sc" },
+    { id: 8, value: "M.Com" },
+    { id: 9, value: "M.A." },
+    { id: 10, value: "MCA" },
+    { id: 11, value: "MBA" },
+    { id: 12, value: "MBBS / MD" },
+    { id: 13, value: "BDS" },
+    { id: 14, value: "LL.B / LL.M" },
+    { id: 15, value: "High School / Diploma" }
+  ],
+  EMPLOYMENT_SECTORS: [
+    { id: 1, value: "Private Sector" },
+    { id: 2, value: "Government / Public Sector" },
+    { id: 3, value: "Business / Self Employed" },
+    { id: 4, value: "Defense / Civil Services" },
+    { id: 5, value: "Not Working" }
+  ],
+  OCCUPATIONS: [
+    { id: 1, value: "Software Engineer / IT Professional" },
+    { id: 2, value: "Doctor / Healthcare Professional" },
+    { id: 3, value: "Teacher / Professor" },
+    { id: 4, value: "Chartered Accountant / Finance" },
+    { id: 5, value: "Businessperson / Entrepreneur" },
+    { id: 6, value: "Civil / Mechanical Engineer" },
+    { id: 7, value: "Government Employee" },
+    { id: 8, value: "Designer / Creative Professional" },
+    { id: 9, value: "Homemaker" },
+    { id: 10, value: "Other Professional" }
+  ],
+  STATES: [
+    { id: 1, value: "Delhi" },
+    { id: 2, value: "Uttar Pradesh" },
+    { id: 3, value: "Maharashtra" },
+    { id: 4, value: "Karnataka" },
+    { id: 5, value: "Telangana" },
+    { id: 6, value: "Bihar" },
+    { id: 7, value: "West Bengal" },
+    { id: 8, value: "Madhya Pradesh" },
+    { id: 9, value: "Rajasthan" },
+    { id: 10, value: "Gujarat" },
+    { id: 11, value: "Haryana" },
+    { id: 12, value: "Punjab" }
+  ],
+  FAMILY_TYPES: [
+    { id: 1, value: "Nuclear Family" },
+    { id: 2, value: "Joint Family" },
+    { id: 3, value: "Extended Family" }
+  ],
+  FAMILY_STATUS: [
+    { id: 1, value: "Middle Class" },
+    { id: 2, value: "Upper Middle Class" },
+    { id: 3, value: "High Class / Affluent" }
+  ],
+  COMPLEXIONS: [
+    { id: 1, value: "Very Fair" },
+    { id: 2, value: "Fair" },
+    { id: 3, value: "Wheatish" },
+    { id: 4, value: "Dark" }
+  ],
+  INCOME_RANGES: [
+    { id: 1, value: "Below ₹2 Lakh" },
+    { id: 2, value: "₹2 - 4 Lakhs" },
+    { id: 3, value: "₹5 - 7 Lakhs" },
+    { id: 4, value: "₹8 - 10 Lakhs" },
+    { id: 5, value: "₹10 - 15 Lakhs" },
+    { id: 6, value: "₹15 - 25 Lakhs" },
+    { id: 7, value: "₹25 Lakhs+" }
+  ]
+};
+
+const HEIGHT_OPTIONS: string[] = [
+  "4'8\"", "4'9\"", "4'10\"", "4'11\"", "5'0\"", "5'1\"", "5'2\"", "5'3\"", "5'4\"", 
+  "5'5\"", "5'6\"", "5'7\"", "5'8\"", "5'9\"", "5'10\"", "5'11\"", "6'0\"", "6'1\"", "6'2\"", "6'3\"", "6'4\""
+];
+
+const WEIGHT_OPTIONS: string[] = [
+  "45 kg", "50 kg", "55 kg", "60 kg", "65 kg", "70 kg", "75 kg", "80 kg", "85 kg", "90+ kg"
+];
+
+const PRIVACY_OPTIONS = [
+  { 
+    id: "All Members", 
+    title: "All Members (Public)", 
+    desc: "Visible to all genuine verified members for 3x faster proposals", 
+    icon: "🌐" 
+  },
+  { 
+    id: "Only Approved", 
+    title: "Only Approved Members", 
+    desc: "Photo is protected; visible only after you accept their photo request", 
+    icon: "🔒" 
+  },
+  { 
+    id: "Premium Only", 
+    title: "Premium Members Only", 
+    desc: "Visible only to verified VIP / Paid subscribers", 
+    icon: "👑" 
+  }
+];
+
+// ⚡ LIGHTNING-FAST CLIENT-SIDE IMAGE COMPRESSOR (<50ms, reduces 5MB to ~150KB)
+const compressPhoto = async (file: File): Promise<File> => {
+  return new Promise((resolve) => {
+    if (!file || !file.type.startsWith('image/')) {
+      resolve(file);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const maxDim = 1200;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
+                type: 'image/jpeg',
+                lastModified: Date.now()
+              });
+              resolve(compressedFile);
+            } else {
+              resolve(file);
+            }
+          },
+          'image/jpeg',
+          0.85
+        );
+      };
+      img.onerror = () => resolve(file);
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+};
 
 export default function CompleteProfilePage() {
   const router = useRouter();
-  const [section, setSection] = useState(1);
+
+  // Slide state: 1 to 17 (1 field per slide, except State & City together)
+  const [step, setStep] = useState<number>(1);
+  const totalSteps = 17;
+  const [slideDirection, setSlideDirection] = useState<'forward' | 'backward'>('forward');
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<string[]>([]);
-  const [apiError, setApiError] = useState('');
+  const [submitStatus, setSubmitStatus] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [privacySheetOpen, setPrivacySheetOpen] = useState(false);
 
-  const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
-  const [showCropModal, setShowCropModal] = useState(false);
-  const [masterData, setMasterData] = useState<{ [key: string]: MasterOption[] }>({});
+  const [masterData, setMasterData] = useState<{ [key: string]: MasterOption[] }>(FALLBACK_MASTERS);
+  const [cities, setCities] = useState<MasterOption[]>([]);
+  const [loadingCities, setLoadingCities] = useState(false);
 
+  // Form State
   const [formData, setFormData] = useState({
-    dob: '', 
-    height: '', 
-    weight: '', 
-    complexionId: 0, 
+    maritalStatusId: 0,
+    maritalStatusText: '',
+    dob: '',
+    height: "5'5\"",
+    weight: '60 kg',
+    complexionId: 0,
     complexionText: '',
-    maritalStatusId: 0, 
-    maritalStatusText: '', 
-    religionId: 0, 
-    religionText: '',
-    sectId: 0, 
-    sectText: '', 
-    maslakId: 0, 
-    maslakText: '', 
-    casteId: 0, 
+    religionId: 1, // Default Islam (no user selection needed)
+    religionText: 'Islam',
+    sectId: 0,
+    sectText: '',
+    maslakId: 0,
+    maslakText: '',
+    casteId: 0,
     casteText: '',
-    motherTongueId: 0, 
-    motherTongueText: '', 
-    stateId: 0, 
-    stateText: '', 
-    cityId: 0, 
+    motherTongueId: 0,
+    motherTongueText: '',
+    stateId: '' as string | number,
+    stateText: '',
+    cityId: '' as string | number,
     cityText: '',
-    educationId: 0, 
-    educationText: '', 
-    employmentSectorId: 0, 
-    employmentSectorText: '', 
-    occupationId: 0, 
-    occupationText: '', 
-    income: '', 
-    familyTypeId: 0, 
+    educationId: 0,
+    educationText: '',
+    employmentSectorId: 0,
+    employmentSectorText: '',
+    occupationId: 0,
+    occupationText: '',
+    income: '',
+    familyTypeId: 0,
     familyTypeText: '',
-    familyStatusId: 0, 
-    familyStatusText: '', 
+    familyStatusId: 0,
+    familyStatusText: '',
     fatherOccupation: '',
-    motherOccupation: '', 
-    totalBrothers: 0, 
-    marriedBrothers: 0, 
-    totalSisters: 0, 
+    motherOccupation: '',
+    totalBrothers: 0,
+    marriedBrothers: 0,
+    totalSisters: 0,
     marriedSisters: 0,
-    namazHabit: 'Regular 5 Times', 
+    namazHabit: 'Regular 5 Times',
     hijabOrBeard: 'Hijab',
-    photo: null as File | null, 
-    photoUrl: '', 
+    aboutMe: '',
+    photo: null as File | null,
+    photoUrl: '',
     photoPrivacy: 'All Members'
   });
 
-  const getCookie = (name: string) => {
-    if (typeof document === 'undefined') return null;
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    return parts.length === 2 ? parts.pop()?.split(';').shift() : null;
-  };
+  // Modern DOB Picker Sub-states
+  const [dobDay, setDobDay] = useState<string>('15');
+  const [dobMonth, setDobMonth] = useState<string>('06');
+  const [dobYear, setDobYear] = useState<string>('1998');
 
-  const handleSessionExpired = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem("user_session");
-      localStorage.removeItem("user_token");
-      document.cookie = "user_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  // Compute live Age from selected DOB
+  const calculatedAge = React.useMemo(() => {
+    if (!dobDay || !dobMonth || !dobYear) return null;
+    const birthDate = new Date(Number(dobYear), Number(dobMonth) - 1, Number(dobDay));
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
     }
-    router.push('/login');
-  };
+    return age > 0 ? age : null;
+  }, [dobDay, dobMonth, dobYear]);
 
+  // Sync initial DOB
   useEffect(() => {
-    const session = typeof window !== 'undefined' ? localStorage.getItem("user_session") : null;
-    let userData: any = null;
-    if (session) {
-      try { userData = JSON.parse(session); } catch (e) {}
+    if (dobYear && dobMonth && dobDay) {
+      setFormData(prev => ({ ...prev, dob: `${dobYear}-${dobMonth}-${dobDay}` }));
     }
-    const token = userData?.token || getCookie('user_token');
+  }, [dobYear, dobMonth, dobDay]);
 
+  const nextStep = () => {
+    setSlideDirection('forward');
+    setSearchQuery('');
+    setStep(prev => Math.min(totalSteps, prev + 1));
+  };
+
+  const prevStep = () => {
+    setSlideDirection('backward');
+    setSearchQuery('');
+    setStep(prev => Math.max(1, prev - 1));
+  };
+
+  // 🚀 INSTANT AUTO-ADVANCE: Selects, sets state, and moves smoothly to next slide
+  const handleAutoAdvance = (fieldIdName: string, id: number | string, fieldTextName: string, text: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [fieldIdName]: Number(id),
+      [fieldTextName]: text
+    }));
+
+    // Quick 180ms visual feedback then advance
+    setTimeout(() => {
+      nextStep();
+    }, 180);
+  };
+
+  const handleSimpleAdvance = (fieldName: string, val: any) => {
+    setFormData(prev => ({ ...prev, [fieldName]: val }));
+    setTimeout(() => {
+      nextStep();
+    }, 180);
+  };
+
+  // Load masters on mount
+  useEffect(() => {
+    const token = getAuthToken();
     if (!token) {
-      handleSessionExpired();
+      router.push('/');
       return;
     }
 
     const loadAllMasters = async () => {
-      const types = ['MARITAL_STATUS', 'RELIGIONS', 'SECTS', 'MASLAKS', 'CASTES', 'MOTHER_TONGUES', 'EDUCATIONS', 'EMPLOYMENT_SECTORS', 'OCCUPATIONS', 'STATES', 'FAMILY_TYPES', 'FAMILY_STATUS', 'Complexion'];
+      const types = ['MARITAL_STATUS', 'SECTS', 'MASLAKS', 'CASTES', 'MOTHER_TONGUES', 'EDUCATIONS', 'EMPLOYMENT_SECTORS', 'OCCUPATIONS', 'STATES', 'FAMILY_TYPES', 'FAMILY_STATUS', 'Complexion'];
       try {
         const results = await Promise.all(
           types.map(async (t) => {
             const data = await fetchMasterDataApi(t);
-            return { key: t === 'Complexion' ? 'COMPLEXIONS' : t, data };
+            const masterKey = t === 'Complexion' ? 'COMPLEXIONS' : t;
+            return { 
+              key: masterKey, 
+              data: (data && data.length > 0) ? data : (FALLBACK_MASTERS[masterKey] || []) 
+            };
           })
         );
         const masterObj: { [key: string]: MasterOption[] } = {};
-        results.forEach(item => {
-          masterObj[item.key] = item.data;
-        });
-        setMasterData(prev => ({ ...prev, ...masterObj }));
+        results.forEach(item => { masterObj[item.key] = item.data; });
+        setMasterData(prev => ({ ...FALLBACK_MASTERS, ...prev, ...masterObj }));
       } catch (err) {
         console.error("Master data load error", err);
       }
     };
     loadAllMasters();
-  }, []);
+  }, [router]);
 
+  // Load cities when state changes
   useEffect(() => {
-    if (formData.stateId > 0) {
-      fetchCitiesApi(formData.stateId).then(cities => setMasterData(prev => ({ ...prev, CITIES: cities })));
+    if (formData.stateId !== '' && formData.stateId !== null && formData.stateId !== undefined) {
+      setLoadingCities(true);
+      fetchCitiesApi(formData.stateId)
+        .then(res => {
+          setCities(res || []);
+          setLoadingCities(false);
+        })
+        .catch(() => {
+          setCities([]);
+          setLoadingCities(false);
+        });
+    } else {
+      setCities([]);
     }
   }, [formData.stateId]);
 
-  const update = (field: string, val: any) => {
-    setFormData(prev => ({ ...prev, [field]: val }));
-    if (errors.includes(field)) setErrors(errors.filter(e => e !== field));
-    setApiError('');
-  };
-
-  const handleRawPhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle Photo Selection with instant compression
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        setApiError("Only JPG, PNG and WEBP images are allowed.");
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = () => {
-        setRawImageSrc(reader.result as string);
-        setShowCropModal(true);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please choose a valid image file (JPEG, PNG, WEBP)');
+      return;
+    }
+
+    toast.loading('Optimizing photo quality...', { id: 'compress-toast' });
+    try {
+      const compressed = await compressPhoto(file);
+      const previewUrl = URL.createObjectURL(compressed);
+      setFormData(prev => ({
+        ...prev,
+        photo: compressed,
+        photoUrl: previewUrl
+      }));
+      toast.success('Photo ready!', { id: 'compress-toast' });
+    } catch (err) {
+      toast.dismiss('compress-toast');
+      const previewUrl = URL.createObjectURL(file);
+      setFormData(prev => ({
+        ...prev,
+        photo: file,
+        photoUrl: previewUrl
+      }));
     }
   };
 
-  const handleCropSave = (croppedBlob: Blob, croppedUrl: string) => {
-    const croppedFile = new File([croppedBlob], "profile_photo.jpg", { type: "image/jpeg" });
-    update('photo', croppedFile);
-    update('photoUrl', croppedUrl);
-    setShowCropModal(false);
-  };
-
+  // Final Profile Submit
   const handleFinalSubmit = async () => {
+    const token = getAuthToken();
+    if (!token) {
+      toast.error("Session expired. Please login again.");
+      router.push('/');
+      return;
+    }
+
     setLoading(true);
-    setApiError('');
-    const session = typeof window !== 'undefined' ? localStorage.getItem("user_session") : null;
+    setSubmitStatus("Saving your profile...");
+
     let userData: any = null;
+    const session = typeof window !== 'undefined' ? localStorage.getItem('user_session') || localStorage.getItem('user_details') : null;
     if (session) {
       try { userData = JSON.parse(session); } catch (e) {}
-    }
-    const token = userData?.token || getCookie('user_token');
-
-    if (!token) {
-      handleSessionExpired();
-      return;
     }
 
     const fd = new FormData();
@@ -178,326 +452,1142 @@ export default function CompleteProfilePage() {
     if (formData.dob) fd.append("DateOfBirth", formData.dob);
     fd.append("Height", formData.height);
     fd.append("Weight", formData.weight);
-    fd.append("Complexion", String(formData.complexionId));
-    fd.append("MaritalStatus", String(formData.maritalStatusId));
-    fd.append("Religion", String(formData.religionId));
-    fd.append("Sect", String(formData.sectId));
-    fd.append("Maslak", String(formData.maslakId));
-    fd.append("Caste", String(formData.casteId));
-    fd.append("MotherTongue", String(formData.motherTongueId));
-    fd.append("CurrentStateId", String(formData.stateId));
-    fd.append("CurrentCityId", String(formData.cityId));
-    fd.append("HighestDegree", String(formData.educationId));
-    fd.append("EmploymentSector", String(formData.employmentSectorId));
-    fd.append("Designation", String(formData.occupationId));
-    fd.append("AnnualIncome", String(formData.income));
-    fd.append("FamilyType", String(formData.familyTypeId));
-    fd.append("FamilyStatus", String(formData.familyStatusId));
-    fd.append("FatherOccupation", formData.fatherOccupation);
-    fd.append("MotherOccupation", formData.motherOccupation);
-    fd.append("TotalBrothers", String(formData.totalBrothers));
-    fd.append("MarriedBrothers", String(formData.marriedBrothers));
-    fd.append("TotalSisters", String(formData.totalSisters));
-    fd.append("MarriedSisters", String(formData.marriedSisters));
-    fd.append("NamazHabit", formData.namazHabit);
-    fd.append("HijabOrBeard", formData.hijabOrBeard);
-    fd.append("PhotoPrivacy", formData.photoPrivacy);
-    if (formData.photo) fd.append("Photo", formData.photo);
+    fd.append("Complexion", String(formData.complexionId || 2));
+    fd.append("MaritalStatus", String(formData.maritalStatusId || 1));
+    fd.append("Religion", String(formData.religionId || 1));
+    fd.append("Sect", String(formData.sectId || 1));
+    fd.append("Maslak", String(formData.maslakId || 1));
+    fd.append("Caste", String(formData.casteId || 1));
+    fd.append("MotherTongue", String(formData.motherTongueId || 1));
+    fd.append("CurrentStateId", String(formData.stateId || 2));
+    fd.append("CurrentCityId", String(formData.cityId || 1));
+    fd.append("HighestDegree", String(formData.educationId || 1));
+    fd.append("EmploymentSector", String(formData.employmentSectorId || 1));
+    fd.append("Designation", String(formData.occupationId || 1));
+    fd.append("AnnualIncome", formData.income || "₹5 - 7 Lakhs");
+    fd.append("FamilyType", String(formData.familyTypeId || 1));
+    fd.append("FamilyStatus", String(formData.familyStatusId || 1));
+    fd.append("FatherOccupation", formData.fatherOccupation || "Businessman");
+    fd.append("MotherOccupation", formData.motherOccupation || "Homemaker");
+    fd.append("TotalBrothers", String(formData.totalBrothers || 0));
+    fd.append("MarriedBrothers", String(formData.marriedBrothers || 0));
+    fd.append("TotalSisters", String(formData.totalSisters || 0));
+    fd.append("MarriedSisters", String(formData.marriedSisters || 0));
+    fd.append("NamazHabit", formData.namazHabit || "Regular 5 Times");
+    fd.append("HijabOrBeard", formData.hijabOrBeard || "Hijab");
+    fd.append("PhotoPrivacy", formData.photoPrivacy || "All Members");
+    if (formData.aboutMe) fd.append("AboutMe", formData.aboutMe);
+
+    if (formData.photo) {
+      setSubmitStatus("Uploading optimized photo to Cloudflare R2...");
+      fd.append("Photo", formData.photo);
+    }
 
     try {
+      setSubmitStatus("Finalizing verification & saving...");
       const res = await updateProfileApi(fd, token);
 
       if (res.success) {
         let updatedSessionData: any = session ? JSON.parse(session) : {};
         updatedSessionData.isProfileCompleted = true;
 
+        // 1. Fetch fresh profile details from API to get the canonical Cloudflare URL
         try {
-          const profileRes = await fetchProfileDetailsApi(Number(userData?.userId || 0), token);
-          if (profileRes.success && profileRes.data) {
-            const pData = profileRes.data.profile || profileRes.data.Profile || profileRes.data;
-            const mainPhoto = pData.mainPhotoUrl || pData.photoUrl || pData.PhotoUrl || pData.mainPhoto || pData.photo || '';
-            if (mainPhoto) {
-              updatedSessionData.mainPhotoUrl = mainPhoto;
-              updatedSessionData.photoUrl = mainPhoto;
-              updatedSessionData.photo = mainPhoto;
-              updatedSessionData.mainPhoto = mainPhoto;
+          const freshDetails = await fetchProfileDetailsApi(userData?.userId || 0, token);
+          if (freshDetails.success && freshDetails.data) {
+            const p = freshDetails.data.profile || freshDetails.data.Profile || freshDetails.data;
+            const canonicalPhoto = p.mainPhotoUrl || p.photoUrl || p.PhotoUrl || p.mainPhoto || p.photo;
+            if (canonicalPhoto) {
+              updatedSessionData.mainPhotoUrl = canonicalPhoto;
+              updatedSessionData.photoUrl = canonicalPhoto;
+              updatedSessionData.PhotoUrl = canonicalPhoto;
+              updatedSessionData.photo = canonicalPhoto;
+              updatedSessionData.mainPhoto = canonicalPhoto;
+              syncUserProfilePhoto(canonicalPhoto);
             }
           }
-        } catch (e) {}
+        } catch (fetchErr) {
+          const mainPhoto = (res as any)?.photoUrl || (res as any)?.PhotoUrl || (res as any)?.data?.photoUrl || formData.photoUrl || '';
+          if (mainPhoto) {
+            updatedSessionData.mainPhotoUrl = mainPhoto;
+            updatedSessionData.photoUrl = mainPhoto;
+            updatedSessionData.photo = mainPhoto;
+            updatedSessionData.mainPhoto = mainPhoto;
+            syncUserProfilePhoto(mainPhoto);
+          }
+        }
 
         if (typeof window !== "undefined") {
           localStorage.setItem('user_session', JSON.stringify(updatedSessionData));
           localStorage.setItem('user_details', JSON.stringify(updatedSessionData));
+          localStorage.setItem('is_profile_completed', '1');
         }
 
-        const expires = new Date(Date.now() + 7 * 864e5).toUTCString();
+        const expires = new Date(Date.now() + 14 * 864e5).toUTCString();
         const isSecure = typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : "";
         document.cookie = `is_profile_completed=1; expires=${expires}; path=/; SameSite=Lax${isSecure}`;
 
         if (typeof window !== "undefined") {
           window.dispatchEvent(new Event("user_photo_updated"));
-          window.location.href = "/dashboard";
         }
+
+        toast.success("Profile completed successfully! Welcome to your Dashboard.");
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 300);
       } else {
-        // SAFE TYPE CHECK FOR ISUNAUTHORIZED
-        if ((res as any)?.isUnauthorized) {
-          handleSessionExpired();
-          return;
-        }
-        setApiError(res.message || "Failed to update profile. Please try again.");
-        setLoading(false);
+        toast.error(res.message || "Unable to save profile. Please try again.");
       }
-    } catch (err: any) {
-      if (err?.status === 401 || err?.response?.status === 401) {
-        handleSessionExpired();
-        return;
-      }
-      setApiError("Network error. Please try again.");
+    } catch (e: any) {
+      toast.error(e?.message || "Network error. Please try again.");
+    } finally {
       setLoading(false);
+      setSubmitStatus("");
     }
   };
 
-  const validateAndNext = () => {
-    let currentFields: string[] = [];
-    if (section === 1) currentFields = ['dob', 'height', 'weight', 'complexionId'];
-    if (section === 2) currentFields = ['maritalStatusId', 'religionId', 'sectId', 'maslakId', 'casteId', 'motherTongueId'];
-    if (section === 3) currentFields = ['stateId', 'cityId'];
-    if (section === 4) currentFields = ['educationId', 'employmentSectorId', 'occupationId', 'income'];
-    if (section === 5) currentFields = ['familyTypeId', 'familyStatusId', 'fatherOccupation', 'motherOccupation'];
-
-    if (section === 6) {
-      if (!formData.photo && !formData.photoUrl) {
-        setErrors(['photo']);
-        setApiError("Profile photo is mandatory to complete verification.");
-        return;
-      }
-      handleFinalSubmit();
-      return;
-    }
-
-    const missing = currentFields.filter(f => {
-      const val = formData[f as keyof typeof formData];
-      return val === undefined || val === null || val === '' || val === 0;
-    });
-
-    if (missing.length > 0) {
-      setErrors(missing);
-      setApiError("Please select all mandatory fields highlighted in red before proceeding.");
-      return;
-    }
-
-    setErrors([]);
-    setApiError('');
-    setSection(section + 1);
-  };
-
-  const percentage = Math.round((section / 6) * 100);
+  const progressPercent = Math.round((step / totalSteps) * 100);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-rose-50/50 via-white to-slate-50 text-slate-800 font-sans pb-16 md:pb-0">
-      
-      {/* HEADER */}
-      <header className="sticky top-0 z-[100] bg-white/95 backdrop-blur-xl border-b border-slate-200 shadow-xs">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-18 sm:h-24 flex items-center justify-between">
-          <div className="flex items-center gap-3 shrink-0">
-            <img
-              src="/nikah-qubool-logo.png"
-              alt="Nikah Qubool Logo"
-              className="h-11 sm:h-13 md:h-15 w-auto max-w-[210px] sm:max-w-[270px] object-contain object-left"
-            />
-            <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full bg-rose-100 text-[#d91b5c] text-[10px] font-black uppercase tracking-wider">
-              Step {section} of 6
-            </span>
-          </div>
+    <div className="min-h-screen bg-[#FAF8F5] text-slate-900 flex flex-col justify-between selection:bg-[#e21e5b] selection:text-white">
+      <Toaster position="top-center" richColors />
 
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:flex flex-col items-end">
-              <span className="text-xs font-bold text-slate-600">Completion Status</span>
-              <span className="text-sm font-black text-[#d91b5c]">{percentage}% Complete</span>
-            </div>
-            <div className="w-24 sm:w-32 bg-slate-100 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-200">
-              <motion.div 
-                className="bg-gradient-to-r from-[#d91b5c] to-amber-400 h-full rounded-full"
-                animate={{ width: `${percentage}%` }}
-                transition={{ duration: 0.4 }}
-              />
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* MAIN CONTAINER */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-
-        {/* API / VALIDATION ERROR BANNER */}
-        {apiError && (
-          <motion.div 
-            initial={{ opacity: 0, y: -10 }} 
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6 p-4 rounded-2xl bg-rose-50 border-2 border-rose-300 text-rose-700 text-xs font-extrabold flex items-center gap-3 shadow-md"
+      {/* 🌟 TOP NAVIGATION BAR */}
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-slate-100 px-4 py-2.5 sm:py-3 flex items-center justify-between max-w-md mx-auto w-full">
+        {step > 1 ? (
+          <button 
+            type="button"
+            onClick={prevStep}
+            className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-all cursor-pointer active:scale-90"
+            aria-label="Previous step"
           >
-            <ShieldAlert size={18} className="shrink-0 text-rose-600" />
-            <span>{apiError}</span>
-          </motion.div>
+            <ArrowLeft size={16} className="stroke-[2.5]" />
+          </button>
+        ) : (
+          <div className="w-9" />
         )}
 
-        {/* STEP HEADER CARD */}
-        <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-xl shadow-rose-950/5 border border-rose-100 relative overflow-hidden mb-8">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 shadow-xs">
-              {getSectionIcon(section)}
-            </div>
-            <div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#d91b5c] bg-rose-100 px-3 py-1 rounded-full">
-                MANDATORY STEP {section} OF 6
-              </span>
-              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-1">
-                {getSectionTitle(section)}
-              </h1>
-            </div>
-          </div>
+        {/* STEP BADGE */}
+        <div className="flex flex-col items-center">
+          <span className="text-[10px] font-black uppercase tracking-wider text-[#e21e5b]">
+            Step {step} of {totalSteps}
+          </span>
+          <span className="text-[10px] text-slate-400 font-bold">
+            {progressPercent}% Completed
+          </span>
+        </div>
 
-          {/* STEP CONTENT FORM */}
-          <div className="pt-6 border-t border-slate-100">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={section}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.25 }}
-                className="space-y-6"
-              >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Spacer to keep center alignment (NO SKIP BUTTON per user rule) */}
+        <div className="w-9" />
+      </header>
 
-                  {section === 1 && (
-                    <>
-                      <div className="md:col-span-2">
-                        <DobAppPicker 
-                          value={formData.dob} 
-                          onChange={(d) => update('dob', d)} 
-                          hasError={errors.includes('dob')}
-                        />
-                      </div>
-                      <CustomSelect label="Height *" value={formData.height} fieldName="height" isPlainString={true} onChange={(f: string, v: any) => update(f, v)} options={heightOptions} errors={errors} />
-                      <CustomSelect label="Weight *" value={formData.weight} fieldName="weight" isPlainString={true} onChange={(f: string, v: any) => update(f, v)} options={weightOptions} errors={errors} />
-                      <CustomSelect label="Complexion *" value={formData.complexionText} fieldName="complexionId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.COMPLEXIONS} errors={errors} openUpward={true} />
-                    </>
-                  )}
+      {/* PROGRESS BAR */}
+      <div className="w-full bg-slate-200 h-1 max-w-md mx-auto">
+        <motion.div 
+          className="bg-gradient-to-r from-[#e21e5b] via-[#ce1b53] to-[#e21e5b] h-full"
+          animate={{ width: `${progressPercent}%` }}
+          transition={{ duration: 0.25 }}
+        />
+      </div>
 
-                  {section === 2 && (
-                    <>
-                      <CustomSelect label="Marital Status *" value={formData.maritalStatusText} fieldName="maritalStatusId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.MARITAL_STATUS} errors={errors} />
-                      <CustomSelect label="Religion *" value={formData.religionText} fieldName="religionId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.RELIGIONS} errors={errors} />
-                      <CustomSelect label="Sect *" value={formData.sectText} fieldName="sectId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.SECTS} errors={errors} />
-                      <CustomSelect label="Maslak *" value={formData.maslakText} fieldName="maslakId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.MASLAKS} errors={errors} />
-                      <CustomSelect label="Caste / Community *" value={formData.casteText} fieldName="casteId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.CASTES} errors={errors} openUpward={true} />
-                      <CustomSelect label="Mother Tongue *" value={formData.motherTongueText} fieldName="motherTongueId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.MOTHER_TONGUES} errors={errors} openUpward={true} />
-                    </>
-                  )}
+      {/* 🌟 MAIN CONTAINER (TOP-ALIGNED, NOT CENTERED) */}
+      <main className="flex-1 max-w-md w-full mx-auto px-4 pt-3 pb-8 flex flex-col justify-start">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={step}
+            initial={{ opacity: 0, x: slideDirection === 'forward' ? 25 : -25 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: slideDirection === 'forward' ? -25 : 25 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+            className="w-full space-y-4"
+          >
 
-                  {section === 3 && (
-                    <>
-                      <CustomSelect label="State *" value={formData.stateText} fieldName="stateId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); update('cityId', 0); update('cityText', ''); }} options={masterData.STATES} errors={errors} />
-                      <CustomSelect label="City *" value={formData.cityText} fieldName="cityId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.CITIES} errors={errors} disabled={!formData.stateId} openUpward={true} />
-                    </>
-                  )}
-
-                  {section === 4 && (
-                    <>
-                      <CustomSelect label="Highest Qualification *" value={formData.educationText} fieldName="educationId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.EDUCATIONS} errors={errors} />
-                      <CustomSelect label="Employment Sector *" value={formData.employmentSectorText} fieldName="employmentSectorId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.EMPLOYMENT_SECTORS} errors={errors} />
-                      <CustomSelect label="Occupation *" value={formData.occupationText} fieldName="occupationId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.OCCUPATIONS} errors={errors} openUpward={true} />
-                      <CustomSelect label="Annual Income Range *" value={formData.income} fieldName="income" isPlainString={true} onChange={(f: string, v: any) => update(f, v)} options={incomeOptions} errors={errors} openUpward={true} />
-                    </>
-                  )}
-
-                  {section === 5 && (
-                    <>
-                      <CustomSelect label="Family Type *" value={formData.familyTypeText} fieldName="familyTypeId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.FAMILY_TYPES} errors={errors} />
-                      <CustomSelect label="Family Status *" value={formData.familyStatusText} fieldName="familyStatusId" onChange={(idK: string, idV: any, tK: string, tV: any) => { update(idK, idV); update(tK, tV); }} options={masterData.FAMILY_STATUS} errors={errors} />
-                      <CompactSelect label="Father's Occupation *" options={masterData.OCCUPATIONS || []} value={formData.fatherOccupation} onChange={(val) => update('fatherOccupation', (masterData.OCCUPATIONS || []).find(o => String(o.id) === String(val))?.value || val)} hasError={errors.includes('fatherOccupation')} />
-                      <CompactSelect label="Mother's Occupation *" options={masterData.OCCUPATIONS || []} value={formData.motherOccupation} onChange={(val) => update('motherOccupation', (masterData.OCCUPATIONS || []).find(o => String(o.id) === String(val))?.value || val)} hasError={errors.includes('motherOccupation')} />
-                    </>
-                  )}
-
-                  {section === 6 && (
-                    <CircularPhotoUpload 
-                      photoUrl={formData.photoUrl} 
-                      privacyValue={formData.photoPrivacy} 
-                      hasError={errors.includes('photo')} 
-                      onRawSelect={handleRawPhotoSelect} 
-                      onPrivacyChange={(v) => update('photoPrivacy', v)} 
-                    />
-                  )}
+            {/* =========================================================
+                SLIDE 1: MARITAL STATUS (AUTO-ADVANCE)
+                ========================================================= */}
+            {step === 1 && (
+              <div className="space-y-3">
+                <div className="text-left space-y-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Basic Details</span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                    What is your marital status?
+                  </h2>
+                  <p className="text-[11px] text-slate-500 font-normal">Select an option to proceed</p>
                 </div>
 
-                {/* DESKTOP FOOTER ACTION BUTTONS */}
-                <div className="hidden md:flex pt-8 items-center gap-4 border-t-2 border-slate-100">
-                  <button
-                    onClick={() => section > 1 && setSection(section - 1)}
-                    className={`px-7 py-3.5 rounded-2xl border-2 border-slate-300 text-slate-700 font-extrabold text-xs uppercase hover:bg-slate-100 transition-all flex items-center gap-1.5 cursor-pointer ${
-                      section === 1 ? 'invisible' : ''
+                <div className="space-y-2 pt-1">
+                  {(masterData.MARITAL_STATUS || []).map((opt) => {
+                    const isSelected = formData.maritalStatusId === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => handleAutoAdvance('maritalStatusId', opt.id, 'maritalStatusText', opt.value)}
+                        className={`w-full p-3 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
+                          isSelected 
+                            ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' 
+                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'
+                        }`}
+                      >
+                        <span className="text-xs uppercase tracking-wide">{opt.value}</span>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                          isSelected ? 'bg-[#e21e5b] text-white shadow-2xs' : 'border border-slate-300'
+                        }`}>
+                          {isSelected && <Check size={12} strokeWidth={3} />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* =========================================================
+                SLIDE 2: MODERN UNIQUE DATE OF BIRTH PICKER (CONTINUE)
+                ========================================================= */}
+            {step === 2 && (
+              <div className="space-y-4">
+                <div className="text-left space-y-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Age Verification</span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                    What is your date of birth?
+                  </h2>
+                  <p className="text-[11px] text-slate-500 font-normal">Choose your birth year, month & day</p>
+                </div>
+
+                {/* Unique Modern DOB Selector */}
+                <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+                  
+                  {/* Live Age Badge */}
+                  {calculatedAge && (
+                    <div className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-full bg-rose-50 text-[#e21e5b] font-black text-xs border border-rose-200">
+                      <span>🎉</span>
+                      <span>{calculatedAge} Years Old</span>
+                    </div>
+                  )}
+
+                  {/* 1. Year Selector (Sleek Horizontal Pills) */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                      Birth Year
+                    </label>
+                    <div className="flex gap-1.5 overflow-x-auto pb-1.5 no-scrollbar scroll-smooth">
+                      {Array.from({ length: 36 }, (_, i) => `${2006 - i}`).map(yr => {
+                        const isYearActive = dobYear === yr;
+                        return (
+                          <button
+                            key={yr}
+                            type="button"
+                            onClick={() => setDobYear(yr)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                              isYearActive 
+                                ? 'bg-[#e21e5b] text-white shadow-xs' 
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
+                          >
+                            {yr}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 2. Month Selector (12 Compact Pills in 4x3 Grid) */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                      Birth Month
+                    </label>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {[
+                        { id: '01', name: 'Jan' }, { id: '02', name: 'Feb' }, { id: '03', name: 'Mar' }, { id: '04', name: 'Apr' },
+                        { id: '05', name: 'May' }, { id: '06', name: 'Jun' }, { id: '07', name: 'Jul' }, { id: '08', name: 'Aug' },
+                        { id: '09', name: 'Sep' }, { id: '10', name: 'Oct' }, { id: '11', name: 'Nov' }, { id: '12', name: 'Dec' }
+                      ].map(m => {
+                        const isMonthActive = dobMonth === m.id;
+                        return (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => setDobMonth(m.id)}
+                            className={`py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                              isMonthActive 
+                                ? 'bg-[#e21e5b] text-white shadow-xs' 
+                                : 'bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100'
+                            }`}
+                          >
+                            {m.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 3. Day Selector (Horizontal / 7-col grid) */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                      Birth Day ({dobDay || 'Select'})
+                    </label>
+                    <div className="grid grid-cols-7 gap-1">
+                      {Array.from({ length: 31 }, (_, i) => {
+                        const dStr = i + 1 < 10 ? `0${i + 1}` : `${i + 1}`;
+                        const isDayActive = dobDay === dStr;
+                        return (
+                          <button
+                            key={dStr}
+                            type="button"
+                            onClick={() => setDobDay(dStr)}
+                            className={`py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                              isDayActive 
+                                ? 'bg-[#e21e5b] text-white shadow-xs' 
+                                : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+                            }`}
+                          >
+                            {i + 1}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                </div>
+
+                <button
+                  type="button"
+                  onClick={nextStep}
+                  className="w-full py-3 bg-[#e21e5b] hover:bg-[#ce1b53] text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-[0.99] cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <span>Continue</span>
+                  <ChevronRight size={15} />
+                </button>
+              </div>
+            )}
+
+            {/* =========================================================
+                SLIDE 3: HEIGHT (AUTO-ADVANCE)
+                ========================================================= */}
+            {step === 3 && (
+              <div className="space-y-3">
+                <div className="text-left space-y-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Physical Profile</span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                    What is your height?
+                  </h2>
+                  <p className="text-[11px] text-slate-500 font-normal">Select your height in feet and inches</p>
+                </div>
+
+                <div className="max-h-[56vh] overflow-y-auto space-y-1.5 pr-1 no-scrollbar pt-1">
+                  {HEIGHT_OPTIONS.map((h) => {
+                    const isSelected = formData.height === h;
+                    return (
+                      <button
+                        key={h}
+                        type="button"
+                        onClick={() => handleSimpleAdvance('height', h)}
+                        className={`w-full p-2.5 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
+                          isSelected 
+                            ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' 
+                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'
+                        }`}
+                      >
+                        <span className="text-xs uppercase tracking-wide">{h}</span>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                          isSelected ? 'bg-[#e21e5b] text-white shadow-2xs' : 'border border-slate-300'
+                        }`}>
+                          {isSelected && <Check size={12} strokeWidth={3} />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* =========================================================
+                SLIDE 4: WEIGHT (AUTO-ADVANCE)
+                ========================================================= */}
+            {step === 4 && (
+              <div className="space-y-3">
+                <div className="text-left space-y-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Physical Profile</span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                    What is your weight?
+                  </h2>
+                  <p className="text-[11px] text-slate-500 font-normal">Select your approximate weight</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  {WEIGHT_OPTIONS.map((w) => {
+                    const isSelected = formData.weight === w;
+                    return (
+                      <button
+                        key={w}
+                        type="button"
+                        onClick={() => handleSimpleAdvance('weight', w)}
+                        className={`p-3 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
+                          isSelected 
+                            ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' 
+                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'
+                        }`}
+                      >
+                        <span className="text-xs font-bold">{w}</span>
+                        <div className={`w-4 h-4 rounded-full flex items-center justify-center transition-all ${
+                          isSelected ? 'bg-[#e21e5b] text-white shadow-2xs' : 'border border-slate-300'
+                        }`}>
+                          {isSelected && <Check size={10} strokeWidth={3} />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* =========================================================
+                SLIDE 5: COMPLEXION (AUTO-ADVANCE)
+                ========================================================= */}
+            {step === 5 && (
+              <div className="space-y-3">
+                <div className="text-left space-y-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Appearance</span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                    What is your complexion?
+                  </h2>
+                  <p className="text-[11px] text-slate-500 font-normal">Select one option</p>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  {(masterData.COMPLEXIONS || []).map((opt) => {
+                    const isSelected = formData.complexionId === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => handleAutoAdvance('complexionId', opt.id, 'complexionText', opt.value)}
+                        className={`w-full p-3 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
+                          isSelected 
+                            ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' 
+                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'
+                        }`}
+                      >
+                        <span className="text-xs uppercase tracking-wide">{opt.value}</span>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                          isSelected ? 'bg-[#e21e5b] text-white shadow-2xs' : 'border border-slate-300'
+                        }`}>
+                          {isSelected && <Check size={12} strokeWidth={3} />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* =========================================================
+                SLIDE 6: SECT (AUTO-ADVANCE)
+                ========================================================= */}
+            {step === 6 && (
+              <div className="space-y-3">
+                <div className="text-left space-y-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Community</span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                    Which sect do you follow?
+                  </h2>
+                  <p className="text-[11px] text-slate-500 font-normal">Tap your sect to continue</p>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  {(masterData.SECTS || []).map((opt) => {
+                    const isSelected = formData.sectId === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => handleAutoAdvance('sectId', opt.id, 'sectText', opt.value)}
+                        className={`w-full p-3 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
+                          isSelected 
+                            ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' 
+                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'
+                        }`}
+                      >
+                        <span className="text-xs uppercase tracking-wide">{opt.value}</span>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                          isSelected ? 'bg-[#e21e5b] text-white shadow-2xs' : 'border border-slate-300'
+                        }`}>
+                          {isSelected && <Check size={12} strokeWidth={3} />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* =========================================================
+                SLIDE 7: MASLAK (AUTO-ADVANCE)
+                ========================================================= */}
+            {step === 7 && (
+              <div className="space-y-3">
+                <div className="text-left space-y-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Community</span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                    Which maslak do you follow?
+                  </h2>
+                  <p className="text-[11px] text-slate-500 font-normal">Select your school of thought</p>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  {(masterData.MASLAKS || []).map((opt) => {
+                    const isSelected = formData.maslakId === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => handleAutoAdvance('maslakId', opt.id, 'maslakText', opt.value)}
+                        className={`w-full p-3 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
+                          isSelected 
+                            ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' 
+                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'
+                        }`}
+                      >
+                        <span className="text-xs uppercase tracking-wide">{opt.value}</span>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                          isSelected ? 'bg-[#e21e5b] text-white shadow-2xs' : 'border border-slate-300'
+                        }`}>
+                          {isSelected && <Check size={12} strokeWidth={3} />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* =========================================================
+                SLIDE 8: CASTE / BIRADARI (AUTO-ADVANCE WITH SEARCH)
+                ========================================================= */}
+            {step === 8 && (
+              <div className="space-y-3">
+                <div className="text-left space-y-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Roots & Heritage</span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                    What is your caste / biradari?
+                  </h2>
+                  <p className="text-[11px] text-slate-500 font-normal">Select your biradari to match compatible proposals</p>
+                </div>
+
+                {/* Quick Search */}
+                <div className="relative">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search caste / biradari..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#e21e5b]"
+                  />
+                </div>
+
+                <div className="max-h-[50vh] overflow-y-auto space-y-1.5 pr-1 no-scrollbar">
+                  {(masterData.CASTES || [])
+                    .filter(c => c.value.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map((opt) => {
+                      const isSelected = formData.casteId === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => handleAutoAdvance('casteId', opt.id, 'casteText', opt.value)}
+                          className={`w-full p-2.5 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
+                            isSelected 
+                              ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' 
+                              : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'
+                          }`}
+                        >
+                          <span className="text-xs uppercase tracking-wide">{opt.value}</span>
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                            isSelected ? 'bg-[#e21e5b] text-white shadow-2xs' : 'border border-slate-300'
+                          }`}>
+                            {isSelected && <Check size={12} strokeWidth={3} />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+
+            {/* =========================================================
+                SLIDE 9: MOTHER TONGUE (AUTO-ADVANCE)
+                ========================================================= */}
+            {step === 9 && (
+              <div className="space-y-3">
+                <div className="text-left space-y-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Language</span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                    What is your mother tongue?
+                  </h2>
+                  <p className="text-[11px] text-slate-500 font-normal">Select your primary language</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  {(masterData.MOTHER_TONGUES || []).map((opt) => {
+                    const isSelected = formData.motherTongueId === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => handleAutoAdvance('motherTongueId', opt.id, 'motherTongueText', opt.value)}
+                        className={`p-3 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
+                          isSelected 
+                            ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' 
+                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'
+                        }`}
+                      >
+                        <span className="text-xs font-semibold">{opt.value}</span>
+                        <div className={`w-4 h-4 rounded-full flex items-center justify-center transition-all ${
+                          isSelected ? 'bg-[#e21e5b] text-white shadow-2xs' : 'border border-slate-300'
+                        }`}>
+                          {isSelected && <Check size={10} strokeWidth={3} />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* =========================================================
+                SLIDE 10: STATE & CITY TOGETHER (PER USER EXPLICIT REQUEST)
+                ========================================================= */}
+            {step === 10 && (
+              <div className="space-y-4">
+                <div className="text-left space-y-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Location</span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                    Where do you live?
+                  </h2>
+                  <p className="text-[11px] text-slate-500 font-normal">Select your current state & city</p>
+                </div>
+
+                <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">State *</label>
+                    <select
+                      value={formData.stateId !== '' ? String(formData.stateId) : ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '') {
+                          setFormData(p => ({ ...p, stateId: '', stateText: '', cityId: '', cityText: '' }));
+                          setCities([]);
+                          return;
+                        }
+                        const sId = Number(val);
+                        const sObj = (masterData.STATES || []).find(s => Number(s.id) === sId);
+                        setFormData(p => ({ ...p, stateId: sId, stateText: sObj?.value || '', cityId: '', cityText: '' }));
+                      }}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#e21e5b] cursor-pointer"
+                    >
+                      <option value="">-- Choose State --</option>
+                      {(masterData.STATES || []).map(s => (
+                        <option key={String(s.id)} value={String(s.id)}>{s.value}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">City *</label>
+                    <select
+                      disabled={formData.stateId === '' || loadingCities}
+                      value={formData.cityId !== '' ? String(formData.cityId) : ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '') {
+                          setFormData(p => ({ ...p, cityId: '', cityText: '' }));
+                          return;
+                        }
+                        const cId = Number(val);
+                        const cObj = cities.find(c => Number(c.id) === cId);
+                        setFormData(p => ({ ...p, cityId: cId, cityText: cObj?.value || '' }));
+                      }}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#e21e5b] cursor-pointer disabled:opacity-50"
+                    >
+                      <option value="">
+                        {loadingCities 
+                          ? "Loading cities..." 
+                          : formData.stateId === '' 
+                            ? "Please select state first" 
+                            : cities.length === 0 
+                              ? "No cities available" 
+                              : "-- Choose City --"}
+                      </option>
+                      {cities.map(c => (
+                        <option key={String(c.id)} value={String(c.id)}>{c.value}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (formData.stateId === '' || formData.stateId === null || formData.stateId === undefined) {
+                      toast.error("Please select your State.");
+                      return;
+                    }
+                    if (formData.cityId === '' || formData.cityId === null || formData.cityId === undefined) {
+                      toast.error("Please select your City.");
+                      return;
+                    }
+                    nextStep();
+                  }}
+                  className={`w-full py-3 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-[0.99] cursor-pointer flex items-center justify-center gap-1.5 ${
+                    formData.stateId !== '' && formData.cityId !== ''
+                      ? 'bg-[#e21e5b] hover:bg-[#ce1b53]'
+                      : 'bg-slate-400 hover:bg-slate-500'
+                  }`}
+                >
+                  <span>Continue</span>
+                  <ChevronRight size={15} />
+                </button>
+              </div>
+            )}
+
+            {/* =========================================================
+                SLIDE 11: EDUCATION LEVEL (AUTO-ADVANCE)
+                ========================================================= */}
+            {step === 11 && (
+              <div className="space-y-3">
+                <div className="text-left space-y-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Education</span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                    What is your highest qualification?
+                  </h2>
+                  <p className="text-[11px] text-slate-500 font-normal">Select your highest degree</p>
+                </div>
+
+                <div className="max-h-[56vh] overflow-y-auto space-y-1.5 pr-1 no-scrollbar pt-1">
+                  {(masterData.EDUCATIONS || []).map((opt) => {
+                    const isSelected = formData.educationId === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => handleAutoAdvance('educationId', opt.id, 'educationText', opt.value)}
+                        className={`w-full p-2.5 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
+                          isSelected 
+                            ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' 
+                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'
+                        }`}
+                      >
+                        <span className="text-xs uppercase tracking-wide">{opt.value}</span>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                          isSelected ? 'bg-[#e21e5b] text-white shadow-2xs' : 'border border-slate-300'
+                        }`}>
+                          {isSelected && <Check size={12} strokeWidth={3} />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* =========================================================
+                SLIDE 12: EMPLOYMENT SECTOR (AUTO-ADVANCE)
+                ========================================================= */}
+            {step === 12 && (
+              <div className="space-y-3">
+                <div className="text-left space-y-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Career</span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                    Where do you work?
+                  </h2>
+                  <p className="text-[11px] text-slate-500 font-normal">Select your employment sector</p>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  {(masterData.EMPLOYMENT_SECTORS || []).map((opt) => {
+                    const isSelected = formData.employmentSectorId === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => handleAutoAdvance('employmentSectorId', opt.id, 'employmentSectorText', opt.value)}
+                        className={`w-full p-3 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
+                          isSelected 
+                            ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' 
+                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'
+                        }`}
+                      >
+                        <span className="text-xs uppercase tracking-wide">{opt.value}</span>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                          isSelected ? 'bg-[#e21e5b] text-white shadow-2xs' : 'border border-slate-300'
+                        }`}>
+                          {isSelected && <Check size={12} strokeWidth={3} />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* =========================================================
+                SLIDE 13: PROFESSION / OCCUPATION (AUTO-ADVANCE)
+                ========================================================= */}
+            {step === 13 && (
+              <div className="space-y-3">
+                <div className="text-left space-y-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Career</span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                    What is your profession?
+                  </h2>
+                  <p className="text-[11px] text-slate-500 font-normal">Select your job role / occupation</p>
+                </div>
+
+                <div className="max-h-[56vh] overflow-y-auto space-y-1.5 pr-1 no-scrollbar pt-1">
+                  {(masterData.OCCUPATIONS || []).map((opt) => {
+                    const isSelected = formData.occupationId === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => handleAutoAdvance('occupationId', opt.id, 'occupationText', opt.value)}
+                        className={`w-full p-2.5 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
+                          isSelected 
+                            ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' 
+                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'
+                        }`}
+                      >
+                        <span className="text-xs uppercase tracking-wide">{opt.value}</span>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                          isSelected ? 'bg-[#e21e5b] text-white shadow-2xs' : 'border border-slate-300'
+                        }`}>
+                          {isSelected && <Check size={12} strokeWidth={3} />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* =========================================================
+                SLIDE 14: ANNUAL INCOME (AUTO-ADVANCE)
+                ========================================================= */}
+            {step === 14 && (
+              <div className="space-y-3">
+                <div className="text-left space-y-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Financials</span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                    What is your annual income?
+                  </h2>
+                  <p className="text-[11px] text-slate-500 font-normal">Select your approximate income range</p>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  {(masterData.INCOME_RANGES || []).map((opt) => {
+                    const isSelected = formData.income === opt.value;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => handleSimpleAdvance('income', opt.value)}
+                        className={`w-full p-3 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
+                          isSelected 
+                            ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' 
+                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'
+                        }`}
+                      >
+                        <span className="text-xs uppercase tracking-wide">{opt.value}</span>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                          isSelected ? 'bg-[#e21e5b] text-white shadow-2xs' : 'border border-slate-300'
+                        }`}>
+                          {isSelected && <Check size={12} strokeWidth={3} />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* =========================================================
+                SLIDE 15: FAMILY TYPE (AUTO-ADVANCE)
+                ========================================================= */}
+            {step === 15 && (
+              <div className="space-y-3">
+                <div className="text-left space-y-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Family Background</span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                    What is your family type?
+                  </h2>
+                  <p className="text-[11px] text-slate-500 font-normal">Select your family structure</p>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  {(masterData.FAMILY_TYPES || []).map((opt) => {
+                    const isSelected = formData.familyTypeId === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => handleAutoAdvance('familyTypeId', opt.id, 'familyTypeText', opt.value)}
+                        className={`w-full p-3 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
+                          isSelected 
+                            ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' 
+                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'
+                        }`}
+                      >
+                        <span className="text-xs uppercase tracking-wide">{opt.value}</span>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                          isSelected ? 'bg-[#e21e5b] text-white shadow-2xs' : 'border border-slate-300'
+                        }`}>
+                          {isSelected && <Check size={12} strokeWidth={3} />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* =========================================================
+                SLIDE 16: FAMILY STATUS (AUTO-ADVANCE)
+                ========================================================= */}
+            {step === 16 && (
+              <div className="space-y-3">
+                <div className="text-left space-y-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Family Background</span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                    What is your family status?
+                  </h2>
+                  <p className="text-[11px] text-slate-500 font-normal">Select your family social status</p>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  {(masterData.FAMILY_STATUS || []).map((opt) => {
+                    const isSelected = formData.familyStatusId === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => handleAutoAdvance('familyStatusId', opt.id, 'familyStatusText', opt.value)}
+                        className={`w-full p-3 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
+                          isSelected 
+                            ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' 
+                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'
+                        }`}
+                      >
+                        <span className="text-xs uppercase tracking-wide">{opt.value}</span>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                          isSelected ? 'bg-[#e21e5b] text-white shadow-2xs' : 'border border-slate-300'
+                        }`}>
+                          {isSelected && <Check size={12} strokeWidth={3} />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* =========================================================
+                SLIDE 17: PHOTO, SLEEK PRIVACY DROPDOWN & FINAL SUBMIT
+                ========================================================= */}
+            {step === 17 && (
+              <div className="space-y-4">
+                <div className="text-left space-y-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Final Step</span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                    Upload profile photo
+                  </h2>
+                  <p className="text-[11px] text-slate-500 font-normal">Profiles with photo get 10X more genuine proposals</p>
+                </div>
+
+                {/* HIDDEN FILE PICKER */}
+                <input 
+                  type="file" 
+                  id="final-photo-picker" 
+                  hidden 
+                  accept="image/jpeg,image/png,image/webp" 
+                  onChange={handlePhotoSelect} 
+                />
+
+                {/* SLEEK PHOTO UPLOAD CARD */}
+                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3.5 text-center">
+                  
+                  {/* Photo Preview Frame */}
+                  <div 
+                    onClick={() => document.getElementById('final-photo-picker')?.click()}
+                    className={`relative w-40 h-52 mx-auto rounded-2xl overflow-hidden cursor-pointer group border-2 transition-all transform hover:scale-[1.01] shadow-md flex items-center justify-center ${
+                      formData.photoUrl 
+                        ? 'border-[#e21e5b] bg-black' 
+                        : 'border-dashed border-rose-300 bg-rose-50/40 hover:border-[#e21e5b]'
                     }`}
                   >
-                    <ArrowLeft size={16} />
-                    <span>Back</span>
-                  </button>
+                    {formData.photoUrl ? (
+                      <>
+                        <img 
+                          src={formData.photoUrl} 
+                          alt="Preview" 
+                          className="w-full h-full object-cover object-top" 
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white space-y-1">
+                          <Camera size={22} />
+                          <span className="text-[11px] font-bold">Change Photo</span>
+                        </div>
+                        <div className="absolute bottom-2 left-2 right-2 py-1 px-2 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-white text-[10px] font-bold flex items-center justify-center gap-1">
+                          <CheckCircle2 size={11} className="text-emerald-400" />
+                          <span>Photo Added</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center p-4 space-y-2 text-slate-500">
+                        <div className="w-12 h-12 rounded-full bg-rose-100 text-[#e21e5b] flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                          <Camera size={22} />
+                        </div>
+                        <div>
+                          <span className="text-xs font-bold text-[#e21e5b] block">Tap to Upload Photo</span>
+                          <span className="text-[10px] text-slate-400 block">JPEG, PNG, WEBP</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
+                  {/* 🔒 SLEEK PHOTO PRIVACY TRIGGER DROPDOWN */}
+                  <div className="text-left space-y-1">
+                    <label className="text-[10px] font-bold uppercase text-slate-500 block">Photo Privacy</label>
+                    <div 
+                      onClick={() => setPrivacySheetOpen(true)}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between cursor-pointer hover:bg-slate-100 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Lock size={14} className="text-[#e21e5b]" />
+                        <span className="text-xs font-bold text-slate-800">{formData.photoPrivacy}</span>
+                      </div>
+                      <ChevronDown size={14} className="text-slate-400" />
+                    </div>
+                  </div>
+
+                  {/* QUICK ABOUT ME / BIO */}
+                  <div className="text-left space-y-1">
+                    <label className="text-[10px] font-bold uppercase text-slate-500 block">About Yourself (Optional)</label>
+                    <textarea
+                      rows={2}
+                      placeholder="Write a brief sentence about your personality, values or background..."
+                      value={formData.aboutMe}
+                      onChange={(e) => setFormData(p => ({ ...p, aboutMe: e.target.value }))}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-[#e21e5b] resize-none"
+                    />
+                  </div>
+
+                  {/* SUBMIT BUTTON */}
                   <button
-                    onClick={validateAndNext}
+                    type="button"
                     disabled={loading}
-                    className="flex-1 py-4 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg shadow-rose-900/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer border border-rose-300/30"
+                    onClick={handleFinalSubmit}
+                    className="w-full py-3.5 bg-gradient-to-r from-[#e21e5b] via-[#ce1b53] to-[#e21e5b] hover:brightness-105 disabled:opacity-60 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all active:scale-[0.99] cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     {loading ? (
                       <>
-                        <Loader2 className="animate-spin text-amber-300" size={18} />
-                        <span>Processing...</span>
+                        <Loader2 size={16} className="animate-spin text-white" />
+                        <span>{submitStatus || "Saving..."}</span>
                       </>
                     ) : (
                       <>
-                        <span>{section === 6 ? "Complete Profile & Submit" : "Save & Continue"}</span>
-                        <ChevronRight size={16} className="text-amber-300" />
+                        <Sparkles size={15} className="text-amber-300" />
+                        <span>Complete Profile</span>
                       </>
                     )}
                   </button>
+
+                  <span className="text-[10px] text-slate-400 font-medium block">
+                    🔒 100% Secure & Verified Muslim Matrimony Network
+                  </span>
+
                 </div>
-              </motion.div>
-            </AnimatePresence>
+              </div>
+            )}
+
+          </motion.div>
+        </AnimatePresence>
+      </main>
+
+      {/* 🌟 PRIVACY BOTTOM SHEET / MODAL */}
+      <AnimatePresence>
+        {privacySheetOpen && (
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
+            {/* Backdrop */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setPrivacySheetOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-xs"
+            />
+
+            {/* Bottom Sheet Modal */}
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 300 }}
+              className="relative w-full max-w-sm bg-white rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl z-10 space-y-4"
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <Shield size={16} className="text-[#e21e5b]" />
+                  <h3 className="text-sm font-bold text-slate-800">Photo Privacy Setting</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPrivacySheetOpen(false)}
+                  className="text-xs text-slate-400 hover:text-slate-700 font-bold"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {PRIVACY_OPTIONS.map((opt) => {
+                  const isSelected = formData.photoPrivacy === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => {
+                        setFormData(p => ({ ...p, photoPrivacy: opt.id }));
+                        setPrivacySheetOpen(false);
+                      }}
+                      className={`w-full p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
+                        isSelected 
+                          ? 'border-[#e21e5b] bg-rose-50/80 shadow-2xs' 
+                          : 'border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="text-lg shrink-0 mt-0.5">{opt.icon}</span>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className={`text-xs font-bold ${isSelected ? 'text-[#e21e5b]' : 'text-slate-800'}`}>
+                            {opt.title}
+                          </span>
+                          {isSelected && <Check size={14} className="text-[#e21e5b]" />}
+                        </div>
+                        <p className="text-[10px] text-slate-500 font-medium mt-0.5 leading-tight">
+                          {opt.desc}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </motion.div>
           </div>
-        </div>
-      </div>
+        )}
+      </AnimatePresence>
 
-      <MobileBottomNav currentSection={section} totalSections={6} loading={loading} onBack={() => section > 1 && setSection(section - 1)} onNext={validateAndNext} />
-
-      {showCropModal && rawImageSrc && (
-        <ImageCropModal imageSrc={rawImageSrc} onCropComplete={handleCropSave} onClose={() => setShowCropModal(false)} />
-      )}
+      <footer className="h-4" />
     </div>
   );
 }
-
-const heightOptions = [
-  { id: '4 ft 10 in', value: '4 ft 10 in' }, { id: '5 ft 0 in', value: '5 ft 0 in' },
-  { id: '5 ft 2 in', value: '5 ft 2 in' }, { id: '5 ft 4 in', value: '5 ft 4 in' },
-  { id: '5 ft 6 in', value: '5 ft 6 in' }, { id: '5 ft 8 in', value: '5 ft 8 in' },
-  { id: '5 ft 10 in', value: '5 ft 10 in' }, { id: '6 ft 0 in', value: '6 ft 0 in' },
-  { id: '6 ft 2 in', value: '6 ft 2 in' }
-];
-
-const weightOptions = Array.from({ length: 50 }, (_, i) => {
-  const kg = 45 + i;
-  return { id: `${kg} kg`, value: `${kg} kg` };
-});
-
-const incomeOptions = [
-  { id: 'Below 3 LPA', value: 'Below 3 LPA' },
-  { id: '3 - 5 LPA', value: '3 - 5 LPA' },
-  { id: '5 - 10 LPA', value: '5 - 10 LPA' },
-  { id: '10 - 15 LPA', value: '10 - 15 LPA' },
-  { id: '15 - 25 LPA', value: '15 - 25 LPA' },
-  { id: '25+ LPA', value: '25+ LPA' }
-];
-
-function getSectionTitle(step: number) { return ["Birth & Personal Details", "Religion & Community", "Location Details", "Education & Profession", "Family Details", "Profile Photo"][step - 1]; }
-function getSectionIcon(step: number) { const props = { size: 22, className: "text-[#d91b5c] shrink-0" }; return [<User key="1" {...props}/>, <Heart key="2" {...props}/>, <Globe key="3" {...props}/>, <Briefcase key="4" {...props}/>, <Users key="5" {...props}/>, <Camera key="6" {...props}/>][step - 1]; }

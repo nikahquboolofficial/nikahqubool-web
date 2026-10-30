@@ -13,11 +13,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast, Toaster } from 'sonner';
 import { 
-  fetchMasterDataApi, fetchCitiesApi, savePartnerPreferencesApi,
+  fetchMasterDataApi, fetchCitiesApi, savePartnerPreferencesApi, fetchProfileDetailsApi,
   deactivateAccountApi, deleteAccountApi, fetchBlockedUsersApi,
   unblockUserApiCall, updatePhotoPrivacyApiCall, MasterOption 
 } from '@/lib/api';
 import { CompactSelect, MultiSelectDropdown } from '@/components/profile/CompactSelect';
+import { getAuthToken, clearAuthCookies } from '@/lib/auth';
 
 function SettingsContent() {
   const router = useRouter();
@@ -68,21 +69,10 @@ function SettingsContent() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingLoading, setDeletingLoading] = useState(false);
 
-  const getCookie = (name: string): string | null => {
-    if (typeof document === "undefined") return null;
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    return parts.length === 2 ? parts.pop()?.split(';').shift() ?? null : null;
-  };
-
-  const getToken = useCallback((): string | null => getCookie("user_token"), []);
+  const getToken = useCallback((): string | null => getAuthToken(), []);
 
   const handleLogout = useCallback((showToast: boolean = true) => {
-    document.cookie = "user_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    if (typeof window !== "undefined") {
-      localStorage.clear();
-      sessionStorage.clear();
-    }
+    clearAuthCookies();
     if (showToast) {
       toast.success("Logged out successfully.");
     }
@@ -96,12 +86,12 @@ function SettingsContent() {
     if (tabParam) setActiveTab(tabParam);
   }, [searchParams]);
 
-  // Load Master Data only when Partner Preferences tab is opened
+  // Load Master Data & Existing Partner Preferences when tab is opened
   useEffect(() => {
     if (activeTab !== 'preferences') return;
     let isMounted = true;
 
-    const loadMasters = async () => {
+    const loadMastersAndPref = async () => {
       const types = ['MARITAL_STATUS', 'SECTS', 'MOTHER_TONGUES', 'EDUCATIONS', 'OCCUPATIONS', 'CASTES', 'STATES'];
       try {
         const results = await Promise.all(types.map(t => fetchMasterDataApi(t)));
@@ -111,12 +101,50 @@ function SettingsContent() {
           newMasterData[t] = results[index] || [];
         });
         setMasterData(prev => ({ ...prev, ...newMasterData }));
+
+        // Load existing saved preferences from API
+        const token = getToken();
+        if (token) {
+          const profileRes = await fetchProfileDetailsApi(0, token);
+          if (profileRes.success && profileRes.data) {
+            const pref = profileRes.data.preferences || profileRes.data.Preferences;
+            if (pref && typeof pref === 'object') {
+              const parseList = (val: any) => {
+                if (!val) return [];
+                if (Array.isArray(val)) return val.map(Number);
+                return String(val).split(',').map(s => Number(s.trim())).filter(n => !isNaN(n) && n > 0);
+              };
+
+              const firstStateId = Number(pref.preferredStateID || pref.preferredState || 0);
+              if (firstStateId > 0) {
+                fetchCitiesApi(firstStateId).then(cities => {
+                  if (isMounted) setMasterData(prev => ({ ...prev, CITIES: cities }));
+                });
+              }
+
+              setPrefData({
+                minAge: pref.minAge || 18,
+                maxAge: pref.maxAge || 60,
+                minHeight: pref.minHeight ? String(pref.minHeight) : '4.5',
+                maxHeight: pref.maxHeight ? String(pref.maxHeight) : '6.8',
+                maritalStatusList: parseList(pref.preferredMaritalStatus),
+                educationIds: parseList(pref.preferredEducation),
+                occupationIds: parseList(pref.preferredOccupation),
+                casteIds: parseList(pref.preferredCaste),
+                languageIds: parseList(pref.preferredMotherTongue),
+                sectId: Number(pref.preferredSect || 1),
+                stateId: firstStateId,
+                cityId: Number(pref.preferredCityID || pref.preferredCity || 0)
+              });
+            }
+          }
+        }
       } catch (e) {}
     };
 
-    loadMasters();
+    loadMastersAndPref();
     return () => { isMounted = false; };
-  }, [activeTab]);
+  }, [activeTab, getToken]);
 
   // Load Blocked Users when Privacy tab -> Blocked subtab is active
   useEffect(() => {
@@ -152,8 +180,45 @@ function SettingsContent() {
 
   const handleSavePartnerPreferences = async () => {
     const token = getToken();
+    if (!token) return;
+
     setSavingPref(true);
-    const res = await savePartnerPreferencesApi(prefData, token);
+
+    let currentUserId = 0;
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("user_details") || localStorage.getItem("user_session");
+        if (stored) {
+          const u = JSON.parse(stored);
+          currentUserId = u.userId || u.UserId || u.id || 0;
+        }
+      } catch (e) {}
+    }
+
+    const cleanArr = (arr: any) => {
+      if (!arr) return '';
+      if (Array.isArray(arr)) return arr.filter(Boolean).join(',');
+      return String(arr).trim();
+    };
+
+    const prefPayload = {
+      userId: currentUserId,
+      minAge: Number(prefData.minAge || 18),
+      maxAge: Number(prefData.maxAge || 60),
+      minHeight: parseFloat(prefData.minHeight || '4.0'),
+      maxHeight: parseFloat(prefData.maxHeight || '7.0'),
+      preferredSect: prefData.sectId ? String(prefData.sectId) : '1',
+      preferredStateID: prefData.stateId ? String(prefData.stateId) : '0',
+      preferredCityID: prefData.cityId ? String(prefData.cityId) : '0',
+      preferredEducation: cleanArr(prefData.educationIds) || '1',
+      preferredOccupation: cleanArr(prefData.occupationIds) || '1',
+      minAnnualIncome: 0,
+      preferredMaritalStatus: cleanArr(prefData.maritalStatusList) || '1',
+      preferredMotherTongue: cleanArr(prefData.languageIds) || '1',
+      preferredCaste: cleanArr(prefData.casteIds) || '1'
+    };
+
+    const res = await savePartnerPreferencesApi(prefPayload, token);
     setSavingPref(false);
     if (res.success) {
       toast.success("Partner preferences saved successfully!");
@@ -242,13 +307,13 @@ function SettingsContent() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-32 pt-4 selection:bg-[#d91b5c] selection:text-white">
+    <div className="min-h-screen bg-gradient-to-b from-[#FAF8F5] via-white to-[#FAF8F5] font-sans text-slate-900 pb-32 pt-4 selection:bg-[#d91b5c] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
-      <div className="max-w-xl mx-auto px-4 md:px-6 space-y-6">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         
         {/* 📌 TOP INLINE HEADER */}
-        <div className="flex items-center gap-3 py-2 border-b border-slate-200">
+        <div className="flex items-center gap-3 py-2 border-b border-rose-100">
           <button 
             type="button" 
             onClick={() => {
@@ -264,9 +329,14 @@ function SettingsContent() {
           >
             <ArrowLeft size={22} className="stroke-[2.5]" />
           </button>
-          <h1 className="text-xl font-extrabold tracking-tight text-slate-900">
-            {getSubTitle()}
-          </h1>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-serif font-extrabold tracking-tight text-slate-900">
+              {getSubTitle()}
+            </h1>
+            <p className="text-xs font-semibold text-slate-500">
+              Personalize notifications, partner preferences and security controls
+            </p>
+          </div>
         </div>
 
         {/* 📱 1. MAIN MENU SCREEN */}
@@ -295,20 +365,20 @@ function SettingsContent() {
               </div>
             )}
 
-            {/* MAIN SETTINGS OPTIONS LIST */}
-            <div className="bg-white rounded-3xl border-2 border-rose-100 shadow-xl overflow-hidden divide-y-2 divide-slate-100">
+            {/* MAIN SETTINGS OPTIONS GRID (RESPONSIVE 2-COLUMNS ON DESKTOP) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               
               {/* OPTION 1: NOTIFICATION SETTINGS */}
               <div 
                 onClick={() => setActiveTab('notifications')}
-                className="p-5 flex items-center justify-between cursor-pointer hover:bg-rose-50/40 transition-all group"
+                className="p-5 bg-white rounded-3xl border border-rose-100 shadow-md flex items-center justify-between cursor-pointer hover:border-[#d91b5c] hover:shadow-xl transition-all group"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-rose-50 text-[#d91b5c] border-2 border-rose-200 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <div className="w-12 h-12 rounded-2xl bg-rose-50 text-[#d91b5c] border border-rose-200 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
                     <Bell size={22} />
                   </div>
                   <div>
-                    <h3 className="font-black text-sm uppercase text-slate-900 tracking-tight">
+                    <h3 className="font-black text-sm uppercase text-slate-900 tracking-tight group-hover:text-[#d91b5c] transition-colors">
                       Notification Settings
                     </h3>
                     <p className="text-xs font-semibold text-slate-500 mt-0.5">
@@ -316,20 +386,20 @@ function SettingsContent() {
                     </p>
                   </div>
                 </div>
-                <ChevronRight size={20} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-1 transition-all" />
+                <ChevronRight size={20} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-1 transition-all shrink-0" />
               </div>
 
               {/* OPTION 2: PARTNER PREFERENCES */}
               <div 
                 onClick={() => setActiveTab('preferences')}
-                className="p-5 flex items-center justify-between cursor-pointer hover:bg-rose-50/40 transition-all group"
+                className="p-5 bg-white rounded-3xl border border-rose-100 shadow-md flex items-center justify-between cursor-pointer hover:border-[#d91b5c] hover:shadow-xl transition-all group"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-rose-50 text-[#d91b5c] border-2 border-rose-200 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <div className="w-12 h-12 rounded-2xl bg-rose-50 text-[#d91b5c] border border-rose-200 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
                     <Heart size={22} />
                   </div>
                   <div>
-                    <h3 className="font-black text-sm uppercase text-slate-900 tracking-tight">
+                    <h3 className="font-black text-sm uppercase text-slate-900 tracking-tight group-hover:text-[#d91b5c] transition-colors">
                       Partner Preferences
                     </h3>
                     <p className="text-xs font-semibold text-slate-500 mt-0.5">
@@ -337,20 +407,20 @@ function SettingsContent() {
                     </p>
                   </div>
                 </div>
-                <ChevronRight size={20} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-1 transition-all" />
+                <ChevronRight size={20} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-1 transition-all shrink-0" />
               </div>
 
               {/* OPTION 3: PROFILE PRIVACY & BLOCKED USERS */}
               <div 
                 onClick={() => setActiveTab('privacy')}
-                className="p-5 flex items-center justify-between cursor-pointer hover:bg-rose-50/40 transition-all group"
+                className="p-5 bg-white rounded-3xl border border-rose-100 shadow-md flex items-center justify-between cursor-pointer hover:border-[#d91b5c] hover:shadow-xl transition-all group"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-rose-50 text-[#d91b5c] border-2 border-rose-200 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <div className="w-12 h-12 rounded-2xl bg-rose-50 text-[#d91b5c] border border-rose-200 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
                     <Shield size={22} />
                   </div>
                   <div>
-                    <h3 className="font-black text-sm uppercase text-slate-900 tracking-tight flex items-center gap-2">
+                    <h3 className="font-black text-sm uppercase text-slate-900 tracking-tight flex items-center gap-2 group-hover:text-[#d91b5c] transition-colors">
                       <span>Profile & Photo Privacy</span>
                     </h3>
                     <p className="text-xs font-semibold text-slate-500 mt-0.5">
@@ -358,20 +428,20 @@ function SettingsContent() {
                     </p>
                   </div>
                 </div>
-                <ChevronRight size={20} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-1 transition-all" />
+                <ChevronRight size={20} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-1 transition-all shrink-0" />
               </div>
 
               {/* OPTION 4: PAYMENT & SUBSCRIPTION INFO */}
               <div 
                 onClick={() => router.push('/dashboard/payment-info')}
-                className="p-5 flex items-center justify-between cursor-pointer hover:bg-rose-50/40 transition-all group"
+                className="p-5 bg-white rounded-3xl border border-rose-100 shadow-md flex items-center justify-between cursor-pointer hover:border-[#d91b5c] hover:shadow-xl transition-all group"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 border-2 border-amber-200 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
                     <Crown size={22} className="fill-amber-500 text-amber-600" />
                   </div>
                   <div>
-                    <h3 className="font-black text-sm uppercase text-slate-900 tracking-tight flex items-center gap-1.5">
+                    <h3 className="font-black text-sm uppercase text-slate-900 tracking-tight flex items-center gap-1.5 group-hover:text-[#d91b5c] transition-colors">
                       <span>Payment & VIP Subscription</span>
                     </h3>
                     <p className="text-xs font-semibold text-slate-500 mt-0.5">
@@ -379,20 +449,20 @@ function SettingsContent() {
                     </p>
                   </div>
                 </div>
-                <ChevronRight size={20} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-1 transition-all" />
+                <ChevronRight size={20} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-1 transition-all shrink-0" />
               </div>
 
               {/* OPTION 5: MANAGE ACCOUNT */}
               <div 
                 onClick={() => setActiveTab('manage')}
-                className="p-5 flex items-center justify-between cursor-pointer hover:bg-rose-50/40 transition-all group"
+                className="p-5 bg-white rounded-3xl border border-rose-100 shadow-md flex items-center justify-between cursor-pointer hover:border-[#d91b5c] hover:shadow-xl transition-all group md:col-span-2"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-rose-50 text-[#d91b5c] border-2 border-rose-200 flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <div className="w-12 h-12 rounded-2xl bg-rose-50 text-[#d91b5c] border border-rose-200 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
                     <Power size={22} />
                   </div>
                   <div>
-                    <h3 className="font-black text-sm uppercase text-slate-900 tracking-tight">
+                    <h3 className="font-black text-sm uppercase text-slate-900 tracking-tight group-hover:text-[#d91b5c] transition-colors">
                       Manage Account
                     </h3>
                     <p className="text-xs font-semibold text-slate-500 mt-0.5">
@@ -400,7 +470,7 @@ function SettingsContent() {
                     </p>
                   </div>
                 </div>
-                <ChevronRight size={20} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-1 transition-all" />
+                <ChevronRight size={20} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-1 transition-all shrink-0" />
               </div>
 
             </div>
@@ -413,7 +483,7 @@ function SettingsContent() {
                 className="w-full max-w-xs mx-auto py-3.5 px-6 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-black text-xs uppercase tracking-wider border-2 border-rose-200 shadow-sm active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
               >
                 <LogOut size={18} className="text-rose-600" />
-                <span>Log Out of Account</span>
+                <span>Sign Out from Account</span>
               </button>
             </div>
 
@@ -501,6 +571,60 @@ function SettingsContent() {
 
             <div className="space-y-5">
               
+              {/* Age Range */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5 text-left">
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 block">Min Age (Yrs)</label>
+                  <input
+                    type="number"
+                    min={18}
+                    max={prefData.maxAge || 60}
+                    value={prefData.minAge || 18}
+                    onChange={(e) => updatePrefField('minAge', Number(e.target.value))}
+                    className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
+                  />
+                </div>
+                <div className="space-y-1.5 text-left">
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 block">Max Age (Yrs)</label>
+                  <input
+                    type="number"
+                    min={prefData.minAge || 18}
+                    max={75}
+                    value={prefData.maxAge || 60}
+                    onChange={(e) => updatePrefField('maxAge', Number(e.target.value))}
+                    className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
+                  />
+                </div>
+              </div>
+
+              {/* Height Range */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5 text-left">
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 block">Min Height (ft)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="4.0"
+                    max={prefData.maxHeight || '7.0'}
+                    value={prefData.minHeight || '4.5'}
+                    onChange={(e) => updatePrefField('minHeight', e.target.value)}
+                    className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
+                  />
+                </div>
+                <div className="space-y-1.5 text-left">
+                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 block">Max Height (ft)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min={prefData.minHeight || '4.0'}
+                    max="7.5"
+                    value={prefData.maxHeight || '6.8'}
+                    onChange={(e) => updatePrefField('maxHeight', e.target.value)}
+                    className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
+                  />
+                </div>
+              </div>
+
               <MultiSelectDropdown 
                 label="Preferred Marital Status" 
                 options={masterData.MARITAL_STATUS || []} 

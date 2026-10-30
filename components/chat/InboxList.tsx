@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSignalR } from '@/context/SignalRContext';
 import { fetchChatInboxApi, markChatReadApi, blockUserApiCall } from '@/lib/api';
 import { getOptimizedImageUrl } from '@/lib/imageUtils';
+import { getAuthToken } from '@/lib/auth';
 
 export default function InboxList({ onSelectUser, selectedId }: any) {
   const router = useRouter();
@@ -26,7 +27,7 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
     return null;
   };
 
-  const getToken = (): string | null => getCookie("user_token");
+  const getToken = (): string | null => getAuthToken();
 
   const parseUtcDate = (dateVal: any) => {
     if (!dateVal) return new Date();
@@ -98,11 +99,58 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
 
   const handleChatClick = async (chat: any) => {
     const targetUserId = chat.userId ?? chat.UserId;
+    const accountStateStr = String(chat.accountState || chat.AccountState || '').toLowerCase();
+
     const isDeleted = Boolean(
-      chat.isDeleted ?? chat.IsDeleted ?? 
-      (chat.accountState && String(chat.accountState).toLowerCase().includes('del'))
+      (chat.isDeleted ?? chat.IsDeleted) ||
+      accountStateStr.includes('del') ||
+      (chat.fullName && String(chat.fullName).toLowerCase() === 'deleted user')
     );
-    const chatToPass = isDeleted ? { ...chat, fullName: "Deleted User", FullName: "Deleted User", photoUrl: "/placeholder.png" } : chat;
+    const isDeactive = !isDeleted && Boolean(
+      (chat.isDeactive ?? chat.IsDeactive) ||
+      accountStateStr.includes('deact') || 
+      accountStateStr.includes('pause') ||
+      (chat.fullName && String(chat.fullName).toLowerCase() === 'deactivated user')
+    );
+    const isAdminBlocked = !isDeleted && !isDeactive && Boolean(
+      (chat.isAdminBlocked ?? chat.IsAdminBlocked) ||
+      accountStateStr.includes('admin') ||
+      (chat.fullName && String(chat.fullName).toLowerCase() === 'user unavailable')
+    );
+
+    let chatToPass = { ...chat };
+    if (isDeleted) {
+      chatToPass = {
+        ...chat,
+        fullName: "Deleted User",
+        FullName: "Deleted User",
+        photoUrl: "/placeholder.png",
+        PhotoUrl: "/placeholder.png",
+        accountState: "Deleted",
+        isDeleted: true
+      };
+    } else if (isDeactive) {
+      chatToPass = {
+        ...chat,
+        fullName: "Deactivated User",
+        FullName: "Deactivated User",
+        photoUrl: "/placeholder.png",
+        PhotoUrl: "/placeholder.png",
+        accountState: "Deactivated",
+        isDeactive: true
+      };
+    } else if (isAdminBlocked) {
+      chatToPass = {
+        ...chat,
+        fullName: "User Unavailable",
+        FullName: "User Unavailable",
+        photoUrl: "/placeholder.png",
+        PhotoUrl: "/placeholder.png",
+        accountState: "Blocked",
+        isAdminBlocked: true
+      };
+    }
+
     onSelectUser(chatToPass);
 
     const unread = chat.unreadCount ?? chat.UnreadCount ?? 0;
@@ -142,11 +190,18 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
   const filteredChats = chats.filter(c => (c.fullName ?? c.FullName ?? "").toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="flex flex-col h-full bg-white border-r-2 border-rose-100 selection:bg-[#d91b5c] selection:text-white">
-      <div className="p-4 border-b border-rose-100 bg-white">
+    <div className="flex flex-col h-full bg-white border-r border-rose-100/80 selection:bg-[#d91b5c] selection:text-white">
+      <div className="p-4 border-b border-rose-100/80 bg-white/90 backdrop-blur-xl">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xl font-serif font-extrabold uppercase tracking-tight text-slate-900">Messages</h2>
-          <div className="bg-rose-50 p-2 rounded-2xl text-[#d91b5c] border border-rose-200 shadow-xs">
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-serif font-black uppercase tracking-tight text-slate-900">Messages</h2>
+            {chats.length > 0 && (
+              <span className="text-[10px] font-black bg-rose-50 text-[#d91b5c] px-2 py-0.5 rounded-full border border-rose-200/60">
+                {chats.length}
+              </span>
+            )}
+          </div>
+          <div className="bg-rose-50 p-2 rounded-2xl text-[#d91b5c] border border-rose-200/60 shadow-xs">
             <MessageSquare size={18} />
           </div>
         </div>
@@ -156,7 +211,7 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search chat..." 
-            className="w-full bg-slate-50 border border-rose-100 py-2.5 pl-10 pr-4 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-[#d91b5c]/20 transition-all placeholder-slate-400" 
+            className="w-full bg-rose-50/40 border border-rose-100/80 py-2.5 pl-10 pr-4 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-[#d91b5c]/20 focus:border-[#d91b5c] transition-all placeholder-slate-400" 
           />
         </div>
       </div>
@@ -164,26 +219,32 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
       <div className="flex-1 min-h-0 overflow-y-auto p-2.5 space-y-1.5 bg-white">
         {filteredChats.map((chat) => {
           const uId = Number(chat.userId ?? chat.UserId);
+          const accountStateStr = String(chat.accountState || chat.AccountState || '').toLowerCase();
+
           const isDeleted = Boolean(
-            chat.isDeleted ?? chat.IsDeleted ?? 
-            (chat.accountState && String(chat.accountState).toLowerCase().includes('del'))
+            (chat.isDeleted ?? chat.IsDeleted) || 
+            accountStateStr.includes('del') ||
+            (chat.fullName && String(chat.fullName).toLowerCase() === 'deleted user') ||
+            ((chat.isActive === false || chat.IsActive === false) && !accountStateStr.includes('deact') && !accountStateStr.includes('pause'))
           );
-          const isAdminBlocked = Boolean(
-            chat.isAdminBlocked ?? chat.IsAdminBlocked ?? 
-            (chat.accountState && String(chat.accountState).toLowerCase().includes('admin'))
+          const isDeactive = !isDeleted && Boolean(
+            (chat.isDeactive ?? chat.IsDeactive) || 
+            accountStateStr.includes('deact') || 
+            accountStateStr.includes('pause') ||
+            (chat.fullName && String(chat.fullName).toLowerCase() === 'deactivated user')
           );
-          const isDeactive = Boolean(
-            chat.isDeactive ?? chat.IsDeactive ?? 
-            (chat.accountState && String(chat.accountState).toLowerCase().includes('deact')) ?? 
-            (chat.accountState && String(chat.accountState).toLowerCase().includes('pause'))
+          const isAdminBlocked = !isDeleted && !isDeactive && Boolean(
+            (chat.isAdminBlocked ?? chat.IsAdminBlocked) || 
+            accountStateStr.includes('admin') ||
+            (chat.fullName && String(chat.fullName).toLowerCase() === 'user unavailable')
           );
 
-          const fName = isDeleted ? "Deleted User" : (chat.fullName ?? chat.FullName ?? "User");
+          const fName = isDeleted ? "Deleted User" : (isDeactive ? "Deactivated User" : (isAdminBlocked ? "User Unavailable" : (chat.fullName ?? chat.FullName ?? "User")));
           const lastMsg = chat.lastMessage ?? chat.LastMessage ?? "Start a conversation...";
           const lastTime = chat.lastMessageTime ?? chat.LastMessageTime;
           const unread = chat.unreadCount ?? chat.UnreadCount ?? 0;
           const isSelected = Number(selectedId) === uId;
-          const isUserOnline = !isDeleted && !isDeactive && (onlineUsers[uId] ? onlineUsers[uId].isOnline : Boolean(chat.isOnline ?? chat.IsOnline));
+          const isUserOnline = !isDeleted && !isDeactive && !isAdminBlocked && (onlineUsers[uId] ? Boolean(onlineUsers[uId].isOnline) : false);
 
           // 🎯 INSTAGRAM / FACEBOOK STYLE BLOCK PREVIEW TEXT
           const isBlockedByMe = Boolean(chat.isBlockedByMe ?? chat.IsBlockedByMe);
@@ -198,7 +259,9 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
           else if (isBlockedByOther || isBlocked) displayPreview = "User unavailable";
 
           const rawPhoto = chat.photoUrl ?? chat.PhotoUrl;
-          const pUrl = isDeleted ? "/placeholder.png" : (rawPhoto ? getOptimizedImageUrl(rawPhoto) : `https://ui-avatars.com/api/?name=${encodeURIComponent(fName)}&background=FFF0F3&color=870c3f&bold=true`);
+          const pUrl = (isDeleted || isDeactive || isAdminBlocked)
+            ? "/placeholder.png" 
+            : (rawPhoto ? getOptimizedImageUrl(rawPhoto) : `https://ui-avatars.com/api/?name=${encodeURIComponent(fName)}&background=FFF0F3&color=870c3f&bold=true`);
 
           return (
             <div 
@@ -206,24 +269,24 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
               onClick={() => handleChatClick(chat)}
               className={`flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all ${
                 isSelected 
-                  ? 'bg-rose-50/80 border border-rose-200 shadow-xs' 
-                  : 'hover:bg-slate-50 border border-transparent'
+                  ? 'bg-rose-50/90 border border-rose-200/90 shadow-xs ring-1 ring-[#d91b5c]/15' 
+                  : 'hover:bg-rose-50/40 border border-transparent hover:border-rose-100/60'
               }`}
             >
               <div className="relative flex-shrink-0 w-12 h-12">
                 <img 
                   src={pUrl} 
-                  className="w-12 h-12 rounded-full object-cover object-top border-2 border-rose-200 shadow-xs flex-shrink-0" 
+                  className="w-12 h-12 rounded-full object-cover object-top border-2 border-[#d91b5c]/25 shadow-xs flex-shrink-0" 
                   alt="avatar"
                   onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }}
                 />
                 {isUserOnline && (
-                  <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full shadow-xs z-10" />
+                  <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full shadow-xs ring-1 ring-emerald-300 z-10" />
                 )}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-center">
-                  <h4 className="text-xs font-serif font-extrabold uppercase text-slate-900 truncate">{fName}</h4>
+                  <h4 className="text-xs font-serif font-black uppercase text-slate-900 truncate">{fName}</h4>
                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
                     {formatChatTime(lastTime)}
                   </span>
@@ -250,7 +313,7 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
                   )}
 
                   {unread > 0 && !isBlockedByMe && !isBlockedByOther && !isBlocked && (
-                    <span className="bg-[#d91b5c] text-white text-[10px] font-black h-5 min-w-[20px] px-1.5 rounded-full flex items-center justify-center shadow-xs shrink-0">
+                    <span className="bg-gradient-to-r from-[#d91b5c] to-rose-600 text-white text-[10px] font-black h-5 min-w-[20px] px-1.5 rounded-full flex items-center justify-center shadow-xs shrink-0">
                       {unread}
                     </span>
                   )}

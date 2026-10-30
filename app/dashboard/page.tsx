@@ -1,15 +1,17 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Sparkles, Flame, RefreshCw, Crown, Lock, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import { fetchDashboardApi, handleInteractionApiCall, fetchActiveSubscriptionApi } from '@/lib/api';
 import { checkDailyViewLimit, formatTimeRemaining } from '@/lib/limitUtils';
+import { getAuthToken } from '@/lib/auth';
 import ProfileCard from '@/components/dashboard/ProfileCard';
 import ProfileCardSkeleton from '@/components/dashboard/ProfileCardSkeleton';
 import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
+import { useSignalR } from '@/context/SignalRContext';
 
 function LiveCountdownDisplay() {
   const [timeText, setTimeText] = useState('24h 00m 00s');
@@ -35,6 +37,7 @@ function LiveCountdownDisplay() {
 
 export default function VIPCleanDashboardPage() {
   const router = useRouter();
+  const { onlineUsers, fetchBulkOnlineStatuses } = useSignalR();
   const [activeTab, setActiveTab] = useState('best-matches');
   const [profiles, setProfiles] = useState<any[]>([]);
   const [page, setPage] = useState(1);
@@ -45,22 +48,14 @@ export default function VIPCleanDashboardPage() {
   const [actionState, setActionState] = useState<{ [key: number]: boolean }>({});
   const [actionTypeState, setActionTypeState] = useState<{ [key: number]: string | null }>({});
 
+  // ⚡ HIGH-SPEED CLIENT TAB CACHE (STALE-WHILE-REVALIDATE FOR 0MS TAB SWITCHING)
+  const tabCacheRef = React.useRef<Record<string, { profiles: any[], hasMore: boolean, timestamp: number }>>({});
+
   // 🔒 24-HOUR / 20 PROFILE VIEW LIMIT STATE FOR FREE USERS
   const [isCurrentUserPaid, setIsCurrentUserPaid] = useState<boolean>(false);
   const [dailyLimitReached, setDailyLimitReached] = useState<boolean>(false);
 
-  const getCookie = (name: string): string | null => {
-    if (typeof document === "undefined") return null;
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) {
-      const val = parts.pop()?.split(';').shift();
-      return val ?? null;
-    }
-    return null;
-  };
-
-  const getToken = useCallback((): string | null => getCookie("user_token"), []);
+  const getToken = useCallback((): string | null => getAuthToken(), []);
 
   // 🕒 CHECK & UPDATE 24-HOUR PROFILE VIEW COUNT IN LOCALSTORAGE
   const checkDailyViewLimitState = useCallback((newLoadedProfilesCount: number, paidStatus: boolean) => {
@@ -76,8 +71,22 @@ export default function VIPCleanDashboardPage() {
       return;
     }
 
-    if (pageNum === 1) setLoading(true);
-    else setFetchingMore(true);
+    // ⚡ 0MS INSTANT TAB CACHE HIT
+    if (pageNum === 1 && !append && tabCacheRef.current[tabName]) {
+      const cached = tabCacheRef.current[tabName];
+      setProfiles(cached.profiles);
+      setHasMore(cached.hasMore);
+      setLoading(false);
+
+      // If cached less than 45 seconds ago, skip network call entirely (Zero DB Hit)
+      if (Date.now() - cached.timestamp < 45000) {
+        return;
+      }
+    } else if (pageNum === 1 && !append) {
+      setLoading(true);
+    } else {
+      setFetchingMore(true);
+    }
 
     const res = await fetchDashboardApi(tabName, pageNum, token);
 
@@ -116,36 +125,56 @@ export default function VIPCleanDashboardPage() {
       const limitState = checkDailyViewLimit(list.length, userPaid);
       setDailyLimitReached(limitState.isLimitReached && !userPaid);
 
+      let finalProfiles: any[] = [];
       if (append) {
         setProfiles((prev) => {
           const combined = [...prev, ...list];
           const curLimit = checkDailyViewLimit(combined.length, userPaid);
-          if (curLimit.isLimitReached && !userPaid) {
-            return combined.slice(0, 20);
-          }
-          return combined;
+          finalProfiles = (curLimit.isLimitReached && !userPaid) ? combined.slice(0, 20) : combined;
+          return finalProfiles;
         });
       } else {
         let updatedList = list;
         if (limitState.isLimitReached && !userPaid) {
           updatedList = list.slice(0, 20);
         }
+        finalProfiles = updatedList;
         setProfiles(updatedList);
       }
 
-      setHasMore(list.length >= 12 && (!limitState.isLimitReached || userPaid));
+      const nextHasMore = list.length >= 12 && (!limitState.isLimitReached || userPaid);
+      setHasMore(nextHasMore);
+
+      // Save to client-side tab cache
+      if (!append) {
+        tabCacheRef.current[tabName] = {
+          profiles: finalProfiles,
+          hasMore: nextHasMore,
+          timestamp: Date.now()
+        };
+      }
     } else {
       toast.error(res.message || "Failed to load profiles.");
     }
 
     setLoading(false);
     setFetchingMore(false);
-  }, [getToken, router, checkDailyViewLimitState, dailyLimitReached]);
+  }, [getToken, router, checkDailyViewLimitState]);
 
   useEffect(() => {
     setPage(1);
     loadDashboardData(activeTab, 1, false);
   }, [activeTab, loadDashboardData]);
+
+  // ⚡ PURE REAL-TIME VERIFICATION: Query Redis to ensure only truly active users show green dots
+  useEffect(() => {
+    if (profiles.length > 0) {
+      const ids = profiles.map((p: any) => Number(p.userId || p.UserId)).filter((id: number) => id > 0);
+      if (ids.length > 0) {
+        fetchBulkOnlineStatuses(ids);
+      }
+    }
+  }, [profiles, fetchBulkOnlineStatuses]);
 
   // 🚀 AUTOMATIC INFINITE SCROLL PAGING (TRIGGERED NEAR BOTTOM OF SCROLL)
   useEffect(() => {
@@ -202,9 +231,11 @@ export default function VIPCleanDashboardPage() {
 
   const handleViewProfile = (userId: number) => {
     const token = getToken();
+    const targetProfile = profiles.find((p) => Number(p.userId || p.UserId) === userId);
     if (typeof window !== "undefined") {
-      sessionStorage.setItem("viewing_profile_target", JSON.stringify({ userId }));
-      localStorage.setItem("viewing_profile_target", JSON.stringify({ userId }));
+      const dataToStore = targetProfile ? { ...targetProfile, userId } : { userId };
+      sessionStorage.setItem("viewing_profile_target", JSON.stringify(dataToStore));
+      localStorage.setItem("viewing_profile_target", JSON.stringify(dataToStore));
     }
     if (token) {
       handleInteractionApiCall(userId, 'VISIT', 'PENDING', token).catch(() => {});
@@ -232,48 +263,59 @@ export default function VIPCleanDashboardPage() {
   };
 
   const tabs = [
-    { id: 'best-matches', label: 'Best Matches', icon: Sparkles },
-    { id: 'online', label: 'Online', icon: Flame },
+    { id: 'best-matches', label: 'Best Matches' },
+    { id: 'online', label: 'Online' },
+    { id: 'premium', label: 'Premium' },
   ];
 
+  // ⚡ PURE REAL-TIME FILTERING: Strict Redis presence verification
+  const displayedProfiles = useMemo(() => {
+    if (activeTab === 'online') {
+      return profiles.filter((p) => {
+        const uId = Number(p.userId || p.UserId || 0);
+        return onlineUsers[uId]?.isOnline === true || Boolean(p.isOnline ?? p.IsOnline);
+      });
+    }
+    if (activeTab === 'premium') {
+      return profiles.filter((p) => Boolean(p.isPremium ?? p.IsPremium));
+    }
+    return profiles;
+  }, [profiles, activeTab, onlineUsers]);
+
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-28 pt-4 selection:bg-[#d91b5c] selection:text-white">
+    <div className="min-h-screen bg-[#faf8f5] font-sans text-slate-900 pb-28 pt-2 sm:pt-4 selection:bg-[#e21e5b] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
       <style jsx global>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 space-y-3 sm:space-y-5">
         
-        {/* 🌟 CLEAN COMPACT 2-TAB BAR CONTAINER (BEST MATCHES & ONLINE - PURE WHITE THEME) */}
-        <div className="bg-white border border-slate-200 rounded-full p-1.5 shadow-xs max-w-xs mx-auto">
-          <div className="grid grid-cols-2 gap-1">
-            {tabs.map((t) => {
-              const Icon = t.icon;
-              const isActive = activeTab === t.id;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => {
-                    if (activeTab !== t.id) {
-                      setProfiles([]);
-                      setActiveTab(t.id);
-                    }
-                  }}
-                  className={`py-2 px-3 rounded-full text-xs font-bold tracking-wide flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer ${
-                    isActive 
-                      ? 'bg-slate-950 text-white font-black shadow-sm' 
-                      : 'bg-transparent hover:bg-slate-100 text-slate-900 font-bold'
-                  }`}
-                >
-                  <Icon size={15} className={isActive ? 'text-amber-300 fill-amber-300' : 'text-slate-700'} />
-                  <span>{t.label}</span>
-                </button>
-              );
-            })}
-          </div>
+        {/* 🌟 NIKAH FOREVER FILTER TABS ROW */}
+        <div className="flex items-center justify-center gap-2 overflow-x-auto py-1 no-scrollbar">
+          {tabs.map((t) => {
+            const isActive = activeTab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => {
+                  if (activeTab !== t.id) {
+                    setProfiles([]);
+                    setActiveTab(t.id);
+                  }
+                }}
+                className={`px-4 py-1.5 rounded-xl text-xs sm:text-sm transition-all duration-150 cursor-pointer whitespace-nowrap border ${
+                  isActive 
+                    ? 'bg-[#0f0f0f] text-white border-[#0f0f0f] font-semibold shadow-xs' 
+                    : 'bg-white text-[#0f0f0f] border-slate-200 hover:bg-slate-50 font-medium'
+                }`}
+              >
+                {t.label}
+              </button>
+            );
+          })}
         </div>
 
         {/* PROFILES GRID */}
@@ -281,7 +323,7 @@ export default function VIPCleanDashboardPage() {
           <div className="py-4">
             <ProfileCardSkeleton count={4} />
           </div>
-        ) : profiles.length === 0 ? (
+        ) : displayedProfiles.length === 0 ? (
           <div className="py-16 px-4 text-center max-w-md mx-auto space-y-4">
             <div className="w-16 h-16 rounded-full bg-rose-50 border border-rose-100 text-[#d91b5c] flex items-center justify-center mx-auto shadow-xs">
               <Sparkles size={28} className="text-[#d91b5c]" />
@@ -304,8 +346,8 @@ export default function VIPCleanDashboardPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {profiles.map((profile) => {
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 justify-center max-w-[420px] sm:max-w-none mx-auto">
+              {displayedProfiles.map((profile) => {
                 const uId = Number(profile.userId || profile.UserId || 0);
                 return (
                   <ProfileCard

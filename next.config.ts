@@ -1,20 +1,18 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: any = {
+  compress: true,
+  poweredByHeader: false,
   typescript: {
     // TypeScript errors ko ignore karke build complete karne ke liye
     ignoreBuildErrors: true,
   },
   images: {
+    formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'cdn.nikahqubool.in',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'cdn.pakizarishte.com',
         pathname: '/**',
       },
       {

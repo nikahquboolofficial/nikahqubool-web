@@ -12,6 +12,7 @@ import { fetchDashboardApi, handleInteractionApiCall } from '@/lib/api';
 import ProfileCard from '@/components/dashboard/ProfileCard';
 import ProfileCardSkeleton from '@/components/dashboard/ProfileCardSkeleton';
 import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
+import { getAuthToken } from '@/lib/auth';
 
 type MainCategory = 'all' | 'interests' | 'visitors' | 'gallery' | 'contacts' | 'shortlist';
 
@@ -99,7 +100,7 @@ function ActivityPageContent() {
     return null;
   };
 
-  const getToken = useCallback((): string | null => getCookie("user_token"), []);
+  const getToken = useCallback((): string | null => getAuthToken(), []);
 
   const activeSubTabRef = useRef(activeSubTab);
   useEffect(() => {
@@ -285,7 +286,7 @@ function ActivityPageContent() {
   const currentSubTabs = CATEGORY_SUBTABS[activeCat] || [];
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-28 pt-4 selection:bg-[#d91b5c] selection:text-white">
+    <div className="min-h-screen bg-gradient-to-b from-[#FAF8F5] via-white to-[#FAF8F5] font-sans text-slate-900 pb-28 pt-1.5 sm:pt-3 selection:bg-[#d91b5c] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
       <style jsx global>{`
@@ -293,10 +294,10 @@ function ActivityPageContent() {
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 space-y-3 pt-2">
+      <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 space-y-1.5 sm:space-y-2.5 pt-0.5">
         
-        {/* 🌟 LEVEL 1: MAIN CATEGORY TABS (PURE WHITE THEME + COMPACT BLACK HIGHLIGHT PILL) */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+        {/* 🌟 LEVEL 1: MAIN CATEGORY TABS (COMPACT APP-LIKE PILLS) */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
           {mainCategories.map((cat) => {
             const Icon = cat.icon;
             const isActive = activeCat === cat.id;
@@ -305,22 +306,22 @@ function ActivityPageContent() {
                 key={cat.id}
                 type="button"
                 onClick={() => handleCatChange(cat.id)}
-                className={`py-1.5 px-4 rounded-full text-xs font-bold tracking-wide flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer whitespace-nowrap active:scale-95 ${
+                className={`py-1.5 px-3 rounded-full text-[11px] font-bold tracking-wide flex items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer whitespace-nowrap active:scale-95 ${
                   isActive 
-                    ? 'bg-slate-950 text-white font-black shadow-sm' 
-                    : 'bg-white hover:bg-slate-100 text-slate-900 font-bold border border-slate-200 shadow-xs'
+                    ? 'bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white shadow-xs border border-rose-300/30' 
+                    : 'bg-white hover:bg-rose-50/60 text-slate-700 hover:text-[#d91b5c] border border-rose-100/90 shadow-2xs'
                 }`}
               >
-                <Icon size={14} className={isActive ? 'text-amber-300 fill-amber-300' : 'text-slate-700'} />
+                <Icon size={12} className={isActive ? 'text-amber-300 fill-amber-300' : 'text-[#d91b5c]'} />
                 <span>{cat.label}</span>
               </button>
             );
           })}
         </div>
 
-        {/* 🌟 LEVEL 2: SECONDARY NESTED SUB-TABS (PURE WHITE THEME + COMPACT BLACK HIGHLIGHT PILL) */}
+        {/* 🌟 LEVEL 2: SECONDARY NESTED SUB-TABS (MINI APP PILLS) */}
         {currentSubTabs.length > 1 && (
-          <div className="flex items-center justify-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
             {currentSubTabs.map((sub) => {
               const SubIcon = sub.icon;
               const isSubActive = activeSubTab === sub.id;
@@ -329,13 +330,13 @@ function ActivityPageContent() {
                   key={sub.id}
                   type="button"
                   onClick={() => handleSubTabChange(sub.id)}
-                  className={`py-1 px-3.5 rounded-full text-[11px] font-bold tracking-wide flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap active:scale-95 ${
+                  className={`py-1 px-2.5 rounded-full text-[10px] font-bold tracking-wide flex items-center justify-center gap-1 transition-all cursor-pointer whitespace-nowrap active:scale-95 ${
                     isSubActive 
-                      ? 'bg-slate-900 text-white font-black shadow-xs' 
-                      : 'bg-slate-100 text-slate-800 hover:bg-slate-200 font-semibold'
+                      ? 'bg-slate-950 text-white shadow-2xs border border-slate-800' 
+                      : 'bg-rose-50/50 text-slate-600 hover:bg-rose-100/60 border border-rose-100/60 font-semibold'
                   }`}
                 >
-                  <SubIcon size={12} className={isSubActive ? 'text-amber-300' : 'text-slate-600'} />
+                  <SubIcon size={11} className={isSubActive ? 'text-amber-300' : 'text-slate-400'} />
                   <span>{sub.label}</span>
                 </button>
               );

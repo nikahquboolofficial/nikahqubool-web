@@ -2,30 +2,32 @@
 
 
 :root {
-  /* 🤍 Clean Pure White Canvas */
-  --bg-page: #FFFFFF;
+  /* 🤍 Luxury Soft Ivory & Warm Cream Canvas */
+  --bg-page: #FAF8F5;
   --bg-card: #FFFFFF;
-  --bg-subtle: #FFF0F3;
-  --bg-showcase: #FDE2E8;
+  --bg-subtle: #FFF5F7;
+  --bg-cream: #FDFBF7;
+  --bg-showcase: #FDE8ED;
 
-  /* 💖 Glowing Soft Pink Accents */
-  --color-primary: #E6396E;       /* Soft Vibrant Glowing Pink */
-  --color-primary-hover: #D81B60; /* Soft Deep Pink Hover */
-  --color-accent: #C2185B;        /* Elegant Berry Accent */
+  /* 💖 Nikah Forever Signature Crimson Rose Accents */
+  --color-primary: #E21E5B;       /* Deep Vibrant Rose */
+  --color-primary-hover: #CE1B53; /* Darker Rose Hover */
+  --color-accent: #B81546;        /* Elegant Berry Accent */
 
   /* 🖋️ Clean Dark Slate Typography */
-  --text-main: #1E1B24;   /* Charcoal Slate */
-  --text-muted: #7E788A;  /* Soft Muted Gray */
-  --text-gold: #E6396E;   /* Soft Pink Text */
+  --text-main: #0F0F0F;   /* Deep Neutral */
+  --text-muted: #534344;  /* Muted Secondary */
+  --text-gold: #E21E5B;   /* Rose Accent Text */
   
-  /* 🪄 Transparent Outlines for Smooth Rounded Cards */
-  --border-theme: transparent; 
+  /* 🪄 Subtle Luxury Outlines */
+  --border-theme: rgba(217, 27, 92, 0.08); 
 }
 
 @theme inline {
   --color-page: var(--bg-page);
   --color-card: var(--bg-card);
   --color-subtle: var(--bg-subtle);
+  --color-cream: var(--bg-cream);
   --color-showcase: var(--bg-showcase);
   --color-primary: var(--color-primary);
   --color-primary-hover: var(--color-primary-hover);
@@ -37,8 +39,8 @@
 }
 
 body {
-  /* 🤍 Pure Clean White Background */
-  background: #FFFFFF;
+  /* 🤍 Soft Luxury Ivory/Cream Background */
+  background: #FAF8F5;
   color: var(--text-main);
 }
 
@@ -48,8 +50,31 @@ body {
 
 /* 💖 Softer Glowing Buttons & Floating Cards */
 .shadow-md {
-  box-shadow: 0 8px 22px -4px rgba(230, 57, 110, 0.18) !important;
+  box-shadow: 0 8px 22px -4px rgba(217, 27, 92, 0.12) !important;
 }
 .shadow-xl, .shadow-2xl {
-  box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 20px 50px -12px rgba(30, 27, 36, 0.06), 0 0 1px 1px rgba(217, 27, 92, 0.04) !important;
+}
+
+/* ✨ SILKY LUXURY SHIMMER ANIMATION */
+@keyframes luxuryShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer-luxury {
+  background: linear-gradient(
+    90deg,
+    #f3eee7 0%,
+    #fcfaf8 35%,
+    #ebe4da 50%,
+    #fcfaf8 65%,
+    #f3eee7 100%
+  );
+  background-size: 200% 100%;
+  animation: luxuryShimmer 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }

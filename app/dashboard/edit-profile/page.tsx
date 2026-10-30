@@ -17,6 +17,7 @@ import {
 } from '@/lib/api';
 import { CompactSelect, MultiSelectDropdown } from '@/components/profile/CompactSelect';
 import { getOptimizedImageUrl } from '@/lib/imageUtils';
+import { getAuthToken, clearAuthCookies } from '@/lib/auth';
 
 type SectionKey = 'intro' | 'basic' | 'personal' | 'education' | 'religious' | 'address' | 'family' | 'partner';
 
@@ -126,22 +127,10 @@ export default function EditMyProfilePage() {
     cityIds: []   // ✅ Multi-select Cities
   });
 
-  const getCookie = (name: string) => {
-    if (typeof document === "undefined") return null;
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    return parts.length === 2 ? parts.pop()?.split(';').shift() : null;
-  };
-
-  const getToken = useCallback(() => getCookie("user_token"), []);
+  const getToken = useCallback(() => getAuthToken(), []);
 
   const handleLogout = useCallback(() => {
-    document.cookie = "user_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie = "is_profile_completed=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    if (typeof window !== "undefined") {
-      localStorage.clear();
-      sessionStorage.clear();
-    }
+    clearAuthCookies();
     router.push('/');
   }, [router]);
 
@@ -563,7 +552,7 @@ export default function EditMyProfilePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-[#d91b5c] selection:text-white">
+    <div className="min-h-screen bg-gradient-to-b from-[#FAF8F5] via-white to-[#FAF8F5] font-sans text-slate-900 selection:bg-[#d91b5c] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
       <div className="max-w-7xl mx-auto px-0 sm:px-6 lg:px-8 space-y-0 md:space-y-6 md:pt-4">

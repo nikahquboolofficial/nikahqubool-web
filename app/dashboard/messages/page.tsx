@@ -41,7 +41,7 @@ function MessagesContainer() {
       </div>
 
       {/* CHAT WINDOW */}
-      <div className={`flex-1 h-full min-w-0 bg-slate-50 flex flex-col ${!selectedChat ? 'hidden md:flex' : 'flex'}`}>
+      <div className={`flex-1 h-full min-w-0 bg-[#FAF8F5] flex flex-col ${!selectedChat ? 'hidden md:flex' : 'flex'}`}>
         {selectedChat ? (
           <ChatWindow 
             receiverId={selectedChat.userId ?? selectedChat.UserId} 
@@ -49,10 +49,11 @@ function MessagesContainer() {
             photoUrl={selectedChat.photoUrl ?? selectedChat.PhotoUrl ?? selectedChat.mainPhotoUrl ?? selectedChat.MainPhotoUrl}
             initialIsOnline={selectedChat.isOnline ?? selectedChat.IsOnline}
             initialLastSeen={selectedChat.lastSeen ?? selectedChat.LastSeen}
+            initialAccountState={selectedChat.accountState ?? selectedChat.AccountState}
             onBack={() => setSelectedChat(null)} 
           />
         ) : (
-          <div className="hidden md:flex flex-col items-center justify-center h-full text-center p-8 bg-gradient-to-b from-rose-50/40 via-white to-slate-50 space-y-4">
+          <div className="hidden md:flex flex-col items-center justify-center h-full text-center p-8 bg-gradient-to-b from-[#FAF8F5] via-white to-[#FAF8F5] space-y-4">
             <motion.div 
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
