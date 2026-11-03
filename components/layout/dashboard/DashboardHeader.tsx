@@ -84,20 +84,18 @@ export default function DashboardHeader({
     const checkSubscriptionStatus = async () => {
       // 1. Immediately read client subscription status (0ms latency, zero flash)
       const clientStatus = getClientSubscriptionStatus();
-      if (clientStatus.isPaid) {
-        setIsPaid(true);
-        setPlanName(clientStatus.planName);
-      }
+      setIsPaid(clientStatus.isPaid);
+      setPlanName(clientStatus.isPaid ? clientStatus.planName : 'Free Member');
 
       const token = getAuthToken();
       if (!token) return;
       try {
         const res = await fetchActiveSubscriptionApi(token);
-        if (res.success && res.data) {
+        if (res.success && res.data && (res.data.planName || res.data.PlanName || res.data.membershipType || res.data.isPaid)) {
           syncSubscriptionToStorage(res.data);
-          const clientStatus = getClientSubscriptionStatus();
-          setIsPaid(clientStatus.isPaid);
-          setPlanName(clientStatus.isPaid ? clientStatus.planName : 'Free Member');
+          const updated = getClientSubscriptionStatus();
+          setIsPaid(updated.isPaid);
+          setPlanName(updated.isPaid ? updated.planName : 'Free Member');
         }
       } catch (e) {}
     };

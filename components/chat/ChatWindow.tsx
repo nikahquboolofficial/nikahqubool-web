@@ -51,6 +51,7 @@ export default function ChatWindow({
   onBack 
 }: any) {
   const router = useRouter();
+  const getToken = (): string | null => getAuthToken();
   const { connection, onlineUsers, typingUsers, sendTyping } = useSignalR();
 
   const [msg, setMsg] = useState("");
@@ -145,8 +146,6 @@ export default function ChatWindow({
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const getToken = (): string | null => getAuthToken();
-
   // Dynamic Presence Status (From Ultra-Fast In-Memory SignalR Store)
   const currentPresence = onlineUsers[Number(receiverId)];
   const isOnline = currentPresence ? Boolean(currentPresence.isOnline) : Boolean(initialIsOnline);
@@ -193,10 +192,8 @@ export default function ChatWindow({
       return isNaN(dateVal.getTime()) ? new Date() : dateVal;
     }
     try {
-      let str = String(dateVal).trim().replace(' ', 'T');
-      if (!str.endsWith('Z') && !str.includes('+')) {
-        str += 'Z';
-      }
+      // Clean string and strip trailing Z to preserve Indian Standard Time without artificial offset
+      const str = String(dateVal).trim().replace(/z$/i, '').replace(' ', 'T');
       const d = new Date(str);
       return isNaN(d.getTime()) ? new Date() : d;
     } catch {
@@ -345,10 +342,6 @@ export default function ChatWindow({
       }
     };
 
-    if (connection) {
-      connection.on("ReceiveMessage", appendIncoming);
-    }
-
     const handleGlobalMsg = (e: any) => {
       const { senderId, receiverId: rId, messageText, msgId, sentAt } = e.detail || {};
       if (senderId && messageText) {
@@ -370,7 +363,6 @@ export default function ChatWindow({
 
     return () => {
       if (connection) {
-        connection.off("ReceiveMessage", appendIncoming);
         connection.off("MessagesRead", handleMessagesRead);
       }
       window.removeEventListener("global_message_received", handleGlobalMsg);
@@ -471,9 +463,9 @@ export default function ChatWindow({
   const formatMsgTime = (val: any) => {
     if (!val) return '';
     try {
-      const d = new Date(val);
+      const d = parseUtcDate(val);
       if (isNaN(d.getTime())) return '';
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
     } catch {
       return '';
     }

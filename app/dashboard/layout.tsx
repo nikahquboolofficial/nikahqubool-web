@@ -83,7 +83,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     const token = getAuthToken();
     if (token) {
       fetchActiveSubscriptionApi(token).then((res) => {
-        if (res.success && res.data) {
+        if (res.success && res.data && (res.data.planName || res.data.PlanName || res.data.membershipType || res.data.isPaid)) {
           syncSubscriptionToStorage(res.data);
         }
       }).catch(() => {});

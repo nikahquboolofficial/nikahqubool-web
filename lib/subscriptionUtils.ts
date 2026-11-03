@@ -11,10 +11,21 @@ export interface SubscriptionStatus {
 /**
  * 👑 Synchronize Active Subscription cleanly across localStorage and trigger reactive UI updates
  */
-export const syncSubscriptionToStorage = (active: any) => {
-  if (typeof window === "undefined" || !active) return;
+export const syncSubscriptionToStorage = (rawActive: any) => {
+  if (typeof window === "undefined" || !rawActive) return;
   try {
-    const rawExpiry = active.expiryDate || active.ExpiryDate || active.endDate || active.EndDate || null;
+    // 🛡️ Safely unwrap if nested under .data
+    const active = (rawActive && typeof rawActive === 'object' && 'data' in rawActive && rawActive.data) 
+      ? rawActive.data 
+      : rawActive;
+
+    // If active is completely empty or has no plan info, do not overwrite existing valid snapshot
+    if (!active || typeof active !== 'object' || Object.keys(active).length === 0) {
+      return;
+    }
+
+    const rawExpiry = active.expiryDate || active.ExpiryDate || active.endDate || active.EndDate || 
+                      active.planExpiryDate || active.PlanExpiryDate || active.ExpiresAt || active.expiresAt || null;
     let isExpired = Boolean(active.isExpired ?? active.IsExpired ?? false);
     if (rawExpiry) {
       const expDate = new Date(rawExpiry);
@@ -23,11 +34,46 @@ export const syncSubscriptionToStorage = (active: any) => {
       }
     }
 
-    const rawName = String(active.planName || active.PlanName || '').trim();
-    const hasPaidPlan = rawName.length > 0 && !rawName.toLowerCase().includes('free');
-    const isCurrentlyPaid = !isExpired && hasPaidPlan;
+    const rawName = String(
+      active.planName || active.PlanName || 
+      active.membershipType || active.MembershipType || 
+      active.name || active.Plan || ''
+    ).trim();
+
+    const isPaidFlag = Boolean(active.isPaid ?? active.IsPaid ?? active.isCurrentUserPaid ?? active.IsCurrentUserPaid);
+    const hasPaidPlanName = rawName.length > 0 && 
+      !rawName.toLowerCase().includes('free') && 
+      (
+        rawName.toLowerCase().includes('gold') || 
+        rawName.toLowerCase().includes('silver') || 
+        rawName.toLowerCase().includes('diamond') || 
+        rawName.toLowerCase().includes('vip') || 
+        rawName.toLowerCase().includes('premium') ||
+        rawName.toLowerCase().includes('membership')
+      );
+
+    const isCurrentlyPaid = !isExpired && (hasPaidPlanName || (isPaidFlag && rawName.length > 0 && !rawName.toLowerCase().includes('free')));
     const finalPlanName = isCurrentlyPaid ? (rawName || 'VIP Member') : 'Free Member';
-    const remainingViews = Number(active.remainingContacts ?? active.RemainingContacts ?? active.contactViewsAllowed ?? active.remainingViews ?? 0);
+
+    // 🔢 Calculate remaining contacts views
+    let remainingViews = 0;
+    if (active.remainingContacts != null) {
+      remainingViews = Number(active.remainingContacts);
+    } else if (active.RemainingContacts != null) {
+      remainingViews = Number(active.RemainingContacts);
+    } else if (active.remainingContactsAllowed != null) {
+      remainingViews = Number(active.remainingContactsAllowed);
+    } else if (active.RemainingContactsAllowed != null) {
+      remainingViews = Number(active.RemainingContactsAllowed);
+    } else if (active.totalContactsAllowed != null && active.contactsUsed != null) {
+      remainingViews = Math.max(0, Number(active.totalContactsAllowed) - Number(active.contactsUsed));
+    } else if (active.TotalContactsAllowed != null && active.ContactsUsed != null) {
+      remainingViews = Math.max(0, Number(active.TotalContactsAllowed) - Number(active.ContactsUsed));
+    } else if (active.contactViewsAllowed != null) {
+      remainingViews = Number(active.contactViewsAllowed);
+    } else if (isCurrentlyPaid) {
+      remainingViews = 50; // default for active paid plans
+    }
 
     // 1. Save active subscription snapshot
     const snapshot = {
@@ -36,7 +82,7 @@ export const syncSubscriptionToStorage = (active: any) => {
       isExpired,
       planName: finalPlanName,
       expiryDate: rawExpiry,
-      remainingContacts: Math.max(0, remainingViews)
+      remainingContacts: isCurrentlyPaid ? Math.max(0, remainingViews) : 0
     };
     localStorage.setItem("active_subscription", JSON.stringify(snapshot));
 
@@ -51,7 +97,7 @@ export const syncSubscriptionToStorage = (active: any) => {
           parsed.planName = finalPlanName;
           parsed.membershipType = finalPlanName;
           if (rawExpiry) parsed.planExpiryDate = rawExpiry;
-          parsed.remainingContacts = Math.max(0, remainingViews);
+          parsed.remainingContacts = isCurrentlyPaid ? Math.max(0, remainingViews) : 0;
           localStorage.setItem(key, JSON.stringify(parsed));
         } catch (e) {}
       }
@@ -86,7 +132,8 @@ export const getClientSubscriptionStatus = (): SubscriptionStatus => {
     if (activeRaw) {
       try {
         const active = JSON.parse(activeRaw);
-        const rawExpiry = active.expiryDate || active.ExpiryDate || active.endDate || active.EndDate || null;
+        const rawExpiry = active.expiryDate || active.ExpiryDate || active.endDate || active.EndDate || 
+                          active.planExpiryDate || active.PlanExpiryDate || active.ExpiresAt || active.expiresAt || null;
         let isExpired = Boolean(active.isExpired ?? active.IsExpired ?? false);
         if (rawExpiry) {
           const expDate = new Date(rawExpiry);
@@ -95,10 +142,32 @@ export const getClientSubscriptionStatus = (): SubscriptionStatus => {
           }
         }
 
-        const rawName = String(active.planName || active.PlanName || '').trim();
-        const hasPaidPlan = rawName.length > 0 && !rawName.toLowerCase().includes('free');
-        const isPaid = !isExpired && hasPaidPlan;
-        const remainingContacts = Number(active.remainingContacts ?? active.RemainingContacts ?? active.contactViewsAllowed ?? 0);
+        const rawName = String(
+          active.planName || active.PlanName || 
+          active.membershipType || active.MembershipType || 
+          active.name || ''
+        ).trim();
+
+        const isPaidFlag = Boolean(active.isPaid ?? active.IsPaid ?? active.isCurrentUserPaid ?? active.IsCurrentUserPaid);
+        const hasPaidPlanName = rawName.length > 0 && 
+          !rawName.toLowerCase().includes('free') && 
+          (
+            rawName.toLowerCase().includes('gold') || 
+            rawName.toLowerCase().includes('silver') || 
+            rawName.toLowerCase().includes('diamond') || 
+            rawName.toLowerCase().includes('vip') || 
+            rawName.toLowerCase().includes('premium') ||
+            rawName.toLowerCase().includes('membership')
+          );
+
+        const isPaid = !isExpired && (hasPaidPlanName || (isPaidFlag && rawName.length > 0 && !rawName.toLowerCase().includes('free')));
+        
+        let remainingContacts = 0;
+        if (active.remainingContacts != null) remainingContacts = Number(active.remainingContacts);
+        else if (active.RemainingContacts != null) remainingContacts = Number(active.RemainingContacts);
+        else if (active.remainingContactsAllowed != null) remainingContacts = Number(active.remainingContactsAllowed);
+        else if (active.totalContactsAllowed != null && active.contactsUsed != null) remainingContacts = Math.max(0, Number(active.totalContactsAllowed) - Number(active.contactsUsed));
+        else if (isPaid) remainingContacts = 50;
 
         if (isPaid) {
           return {
@@ -111,7 +180,6 @@ export const getClientSubscriptionStatus = (): SubscriptionStatus => {
             canViewContact: remainingContacts > 0
           };
         } else if (isExpired) {
-          // Explicitly expired
           return {
             isPaid: false,
             planName: 'Free Member',
@@ -140,7 +208,7 @@ export const getClientSubscriptionStatus = (): SubscriptionStatus => {
     }
 
     const u = JSON.parse(raw);
-    const expiry = u.planExpiryDate || u.expiryDate || u.ExpiresAt || u.ExpiryDate || null;
+    const expiry = u.planExpiryDate || u.expiryDate || u.ExpiresAt || u.ExpiryDate || u.endDate || u.EndDate || null;
     let isExpired = false;
 
     if (expiry) {
@@ -160,7 +228,7 @@ export const getClientSubscriptionStatus = (): SubscriptionStatus => {
                             planName.toLowerCase().includes('premium');
 
     const isPaid = (explicitPaid || hasPaidPlanName) && !isExpired;
-    const remainingContacts = Number(u.remainingContacts ?? u.remainingContactsAllowed ?? u.RemainingContacts ?? 0);
+    const remainingContacts = isPaid ? Number(u.remainingContacts ?? u.remainingContactsAllowed ?? u.RemainingContacts ?? 50) : 0;
 
     return {
       isPaid,

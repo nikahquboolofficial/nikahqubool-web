@@ -1,9 +1,53 @@
 "use client";
-import { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, Component, ErrorInfo, ReactNode } from 'react';
 import InboxList from '@/components/chat/InboxList';
 import ChatWindow from '@/components/chat/ChatWindow';
-import { MessageSquare, Sparkles, Loader2 } from 'lucide-react';
+import { MessageSquare, Sparkles, Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
+
+class ChatErrorBoundary extends Component<{ children: ReactNode; onReset?: () => void }, { hasError: boolean }> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("Chat Window Error caught by ChatErrorBoundary:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full p-6 text-center space-y-4 bg-rose-50/40">
+          <div className="w-16 h-16 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 shadow-md">
+            <AlertTriangle size={30} />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-base font-bold text-slate-800">Chat Window Reconnected</h3>
+            <p className="text-xs text-slate-500 max-w-xs">
+              Chat session refreshed. Click below to continue uninterrupted.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              this.setState({ hasError: false });
+              if (this.props.onReset) this.props.onReset();
+            }}
+            className="px-5 py-2.5 rounded-full bg-[#d91b5c] hover:bg-[#b01348] text-white text-xs font-bold shadow-md flex items-center gap-2 cursor-pointer transition-all"
+          >
+            <RefreshCw size={14} /> Open Chat
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function MessagesContainer() {
   const [selectedChat, setSelectedChat] = useState<any>(null);
@@ -43,15 +87,17 @@ function MessagesContainer() {
       {/* CHAT WINDOW */}
       <div className={`flex-1 h-full min-w-0 bg-[#FAF8F5] flex flex-col ${!selectedChat ? 'hidden md:flex' : 'flex'}`}>
         {selectedChat ? (
-          <ChatWindow 
-            receiverId={selectedChat.userId ?? selectedChat.UserId} 
-            userName={selectedChat.fullName ?? selectedChat.FullName} 
-            photoUrl={selectedChat.photoUrl ?? selectedChat.PhotoUrl ?? selectedChat.mainPhotoUrl ?? selectedChat.MainPhotoUrl}
-            initialIsOnline={selectedChat.isOnline ?? selectedChat.IsOnline}
-            initialLastSeen={selectedChat.lastSeen ?? selectedChat.LastSeen}
-            initialAccountState={selectedChat.accountState ?? selectedChat.AccountState}
-            onBack={() => setSelectedChat(null)} 
-          />
+          <ChatErrorBoundary onReset={() => setSelectedChat({ ...selectedChat })}>
+            <ChatWindow 
+              receiverId={selectedChat.userId ?? selectedChat.UserId} 
+              userName={selectedChat.fullName ?? selectedChat.FullName} 
+              photoUrl={selectedChat.photoUrl ?? selectedChat.PhotoUrl ?? selectedChat.mainPhotoUrl ?? selectedChat.MainPhotoUrl}
+              initialIsOnline={selectedChat.isOnline ?? selectedChat.IsOnline}
+              initialLastSeen={selectedChat.lastSeen ?? selectedChat.LastSeen}
+              initialAccountState={selectedChat.accountState ?? selectedChat.AccountState}
+              onBack={() => setSelectedChat(null)} 
+            />
+          </ChatErrorBoundary>
         ) : (
           <div className="hidden md:flex flex-col items-center justify-center h-full text-center p-8 bg-gradient-to-b from-[#FAF8F5] via-white to-[#FAF8F5] space-y-4">
             <motion.div 

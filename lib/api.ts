@@ -657,8 +657,9 @@ export const fetchActiveSubscriptionApi = async (token: string | null | undefine
     });
 
     if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
-    const data = await res.json();
-    return { success: true, data: data?.data || data };
+    const json = await res.json();
+    const actualData = (json && typeof json === 'object' && 'data' in json) ? json.data : json;
+    return { success: true, data: actualData };
   } catch (error) {
     return { success: false, message: "Failed to fetch active subscription." };
   }
@@ -677,8 +678,9 @@ export const fetchSubscriptionHistoryApi = async (token: string | null | undefin
     });
 
     if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
-    const data = await res.json();
-    return { success: true, data: data?.data || data };
+    const json = await res.json();
+    const actualData = (json && typeof json === 'object' && 'data' in json) ? json.data : json;
+    return { success: true, data: actualData };
   } catch (error) {
     return { success: false, message: "Failed to fetch payment history." };
   }

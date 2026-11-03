@@ -48,6 +48,7 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
   }, [chats]);
 
   const getToken = (): string | null => getAuthToken();
+  const processedInboxMsgIdsRef = useRef<Set<string>>(new Set());
 
   const parseUtcDate = (dateVal: any) => {
     if (!dateVal) return new Date();
@@ -55,10 +56,8 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
       return isNaN(dateVal.getTime()) ? new Date() : dateVal;
     }
     try {
-      let str = String(dateVal).trim().replace(' ', 'T');
-      if (!str.endsWith('Z') && !str.includes('+')) {
-        str += 'Z';
-      }
+      // Clean string and strip trailing Z to preserve Indian Standard Time without artificial +5:30 offset
+      const str = String(dateVal).trim().replace(/z$/i, '').replace(' ', 'T');
       const d = new Date(str);
       return isNaN(d.getTime()) ? new Date() : d;
     } catch {
@@ -71,7 +70,7 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
     const messageDate = parseUtcDate(dateString);
     const now = new Date();
     const isToday = messageDate.toDateString() === now.toDateString();
-    if (isToday) return messageDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    if (isToday) return messageDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
     return messageDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' });
   };
 
@@ -99,11 +98,18 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
     fetchInbox();
   }, []);
 
-  // 🔔 REAL-TIME MESSAGE RECEPTION (DIRECT SIGNALR + GLOBAL EVENT BUS)
+  // 🔔 REAL-TIME MESSAGE RECEPTION (DIRECT SINGLE GLOBAL EVENT BUS WITH DEDUPLICATION)
   useEffect(() => {
     const handleIncomingMessage = (senderId: any, rId: any, messageText: string, msgId?: any, sentAt?: string) => {
       const incomingSenderId = Number(senderId);
       const incomingReceiverId = Number(rId);
+
+      // Deduplicate rapid or duplicate dispatches by unique msgId
+      if (msgId) {
+        const idKey = String(msgId);
+        if (processedInboxMsgIdsRef.current.has(idKey)) return;
+        processedInboxMsgIdsRef.current.add(idKey);
+      }
 
       setChats((prevChats) => {
         const currentList = Array.isArray(prevChats) ? prevChats : [];
@@ -123,17 +129,15 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
             target.unreadCount = (target.unreadCount ?? target.UnreadCount ?? 0) + 1;
           }
           updated.splice(index, 1);
-          return [target, ...updated];
+          const finalList = [target, ...updated];
+          try { sessionStorage.setItem("cached_chat_inbox", JSON.stringify(finalList)); } catch (e) {}
+          return finalList;
         } else {
           fetchInbox();
           return currentList;
         }
       });
     };
-
-    if (connection) {
-      connection.on("ReceiveMessage", handleIncomingMessage);
-    }
 
     const handleGlobalMsg = (e: any) => {
       const { senderId, receiverId, messageText, msgId, sentAt } = e.detail || {};
@@ -145,12 +149,9 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
     window.addEventListener("global_message_received", handleGlobalMsg);
 
     return () => {
-      if (connection) {
-        connection.off("ReceiveMessage", handleIncomingMessage);
-      }
       window.removeEventListener("global_message_received", handleGlobalMsg);
     };
-  }, [connection]);
+  }, []);
 
   const handleChatClick = async (chat: any) => {
     const targetUserId = chat.userId ?? chat.UserId;
@@ -210,7 +211,15 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
 
     const unread = chat.unreadCount ?? chat.UnreadCount ?? 0;
     if (unread > 0) {
-      setChats(prev => prev.map(c => ((c.userId ?? c.UserId) === targetUserId ? { ...c, unreadCount: 0, UnreadCount: 0 } : c)));
+      setChats(prev => {
+        const updated = prev.map(c => ((c.userId ?? c.UserId) === targetUserId ? { ...c, unreadCount: 0, UnreadCount: 0 } : c));
+        try {
+          sessionStorage.setItem("cached_chat_inbox", JSON.stringify(updated));
+          const totalUnread = updated.reduce((sum, c) => sum + Number(c.unreadCount ?? c.UnreadCount ?? 0), 0);
+          window.dispatchEvent(new CustomEvent('chat_unread_count_updated', { detail: { count: totalUnread } }));
+        } catch (e) {}
+        return updated;
+      });
       const token = getToken();
       markChatReadApi(targetUserId, token).catch(() => {});
     }
