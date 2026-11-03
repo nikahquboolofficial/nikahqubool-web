@@ -1,5 +1,8 @@
 "use client";
 
+import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
+
+import { getClientSubscriptionStatus } from '@/lib/subscriptionUtils';
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Search, SlidersHorizontal, X, ChevronRight,
@@ -13,7 +16,6 @@ import { searchMatchesApi, handleInteractionApiCall, fetchMasterDataApi } from '
 import { checkDailyViewLimit, formatTimeRemaining } from '@/lib/limitUtils';
 import ProfileCard from '@/components/dashboard/ProfileCard';
 import ProfileCardSkeleton from '@/components/dashboard/ProfileCardSkeleton';
-import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
 import { getAuthToken } from '@/lib/auth';
 
 // COMPREHENSIVE MASTER FALLBACK DATA
@@ -284,13 +286,8 @@ export default function FindMatchesPage() {
   };
 
   const handleInitiateChat = (user: any) => {
-    const isPaid = Boolean(
-      user.isCanChat ?? user.IsCanChat ?? 
-      user.isCurrentUserPaid ?? user.IsCurrentUserPaid ?? 
-      isUserPaid
-    );
-
-    if (isPaid) {
+    const status = getClientSubscriptionStatus();
+    if (status.canChat) {
       sessionStorage.setItem('active_chat_target', JSON.stringify({
         userId: user.userId || user.UserId,
         fullName: user.fullName || user.FullName,

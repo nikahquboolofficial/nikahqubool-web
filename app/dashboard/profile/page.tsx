@@ -1,5 +1,8 @@
 "use client";
 
+import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
+
+import { getClientSubscriptionStatus } from '@/lib/subscriptionUtils';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
@@ -15,7 +18,6 @@ import { toast, Toaster } from 'sonner';
 import { fetchProfileDetailsApi, viewContactDetailsApi, handleInteractionApiCall, blockUserApiCall, reportUserApiCall, formatLastSeen } from '@/lib/api';
 import { getOptimizedImageUrl } from '@/lib/imageUtils';
 import { useSignalR } from '@/context/SignalRContext';
-import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
 import IslamicBiodataModal from '@/components/dashboard/IslamicBiodataModal';
 import CompatibilityScoreModal, { calculateCompatibilityScore } from '@/components/dashboard/CompatibilityScoreModal';
 import { getAuthToken } from '@/lib/auth';
@@ -67,37 +69,10 @@ export default function ProfileDetailPage() {
   const getToken = useCallback(() => getAuthToken(), []);
 
   const checkIsUserPaid = useCallback((profile?: any, apiData?: any): boolean => {
-    // 1. Check API explicitly returned current user flag (backend UserRepository sets IsCurrentUserPaid)
-    if (apiData) {
-      if (apiData.isCurrentUserPaid || apiData.IsCurrentUserPaid) return true;
-    }
-
-    if (profile) {
-      if (profile.isCurrentUserPaid || profile.IsCurrentUserPaid) return true;
-    }
-
-    // 2. Check current logged-in user details in localStorage
-    if (typeof window !== "undefined") {
-      try {
-        const stored = localStorage.getItem("user_details") || localStorage.getItem("user_session");
-        if (stored) {
-          const u = JSON.parse(stored);
-          const val = (v: any) => v === true || v === 1 || v === "1" || v === "true";
-          if (
-            val(u.isPaid) || val(u.IsPaid) ||
-            val(u.isCurrentUserPaid) || val(u.IsCurrentUserPaid) ||
-            val(u.isCanChat) || val(u.IsCanChat) ||
-            String(u.membershipType || u.MembershipType || '').toLowerCase().includes('paid') ||
-            String(u.membershipType || u.MembershipType || '').toLowerCase().includes('vip') ||
-            String(u.membershipType || u.MembershipType || '').toLowerCase().includes('premium') ||
-            (u.membershipTypeId && Number(u.membershipTypeId) > 1)
-          ) {
-            return true;
-          }
-        }
-      } catch (e) {}
-    }
-
+    const status = getClientSubscriptionStatus();
+    if (status.canChat) return true;
+    if (apiData && (apiData.isCurrentUserPaid || apiData.IsCurrentUserPaid)) return true;
+    if (profile && (profile.isCurrentUserPaid || profile.IsCurrentUserPaid)) return true;
     return false;
   }, []);
 

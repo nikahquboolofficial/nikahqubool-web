@@ -1,5 +1,8 @@
 "use client";
 
+import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
+
+import { getClientSubscriptionStatus } from '@/lib/subscriptionUtils';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
@@ -10,8 +13,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import { fetchDashboardApi, handleInteractionApiCall } from '@/lib/api';
 import ProfileCard from '@/components/dashboard/ProfileCard';
-import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
-
 export type IconType = 'send' | 'inbox' | 'bookmark' | 'heart' | 'lock' | 'sparkles' | 'eye' | 'flame';
 
 interface ActivityTabContentProps {

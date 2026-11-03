@@ -20,6 +20,27 @@ export default function GalleryManagementPage() {
   // Modal State for Photo Action
   const [selectedPhoto, setSelectedPhoto] = useState<any | null>(null);
 
+  // ⚡ 0ms INSTANT HYDRATION FROM LOCAL CACHE (Zero Spinner Delays)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("cached_profile_details") || localStorage.getItem("user_details");
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          const p = parsed.profile || parsed.Profile || parsed;
+          const g = parsed.gallery || parsed.Gallery || p.userPhotos || p.UserPhotos || [];
+          if (Array.isArray(g) && g.length > 0) {
+            setPhotos(g);
+            setLoading(false);
+          } else if (p.mainPhotoUrl || p.photoUrl) {
+            setPhotos([{ photoId: 1, photoUrl: p.mainPhotoUrl || p.photoUrl, isMain: true }]);
+            setLoading(false);
+          }
+        } catch (e) {}
+      }
+    }
+  }, []);
+
   const getCookie = (name: string) => {
     if (typeof document === "undefined") return null;
     const value = `; ${document.cookie}`;
@@ -78,6 +99,10 @@ export default function GalleryManagementPage() {
       if (mainPhoto?.photoUrl) {
         updateSessionPhoto(mainPhoto.photoUrl);
       }
+
+      if (typeof window !== "undefined") {
+        try { localStorage.setItem("cached_profile_details", JSON.stringify(res.data)); } catch (e) {}
+      }
     }
     setLoading(false);
   }, [getToken, router]);
@@ -105,18 +130,21 @@ export default function GalleryManagementPage() {
       return;
     }
 
-    if (photos.length >= 3 && !selectedPhoto) {
+    const token = getToken();
+    const oldPhotoId = selectedPhoto ? (selectedPhoto.photoId || selectedPhoto.PhotoId) : null;
+    const isReplacing = Boolean(selectedPhoto && oldPhotoId);
+
+    if (photos.length >= 3 && !isReplacing) {
       toast.error("You can upload a maximum of 3 photos (1 Main Profile Photo + 2 Additional Photos).");
       return;
     }
 
-    const token = getToken();
-    const isReplacingMain = selectedPhoto ? Boolean(selectedPhoto.isMain ?? selectedPhoto.IsMain) : false;
-    const oldPhotoId = selectedPhoto ? (selectedPhoto.photoId || selectedPhoto.PhotoId) : null;
-
     const formData = new FormData();
     formData.append("Photo", file);
     formData.append("PhotoPrivacy", privacy);
+    if (isReplacing && oldPhotoId) {
+      formData.append("ReplacePhotoId", String(oldPhotoId));
+    }
 
     setUploading(true);
     const res = await uploadGalleryPhotoApi(formData, token);
@@ -124,28 +152,13 @@ export default function GalleryManagementPage() {
     if (res.success) {
       const resAny = res as any;
       const returnedPhotoUrl = resAny.data?.photoUrl || resAny.photoUrl;
+      const isMain = Boolean(resAny.isMain ?? resAny.data?.isMain ?? selectedPhoto?.isMain ?? false);
 
-      // 🔄 IF REPLACING AN EXISTING PHOTO
-      if (selectedPhoto && oldPhotoId) {
-        const newPhotoId = resAny.data?.photoId || resAny.data?.PhotoId || resAny.photoId || resAny.PhotoId;
-        
-        if (isReplacingMain && newPhotoId) {
-          await setMainPhotoApi(newPhotoId, token);
-          if (returnedPhotoUrl) {
-            updateSessionPhoto(returnedPhotoUrl);
-          }
-        } else if (oldPhotoId && !isReplacingMain) {
-          await deleteGalleryPhotoApi(oldPhotoId, token);
-        }
-        toast.success("Photo replaced successfully!");
-      } else {
-        // If this is the user's first photo or marked as main, sync everywhere
-        if ((photos.length === 0 || resAny.isMain || resAny.data?.isMain) && returnedPhotoUrl) {
-          updateSessionPhoto(returnedPhotoUrl);
-        }
-        toast.success(res.message || "Photo uploaded successfully!");
+      if ((photos.length === 0 || isMain) && returnedPhotoUrl) {
+        updateSessionPhoto(returnedPhotoUrl);
       }
 
+      toast.success(isReplacing ? "Photo replaced successfully!" : (res.message || "Photo uploaded successfully!"));
       setSelectedPhoto(null);
       await loadGalleryData();
     } else {
@@ -187,11 +200,6 @@ export default function GalleryManagementPage() {
 
   const handleDeletePhoto = async (photo: any) => {
     if (!photo) return;
-    const isMain = Boolean(photo.isMain ?? photo.IsMain);
-    if (isMain) {
-      toast.error("The main profile photo is mandatory and cannot be deleted. You can replace or change it with another photo.");
-      return;
-    }
     
     const token = getToken();
     const photoId = photo.photoId || photo.PhotoId;
@@ -202,9 +210,19 @@ export default function GalleryManagementPage() {
     setUploading(false);
 
     if (res.success) {
-      toast.success("Photo deleted from gallery.");
+      toast.success("Photo deleted successfully.");
       setSelectedPhoto(null);
       await loadGalleryData();
+      
+      const remaining = photos.filter((p: any) => (p.photoId || p.PhotoId) !== photoId);
+      if (remaining.length > 0) {
+        const nextMain = remaining.find((p: any) => Boolean(p.isMain ?? p.IsMain)) || remaining[0];
+        if (nextMain?.photoUrl) {
+          updateSessionPhoto(nextMain.photoUrl);
+        }
+      } else {
+        updateSessionPhoto('');
+      }
     } else {
       toast.error(res.message || "Failed to delete photo.");
     }
@@ -380,21 +398,9 @@ export default function GalleryManagementPage() {
                 />
               </div>
 
-              {isMainSelected ? (
-                <div className="space-y-3 pt-1">
-                  <label className="w-full p-3.5 bg-[#d91b5c] hover:bg-[#6e0a33] text-white font-black text-xs rounded-2xl flex items-center justify-center gap-2 cursor-pointer shadow-md transition-all">
-                    <input type="file" accept="image/*" onChange={handleFileUpload} disabled={uploading} className="hidden" />
-                    {uploading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />} 
-                    Replace Main Profile Photo
-                  </label>
-                  <p className="text-[11px] font-bold text-slate-500 text-center flex items-center justify-center gap-1.5 bg-rose-50 p-2.5 rounded-xl border border-rose-100">
-                    <ShieldAlert size={15} className="text-amber-600 shrink-0" />
-                    <span>The main profile photo cannot be deleted. You can replace it directly or select another photo as main.</span>
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2 pt-1">
-                  <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2 pt-1">
+                <div className={`grid ${!isMainSelected ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
+                  {!isMainSelected && (
                     <button 
                       type="button" 
                       onClick={() => handleSetPrimary(selectedPhoto)} 
@@ -404,24 +410,25 @@ export default function GalleryManagementPage() {
                       {uploading ? <Loader2 size={15} className="animate-spin" /> : <Star size={15} />} 
                       Make Main
                     </button>
+                  )}
 
-                    <label className="p-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-black text-xs rounded-2xl flex items-center justify-center gap-1.5 cursor-pointer transition-all">
-                      <input type="file" accept="image/*" onChange={handleFileUpload} disabled={uploading} className="hidden" />
-                      <RefreshCw size={15} /> Replace
-                    </label>
-                  </div>
-
-                  <button 
-                    type="button" 
-                    onClick={() => handleDeletePhoto(selectedPhoto)} 
-                    disabled={uploading}
-                    className="w-full p-3 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs rounded-2xl flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-md"
-                  >
-                    {uploading ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />} 
-                    Delete Photo
-                  </button>
+                  <label className="p-3 bg-[#d91b5c] hover:bg-[#b01449] text-white font-black text-xs rounded-2xl flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-sm">
+                    <input type="file" accept="image/*" onChange={handleFileUpload} disabled={uploading} className="hidden" />
+                    {uploading ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />} 
+                    Replace Photo
+                  </label>
                 </div>
-              )}
+
+                <button 
+                  type="button" 
+                  onClick={() => handleDeletePhoto(selectedPhoto)} 
+                  disabled={uploading}
+                  className="w-full p-3 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 hover:border-rose-300 font-black text-xs rounded-2xl flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-xs"
+                >
+                  {uploading ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />} 
+                  Delete Photo
+                </button>
+              </div>
 
             </motion.div>
           </div>

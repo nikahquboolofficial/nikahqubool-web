@@ -1,5 +1,6 @@
 "use client";
 
+import { getClientSubscriptionStatus } from '@/lib/subscriptionUtils';
 import React, { useState } from 'react';
 import { 
   Heart, Bookmark, Lock, Check, X, MessageCircle, 
@@ -61,9 +62,8 @@ export default function ProfileCard({
     } catch (e) {}
   }
 
-  const isCurrentUserPaid = Boolean(
-    profile.isCurrentUserPaid ?? profile.IsCurrentUserPaid ?? 
-    profile.isCanChat ?? profile.IsCanChat ?? localPaid
+  const isCurrentUserPaid = getClientSubscriptionStatus().isPaid || Boolean(
+    profile.isCurrentUserPaid ?? profile.IsCurrentUserPaid ?? localPaid
   );
 
   const rawPrivacy = String(profile.photoPrivacy || profile.PhotoPrivacy || 'All Members').toLowerCase().replace(/\s+/g, '');

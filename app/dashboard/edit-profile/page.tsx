@@ -31,6 +31,39 @@ export default function EditMyProfilePage() {
   // Master Data Cache
   const [masterData, setMasterData] = useState<{ [key: string]: MasterOption[] }>({});
 
+  // ⚡ 0ms INSTANT HYDRATION FROM LOCAL CACHE (Zero Spinner Delays)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("cached_profile_details") || localStorage.getItem("user_details");
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          const p = parsed.profile || parsed.Profile || parsed;
+          if (p && (p.fullName || p.FullName || p.userId || p.UserId)) {
+            setFormData((prev: any) => ({
+              ...prev,
+              UserId: p.userId || p.UserId || prev.UserId,
+              FullName: p.fullName || p.FullName || prev.FullName,
+              MobileNumber: p.mobileNumber || p.MobileNumber || prev.MobileNumber,
+              Email: p.email || p.Email || prev.Email,
+              Age: p.age || prev.Age,
+              Gender: p.gender || p.Gender || prev.Gender,
+              AboutMe: p.aboutMe || p.AboutMe || prev.AboutMe,
+              Height: p.height || p.Height || prev.Height,
+              Weight: p.weight || p.Weight || prev.Weight,
+              StateName: p.stateName || p.StateName || prev.StateName,
+              CityName: p.cityName || p.CityName || prev.CityName,
+              HighestDegreeText: p.highestDegree || p.HighestDegree || prev.HighestDegreeText,
+              DesignationText: p.profession || p.Profession || p.designation || prev.DesignationText,
+              AnnualIncome: p.annualIncome || p.AnnualIncome || prev.AnnualIncome,
+            }));
+            setLoading(false);
+          }
+        } catch (e) {}
+      }
+    }
+  }, []);
+
   // Form State
   const [formData, setFormData] = useState<any>({
     UserId: 0,
@@ -352,6 +385,10 @@ export default function EditMyProfilePage() {
           casteIds: parseArray(pref.preferredCaste),
           languageIds: parseArray(pref.preferredMotherTongue)
         }));
+      }
+
+      if (typeof window !== "undefined") {
+        try { localStorage.setItem("cached_profile_details", JSON.stringify(res.data)); } catch (e) {}
       }
     }
 

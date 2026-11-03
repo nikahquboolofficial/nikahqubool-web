@@ -63,13 +63,28 @@ export default function MyProfilePage() {
 
   const [profileData, setProfileData] = useState<any>(null);
   const [activePlan, setActivePlan] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [isVerificationOpen, setIsVerificationOpen] = useState(false);
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
   const [selectedPrivacy, setSelectedPrivacy] = useState<string>('All Members');
   const [savingPrivacy, setSavingPrivacy] = useState(false);
 
   const getToken = useCallback(() => getAuthToken(), []);
+
+  // ⚡ INSTANT 0ms HYDRATION FROM LOCAL CACHE
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("cached_profile_details") || localStorage.getItem("user_details");
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed && typeof parsed === "object") {
+            setProfileData(parsed);
+          }
+        } catch (e) {}
+      }
+    }
+  }, []);
 
   const loadMyProfile = useCallback(async () => {
     const token = getToken();
@@ -89,7 +104,11 @@ export default function MyProfilePage() {
       }
     }
 
-    setLoading(true);
+    // Only show skeleton if we have zero cached data
+    if (!profileData && typeof window !== "undefined" && !localStorage.getItem("cached_profile_details") && !localStorage.getItem("user_details")) {
+      setLoading(true);
+    }
+
     try {
       const [profileRes, subRes] = await Promise.all([
         fetchProfileDetailsApi(userId > 0 ? userId : 0, token),
@@ -100,6 +119,9 @@ export default function MyProfilePage() {
         const p = profileRes.data.profile || profileRes.data.Profile || profileRes.data;
         setProfileData(p);
         setSelectedPrivacy(p.photoPrivacy || p.PhotoPrivacy || 'All Members');
+        if (typeof window !== "undefined") {
+          localStorage.setItem("cached_profile_details", JSON.stringify(p));
+        }
       }
 
       if (subRes.success && subRes.data) {
@@ -110,7 +132,7 @@ export default function MyProfilePage() {
     } finally {
       setLoading(false);
     }
-  }, [getToken, router]);
+  }, [getToken, router, profileData]);
 
   useEffect(() => {
     loadMyProfile();
@@ -188,12 +210,25 @@ export default function MyProfilePage() {
   };
   const displayExpiry = formatExpiry(rawExpiry);
 
-  if (loading) {
+  if (loading && !profileData) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-4">
-        <div className="text-center space-y-3">
-          <Loader2 size={36} className="animate-spin text-[#E21E5B] mx-auto" />
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Loading your profile...</p>
+      <div className="min-h-screen bg-[#F8F9FA] text-slate-900 pb-28 pt-4 sm:pt-6">
+        <div className="max-w-xl mx-auto px-4 sm:px-6 space-y-4">
+          <div className="flex items-center justify-between py-1">
+            <div className="w-36 h-7 bg-slate-200 rounded-lg shimmer-luxury" />
+            <div className="w-28 h-5 bg-slate-200 rounded-md shimmer-luxury" />
+          </div>
+          <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-slate-100 text-center space-y-4 relative overflow-hidden">
+            <div className="w-28 h-28 mx-auto rounded-full bg-slate-200 shimmer-luxury" />
+            <div className="w-48 h-6 mx-auto bg-slate-200 rounded-lg shimmer-luxury" />
+            <div className="w-32 h-4 mx-auto bg-slate-100 rounded-md shimmer-luxury" />
+            <div className="w-full h-12 bg-rose-50/60 rounded-2xl shimmer-luxury" />
+          </div>
+          <div className="space-y-3">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-white rounded-2xl p-4 border border-slate-100 h-16 shimmer-luxury" />
+            ))}
+          </div>
         </div>
       </div>
     );

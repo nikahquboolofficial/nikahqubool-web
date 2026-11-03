@@ -9,7 +9,7 @@ import { getAuthToken } from '@/lib/auth';
 
 export default function InboxList({ onSelectUser, selectedId }: any) {
   const router = useRouter();
-  const { connection, onlineUsers } = useSignalR();
+  const { connection, onlineUsers, typingUsers } = useSignalR();
 
   const [chats, setChats] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -18,14 +18,6 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
   useEffect(() => {
     selectedIdRef.current = selectedId;
   }, [selectedId]);
-
-  const getCookie = (name: string): string | null => {
-    if (typeof document === "undefined") return null;
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop()?.split(';').shift() ?? null;
-    return null;
-  };
 
   const getToken = (): string | null => getAuthToken();
 
@@ -51,9 +43,12 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
   const fetchInbox = async () => {
     const token = getToken();
     if (!token) return;
-    const res = await fetchChatInboxApi(1, 30, token);
-    if (res.success && res.data) {
-      setChats(res.data?.data ?? res.data ?? []);
+    try {
+      const res = await fetchChatInboxApi(1, 40, token);
+      const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.data?.data) ? res.data.data : []);
+      setChats(list);
+    } catch {
+      setChats([]);
     }
   };
 
@@ -61,15 +56,15 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
     fetchInbox();
   }, []);
 
+  // 🔔 REAL-TIME MESSAGE RECEPTION (DIRECT SIGNALR + GLOBAL EVENT BUS)
   useEffect(() => {
-    if (!connection) return;
-
-    const handleReceiveMessage = (senderId: any, rId: any, messageText: string, msgId?: any, sentAt?: string) => {
+    const handleIncomingMessage = (senderId: any, rId: any, messageText: string, msgId?: any, sentAt?: string) => {
       const incomingSenderId = Number(senderId);
       const incomingReceiverId = Number(rId);
 
       setChats((prevChats) => {
-        const index = prevChats.findIndex(c => {
+        const currentList = Array.isArray(prevChats) ? prevChats : [];
+        const index = currentList.findIndex(c => {
           const cId = Number(c.userId ?? c.UserId);
           return cId === incomingSenderId || cId === incomingReceiverId;
         });
@@ -77,7 +72,7 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
         const isOpen = Number(selectedIdRef.current) === incomingSenderId || Number(selectedIdRef.current) === incomingReceiverId;
 
         if (index !== -1) {
-          const updated = [...prevChats];
+          const updated = [...currentList];
           const target = { ...updated[index] };
           target.lastMessage = messageText;
           target.lastMessageTime = sentAt || new Date().toISOString();
@@ -88,13 +83,30 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
           return [target, ...updated];
         } else {
           fetchInbox();
-          return prevChats;
+          return currentList;
         }
       });
     };
 
-    connection.on("ReceiveMessage", handleReceiveMessage);
-    return () => { connection.off("ReceiveMessage", handleReceiveMessage); };
+    if (connection) {
+      connection.on("ReceiveMessage", handleIncomingMessage);
+    }
+
+    const handleGlobalMsg = (e: any) => {
+      const { senderId, receiverId, messageText, msgId, sentAt } = e.detail || {};
+      if (senderId && messageText) {
+        handleIncomingMessage(senderId, receiverId, messageText, msgId, sentAt);
+      }
+    };
+
+    window.addEventListener("global_message_received", handleGlobalMsg);
+
+    return () => {
+      if (connection) {
+        connection.off("ReceiveMessage", handleIncomingMessage);
+      }
+      window.removeEventListener("global_message_received", handleGlobalMsg);
+    };
   }, [connection]);
 
   const handleChatClick = async (chat: any) => {
@@ -163,7 +175,7 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
 
   // 🔓 INSTANT INBOX UNBLOCK HANDLER
   const handleUnblockUser = async (e: React.MouseEvent, chat: any) => {
-    e.stopPropagation(); // Chat select prevent karta hai
+    e.stopPropagation();
     const targetUserId = chat.userId ?? chat.UserId;
     const token = getToken();
     if (!token) return;
@@ -187,7 +199,8 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
     }
   };
 
-  const filteredChats = chats.filter(c => (c.fullName ?? c.FullName ?? "").toLowerCase().includes(searchTerm.toLowerCase()));
+  const safeChatList = Array.isArray(chats) ? chats : [];
+  const filteredChats = safeChatList.filter(c => (c.fullName ?? c.FullName ?? "").toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <div className="flex flex-col h-full bg-white border-r border-rose-100/80 selection:bg-[#d91b5c] selection:text-white">
@@ -195,9 +208,9 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-serif font-black uppercase tracking-tight text-slate-900">Messages</h2>
-            {chats.length > 0 && (
+            {safeChatList.length > 0 && (
               <span className="text-[10px] font-black bg-rose-50 text-[#d91b5c] px-2 py-0.5 rounded-full border border-rose-200/60">
-                {chats.length}
+                {safeChatList.length}
               </span>
             )}
           </div>
@@ -217,111 +230,129 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-2.5 space-y-1.5 bg-white">
-        {filteredChats.map((chat) => {
-          const uId = Number(chat.userId ?? chat.UserId);
-          const accountStateStr = String(chat.accountState || chat.AccountState || '').toLowerCase();
-
-          const isDeleted = Boolean(
-            (chat.isDeleted ?? chat.IsDeleted) || 
-            accountStateStr.includes('del') ||
-            (chat.fullName && String(chat.fullName).toLowerCase() === 'deleted user') ||
-            ((chat.isActive === false || chat.IsActive === false) && !accountStateStr.includes('deact') && !accountStateStr.includes('pause'))
-          );
-          const isDeactive = !isDeleted && Boolean(
-            (chat.isDeactive ?? chat.IsDeactive) || 
-            accountStateStr.includes('deact') || 
-            accountStateStr.includes('pause') ||
-            (chat.fullName && String(chat.fullName).toLowerCase() === 'deactivated user')
-          );
-          const isAdminBlocked = !isDeleted && !isDeactive && Boolean(
-            (chat.isAdminBlocked ?? chat.IsAdminBlocked) || 
-            accountStateStr.includes('admin') ||
-            (chat.fullName && String(chat.fullName).toLowerCase() === 'user unavailable')
-          );
-
-          const fName = isDeleted ? "Deleted User" : (isDeactive ? "Deactivated User" : (isAdminBlocked ? "User Unavailable" : (chat.fullName ?? chat.FullName ?? "User")));
-          const lastMsg = chat.lastMessage ?? chat.LastMessage ?? "Start a conversation...";
-          const lastTime = chat.lastMessageTime ?? chat.LastMessageTime;
-          const unread = chat.unreadCount ?? chat.UnreadCount ?? 0;
-          const isSelected = Number(selectedId) === uId;
-          const isUserOnline = !isDeleted && !isDeactive && !isAdminBlocked && (onlineUsers[uId] ? Boolean(onlineUsers[uId].isOnline) : false);
-
-          // 🎯 INSTAGRAM / FACEBOOK STYLE BLOCK PREVIEW TEXT
-          const isBlockedByMe = Boolean(chat.isBlockedByMe ?? chat.IsBlockedByMe);
-          const isBlockedByOther = Boolean(chat.isBlockedByOther ?? chat.IsBlockedByOther);
-          const isBlocked = Boolean(chat.isBlocked ?? chat.IsBlocked);
-          
-          let displayPreview = lastMsg;
-          if (isDeleted) displayPreview = "Account Deleted";
-          else if (isDeactive) displayPreview = "Account Paused";
-          else if (isAdminBlocked) displayPreview = "User Unavailable";
-          else if (isBlockedByMe) displayPreview = "You blocked this user";
-          else if (isBlockedByOther || isBlocked) displayPreview = "User unavailable";
-
-          const rawPhoto = chat.photoUrl ?? chat.PhotoUrl;
-          const pUrl = (isDeleted || isDeactive || isAdminBlocked)
-            ? "/placeholder.png" 
-            : (rawPhoto ? getOptimizedImageUrl(rawPhoto) : `https://ui-avatars.com/api/?name=${encodeURIComponent(fName)}&background=FFF0F3&color=870c3f&bold=true`);
-
-          return (
-            <div 
-              key={uId} 
-              onClick={() => handleChatClick(chat)}
-              className={`flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all ${
-                isSelected 
-                  ? 'bg-rose-50/90 border border-rose-200/90 shadow-xs ring-1 ring-[#d91b5c]/15' 
-                  : 'hover:bg-rose-50/40 border border-transparent hover:border-rose-100/60'
-              }`}
-            >
-              <div className="relative flex-shrink-0 w-12 h-12">
-                <img 
-                  src={pUrl} 
-                  className="w-12 h-12 rounded-full object-cover object-top border-2 border-[#d91b5c]/25 shadow-xs flex-shrink-0" 
-                  alt="avatar"
-                  onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }}
-                />
-                {isUserOnline && (
-                  <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full shadow-xs ring-1 ring-emerald-300 z-10" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-center">
-                  <h4 className="text-xs font-serif font-black uppercase text-slate-900 truncate">{fName}</h4>
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
-                    {formatChatTime(lastTime)}
-                  </span>
-                </div>
-                
-                <div className="flex items-center justify-between mt-1 gap-2">
-                  <p className={`text-[11px] truncate flex-1 ${
-                    (isBlockedByMe || isBlockedByOther || isBlocked)
-                      ? "text-rose-500 font-bold italic"
-                      : unread > 0 ? "text-[#d91b5c] font-black" : "text-slate-500 font-semibold"
-                  }`}>
-                    {displayPreview}
-                  </p>
-
-                  {/* 🔓 DIRECT UNBLOCK BUTTON IN INBOX ITEM */}
-                  {isBlockedByMe && (
-                    <button 
-                      type="button"
-                      onClick={(e) => handleUnblockUser(e, chat)}
-                      className="text-[10px] font-black text-[#d91b5c] bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2 py-0.5 rounded-full transition-all flex items-center gap-1 cursor-pointer shrink-0 shadow-2xs"
-                    >
-                      <UserX size={11} /> Unblock
-                    </button>
-                  )}
-
-                  {unread > 0 && !isBlockedByMe && !isBlockedByOther && !isBlocked && (
-                    <span className="bg-gradient-to-r from-[#d91b5c] to-rose-600 text-white text-[10px] font-black h-5 min-w-[20px] px-1.5 rounded-full flex items-center justify-center shadow-xs shrink-0">
-                      {unread}
-                    </span>
-                  )}
-                </div>
-              </div>
+        {filteredChats.length === 0 ? (
+          <div className="text-center py-12 px-4 space-y-2">
+            <div className="w-12 h-12 rounded-full bg-rose-50 text-[#d91b5c] flex items-center justify-center mx-auto">
+              <MessageSquare size={20} />
             </div>
-          );
-        })}
+            <p className="text-xs font-bold text-slate-500">No conversations yet</p>
+            <p className="text-[11px] text-slate-400 max-w-[200px] mx-auto">Send a proposal or message from Find Match to start chatting</p>
+          </div>
+        ) : (
+          filteredChats.map((chat) => {
+            const uId = Number(chat.userId ?? chat.UserId);
+            const accountStateStr = String(chat.accountState || chat.AccountState || '').toLowerCase();
+
+            const isDeleted = Boolean(
+              (chat.isDeleted ?? chat.IsDeleted) || 
+              accountStateStr.includes('del') ||
+              (chat.fullName && String(chat.fullName).toLowerCase() === 'deleted user') ||
+              ((chat.isActive === false || chat.IsActive === false) && !accountStateStr.includes('deact') && !accountStateStr.includes('pause'))
+            );
+            const isDeactive = !isDeleted && Boolean(
+              (chat.isDeactive ?? chat.IsDeactive) || 
+              accountStateStr.includes('deact') || 
+              accountStateStr.includes('pause') ||
+              (chat.fullName && String(chat.fullName).toLowerCase() === 'deactivated user')
+            );
+            const isAdminBlocked = !isDeleted && !isDeactive && Boolean(
+              (chat.isAdminBlocked ?? chat.IsAdminBlocked) || 
+              accountStateStr.includes('admin') ||
+              (chat.fullName && String(chat.fullName).toLowerCase() === 'user unavailable')
+            );
+
+            const fName = isDeleted ? "Deleted User" : (isDeactive ? "Deactivated User" : (isAdminBlocked ? "User Unavailable" : (chat.fullName ?? chat.FullName ?? "User")));
+            const lastMsg = chat.lastMessage ?? chat.LastMessage ?? "Start a conversation...";
+            const lastTime = chat.lastMessageTime ?? chat.LastMessageTime;
+            const unread = chat.unreadCount ?? chat.UnreadCount ?? 0;
+            const isSelected = Number(selectedId) === uId;
+            const isUserOnline = !isDeleted && !isDeactive && !isAdminBlocked && (onlineUsers[uId] ? Boolean(onlineUsers[uId].isOnline) : false);
+            const isUserTyping = Boolean(typingUsers[uId]);
+
+            // 🎯 BLOCK PREVIEWS
+            const isBlockedByMe = Boolean(chat.isBlockedByMe ?? chat.IsBlockedByMe);
+            const isBlockedByOther = Boolean(chat.isBlockedByOther ?? chat.IsBlockedByOther);
+            const isBlocked = Boolean(chat.isBlocked ?? chat.IsBlocked);
+            
+            let displayPreview = lastMsg;
+            if (isUserTyping) displayPreview = "typing...";
+            else if (isDeleted) displayPreview = "Account Deleted";
+            else if (isDeactive) displayPreview = "Account Paused";
+            else if (isAdminBlocked) displayPreview = "User Unavailable";
+            else if (isBlockedByMe) displayPreview = "You blocked this user";
+            else if (isBlockedByOther || isBlocked) displayPreview = "User unavailable";
+
+            const rawPhoto = chat.photoUrl ?? chat.PhotoUrl;
+            const pUrl = (isDeleted || isDeactive || isAdminBlocked)
+              ? "/placeholder.png" 
+              : (rawPhoto ? getOptimizedImageUrl(rawPhoto) : `https://ui-avatars.com/api/?name=${encodeURIComponent(fName)}&background=FFF0F3&color=870c3f&bold=true`);
+
+            return (
+              <div 
+                key={uId} 
+                onClick={() => handleChatClick(chat)}
+                className={`flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all ${
+                  isSelected 
+                    ? 'bg-rose-50/90 border border-rose-200/90 shadow-xs ring-1 ring-[#d91b5c]/15' 
+                    : 'hover:bg-rose-50/40 border border-transparent hover:border-rose-100/60'
+                }`}
+              >
+                <div className="relative flex-shrink-0 w-12 h-12">
+                  <img 
+                    src={pUrl} 
+                    className="w-12 h-12 rounded-full object-cover object-top border-2 border-[#d91b5c]/25 shadow-xs flex-shrink-0" 
+                    alt="avatar"
+                    onError={(e) => { 
+                    const target = e.target as HTMLImageElement;
+                    target.onerror = null;
+                    target.src = '/placeholder.png'; 
+                  }}
+                  />
+                  {isUserOnline && (
+                    <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full shadow-xs ring-1 ring-emerald-300 z-10" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-xs font-serif font-black uppercase text-slate-900 truncate">{fName}</h4>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
+                      {formatChatTime(lastTime)}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between mt-1 gap-2">
+                    <p className={`text-[11px] truncate flex-1 ${
+                      isUserTyping
+                        ? "text-emerald-600 font-black animate-pulse"
+                        : (isBlockedByMe || isBlockedByOther || isBlocked)
+                          ? "text-rose-500 font-bold italic"
+                          : unread > 0 ? "text-[#d91b5c] font-black" : "text-slate-500 font-semibold"
+                    }`}>
+                      {displayPreview}
+                    </p>
+
+                    {/* 🔓 UNBLOCK BUTTON */}
+                    {isBlockedByMe && (
+                      <button 
+                        type="button"
+                        onClick={(e) => handleUnblockUser(e, chat)}
+                        className="text-[10px] font-black text-[#d91b5c] bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2 py-0.5 rounded-full transition-all flex items-center gap-1 cursor-pointer shrink-0 shadow-2xs"
+                      >
+                        <UserX size={11} /> Unblock
+                      </button>
+                    )}
+
+                    {unread > 0 && !isBlockedByMe && !isBlockedByOther && !isBlocked && (
+                      <span className="bg-gradient-to-r from-[#d91b5c] to-rose-600 text-white text-[10px] font-black h-5 min-w-[20px] px-1.5 rounded-full flex items-center justify-center shadow-xs shrink-0">
+                        {unread}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );

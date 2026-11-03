@@ -176,7 +176,11 @@ export default function DashboardBottomNav({ unreadCount = 0 }: BottomNavProps) 
                   src={userPhoto} 
                   alt="Profile" 
                   className="w-full h-full object-cover object-top" 
-                  onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }} 
+                  onError={(e) => { 
+                    const target = e.target as HTMLImageElement;
+                    target.onerror = null;
+                    target.src = '/placeholder.png'; 
+                  }} 
                 />
               ) : (
                 <User size={14} className={isProfile ? 'text-[#e21e5b]' : 'text-slate-500'} />

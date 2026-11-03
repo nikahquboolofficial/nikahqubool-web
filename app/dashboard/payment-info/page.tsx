@@ -69,7 +69,7 @@ export default function PaymentInfoPage() {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Invoice - Pakiza Rishte #${txnId}</title>
+          <title>Invoice - Nikah Qubool Matrimony #${txnId}</title>
           <style>
             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #fff; color: #1e293b; padding: 40px; margin: 0; }
             .invoice-box { max-width: 750px; margin: auto; padding: 35px; border: 2px solid #ffe4e6; border-radius: 24px; background: #ffffff; box-shadow: 0 10px 30px rgba(217, 27, 92, 0.05); }
@@ -99,8 +99,8 @@ export default function PaymentInfoPage() {
           <div class="invoice-box">
             <div class="header">
               <div>
-                <div class="logo-text">PAKIZA RISHTE</div>
-                <div class="logo-sub">Pure Connections • Sacred Bonds</div>
+                <div class="logo-text">NIKAH QUBOOL</div>
+                <div class="logo-sub">#1 Trusted Halal Muslim Matrimony</div>
               </div>
               <div>
                 <span class="badge">✓ PAID & VERIFIED</span>
@@ -111,7 +111,7 @@ export default function PaymentInfoPage() {
               <div class="detail-card">
                 <div class="detail-title">INVOICE TO</div>
                 <div class="detail-val">Valued Candidate</div>
-                <div style="font-size:11px; color:#64748b; margin-top:4px;">Pakiza Rishte VIP Member</div>
+                <div style="font-size:11px; color:#64748b; margin-top:4px;">Nikah Qubool VIP Member</div>
               </div>
               <div class="detail-card" style="text-align: right;">
                 <div class="detail-title">TRANSACTION DETAILS</div>
@@ -145,7 +145,7 @@ export default function PaymentInfoPage() {
             </div>
 
             <div class="footer">
-              <p style="margin:0 0 5px 0;">Thank you for choosing <strong>Pakiza Rishte</strong> for your matrimonial search.</p>
+              <p style="margin:0 0 5px 0;">Thank you for choosing <strong>Nikah Qubool Matrimony</strong> for your matrimonial search.</p>
               <p style="margin:0;">This is a computer-generated tax invoice receipt.</p>
             </div>
           </div>

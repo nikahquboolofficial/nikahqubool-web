@@ -1,5 +1,8 @@
 "use client";
 
+import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
+
+import { getClientSubscriptionStatus } from '@/lib/subscriptionUtils';
 import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
@@ -11,7 +14,6 @@ import { toast, Toaster } from 'sonner';
 import { fetchDashboardApi, handleInteractionApiCall } from '@/lib/api';
 import ProfileCard from '@/components/dashboard/ProfileCard';
 import ProfileCardSkeleton from '@/components/dashboard/ProfileCardSkeleton';
-import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
 import { getAuthToken } from '@/lib/auth';
 
 type MainCategory = 'all' | 'interests' | 'visitors' | 'gallery' | 'contacts' | 'shortlist';
@@ -126,8 +128,16 @@ function ActivityPageContent() {
     }
 
     if (pageNum === 1) {
-      setProfiles([]);
-      setLoading(true);
+      if (tabCacheRef.current[tabName]?.profiles?.length > 0) {
+        // ⚡ INSTANT 0ms RENDER FROM CACHE (Zero UI Lag / No Flash)
+        setProfiles(tabCacheRef.current[tabName].profiles);
+        if (tabCacheRef.current[tabName].counts) setTabCounts(tabCacheRef.current[tabName].counts);
+        setHasMore(tabCacheRef.current[tabName].hasMore);
+        setLoading(false);
+      } else {
+        setProfiles([]);
+        setLoading(true);
+      }
     } else {
       setFetchingMore(true);
     }
@@ -158,6 +168,12 @@ function ActivityPageContent() {
           setProfiles((prev) => [...prev, ...rawProfiles]);
         } else {
           setProfiles(rawProfiles);
+          // ⚡ SAVE TO INSTANT TAB CACHE
+          tabCacheRef.current[tabName] = {
+            profiles: rawProfiles,
+            counts: counts && Object.keys(counts).length > 0 ? counts : tabCounts,
+            hasMore: rawProfiles.length >= 12
+          };
         }
 
         if (counts && Object.keys(counts).length > 0) {

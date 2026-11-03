@@ -1,5 +1,5 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.nikahqubool.in/api";
-
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.nikahqubool.in/api"; 
+//export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://localhost:7204/api";
 // ⚡ Dynamic SignalR Hub URL
 export const SIGNALR_HUB_URL = API_BASE_URL.replace(/\/api\/?$/, '') + "/chatHub";
 
@@ -51,11 +51,26 @@ export const sanitizeErrorMessage = (msg: string | undefined | null): string => 
   return msg;
 };
 
+// ⚡ High-Performance Resilient Fetcher with Timeout Shield (Prevents Infinite Spinners)
+export const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs: number = 15000): Promise<Response> => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      ...options,
+      signal: options.signal || controller.signal,
+    });
+    return res;
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 // 🔓 Public: Profile Created For Master
 export const fetchProfileCreatedForOptions = async (): Promise<MasterOption[]> => {
   if (masterOptionsCache && masterOptionsCache.length > 0) return masterOptionsCache;
   if (typeof window !== "undefined") {
-    const localData = sessionStorage.getItem("cache_profile_options");
+    const localData = sessionStorage.getItem("cache_profile_options") || localStorage.getItem("cache_profile_options");
     if (localData) {
       try {
         masterOptionsCache = JSON.parse(localData);
@@ -65,19 +80,22 @@ export const fetchProfileCreatedForOptions = async (): Promise<MasterOption[]> =
   }
 
   try {
-    const res = await fetch(`${API_BASE_URL}/Master/PROFILE_CREATED_FOR`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/Master/PROFILE_CREATED_FOR`);
     const result = await res.json();
     if (result && (result.success || result.Success) && Array.isArray(result.data || result.Data)) {
       const dataList = result.data || result.Data;
       masterOptionsCache = dataList;
-      if (typeof window !== "undefined") sessionStorage.setItem("cache_profile_options", JSON.stringify(dataList));
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("cache_profile_options", JSON.stringify(dataList));
+        localStorage.setItem("cache_profile_options", JSON.stringify(dataList));
+      }
       return dataList;
     }
   } catch (error) {}
   return [];
 };
 
-// 🔓 Public: Master Data Fetcher (No Token Needed)
+// 🔓 Public: Master Data Fetcher (No Token Needed, Instant Cached)
 export const fetchMasterDataApi = async (type: string): Promise<MasterOption[]> => {
   const cacheKey = `cache_master_${type.toUpperCase()}`;
   if (masterCategoryCache[cacheKey] && masterCategoryCache[cacheKey].length > 0) {
@@ -85,7 +103,7 @@ export const fetchMasterDataApi = async (type: string): Promise<MasterOption[]> 
   }
 
   if (typeof window !== "undefined") {
-    const local = sessionStorage.getItem(cacheKey);
+    const local = sessionStorage.getItem(cacheKey) || localStorage.getItem(cacheKey);
     if (local) {
       try {
         const parsed = JSON.parse(local);
@@ -98,7 +116,7 @@ export const fetchMasterDataApi = async (type: string): Promise<MasterOption[]> 
   }
 
   try {
-    const res = await fetch(`${API_BASE_URL}/Master/${type}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/Master/${type}`);
     const json = await res.json();
     const rawList = Array.isArray(json) ? json : (json.data || json.Data || json.result || []);
     if (Array.isArray(rawList) && rawList.length > 0) {
@@ -107,7 +125,10 @@ export const fetchMasterDataApi = async (type: string): Promise<MasterOption[]> 
         value: item.value ?? item.Value ?? item.name ?? item.Name ?? item.text ?? item.Text ?? String(item.id || item.Id || '')
       }));
       masterCategoryCache[cacheKey] = list;
-      if (typeof window !== "undefined") sessionStorage.setItem(cacheKey, JSON.stringify(list));
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(cacheKey, JSON.stringify(list));
+        localStorage.setItem(cacheKey, JSON.stringify(list));
+      }
       return list;
     }
   } catch (e) {}
@@ -115,19 +136,44 @@ export const fetchMasterDataApi = async (type: string): Promise<MasterOption[]> 
   return [];
 };
 
-// 🔓 Public: Cities Fetcher (No Token Needed)
+// 🔓 Public: Cities Fetcher (No Token Needed, Instant Cached per State)
 export const fetchCitiesApi = async (stateId: number | string): Promise<MasterOption[]> => {
   if (stateId === null || stateId === undefined || stateId === '') return [];
   const numericStateId = Number(stateId);
   if (isNaN(numericStateId) || numericStateId < 0) return [];
+
+  const cacheKey = `cache_cities_${numericStateId}`;
+  if (masterCategoryCache[cacheKey] && masterCategoryCache[cacheKey].length > 0) {
+    return masterCategoryCache[cacheKey];
+  }
+
+  if (typeof window !== "undefined") {
+    const local = sessionStorage.getItem(cacheKey) || localStorage.getItem(cacheKey);
+    if (local) {
+      try {
+        const parsed = JSON.parse(local);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          masterCategoryCache[cacheKey] = parsed;
+          return parsed;
+        }
+      } catch (e) {}
+    }
+  }
+
   try {
-    const res = await fetch(`${API_BASE_URL}/Master/CITIES?parentId=${numericStateId}`);
+    const res = await fetchWithTimeout(`${API_BASE_URL}/Master/CITIES?parentId=${numericStateId}`);
     const json = await res.json();
     const rawList = Array.isArray(json) ? json : (json.data || json.Data || json.result || []);
-    return (Array.isArray(rawList) ? rawList : []).map((item: any) => ({
+    const list: MasterOption[] = (Array.isArray(rawList) ? rawList : []).map((item: any) => ({
       id: item.id ?? item.Id ?? item.masterId ?? item.value ?? item.Value,
       value: item.value ?? item.Value ?? item.name ?? item.Name ?? item.text ?? item.Text ?? String(item.id || item.Id || '')
     }));
+    masterCategoryCache[cacheKey] = list;
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(cacheKey, JSON.stringify(list));
+      localStorage.setItem(cacheKey, JSON.stringify(list));
+    }
+    return list;
   } catch (e) {
     return [];
   }
@@ -245,7 +291,7 @@ export const fetchDashboardApi = async (activeTab: string, pageNumber: number, t
   if (!token) return { success: false, isUnauthorized: true, message: "Unauthorized token" };
 
   try {
-    const res = await fetch(`${API_BASE_URL}/Dashboard/get-dashboard?activeTab=${activeTab}&pageNumber=${pageNumber}&pageSize=12`, {
+    const res = await fetchWithTimeout(`${API_BASE_URL}/Dashboard/get-dashboard?activeTab=${activeTab}&pageNumber=${pageNumber}&pageSize=12`, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${token}`,
@@ -268,7 +314,7 @@ export const fetchNotificationCountsApi = async (token: string | null | undefine
   if (!token) return { success: false, isUnauthorized: true, message: "Unauthorized token" };
 
   try {
-    const res = await fetch(`${API_BASE_URL}/Dashboard/notifications-count`, {
+    const res = await fetchWithTimeout(`${API_BASE_URL}/Dashboard/notifications-count`, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${token}`,
@@ -291,7 +337,7 @@ export const handleInteractionApiCall = async (receiverUserId: number, interacti
   if (!token) return { success: false, isUnauthorized: true, message: "Unauthorized token" };
 
   try {
-    const res = await fetch(`${API_BASE_URL}/Dashboard/handle-interaction`, {
+    const res = await fetchWithTimeout(`${API_BASE_URL}/Dashboard/handle-interaction`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${token}`,
@@ -313,7 +359,7 @@ export const fetchProfileDetailsApi = async (targetUserId: number, token: string
   if (!token) return { success: false, isUnauthorized: true, message: "Unauthorized token" };
 
   try {
-    const res = await fetch(`${API_BASE_URL}/User/get-profile-details?targetUserId=${targetUserId}`, {
+    const res = await fetchWithTimeout(`${API_BASE_URL}/User/get-profile-details?targetUserId=${targetUserId}`, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${token}`,
@@ -431,10 +477,10 @@ export const reportUserApiCall = async (targetUserId: number, token: string | nu
 // ===========================================================================
 
 export const fetchChatInboxApi = async (page: number = 1, size: number = 20, token: string | null | undefined) => {
-  if (!token) return { success: false, isUnauthorized: true, message: "Unauthorized token" };
+  if (!token) return { success: false, isUnauthorized: true, message: "Unauthorized token", data: [] };
 
   try {
-    const res = await fetch(`${API_BASE_URL}/Chat/inbox?page=${page}&size=${size}`, {
+    const res = await fetchWithTimeout(`${API_BASE_URL}/Chat/inbox?page=${page}&size=${size}`, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${token}`,
@@ -442,19 +488,22 @@ export const fetchChatInboxApi = async (page: number = 1, size: number = 20, tok
       }
     });
 
-    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
+    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired.", data: [] };
+    if (!res.ok) return { success: false, message: `Server error (${res.status})`, data: [] };
+
     const data = await res.json();
-    return { success: true, data: data?.data || data };
+    const list = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
+    return { success: true, data: list };
   } catch (error) {
-    return { success: false, message: "Failed to connect to chat server." };
+    return { success: false, message: "Failed to connect to chat server.", data: [] };
   }
 };
 
 export const fetchChatHistoryApi = async (receiverId: number, page: number = 1, size: number = 50, token: string | null | undefined) => {
-  if (!token) return { success: false, isUnauthorized: true, message: "Unauthorized token" };
+  if (!token) return { success: false, isUnauthorized: true, message: "Unauthorized token", data: [] };
 
   try {
-    const res = await fetch(`${API_BASE_URL}/Chat/history?rId=${receiverId}&page=${page}&size=${size}`, {
+    const res = await fetchWithTimeout(`${API_BASE_URL}/Chat/history?rId=${receiverId}&page=${page}&size=${size}`, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${token}`,
@@ -462,11 +511,14 @@ export const fetchChatHistoryApi = async (receiverId: number, page: number = 1, 
       }
     });
 
-    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
+    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired.", data: [] };
+    if (!res.ok) return { success: false, message: `Server error (${res.status})`, data: [] };
+
     const data = await res.json();
-    return { success: true, data: data?.data || data };
+    const list = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
+    return { success: true, data: list };
   } catch (error) {
-    return { success: false, message: "Failed to load chat history." };
+    return { success: false, message: "Failed to load chat history.", data: [] };
   }
 };
 
@@ -474,7 +526,7 @@ export const sendChatMessageApi = async (receiverId: number, messageText: string
   if (!token) return { success: false, isUnauthorized: true, message: "Unauthorized token" };
 
   try {
-    const res = await fetch(`${API_BASE_URL}/Chat/send`, {
+    const res = await fetchWithTimeout(`${API_BASE_URL}/Chat/send`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${token}`,
@@ -485,7 +537,7 @@ export const sendChatMessageApi = async (receiverId: number, messageText: string
 
     if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
     const data = await res.json();
-    return { success: true, data };
+    return { success: Boolean(data.success ?? data.Success), data: data.data ?? data.Data, message: data.message ?? data.Message };
   } catch (error) {
     return { success: false, message: "Failed to send message." };
   }
@@ -495,7 +547,7 @@ export const markChatReadApi = async (senderId: number, token: string | null | u
   if (!token) return { success: false, isUnauthorized: true, message: "Unauthorized token" };
 
   try {
-    const res = await fetch(`${API_BASE_URL}/Chat/mark-read?senderId=${senderId}`, {
+    const res = await fetchWithTimeout(`${API_BASE_URL}/Chat/mark-read?senderId=${senderId}`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${token}`,
@@ -596,7 +648,7 @@ export const fetchActiveSubscriptionApi = async (token: string | null | undefine
   if (!token) return { success: false, isUnauthorized: true, message: "Unauthorized token" };
 
   try {
-    const res = await fetch(`${API_BASE_URL}/Subscription/active`, {
+    const res = await fetchWithTimeout(`${API_BASE_URL}/Subscription/active`, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${token}`,
@@ -635,7 +687,7 @@ export const fetchSubscriptionHistoryApi = async (token: string | null | undefin
 export const searchMatchesApi = async (searchPayload: any, token: string | null | undefined) => {
   if (!token) return { success: false, isUnauthorized: true, message: "Unauthorized token" };
   try {
-    const res = await fetch(`${API_BASE_URL}/Match/search`, {
+    const res = await fetchWithTimeout(`${API_BASE_URL}/Match/search`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${token}`,

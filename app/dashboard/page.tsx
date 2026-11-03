@@ -1,5 +1,8 @@
 "use client";
 
+import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
+
+import { getClientSubscriptionStatus } from '@/lib/subscriptionUtils';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Sparkles, Flame, RefreshCw, Crown, Lock, ArrowRight } from 'lucide-react';
@@ -10,7 +13,6 @@ import { checkDailyViewLimit, formatTimeRemaining } from '@/lib/limitUtils';
 import { getAuthToken } from '@/lib/auth';
 import ProfileCard from '@/components/dashboard/ProfileCard';
 import ProfileCardSkeleton from '@/components/dashboard/ProfileCardSkeleton';
-import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
 import { useSignalR } from '@/context/SignalRContext';
 
 function LiveCountdownDisplay() {
@@ -101,8 +103,7 @@ export default function VIPCleanDashboardPage() {
       const list = res.data.profiles || res.data.Profiles || [];
       const userPaid = Boolean(
         res.data.isCurrentUserPaid ?? res.data.IsCurrentUserPaid ?? 
-        list[0]?.isCanChat ?? list[0]?.IsCanChat ?? 
-        list[0]?.isCurrentUserPaid ?? list[0]?.IsCurrentUserPaid ?? false
+        getClientSubscriptionStatus().isPaid
       );
       
       setIsCurrentUserPaid(userPaid);
@@ -113,11 +114,20 @@ export default function VIPCleanDashboardPage() {
         if (stored) {
           try {
             const parsed = JSON.parse(stored);
-            if (parsed.isPaid !== userPaid || parsed.isCurrentUserPaid !== userPaid) {
-              parsed.isPaid = userPaid;
-              parsed.isCurrentUserPaid = userPaid;
-              localStorage.setItem("user_details", JSON.stringify(parsed));
+            parsed.isPaid = userPaid;
+            parsed.isCurrentUserPaid = userPaid;
+            if (res.data.currentUserPlanName) {
+              parsed.planName = res.data.currentUserPlanName;
+              parsed.membershipType = res.data.currentUserPlanName;
             }
+            if (res.data.currentUserPlanExpiry) {
+              parsed.planExpiryDate = res.data.currentUserPlanExpiry;
+            }
+            if (res.data.remainingContactsAllowed !== undefined) {
+              parsed.remainingContacts = res.data.remainingContactsAllowed;
+            }
+            localStorage.setItem("user_details", JSON.stringify(parsed));
+            window.dispatchEvent(new Event("user_details_updated"));
           } catch (e) {}
         }
       }
@@ -244,13 +254,10 @@ export default function VIPCleanDashboardPage() {
   };
 
   const handleInitiateChat = async (profile: any) => {
-    const isPaid = Boolean(
-      profile.isCanChat ?? profile.IsCanChat ?? 
-      profile.isCurrentUserPaid ?? profile.IsCurrentUserPaid ?? 
-      isCurrentUserPaid
-    );
+    const status = getClientSubscriptionStatus();
+    const canChat = isCurrentUserPaid || status.canChat;
 
-    if (isPaid) {
+    if (canChat) {
       sessionStorage.setItem('active_chat_target', JSON.stringify({
         userId: profile.userId || profile.UserId,
         fullName: profile.fullName || profile.FullName,

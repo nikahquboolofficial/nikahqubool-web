@@ -8,9 +8,10 @@ import {
   Bell, MessageSquare, ChevronDown, User, 
   LogOut, Edit3, Search, Crown, CheckCircle2, HeartHandshake, Settings, ArrowLeft, Rocket
 } from 'lucide-react';
-import { getOptimizedImageUrl, getFallbackPhoto } from '@/lib/imageUtils';
-import { fetchProfileDetailsApi, fetchBoostStatusApi } from '@/lib/api';
+import { getOptimizedImageUrl, getFallbackPhoto, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
+import { fetchProfileDetailsApi, fetchBoostStatusApi, fetchActiveSubscriptionApi } from '@/lib/api';
 import { getAuthToken } from '@/lib/auth';
+import { getClientSubscriptionStatus } from '@/lib/subscriptionUtils';
 import BoostModal from '@/components/dashboard/BoostModal';
 
 interface HeaderProps {
@@ -29,10 +30,11 @@ export default function DashboardHeader({
   const pathname = usePathname();
   const router = useRouter();
 
-  const [userPhoto, setUserPhoto] = useState<string>('/placeholder.png');
+  const [userPhoto, setUserPhoto] = useState<string>(DEFAULT_FEMALE_AVATAR);
   const [userName, setUserName] = useState<string>('My Account');
   const [isVerified, setIsVerified] = useState<boolean>(false);
   const [isPaid, setIsPaid] = useState<boolean>(false);
+  const [planName, setPlanName] = useState<string>('Free Member');
   const [isBoostModalOpen, setIsBoostModalOpen] = useState<boolean>(false);
   const [isBoosted, setIsBoosted] = useState<boolean>(false);
 
@@ -54,7 +56,9 @@ export default function DashboardHeader({
           setUserPhoto(getOptimizedImageUrl(rawPhoto, parsed.userId || 1, parsed.gender));
           setUserName(parsed.fullName || parsed.FullName || 'My Account');
           setIsVerified(Boolean(parsed.isVerified ?? parsed.IsVerified ?? false));
-          setIsPaid(Boolean(parsed.isPaid ?? parsed.IsPaid ?? false));
+          const clientStatus = getClientSubscriptionStatus();
+          setIsPaid(clientStatus.isPaid);
+          setPlanName(clientStatus.isPaid ? clientStatus.planName : 'Free Member');
         }
 
         if (token && (!rawPhoto || rawPhoto === '/placeholder.png')) {
@@ -77,6 +81,49 @@ export default function DashboardHeader({
       }
     };
 
+    const checkSubscriptionStatus = async () => {
+      // 1. Immediately read client subscription status (0ms latency, zero flash)
+      const clientStatus = getClientSubscriptionStatus();
+      if (clientStatus.isPaid) {
+        setIsPaid(true);
+        setPlanName(clientStatus.planName);
+      }
+
+      const token = getAuthToken();
+      if (!token) return;
+      try {
+        const res = await fetchActiveSubscriptionApi(token);
+        if (res.success && res.data) {
+          const active = res.data;
+          const expiry = active.expiryDate || active.ExpiryDate || active.endDate || active.EndDate;
+          const isExp = expiry ? new Date(expiry).getTime() < Date.now() : Boolean(active.isExpired ?? active.IsExpired ?? false);
+          const rawName = String(active.planName || active.PlanName || '').trim();
+          const hasPaidPlan = rawName.length > 0 && !rawName.toLowerCase().includes('free');
+          const isCurrentlyPaid = !isExp && hasPaidPlan;
+          const finalPlanName = isCurrentlyPaid ? (rawName || 'VIP Member') : 'Free Member';
+
+          setIsPaid(isCurrentlyPaid);
+          setPlanName(finalPlanName);
+
+          // Sync into localStorage
+          const stored = localStorage.getItem("user_details");
+          if (stored) {
+            try {
+              const parsed = JSON.parse(stored);
+              parsed.isPaid = isCurrentlyPaid;
+              parsed.isCurrentUserPaid = isCurrentlyPaid;
+              parsed.planName = finalPlanName;
+              parsed.membershipType = finalPlanName;
+              if (expiry) parsed.planExpiryDate = expiry;
+              parsed.remainingContacts = active.remainingContacts ?? active.RemainingContacts ?? active.contactViewsAllowed ?? 0;
+              localStorage.setItem("user_details", JSON.stringify(parsed));
+              localStorage.setItem("user_session", JSON.stringify(parsed));
+            } catch (e) {}
+          }
+        }
+      } catch (e) {}
+    };
+
     const checkBoostStatus = async () => {
       const token = getAuthToken();
       if (!token) return;
@@ -90,6 +137,7 @@ export default function DashboardHeader({
 
     updatePhotoFromStorage();
     checkBoostStatus();
+    checkSubscriptionStatus();
 
     const handleBoostUpdated = (e: any) => {
       if (e?.detail) {
@@ -102,9 +150,11 @@ export default function DashboardHeader({
     if (typeof window !== "undefined") {
       window.addEventListener("user_photo_updated", updatePhotoFromStorage);
       window.addEventListener("boost_updated", handleBoostUpdated);
+      window.addEventListener("user_details_updated", checkSubscriptionStatus);
       return () => {
         window.removeEventListener("user_photo_updated", updatePhotoFromStorage);
         window.removeEventListener("boost_updated", handleBoostUpdated);
+        window.removeEventListener("user_details_updated", checkSubscriptionStatus);
       };
     }
   }, [pathname]);
@@ -184,13 +234,23 @@ export default function DashboardHeader({
       {/* RIGHT SIDE ACTIONS: VIP UPGRADE & USER AVATAR */}
       <div className="flex items-center gap-3 sm:gap-4">
         
-        <Link 
-          href="/dashboard/membership"
-          className="hidden sm:inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-500 via-rose-500 to-[#d91b5c] hover:brightness-110 text-white px-4 py-2 rounded-full font-black text-xs shadow-[0_4px_14px_rgba(217,27,92,0.25)] transition-all transform hover:-translate-y-0.5 border border-white/20"
-        >
-          <Crown size={15} className="text-amber-200 fill-amber-200 animate-pulse" />
-          <span>Upgrade VIP</span>
-        </Link>
+        {isPaid ? (
+          <Link 
+            href="/dashboard/payment-info"
+            className="hidden sm:inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:brightness-110 text-slate-950 px-4 py-2 rounded-full font-black text-xs shadow-[0_4px_14px_rgba(245,158,11,0.35)] transition-all transform hover:-translate-y-0.5 border border-amber-300"
+          >
+            <Crown size={15} className="text-slate-950 fill-slate-950" />
+            <span className="uppercase">{planName || 'VIP Member'}</span>
+          </Link>
+        ) : (
+          <Link 
+            href="/dashboard/membership"
+            className="hidden sm:inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-500 via-rose-500 to-[#d91b5c] hover:brightness-110 text-white px-4 py-2 rounded-full font-black text-xs shadow-[0_4px_14px_rgba(217,27,92,0.25)] transition-all transform hover:-translate-y-0.5 border border-white/20"
+          >
+            <Crown size={15} className="text-amber-200 fill-amber-200 animate-pulse" />
+            <span>Upgrade VIP</span>
+          </Link>
+        )}
 
         {/* 🚀 NIKAH FOREVER STYLE PROFILE BOOST BUTTON */}
         <button
@@ -236,7 +296,9 @@ export default function DashboardHeader({
                 alt={userName} 
                 className="w-full h-full object-cover object-top"
                 onError={(e) => { 
-                  (e.target as HTMLImageElement).src = '/placeholder.png';
+                  const target = e.target as HTMLImageElement;
+                  target.onerror = null;
+                  target.src = DEFAULT_FEMALE_AVATAR;
                 }}
               />
             </div>
@@ -249,7 +311,7 @@ export default function DashboardHeader({
               </div>
               <p className="text-[10px] text-[#d91b5c] font-bold flex items-center gap-0.5">
                 {isPaid ? (
-                  <span className="flex items-center gap-1 text-amber-600 font-extrabold"><Crown size={10} className="fill-amber-500" /> VIP</span>
+                  <span className="flex items-center gap-1 text-amber-600 font-extrabold uppercase"><Crown size={10} className="fill-amber-500" /> {planName || 'VIP'}</span>
                 ) : (
                   <span>Free Member</span>
                 )}
