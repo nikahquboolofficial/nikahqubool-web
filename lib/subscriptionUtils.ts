@@ -8,6 +8,65 @@ export interface SubscriptionStatus {
   canViewContact: boolean;
 }
 
+/**
+ * 👑 Synchronize Active Subscription cleanly across localStorage and trigger reactive UI updates
+ */
+export const syncSubscriptionToStorage = (active: any) => {
+  if (typeof window === "undefined" || !active) return;
+  try {
+    const rawExpiry = active.expiryDate || active.ExpiryDate || active.endDate || active.EndDate || null;
+    let isExpired = Boolean(active.isExpired ?? active.IsExpired ?? false);
+    if (rawExpiry) {
+      const expDate = new Date(rawExpiry);
+      if (!isNaN(expDate.getTime())) {
+        isExpired = expDate.getTime() < Date.now();
+      }
+    }
+
+    const rawName = String(active.planName || active.PlanName || '').trim();
+    const hasPaidPlan = rawName.length > 0 && !rawName.toLowerCase().includes('free');
+    const isCurrentlyPaid = !isExpired && hasPaidPlan;
+    const finalPlanName = isCurrentlyPaid ? (rawName || 'VIP Member') : 'Free Member';
+    const remainingViews = Number(active.remainingContacts ?? active.RemainingContacts ?? active.contactViewsAllowed ?? active.remainingViews ?? 0);
+
+    // 1. Save active subscription snapshot
+    const snapshot = {
+      ...active,
+      isPaid: isCurrentlyPaid,
+      isExpired,
+      planName: finalPlanName,
+      expiryDate: rawExpiry,
+      remainingContacts: Math.max(0, remainingViews)
+    };
+    localStorage.setItem("active_subscription", JSON.stringify(snapshot));
+
+    // 2. Sync into user_details & user_session
+    const syncUserObj = (key: string) => {
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          parsed.isPaid = isCurrentlyPaid;
+          parsed.isCurrentUserPaid = isCurrentlyPaid;
+          parsed.planName = finalPlanName;
+          parsed.membershipType = finalPlanName;
+          if (rawExpiry) parsed.planExpiryDate = rawExpiry;
+          parsed.remainingContacts = Math.max(0, remainingViews);
+          localStorage.setItem(key, JSON.stringify(parsed));
+        } catch (e) {}
+      }
+    };
+    syncUserObj("user_details");
+    syncUserObj("user_session");
+
+    // 3. Dispatch global reactive events
+    window.dispatchEvent(new Event("subscription_updated"));
+    window.dispatchEvent(new Event("user_details_updated"));
+  } catch (e) {
+    console.error("Error syncing subscription to storage:", e);
+  }
+};
+
 export const getClientSubscriptionStatus = (): SubscriptionStatus => {
   if (typeof window === "undefined") {
     return {
@@ -22,6 +81,51 @@ export const getClientSubscriptionStatus = (): SubscriptionStatus => {
   }
 
   try {
+    // 1. Check dedicated active_subscription snapshot first (highest accuracy)
+    const activeRaw = localStorage.getItem("active_subscription");
+    if (activeRaw) {
+      try {
+        const active = JSON.parse(activeRaw);
+        const rawExpiry = active.expiryDate || active.ExpiryDate || active.endDate || active.EndDate || null;
+        let isExpired = Boolean(active.isExpired ?? active.IsExpired ?? false);
+        if (rawExpiry) {
+          const expDate = new Date(rawExpiry);
+          if (!isNaN(expDate.getTime())) {
+            isExpired = expDate.getTime() < Date.now();
+          }
+        }
+
+        const rawName = String(active.planName || active.PlanName || '').trim();
+        const hasPaidPlan = rawName.length > 0 && !rawName.toLowerCase().includes('free');
+        const isPaid = !isExpired && hasPaidPlan;
+        const remainingContacts = Number(active.remainingContacts ?? active.RemainingContacts ?? active.contactViewsAllowed ?? 0);
+
+        if (isPaid) {
+          return {
+            isPaid: true,
+            planName: rawName || 'VIP Member',
+            isExpired: false,
+            expiryDate: rawExpiry,
+            remainingContacts: Math.max(0, remainingContacts),
+            canChat: true,
+            canViewContact: remainingContacts > 0
+          };
+        } else if (isExpired) {
+          // Explicitly expired
+          return {
+            isPaid: false,
+            planName: 'Free Member',
+            isExpired: true,
+            expiryDate: rawExpiry,
+            remainingContacts: 0,
+            canChat: false,
+            canViewContact: false
+          };
+        }
+      } catch (e) {}
+    }
+
+    // 2. Check user_details / user_session fallback
     const raw = localStorage.getItem("user_details") || localStorage.getItem("user_session");
     if (!raw) {
       return {

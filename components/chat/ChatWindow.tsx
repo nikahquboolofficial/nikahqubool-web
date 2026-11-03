@@ -17,9 +17,10 @@ import {
   fetchBlockStatusApi, 
   blockUserApiCall, 
   handleInteractionApiCall,
-  formatLastSeen
+  formatLastSeen,
+  fetchProfileDetailsApi
 } from '@/lib/api';
-import { getOptimizedImageUrl } from '@/lib/imageUtils';
+import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
 import { getAuthToken } from '@/lib/auth';
 import { toast } from 'sonner';
 
@@ -79,6 +80,54 @@ export default function ChatWindow({
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [canChatUser, setCanChatUser] = useState(true);
 
+  // 🛡️ Resolve User Identity Defensively
+  const [resolvedName, setResolvedName] = useState<string>(userName || '');
+  const [resolvedPhoto, setResolvedPhoto] = useState<string>(photoUrl || '');
+
+  useEffect(() => {
+    if (userName) setResolvedName(userName);
+    if (photoUrl) setResolvedPhoto(photoUrl);
+  }, [userName, photoUrl]);
+
+  useEffect(() => {
+    if (!receiverId) return;
+    if (resolvedName && resolvedName !== 'Member' && resolvedPhoto) return;
+
+    // Check inbox cache first (0ms)
+    try {
+      const inboxRaw = sessionStorage.getItem('cached_chat_inbox');
+      if (inboxRaw) {
+        const list = JSON.parse(inboxRaw);
+        if (Array.isArray(list)) {
+          const found = list.find((c: any) => (c.userId ?? c.UserId) === Number(receiverId));
+          if (found) {
+            if (!resolvedName || resolvedName === 'Member') {
+              setResolvedName(found.fullName || found.FullName || 'Member');
+            }
+            if (!resolvedPhoto) {
+              setResolvedPhoto(found.photoUrl || found.PhotoUrl || '');
+            }
+            return;
+          }
+        }
+      }
+    } catch (e) {}
+
+    // Fallback: fetch profile details
+    const token = getToken();
+    if (token) {
+      fetchProfileDetailsApi(Number(receiverId), token).then((res) => {
+        if (res.success && res.data) {
+          const p = res.data.profile || res.data.Profile || res.data;
+          const freshName = p.fullName || p.FullName;
+          const freshPhoto = p.mainPhotoUrl || p.photoUrl || p.PhotoUrl;
+          if (freshName) setResolvedName(freshName);
+          if (freshPhoto) setResolvedPhoto(freshPhoto);
+        }
+      }).catch(() => {});
+    }
+  }, [receiverId, resolvedName, resolvedPhoto]);
+
   useEffect(() => {
     const checkSub = () => {
       const sub = getClientSubscriptionStatus();
@@ -86,7 +135,11 @@ export default function ChatWindow({
     };
     checkSub();
     window.addEventListener("user_details_updated", checkSub);
-    return () => window.removeEventListener("user_details_updated", checkSub);
+    window.addEventListener("subscription_updated", checkSub);
+    return () => {
+      window.removeEventListener("user_details_updated", checkSub);
+      window.removeEventListener("subscription_updated", checkSub);
+    };
   }, []);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -102,22 +155,22 @@ export default function ChatWindow({
   const stateStr = String(initialAccountState || blockStatus.targetAccountState || '').toLowerCase();
 
   const isDeletedUser = Boolean(
-    userName === "Deleted User" || 
-    (userName && String(userName).toLowerCase().includes("deleted")) ||
+    resolvedName === "Deleted User" || 
+    (resolvedName && String(resolvedName).toLowerCase().includes("deleted")) ||
     stateStr.includes("del") ||
     blockStatus.isTargetDeleted
   );
 
   const isDeactiveUser = !isDeletedUser && Boolean(
-    userName === "Deactivated User" ||
-    (userName && String(userName).toLowerCase().includes("deactivated")) ||
+    resolvedName === "Deactivated User" ||
+    (resolvedName && String(resolvedName).toLowerCase().includes("deactivated")) ||
     stateStr.includes("deact") ||
     stateStr.includes("pause") ||
     blockStatus.isTargetDeactivated
   );
 
   const isAdminBlockedUser = !isDeletedUser && !isDeactiveUser && Boolean(
-    userName === "User Unavailable" ||
+    resolvedName === "User Unavailable" ||
     stateStr.includes("admin") ||
     blockStatus.isTargetAdminBlocked
   );
@@ -136,41 +189,107 @@ export default function ChatWindow({
 
   const parseUtcDate = (dateVal: any) => {
     if (!dateVal) return new Date();
-    if (typeof dateVal === 'object' && dateVal instanceof Date) return dateVal;
-    let str = String(dateVal).trim();
-    if (!str.endsWith('Z') && !str.includes('+') && !str.includes('Z')) {
-      str += 'Z';
+    if (typeof dateVal === 'object' && dateVal instanceof Date) {
+      return isNaN(dateVal.getTime()) ? new Date() : dateVal;
     }
-    return new Date(str);
+    try {
+      let str = String(dateVal).trim().replace(' ', 'T');
+      if (!str.endsWith('Z') && !str.includes('+')) {
+        str += 'Z';
+      }
+      const d = new Date(str);
+      return isNaN(d.getTime()) ? new Date() : d;
+    } catch {
+      return new Date();
+    }
   };
 
-  // 📥 FETCH CHAT HISTORY DEFENSIVELY
+  // 📥 FETCH CHAT HISTORY DEFENSIVELY (0ms CACHE HYDRATION + AUTO-RETRY + SMART MERGE)
   useEffect(() => {
     if (!receiverId) return;
     const token = getToken();
     if (!token) return;
 
-    const loadData = async () => {
-      setLoading(true);
+    // ⚡ 1. 0ms Instant Hydration from Session Cache
+    if (typeof window !== "undefined") {
+      try {
+        const cached = sessionStorage.getItem(`cached_chat_history_${receiverId}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setMessages(parsed.map((m: any) => ({
+              ...m,
+              timestamp: parseUtcDate(m.timestamp)
+            })));
+          }
+        }
+      } catch (e) {}
+    }
+
+    let isMounted = true;
+
+    const fetchHistoryWithRetry = async (attempt = 1): Promise<any[]> => {
       try {
         const res = await fetchChatHistoryApi(receiverId, 1, 100, token);
         const rawData = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.data?.data) ? res.data.data : []);
+        if (rawData.length > 0 || attempt >= 2) {
+          return rawData;
+        }
+      } catch (e) {}
+
+      if (attempt < 2) {
+        await new Promise(r => setTimeout(r, 600));
+        return fetchHistoryWithRetry(attempt + 1);
+      }
+      return [];
+    };
+
+    const loadData = async () => {
+      setLoading(true);
+      const rawData = await fetchHistoryWithRetry();
+
+      if (isMounted && rawData.length > 0) {
         const formatted = rawData.map((m: any, idx: number) => ({
-          uniqueKey: `hist-${m.messageId ?? m.MessageId ?? 'idx'}-${idx}-${Math.random()}`,
+          uniqueKey: `hist-${m.messageId ?? m.MessageId ?? idx}`,
           messageId: m.messageId ?? m.MessageId,
           senderId: m.senderId ?? m.SenderId, 
           text: m.messageText ?? m.MessageText, 
           timestamp: parseUtcDate(m.sentAt ?? m.SentAt ?? Date.now()),
           isRead: (m.isRead === 1 || m.isRead === true || m.IsRead === 1 || m.IsRead === true) ? 1 : 0
         }));
-        setMessages(formatted);
-      } catch {
-        setMessages([]);
+
+        setMessages(prev => {
+          // Merge with any real-time or optimistic messages that arrived while loading
+          const merged = [...formatted];
+          prev.forEach(p => {
+            const exists = merged.some(m => 
+              (m.messageId && m.messageId === p.messageId) || 
+              (m.uniqueKey && m.uniqueKey === p.uniqueKey) ||
+              (m.text === p.text && Math.abs(new Date(m.timestamp).getTime() - new Date(p.timestamp).getTime()) < 3000)
+            );
+            if (!exists) {
+              merged.push(p);
+            }
+          });
+
+          // Sort chronologically (oldest at top, newest at bottom)
+          merged.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+          if (typeof window !== "undefined") {
+            try {
+              sessionStorage.setItem(`cached_chat_history_${receiverId}`, JSON.stringify(merged));
+            } catch (e) {}
+          }
+
+          return merged;
+        });
+
+        scrollToBottom("auto");
       }
 
       try {
         const blockRes = await fetchBlockStatusApi(receiverId, token);
-        if (blockRes?.success && blockRes.data) {
+        if (isMounted && blockRes?.success && blockRes.data) {
           const bData = blockRes.data ?? {};
           setBlockStatus({
             isBlockedByMe: Boolean(bData.isBlockedByMe ?? bData.IsBlockedByMe),
@@ -183,10 +302,14 @@ export default function ChatWindow({
         }
       } catch {}
 
-      setLoading(false);
+      if (isMounted) setLoading(false);
     };
 
     loadData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [receiverId]);
 
   // 🔔 REAL-TIME LIVE MESSAGE RECEPTION (DIRECT SIGNALR + GLOBAL EVENT BUS)
@@ -196,22 +319,26 @@ export default function ChatWindow({
     const appendIncoming = (senderId: any, rId: any, messageText: string, msgId?: any, sentAt?: string) => {
       const incomingSenderId = Number(senderId);
       const targetId = Number(receiverId);
-
       if (incomingSenderId === targetId) {
         const newMsgId = msgId ?? Date.now();
         setMessages(prev => {
           if (prev.some(m => m.messageId === newMsgId)) return prev;
-          return [...prev, { 
-            uniqueKey: `sig-${newMsgId}-${Math.random()}`,
+          const updated = [...prev, { 
+            uniqueKey: `sig-${newMsgId}-${Math.random().toString(36).substring(2, 7)}`,
             messageId: newMsgId,
             senderId: incomingSenderId, 
             text: messageText, 
             timestamp: sentAt ? new Date(sentAt) : new Date(), 
             isRead: 1 
           }];
+          if (typeof window !== "undefined") {
+            try {
+              sessionStorage.setItem(`cached_chat_history_${receiverId}`, JSON.stringify(updated.slice(-100)));
+            } catch (e) {}
+          }
+          return updated;
         });
 
-        // 🎵 Instant WhatsApp Sound Ping
         playMessageChime();
         markChatReadApi(incomingSenderId, getToken()).catch(() => {});
         scrollToBottom("smooth");
@@ -270,46 +397,61 @@ export default function ChatWindow({
     setShowScrollBottom(scrollHeight - scrollTop - clientHeight > 250);
   };
 
-  // 🚀 INSTANT SEND (OPTIMISTIC UI LIKE WHATSAPP)
+  // 🚀 NON-BLOCKING RAPID DISPATCH (WHATSAPP-STYLE RAPID ENTER SAFE)
   const handleSendText = async (textToSend: string) => {
     const trimmed = textToSend.trim();
     if (!trimmed || isBlocked) return;
     const token = getToken();
     if (!token) return;
 
+    // Immediately clear input and restore focus for rapid consecutive typing
     setMsg(""); 
     setShowEmojiPicker(false);
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     sendTyping(Number(receiverId), false);
 
-    const tempId = `temp-${Date.now()}`;
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     const optimisticMsg = {
       uniqueKey: tempId,
       messageId: tempId,
       senderId: "me", 
       text: trimmed, 
       timestamp: new Date(), 
-      isRead: 0 
+      isRead: 0,
+      isPending: true
     };
 
-    setMessages(prev => [...prev, optimisticMsg]);
+    setMessages(prev => {
+      const updated = [...prev, optimisticMsg];
+      if (typeof window !== "undefined") {
+        try {
+          sessionStorage.setItem(`cached_chat_history_${receiverId}`, JSON.stringify(updated.slice(-100)));
+        } catch (e) {}
+      }
+      return updated;
+    });
     scrollToBottom("smooth");
 
-    const res = await sendChatMessageApi(Number(receiverId), trimmed, "Text", token);
-    if (res.success && res.data) {
-      const realId = res.data?.messageId ?? res.data?.MessageId;
-      if (realId) {
-        setMessages(prev => prev.map(m => m.uniqueKey === tempId ? { ...m, messageId: realId, uniqueKey: `real-${realId}` } : m));
+    // Asynchronously dispatch without blocking future typing
+    sendChatMessageApi(Number(receiverId), trimmed, "Text", token).then(res => {
+      if (res.success && res.data) {
+        const realId = res.data?.messageId ?? res.data?.MessageId;
+        if (realId) {
+          setMessages(prev => prev.map(m => m.uniqueKey === tempId ? { ...m, messageId: realId, uniqueKey: `real-${realId}`, isPending: false } : m));
+        }
+      } else {
+        setMessages(prev => prev.map(m => m.uniqueKey === tempId ? { ...m, isPending: false, isError: true } : m));
+        if (res.message && (res.message.toLowerCase().includes('subscription') || res.message.toLowerCase().includes('upgrade') || res.message.toLowerCase().includes('vip') || res.message.toLowerCase().includes('renew'))) {
+          setShowSubscriptionModal(true);
+        }
       }
-    } else {
-      setMessages(prev => prev.filter(m => m.uniqueKey !== tempId));
-      setMsg(trimmed);
-      toast.error(res.message ?? "Failed to send message.");
-      if (res.message && (res.message.toLowerCase().includes('subscription') || res.message.toLowerCase().includes('upgrade') || res.message.toLowerCase().includes('vip') || res.message.toLowerCase().includes('renew'))) {
-        setShowSubscriptionModal(true);
-      }
-    }
+    }).catch(() => {
+      setMessages(prev => prev.map(m => m.uniqueKey === tempId ? { ...m, isPending: false, isError: true } : m));
+    });
   };
 
   const handleSend = () => handleSendText(msg);
@@ -326,25 +468,51 @@ export default function ChatWindow({
     }
   };
 
+  const formatMsgTime = (val: any) => {
+    if (!val) return '';
+    try {
+      const d = new Date(val);
+      if (isNaN(d.getTime())) return '';
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
+    }
+  };
+
   const groupedMessages = useMemo(() => {
     const groups: { [dateStr: string]: any[] } = {};
+    if (!Array.isArray(messages)) return groups;
+
     messages.forEach(m => {
-      const dateObj = new Date(m.timestamp);
-      const dateKey = dateObj.toDateString();
-      if (!groups[dateKey]) groups[dateKey] = [];
-      groups[dateKey].push(m);
+      if (!m) return;
+      try {
+        const dateObj = m.timestamp ? new Date(m.timestamp) : new Date();
+        const dateKey = !isNaN(dateObj.getTime()) ? dateObj.toDateString() : new Date().toDateString();
+        if (!groups[dateKey]) groups[dateKey] = [];
+        groups[dateKey].push(m);
+      } catch {
+        const fallbackKey = new Date().toDateString();
+        if (!groups[fallbackKey]) groups[fallbackKey] = [];
+        groups[fallbackKey].push(m);
+      }
     });
     return groups;
   }, [messages]);
 
   const formatDateLabel = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const today = new Date();
-    const yesterday = new Date();
-    yesterday.setDate(today.getDate() - 1);
-    if (date.toDateString() === today.toDateString()) return "Today";
-    if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
-    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    if (!dateStr || dateStr === 'Invalid Date') return "Today";
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return "Today";
+      const today = new Date();
+      const yesterday = new Date();
+      yesterday.setDate(today.getDate() - 1);
+      if (date.toDateString() === today.toDateString()) return "Today";
+      if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+      return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch {
+      return "Today";
+    }
   };
 
   const handleProposalAction = async (status: string) => {
@@ -365,8 +533,8 @@ export default function ChatWindow({
   const isBlocked = blockStatus.isBlockedByMe || blockStatus.isBlockedByOther || isDeletedUser || isDeactiveUser || isAdminBlockedUser;
 
   const displayAvatar = (isDeletedUser || isDeactiveUser || isAdminBlockedUser) 
-    ? "/placeholder.png" 
-    : (photoUrl ? getOptimizedImageUrl(photoUrl) : `https://ui-avatars.com/api/?name=${encodeURIComponent(userName ?? 'User')}&background=FFF0F3&color=870c3f&bold=true`);
+    ? DEFAULT_FEMALE_AVATAR 
+    : (resolvedPhoto ? getOptimizedImageUrl(resolvedPhoto) : `https://ui-avatars.com/api/?name=${encodeURIComponent(resolvedName || 'User')}&background=FFF0F3&color=870c3f&bold=true`);
 
   const displayName = isDeletedUser 
     ? "Deleted User" 
@@ -374,7 +542,7 @@ export default function ChatWindow({
       ? "Deactivated User" 
       : (isAdminBlockedUser 
         ? "User Unavailable" 
-        : (userName ?? 'Member')));
+        : (resolvedName || 'Member')));
 
   const isUserTyping = Boolean(typingUsers[Number(receiverId)]);
 
@@ -395,7 +563,7 @@ export default function ChatWindow({
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-[#fbf8f5] relative overflow-hidden overscroll-contain selection:bg-[#d91b5c] selection:text-white">
+    <div className="flex flex-col h-full w-full bg-[#fbf8f5] relative overflow-hidden overscroll-none select-none md:select-auto selection:bg-[#d91b5c] selection:text-white">
       
       {/* 📌 WHATSAPP-STYLE STICKY TOP HEADER */}
       <div className="shrink-0 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] px-3 py-2.5 sm:px-4 sm:py-3 flex items-center gap-3 text-white shadow-md z-30 border-b border-rose-900/20">
@@ -412,7 +580,7 @@ export default function ChatWindow({
               onError={(e) => { 
                 const target = e.target as HTMLImageElement;
                 target.onerror = null;
-                target.src = '/placeholder.png'; 
+                target.src = DEFAULT_FEMALE_AVATAR; 
               }}
             />
             {isOnline && !isDeletedUser && !isDeactiveUser && !isAdminBlockedUser && (
@@ -549,7 +717,7 @@ export default function ChatWindow({
                     
                     <div className="flex items-center gap-1.5 mt-1 justify-end text-[9px]">
                       <span className={`font-black uppercase tracking-wider ${isMe ? 'text-rose-100' : 'text-slate-400'}`}>
-                        {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {formatMsgTime(m.timestamp)}
                       </span>
                       
                       {/* 🎯 DOUBLE TICKS: CYAN IF READ, WHITE IF DELIVERED */}
@@ -626,9 +794,10 @@ export default function ChatWindow({
               <button 
                 key={emoji} 
                 type="button"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   setMsg(prev => prev + emoji);
-                  inputRef.current?.focus();
+                  requestAnimationFrame(() => inputRef.current?.focus());
                 }}
                 className="text-xl p-2 hover:bg-rose-50 rounded-2xl transition-all hover:scale-125 cursor-pointer text-center"
               >
@@ -646,7 +815,7 @@ export default function ChatWindow({
       />
 
       {/* 📌 WHATSAPP-STYLE STICKY BOTTOM INPUT PANEL */}
-      <div className="shrink-0 bg-white border-t border-rose-100 z-30 shadow-lg p-2.5 sm:p-3 space-y-2">
+      <div className="shrink-0 bg-white/95 backdrop-blur-md border-t border-rose-100 z-30 shadow-lg p-2.5 sm:p-3 space-y-2 pb-[max(env(safe-area-inset-bottom,0px),10px)]">
         
         {/* 💬 QUICK ICEBREAKER CHIPS */}
         {!isBlocked && (
@@ -658,6 +827,7 @@ export default function ChatWindow({
               <button
                 key={idx}
                 type="button"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => handleSendText(tmpl)}
                 className="text-[11px] font-bold text-slate-700 bg-rose-50/70 hover:bg-[#d91b5c] hover:text-white border border-rose-200/60 rounded-full px-3 py-1 whitespace-nowrap transition-all shrink-0 cursor-pointer shadow-2xs active:scale-95"
               >
@@ -699,6 +869,7 @@ export default function ChatWindow({
           <div className="max-w-4xl mx-auto bg-slate-50 p-1.5 pl-3 rounded-full border-2 border-rose-100 flex items-center gap-2 focus-within:ring-2 focus-within:ring-[#d91b5c]/20 focus-within:bg-white transition-all shadow-xs">
             <button 
               type="button"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
               className="p-2 text-slate-400 hover:text-[#d91b5c] rounded-full transition-colors cursor-pointer"
               title="Add Emoji"
@@ -708,6 +879,9 @@ export default function ChatWindow({
             <input 
               ref={inputRef}
               value={msg} 
+              enterKeyHint="send"
+              autoComplete="off"
+              autoCorrect="off"
               onChange={(e) => {
                 setMsg(e.target.value);
                 sendTyping(Number(receiverId), true);
@@ -716,12 +890,25 @@ export default function ChatWindow({
                   sendTyping(Number(receiverId), false);
                 }, 2000);
               }}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                  requestAnimationFrame(() => {
+                    inputRef.current?.focus();
+                  });
+                }
+              }}
               placeholder="Type a message..." 
               className="flex-1 py-2 text-xs sm:text-sm outline-none font-bold text-slate-800 bg-transparent placeholder-slate-400"
             />
             <button 
               type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                handleSend();
+              }}
               onClick={handleSend} 
               className="h-10 w-10 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 rounded-full flex items-center justify-center text-white shadow-md active:scale-90 transition-all flex-shrink-0 cursor-pointer border border-rose-300/30"
               title="Send Message"

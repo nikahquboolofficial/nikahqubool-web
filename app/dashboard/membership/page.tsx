@@ -15,6 +15,7 @@ import {
   validatePromoCodeApi, 
   fetchSubscriptionHistoryApi 
 } from '@/lib/api';
+import { syncSubscriptionToStorage } from '@/lib/subscriptionUtils';
 
 // Verified Fallback Plans aligned with screenshot pricing structure
 const DURATION_PLANS_CONFIG = {
@@ -282,6 +283,7 @@ export default function MembershipPage() {
           const subRes = await fetchActiveSubscriptionApi(token);
           if (subRes && subRes.success && subRes.data) {
             setActiveSub(subRes.data);
+            syncSubscriptionToStorage(subRes.data);
           }
         } catch (e) {}
 
@@ -373,18 +375,20 @@ export default function MembershipPage() {
 
     if (res && res.success) {
       showToast(res.message || "Membership upgraded successfully!", "success");
-      if (typeof window !== "undefined") {
-        const stored = localStorage.getItem("user_details");
-        if (stored) {
-          try {
-            const parsed = JSON.parse(stored);
-            parsed.isPaid = true;
-            parsed.isCurrentUserPaid = true;
-            localStorage.setItem("user_details", JSON.stringify(parsed));
-          } catch (e) {}
+      try {
+        const freshSub = await fetchActiveSubscriptionApi(token);
+        if (freshSub && freshSub.success && freshSub.data) {
+          syncSubscriptionToStorage(freshSub.data);
+        } else {
+          syncSubscriptionToStorage({
+            planName: activePlan.name,
+            isPaid: true,
+            isExpired: false,
+            remainingContacts: activePlan.contactViewsAllowed || 50
+          });
         }
-      }
-      setTimeout(() => router.push('/dashboard'), 1500);
+      } catch (e) {}
+      setTimeout(() => router.push('/dashboard'), 1200);
     } else {
       showToast(res?.message || "Purchase failed. Please try again.", "error");
     }

@@ -16,7 +16,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import { fetchProfileDetailsApi, viewContactDetailsApi, handleInteractionApiCall, blockUserApiCall, reportUserApiCall, formatLastSeen } from '@/lib/api';
-import { getOptimizedImageUrl } from '@/lib/imageUtils';
+import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
 import { useSignalR } from '@/context/SignalRContext';
 import IslamicBiodataModal from '@/components/dashboard/IslamicBiodataModal';
 import CompatibilityScoreModal, { calculateCompatibilityScore } from '@/components/dashboard/CompatibilityScoreModal';
@@ -652,7 +652,7 @@ export default function ProfileDetailPage() {
     );
   }
 
-  const allPhotos = gallery.length > 0 ? gallery : [{ photoUrl: profileData.mainPhotoUrl || profileData.photoUrl || '/placeholder.png' }];
+  const allPhotos = gallery.length > 0 ? gallery : [{ photoUrl: profileData.mainPhotoUrl || profileData.photoUrl || DEFAULT_FEMALE_AVATAR }];
   const interestStatus = profileData.interestStatus || profileData.InterestStatus || 'None';
   const rawPrivacy = profileData.photoPrivacy || profileData.PhotoPrivacy || 'All Members';
   const privacyClean = String(rawPrivacy).toLowerCase().replace(/\s+/g, '');
@@ -737,7 +737,7 @@ export default function ProfileDetailPage() {
   const isPremium = Boolean(profileData.isPremium ?? profileData.IsPremium ?? isUserPaid);
   const rawPhotoSrc = allPhotos[activePhotoIndex]?.photoUrl || profileData.mainPhotoUrl || profileData.photoUrl;
   const currentPhotoSrc = getOptimizedImageUrl(rawPhotoSrc, profileData.userId || 1, profileData.gender);
-  const myAvatarUrl = currentUserData?.mainPhotoUrl || currentUserData?.photoUrl || '/placeholder.png';
+  const myAvatarUrl = currentUserData?.mainPhotoUrl || currentUserData?.photoUrl || DEFAULT_FEMALE_AVATAR;
 
   const displayAge = profileData.age || 24;
   const maritalStatus = profileData.maritalStatusName || profileData.MaritalStatusName || profileData.maritalStatus || profileData.MaritalStatus || 'Never Married';

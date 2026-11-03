@@ -6,6 +6,7 @@ import { ArrowLeft, Crown, CheckCircle2, AlertCircle, CreditCard, RefreshCw, Cal
 import { motion } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import { fetchActiveSubscriptionApi, fetchSubscriptionHistoryApi } from '@/lib/api';
+import { syncSubscriptionToStorage } from '@/lib/subscriptionUtils';
 
 export default function PaymentInfoPage() {
   const router = useRouter();
@@ -37,6 +38,7 @@ export default function PaymentInfoPage() {
 
     if (activeRes.success && activeRes.data) {
       setActivePlan(activeRes.data);
+      syncSubscriptionToStorage(activeRes.data);
     }
 
     if (historyRes.success && historyRes.data) {

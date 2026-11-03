@@ -4,18 +4,22 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Sparkles, Search, MessageCircle, User } from 'lucide-react';
-import { getOptimizedImageUrl } from '@/lib/imageUtils';
+import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
 import { getAuthToken, syncUserProfilePhoto } from '@/lib/auth';
 import { fetchProfileDetailsApi } from '@/lib/api';
 
 interface BottomNavProps {
   unreadCount?: number;
+  unreadChatCount?: number;
   onOpenProfileDrawer?: () => void;
 }
 
-export default function DashboardBottomNav({ unreadCount = 0 }: BottomNavProps) {
+export default function DashboardBottomNav({ 
+  unreadCount = 0,
+  unreadChatCount = 0
+}: BottomNavProps) {
   const pathname = usePathname();
-  const [userPhoto, setUserPhoto] = useState<string>('/placeholder.png');
+  const [userPhoto, setUserPhoto] = useState<string>(DEFAULT_FEMALE_AVATAR);
 
   useEffect(() => {
     const updatePhotoFromStorage = async () => {
@@ -33,18 +37,17 @@ export default function DashboardBottomNav({ unreadCount = 0 }: BottomNavProps) 
           } catch (e) {}
         }
 
-        // 🔄 AUTO-SYNC: If user photo is missing in localStorage on first dashboard landing, fetch from API immediately!
         const token = getAuthToken();
-        const userId = parsed?.userId || parsed?.id || 0;
         if (token) {
           try {
+            const userId = parsed?.userId || 0;
             const res = await fetchProfileDetailsApi(userId, token);
             if (res.success && res.data) {
               const profile = res.data.profile || res.data.Profile || res.data;
               const freshPhoto = profile.mainPhotoUrl || profile.photoUrl || profile.PhotoUrl || profile.mainPhoto || profile.photo;
               if (freshPhoto) {
+                setUserPhoto(getOptimizedImageUrl(freshPhoto, profile.userId || userId || 1, profile.gender));
                 syncUserProfilePhoto(freshPhoto);
-                setUserPhoto(getOptimizedImageUrl(freshPhoto, profile.userId || 1, profile.gender));
               }
             }
           } catch (err) {}
@@ -53,25 +56,21 @@ export default function DashboardBottomNav({ unreadCount = 0 }: BottomNavProps) 
     };
 
     updatePhotoFromStorage();
-
     if (typeof window !== "undefined") {
       window.addEventListener("user_photo_updated", updatePhotoFromStorage);
       return () => window.removeEventListener("user_photo_updated", updatePhotoFromStorage);
     }
-  }, [pathname]);
+  }, []);
 
   const isHome = pathname === '/dashboard';
   const isActivity = pathname.startsWith('/dashboard/activity');
   const isSearch = pathname.startsWith('/dashboard/find-match');
   const isChat = pathname.startsWith('/dashboard/messages');
-  const isProfile = pathname.startsWith('/dashboard/my-profile') || pathname.startsWith('/dashboard/gallery') || pathname.startsWith('/dashboard/settings');
+  const isProfile = pathname.startsWith('/dashboard/my-profile') || pathname.startsWith('/dashboard/edit-profile');
 
   return (
-    <div className="lg:hidden fixed bottom-0 inset-x-0 z-[9995] pointer-events-auto">
-      <nav 
-        className="w-full max-w-[460px] mx-auto bg-white/95 backdrop-blur-xl border-t border-slate-100/90 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] px-2 pt-2 pb-[calc(10px+env(safe-area-inset-bottom))] grid grid-cols-5 items-center transition-all"
-        style={{ touchAction: 'pan-x' }}
-      >
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#FAF8F5]/95 backdrop-blur-xl border-t border-rose-100 lg:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.06)] pb-[env(safe-area-inset-bottom,0px)]">
+      <div className="grid grid-cols-5 items-center h-16 px-1">
         
         {/* 1. HOME */}
         <Link 
@@ -83,7 +82,7 @@ export default function DashboardBottomNav({ unreadCount = 0 }: BottomNavProps) 
           }`}
         >
           <div className="relative">
-            <Home size={22} className={isHome ? 'stroke-[2.4] fill-[#e21e5b]/15' : 'stroke-[1.8]'} />
+            <Home size={22} className={isHome ? 'stroke-[2.5]' : 'stroke-[1.8]'} />
             {isHome && (
               <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#e21e5b]" />
             )}
@@ -96,14 +95,19 @@ export default function DashboardBottomNav({ unreadCount = 0 }: BottomNavProps) 
         {/* 2. ACTIVITY */}
         <Link 
           href="/dashboard/activity" 
-          className={`flex flex-col items-center justify-center py-1 transition-all duration-150 ${
+          className={`relative flex flex-col items-center justify-center py-1 transition-all duration-150 ${
             isActivity 
               ? 'text-[#e21e5b]' 
               : 'text-[#534344]/80 hover:text-[#e21e5b]'
           }`}
         >
           <div className="relative">
-            <Sparkles size={22} className={isActivity ? 'stroke-[2.4] fill-[#e21e5b]/15' : 'stroke-[1.8]'} />
+            <Sparkles size={22} className={isActivity ? 'stroke-[2.5]' : 'stroke-[1.8]'} />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-2 min-w-[15px] h-[15px] bg-[#e21e5b] text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5 border-2 border-white shadow-xs">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
             {isActivity && (
               <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#e21e5b]" />
             )}
@@ -144,9 +148,9 @@ export default function DashboardBottomNav({ unreadCount = 0 }: BottomNavProps) 
         >
           <div className="relative">
             <MessageCircle size={22} className={isChat ? 'stroke-[2.4] fill-[#e21e5b]/15' : 'stroke-[1.8]'} />
-            {unreadCount > 0 && (
+            {unreadChatCount > 0 && (
               <span className="absolute -top-1 -right-2 min-w-[15px] h-[15px] bg-[#e21e5b] text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5 border-2 border-white shadow-xs">
-                {unreadCount > 99 ? '99+' : unreadCount}
+                {unreadChatCount > 99 ? '99+' : unreadChatCount}
               </span>
             )}
             {isChat && (
@@ -168,23 +172,19 @@ export default function DashboardBottomNav({ unreadCount = 0 }: BottomNavProps) 
           }`}
         >
           <div className="relative">
-            <div className={`w-6 h-6 rounded-full overflow-hidden bg-slate-100 flex items-center justify-center transition-all ${
-              isProfile ? 'ring-2 ring-[#e21e5b] ring-offset-1' : 'border border-slate-300'
+            <div className={`w-6 h-6 rounded-full overflow-hidden border transition-all ${
+              isProfile ? 'border-[#e21e5b] ring-2 ring-[#e21e5b]/20 scale-105' : 'border-slate-300'
             }`}>
-              {userPhoto && userPhoto !== '/placeholder.png' ? (
-                <img 
-                  src={userPhoto} 
-                  alt="Profile" 
-                  className="w-full h-full object-cover object-top" 
-                  onError={(e) => { 
-                    const target = e.target as HTMLImageElement;
-                    target.onerror = null;
-                    target.src = '/placeholder.png'; 
-                  }} 
-                />
-              ) : (
-                <User size={14} className={isProfile ? 'text-[#e21e5b]' : 'text-slate-500'} />
-              )}
+              <img 
+                src={userPhoto} 
+                alt="My Profile" 
+                className="w-full h-full object-cover object-top"
+                onError={(e) => { 
+                  const target = e.target as HTMLImageElement;
+                  target.onerror = null;
+                  target.src = DEFAULT_FEMALE_AVATAR; 
+                }}
+              />
             </div>
             {isProfile && (
               <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#e21e5b]" />
@@ -195,7 +195,7 @@ export default function DashboardBottomNav({ unreadCount = 0 }: BottomNavProps) 
           </span>
         </Link>
 
-      </nav>
+      </div>
     </div>
   );
 }

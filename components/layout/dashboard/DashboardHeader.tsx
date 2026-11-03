@@ -11,7 +11,7 @@ import {
 import { getOptimizedImageUrl, getFallbackPhoto, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
 import { fetchProfileDetailsApi, fetchBoostStatusApi, fetchActiveSubscriptionApi } from '@/lib/api';
 import { getAuthToken } from '@/lib/auth';
-import { getClientSubscriptionStatus } from '@/lib/subscriptionUtils';
+import { getClientSubscriptionStatus, syncSubscriptionToStorage } from '@/lib/subscriptionUtils';
 import BoostModal from '@/components/dashboard/BoostModal';
 
 interface HeaderProps {
@@ -94,32 +94,10 @@ export default function DashboardHeader({
       try {
         const res = await fetchActiveSubscriptionApi(token);
         if (res.success && res.data) {
-          const active = res.data;
-          const expiry = active.expiryDate || active.ExpiryDate || active.endDate || active.EndDate;
-          const isExp = expiry ? new Date(expiry).getTime() < Date.now() : Boolean(active.isExpired ?? active.IsExpired ?? false);
-          const rawName = String(active.planName || active.PlanName || '').trim();
-          const hasPaidPlan = rawName.length > 0 && !rawName.toLowerCase().includes('free');
-          const isCurrentlyPaid = !isExp && hasPaidPlan;
-          const finalPlanName = isCurrentlyPaid ? (rawName || 'VIP Member') : 'Free Member';
-
-          setIsPaid(isCurrentlyPaid);
-          setPlanName(finalPlanName);
-
-          // Sync into localStorage
-          const stored = localStorage.getItem("user_details");
-          if (stored) {
-            try {
-              const parsed = JSON.parse(stored);
-              parsed.isPaid = isCurrentlyPaid;
-              parsed.isCurrentUserPaid = isCurrentlyPaid;
-              parsed.planName = finalPlanName;
-              parsed.membershipType = finalPlanName;
-              if (expiry) parsed.planExpiryDate = expiry;
-              parsed.remainingContacts = active.remainingContacts ?? active.RemainingContacts ?? active.contactViewsAllowed ?? 0;
-              localStorage.setItem("user_details", JSON.stringify(parsed));
-              localStorage.setItem("user_session", JSON.stringify(parsed));
-            } catch (e) {}
-          }
+          syncSubscriptionToStorage(res.data);
+          const clientStatus = getClientSubscriptionStatus();
+          setIsPaid(clientStatus.isPaid);
+          setPlanName(clientStatus.isPaid ? clientStatus.planName : 'Free Member');
         }
       } catch (e) {}
     };
@@ -151,10 +129,12 @@ export default function DashboardHeader({
       window.addEventListener("user_photo_updated", updatePhotoFromStorage);
       window.addEventListener("boost_updated", handleBoostUpdated);
       window.addEventListener("user_details_updated", checkSubscriptionStatus);
+      window.addEventListener("subscription_updated", checkSubscriptionStatus);
       return () => {
         window.removeEventListener("user_photo_updated", updatePhotoFromStorage);
         window.removeEventListener("boost_updated", handleBoostUpdated);
         window.removeEventListener("user_details_updated", checkSubscriptionStatus);
+        window.removeEventListener("subscription_updated", checkSubscriptionStatus);
       };
     }
   }, [pathname]);

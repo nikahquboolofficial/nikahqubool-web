@@ -14,7 +14,9 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import DashboardHeader from '@/components/layout/dashboard/DashboardHeader';
 import DashboardBottomNav from '@/components/layout/dashboard/DashboardBottomNav';
-import { fetchDashboardApi, fetchNotificationCountsApi, handleInteractionApiCall } from '@/lib/api';
+import { fetchDashboardApi, fetchNotificationCountsApi, handleInteractionApiCall, fetchActiveSubscriptionApi } from '@/lib/api';
+import { syncSubscriptionToStorage } from '@/lib/subscriptionUtils';
+import { DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
 import GlobalPresence from '@/components/layout/GlobalPresence';
 import { SignalRProvider } from '@/context/SignalRContext';
 
@@ -56,6 +58,55 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [notificationsList, setNotificationsList] = useState<any[]>([]);
   const [readKeys, setReadKeys] = useState<{ [key: string]: boolean }>({});
+  const [unreadChatCount, setUnreadChatCount] = useState<number>(0);
+
+  // 💬 REAL UNREAD CHAT COUNT TRACKER
+  const refreshChatUnreadCount = useCallback(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const cached = sessionStorage.getItem('cached_chat_inbox');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) {
+          const total = parsed.reduce((sum: number, c: any) => sum + Number(c.unreadCount ?? c.UnreadCount ?? 0), 0);
+          setUnreadChatCount(total);
+          return;
+        }
+      }
+    } catch (e) {}
+  }, []);
+
+  useEffect(() => {
+    refreshChatUnreadCount();
+
+    // 👑 Sync subscription on dashboard mount
+    const token = getAuthToken();
+    if (token) {
+      fetchActiveSubscriptionApi(token).then((res) => {
+        if (res.success && res.data) {
+          syncSubscriptionToStorage(res.data);
+        }
+      }).catch(() => {});
+    }
+
+    const handleChatCountUpdate = (e: any) => {
+      if (e?.detail?.count !== undefined) {
+        setUnreadChatCount(Number(e.detail.count));
+      } else {
+        refreshChatUnreadCount();
+      }
+    };
+    const handleGlobalMsg = () => {
+      setUnreadChatCount(prev => prev + 1);
+    };
+
+    window.addEventListener('chat_unread_count_updated', handleChatCountUpdate);
+    window.addEventListener('global_message_received', handleGlobalMsg);
+    return () => {
+      window.removeEventListener('chat_unread_count_updated', handleChatCountUpdate);
+      window.removeEventListener('global_message_received', handleGlobalMsg);
+    };
+  }, [refreshChatUnreadCount]);
   
   const [counts, setCounts] = useState({
     requestsCount: 0,
@@ -272,6 +323,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       {isMobileBottomNavVisible && (
         <DashboardBottomNav 
           unreadCount={unreadTotal}
+          unreadChatCount={unreadChatCount}
         />
       )}
 
@@ -357,13 +409,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                       filteredNotifications.map((item, idx) => {
                         const senderId = item.senderUserId || item.userId || item.fromUserId || item.id;
                         const senderName = item.senderName || item.userName || item.name || item.fullName || 'Member';
-                        const senderPhoto = item.senderPhoto || item.userPhoto || item.photo || item.profilePhoto || '/placeholder.png';
+                        const senderPhoto = item.senderPhoto || item.userPhoto || item.photo || item.profilePhoto || DEFAULT_FEMALE_AVATAR;
                         const message = item.notificationMessage || item.message || item.text || item.title || 'Interaction update';
 
                         return (
                           <div key={idx} className="p-4 bg-white rounded-2xl border-2 border-slate-200 shadow-xs flex items-center justify-between gap-3 hover:border-rose-300 transition-all">
                             <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleViewUserProfile(senderId)}>
-                              <img src={senderPhoto} alt={senderName} className="w-11 h-11 rounded-full object-cover border-2 border-rose-100 flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }} />
+                              <img src={senderPhoto} alt={senderName} className="w-11 h-11 rounded-full object-cover border-2 border-rose-100 flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_FEMALE_AVATAR; }} />
                               <div>
                                 <h4 className="text-xs font-black text-slate-900 hover:text-[#d91b5c] line-clamp-1 uppercase">{senderName}</h4>
                                 <p className="text-[10px] font-bold text-slate-500 line-clamp-1">{message}</p>

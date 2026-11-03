@@ -4,7 +4,7 @@ import { Search, MessageSquare, UserX } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useSignalR } from '@/context/SignalRContext';
 import { fetchChatInboxApi, markChatReadApi, blockUserApiCall } from '@/lib/api';
-import { getOptimizedImageUrl } from '@/lib/imageUtils';
+import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
 import { getAuthToken } from '@/lib/auth';
 
 export default function InboxList({ onSelectUser, selectedId }: any) {
@@ -12,6 +12,7 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
   const { connection, onlineUsers, typingUsers } = useSignalR();
 
   const [chats, setChats] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const selectedIdRef = useRef(selectedId); 
 
@@ -19,16 +20,50 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
     selectedIdRef.current = selectedId;
   }, [selectedId]);
 
+  // ⚡ 0ms INSTANT HYDRATION FROM SESSION CACHE (Zero Empty-Flicker)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = sessionStorage.getItem("cached_chat_inbox");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setChats(parsed);
+            setLoading(false);
+          }
+        }
+      } catch (e) {}
+    }
+  }, []);
+
+  // ⚡ Sync Unread Count to Bottom Nav & Global Layout whenever chats change
+  useEffect(() => {
+    if (typeof window !== "undefined" && Array.isArray(chats)) {
+      const total = chats.reduce((sum, c) => sum + Number(c.unreadCount ?? c.UnreadCount ?? 0), 0);
+      window.dispatchEvent(new CustomEvent('chat_unread_count_updated', { detail: { count: total } }));
+      try {
+        sessionStorage.setItem('cached_chat_inbox', JSON.stringify(chats));
+      } catch (e) {}
+    }
+  }, [chats]);
+
   const getToken = (): string | null => getAuthToken();
 
   const parseUtcDate = (dateVal: any) => {
     if (!dateVal) return new Date();
-    if (typeof dateVal === 'object' && dateVal instanceof Date) return dateVal;
-    let str = String(dateVal).trim();
-    if (!str.endsWith('Z') && !str.includes('+') && !str.includes('Z')) {
-      str += 'Z';
+    if (typeof dateVal === 'object' && dateVal instanceof Date) {
+      return isNaN(dateVal.getTime()) ? new Date() : dateVal;
     }
-    return new Date(str);
+    try {
+      let str = String(dateVal).trim().replace(' ', 'T');
+      if (!str.endsWith('Z') && !str.includes('+')) {
+        str += 'Z';
+      }
+      const d = new Date(str);
+      return isNaN(d.getTime()) ? new Date() : d;
+    } catch {
+      return new Date();
+    }
   };
 
   const formatChatTime = (dateString: string) => {
@@ -42,13 +77,21 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
 
   const fetchInbox = async () => {
     const token = getToken();
-    if (!token) return;
+    if (!token) {
+      setLoading(false);
+      return;
+    }
     try {
-      const res = await fetchChatInboxApi(1, 40, token);
+      const res = await fetchChatInboxApi(1, 50, token);
       const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.data?.data) ? res.data.data : []);
       setChats(list);
+      if (typeof window !== "undefined") {
+        try { sessionStorage.setItem("cached_chat_inbox", JSON.stringify(list)); } catch (e) {}
+      }
     } catch {
-      setChats([]);
+      // keep existing if any
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -136,8 +179,8 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
         ...chat,
         fullName: "Deleted User",
         FullName: "Deleted User",
-        photoUrl: "/placeholder.png",
-        PhotoUrl: "/placeholder.png",
+        photoUrl: DEFAULT_FEMALE_AVATAR,
+        PhotoUrl: DEFAULT_FEMALE_AVATAR,
         accountState: "Deleted",
         isDeleted: true
       };
@@ -146,8 +189,8 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
         ...chat,
         fullName: "Deactivated User",
         FullName: "Deactivated User",
-        photoUrl: "/placeholder.png",
-        PhotoUrl: "/placeholder.png",
+        photoUrl: DEFAULT_FEMALE_AVATAR,
+        PhotoUrl: DEFAULT_FEMALE_AVATAR,
         accountState: "Deactivated",
         isDeactive: true
       };
@@ -156,8 +199,8 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
         ...chat,
         fullName: "User Unavailable",
         FullName: "User Unavailable",
-        photoUrl: "/placeholder.png",
-        PhotoUrl: "/placeholder.png",
+        photoUrl: DEFAULT_FEMALE_AVATAR,
+        PhotoUrl: DEFAULT_FEMALE_AVATAR,
         accountState: "Blocked",
         isAdminBlocked: true
       };
@@ -230,7 +273,22 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-2.5 space-y-1.5 bg-white">
-        {filteredChats.length === 0 ? (
+        {loading && safeChatList.length === 0 ? (
+          <div className="space-y-2 p-1">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50/80 animate-pulse border border-slate-100/80">
+                <div className="w-12 h-12 rounded-full bg-slate-200 shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <div className="w-28 h-3.5 bg-slate-200 rounded-md" />
+                    <div className="w-10 h-2.5 bg-slate-150 rounded-md" />
+                  </div>
+                  <div className="w-40 h-3 bg-slate-150 rounded-md" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredChats.length === 0 ? (
           <div className="text-center py-12 px-4 space-y-2">
             <div className="w-12 h-12 rounded-full bg-rose-50 text-[#d91b5c] flex items-center justify-center mx-auto">
               <MessageSquare size={20} />
@@ -284,7 +342,7 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
 
             const rawPhoto = chat.photoUrl ?? chat.PhotoUrl;
             const pUrl = (isDeleted || isDeactive || isAdminBlocked)
-              ? "/placeholder.png" 
+              ? DEFAULT_FEMALE_AVATAR 
               : (rawPhoto ? getOptimizedImageUrl(rawPhoto) : `https://ui-avatars.com/api/?name=${encodeURIComponent(fName)}&background=FFF0F3&color=870c3f&bold=true`);
 
             return (
@@ -305,7 +363,7 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
                     onError={(e) => { 
                     const target = e.target as HTMLImageElement;
                     target.onerror = null;
-                    target.src = '/placeholder.png'; 
+                    target.src = DEFAULT_FEMALE_AVATAR; 
                   }}
                   />
                   {isUserOnline && (

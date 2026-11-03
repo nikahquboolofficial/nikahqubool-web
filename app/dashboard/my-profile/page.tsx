@@ -15,7 +15,7 @@ import {
   fetchProfileDetailsApi, 
   updatePhotoPrivacyApiCall 
 } from '@/lib/api';
-import { getOptimizedImageUrl } from '@/lib/imageUtils';
+import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
 import VerificationModal from '@/components/profile/VerificationModal';
 import { getAuthToken } from '@/lib/auth';
 
@@ -294,7 +294,7 @@ export default function MyProfilePage() {
                 src={photo} 
                 alt={fullName} 
                 className="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-105"
-                onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }}
+                onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_FEMALE_AVATAR; }}
               />
             </div>
 

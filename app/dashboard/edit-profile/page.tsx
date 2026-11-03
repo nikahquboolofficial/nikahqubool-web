@@ -16,7 +16,7 @@ import {
   MasterOption 
 } from '@/lib/api';
 import { CompactSelect, MultiSelectDropdown } from '@/components/profile/CompactSelect';
-import { getOptimizedImageUrl } from '@/lib/imageUtils';
+import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
 import { getAuthToken, clearAuthCookies } from '@/lib/auth';
 
 type SectionKey = 'intro' | 'basic' | 'personal' | 'education' | 'religious' | 'address' | 'family' | 'partner';
@@ -75,7 +75,7 @@ export default function EditMyProfilePage() {
     Age: 25,
     Gender: 'Female',
     DateOfBirth: '',
-    PhotoUrl: '/placeholder.png',
+    PhotoUrl: DEFAULT_FEMALE_AVATAR,
 
     // Section 1: Intro / Bio
     AboutMe: '',
@@ -620,7 +620,7 @@ export default function EditMyProfilePage() {
                     src={formData.PhotoUrl} 
                     alt="Avatar" 
                     className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl object-cover object-top border-2 border-rose-100 shadow-xs"
-                    onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }}
+                    onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_FEMALE_AVATAR; }}
                   />
                 </div>
 

@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import { fetchProfileDetailsApi, uploadGalleryPhotoApi, setMainPhotoApi, deleteGalleryPhotoApi, updatePhotoPrivacyApi } from '@/lib/api';
 import { CompactSelect } from '@/components/profile/CompactSelect';
-import { getOptimizedImageUrl } from '@/lib/imageUtils';
+import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
 import { syncUserProfilePhoto } from '@/lib/auth';
 
 export default function GalleryManagementPage() {
@@ -306,7 +306,7 @@ export default function GalleryManagementPage() {
                     src={imageUrl} 
                     alt={`Photo ${idx + 1}`} 
                     className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300" 
-                    onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }} 
+                    onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_FEMALE_AVATAR; }} 
                   />
                   
                   {isMain ? (
@@ -394,7 +394,7 @@ export default function GalleryManagementPage() {
                   src={selectedPhoto.resolvedUrl || getOptimizedImageUrl(selectedPhoto.photoUrl)} 
                   alt="Preview" 
                   className="w-full h-full object-cover object-top" 
-                  onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.png'; }}
+                  onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_FEMALE_AVATAR; }}
                 />
               </div>
 
