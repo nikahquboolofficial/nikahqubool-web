@@ -306,8 +306,26 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         <div className="lg:hidden sticky top-0 z-[100] bg-white/95 backdrop-blur-xl border-b-2 border-rose-100 px-4 py-3 flex items-center shadow-xs">
           <button 
             type="button" 
-            onClick={() => router.back()} 
-            className="p-2 -ml-2 rounded-full text-[#d91b5c] hover:bg-rose-50 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
+            onClick={() => {
+              if (typeof window !== "undefined") {
+                const last = sessionStorage.getItem('last_browse_page');
+                if (last && last !== pathname) {
+                  router.push(last);
+                  return;
+                }
+                if (window.history.length > 1) {
+                  router.back();
+                  setTimeout(() => {
+                    if (window.location.pathname === pathname) {
+                      router.push('/dashboard');
+                    }
+                  }, 250);
+                  return;
+                }
+              }
+              router.push('/dashboard');
+            }}
+            className="p-2.5 -ml-2 rounded-full text-[#d91b5c] hover:bg-rose-50 active:scale-90 transition-transform duration-100 cursor-pointer flex items-center justify-center touch-manipulation select-none"
             aria-label="Back"
             title="Go Back"
           >

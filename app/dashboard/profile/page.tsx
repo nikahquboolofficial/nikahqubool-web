@@ -68,6 +68,26 @@ export default function ProfileDetailPage() {
     }
   }, []);
 
+  const handleBack = useCallback(() => {
+    if (typeof window !== "undefined") {
+      const lastPage = sessionStorage.getItem('last_browse_page');
+      if (lastPage && !lastPage.includes('/dashboard/profile')) {
+        router.push(lastPage);
+        return;
+      }
+      if (window.history.length > 1) {
+        router.back();
+        setTimeout(() => {
+          if (window.location.pathname.includes('/dashboard/profile')) {
+            router.push('/dashboard/find-match');
+          }
+        }, 250);
+        return;
+      }
+    }
+    router.push('/dashboard/find-match');
+  }, [router]);
+
   const getToken = useCallback(() => getAuthToken(), []);
 
   const checkIsUserPaid = useCallback((profile?: any, apiData?: any): boolean => {
@@ -767,9 +787,10 @@ export default function ProfileDetailPage() {
           
           {/* HEADER NAV BAR (BACK BUTTON & 3-DOT MENU) */}
           <div className="absolute top-4 inset-x-4 z-30 flex items-center justify-between pointer-events-auto">
-            <button 
-              onClick={() => router.back()}
-              className="w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-md text-white flex items-center justify-center border border-white/20 shadow-md cursor-pointer transition-all active:scale-90"
+            <button
+              type="button"
+              onClick={handleBack}
+              className="w-11 h-11 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-md text-white flex items-center justify-center border border-white/20 shadow-lg cursor-pointer transition-transform duration-100 active:scale-90 touch-manipulation select-none"
               aria-label="Back"
             >
               <ArrowLeft size={20} />

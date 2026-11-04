@@ -159,7 +159,7 @@ export default function ProfileCard({
     >
       {/* 🖼️ CARD MEDIA CONTAINER */}
       <div 
-        className="relative w-full h-[530px] sm:h-[500px] md:h-[515px] overflow-hidden cursor-pointer" 
+        className="relative w-full h-[530px] sm:h-[500px] md:h-[515px] overflow-hidden cursor-pointer touch-manipulation select-none active:brightness-95 transition-all duration-75" 
         onClick={(e) => {
           e.stopPropagation();
           onViewProfile(userIdNum);
