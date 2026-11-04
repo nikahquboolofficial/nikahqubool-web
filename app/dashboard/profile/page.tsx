@@ -77,11 +77,6 @@ export default function ProfileDetailPage() {
       }
       if (window.history.length > 1) {
         router.back();
-        setTimeout(() => {
-          if (window.location.pathname.includes('/dashboard/profile')) {
-            router.push('/dashboard/find-match');
-          }
-        }, 250);
         return;
       }
     }

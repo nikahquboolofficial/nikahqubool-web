@@ -264,6 +264,7 @@ function ActivityPageContent() {
   const handleViewProfile = (userId: number) => {
     const token = getToken();
     if (typeof window !== "undefined") {
+      sessionStorage.setItem("last_browse_page", "/dashboard/activity");
       sessionStorage.setItem("viewing_profile_target", JSON.stringify({ userId }));
       localStorage.setItem("viewing_profile_target", JSON.stringify({ userId }));
     }
@@ -280,6 +281,7 @@ function ActivityPageContent() {
     );
     
     if (isPaid) {
+      if (typeof window !== "undefined") { sessionStorage.setItem("last_browse_page", "/dashboard/activity"); }
       sessionStorage.setItem('active_chat_target', JSON.stringify({
         userId: profile.userId || profile.UserId,
         fullName: profile.fullName || profile.FullName,

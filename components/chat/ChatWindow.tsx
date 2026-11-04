@@ -54,6 +54,7 @@ export default function ChatWindow({
   const [selectedEmojiCategory, setSelectedEmojiCategory] = useState<keyof typeof EMOJI_CATEGORIES>("Nikah & Pure");
   const [showScrollBottom, setShowScrollBottom] = useState(false);
   const typingTimeoutRef = useRef<any>(null);
+  const isSendingRef = useRef(false);
 
   const [blockStatus, setBlockStatus] = useState<{
     isBlockedByMe: boolean;
@@ -172,7 +173,12 @@ export default function ChatWindow({
   const handleViewProfile = (e: React.MouseEvent) => {
     e.preventDefault();
     if (isDeletedUser || isDeactiveUser || isAdminBlockedUser) return;
+    if (inputRef.current) inputRef.current.blur();
+    if (typeof document !== "undefined" && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
     if (typeof window !== "undefined") {
+      sessionStorage.setItem('last_browse_page', '/dashboard/messages');
       sessionStorage.setItem("viewing_profile_target", JSON.stringify({ 
         userId: Number(receiverId),
         targetUserId: Number(receiverId)
@@ -384,24 +390,33 @@ export default function ChatWindow({
     setShowScrollBottom(scrollHeight - scrollTop - clientHeight > 250);
   };
 
-  // 🚀 NON-BLOCKING RAPID DISPATCH (WHATSAPP-STYLE RAPID ENTER SAFE)
+  // 🚀 NON-BLOCKING RAPID DISPATCH (WHATSAPP-STYLE RAPID ENTER SAFE + DEBOUNCE GUARD)
   const handleSendText = async (textToSend: string) => {
     const trimmed = textToSend.trim();
     if (!trimmed || isBlocked) return;
-    const token = getToken();
-    if (!token) return;
+    
+    // 🛡️ Prevent duplicate execution from simultaneous touch & click events
+    if (isSendingRef.current) return;
+    isSendingRef.current = true;
+    setTimeout(() => {
+      isSendingRef.current = false;
+    }, 350);
 
-    // Immediately clear input and restore focus for rapid consecutive typing
+    const token = getToken();
+    if (!token) {
+      isSendingRef.current = false;
+      return;
+    }
+
+    // Immediately clear input
     setMsg(""); 
     setShowEmojiPicker(false);
-    requestAnimationFrame(() => {
-      inputRef.current?.focus();
-    });
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     sendTyping(Number(receiverId), false);
 
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const nowIso = new Date().toISOString();
     const optimisticMsg = {
       uniqueKey: tempId,
       messageId: tempId,
@@ -423,6 +438,44 @@ export default function ChatWindow({
     });
     scrollToBottom("smooth");
 
+    // ⚡ 0ms INSTANT INBOX SYNC: Immediately add/update this user at top of inbox list
+    if (typeof window !== "undefined") {
+      try {
+        const inboxRaw = sessionStorage.getItem("cached_chat_inbox");
+        let inboxList: any[] = inboxRaw ? JSON.parse(inboxRaw) : [];
+        if (!Array.isArray(inboxList)) inboxList = [];
+
+        const idx = inboxList.findIndex(c => Number(c.userId ?? c.UserId) === Number(receiverId));
+        if (idx !== -1) {
+          const item = { ...inboxList[idx], lastMessage: trimmed, lastMessageTime: nowIso };
+          inboxList.splice(idx, 1);
+          inboxList.unshift(item);
+        } else {
+          inboxList.unshift({
+            userId: Number(receiverId),
+            fullName: resolvedName || 'Member',
+            photoUrl: resolvedPhoto || '',
+            lastMessage: trimmed,
+            lastMessageTime: nowIso,
+            unreadCount: 0,
+            accountState: 'Active',
+            isOnline: isOnline
+          });
+        }
+        sessionStorage.setItem("cached_chat_inbox", JSON.stringify(inboxList));
+      } catch (e) {}
+
+      window.dispatchEvent(new CustomEvent('chat_conversation_updated', {
+        detail: {
+          userId: Number(receiverId),
+          fullName: resolvedName || 'Member',
+          photoUrl: resolvedPhoto || '',
+          lastMessage: trimmed,
+          lastMessageTime: nowIso
+        }
+      }));
+    }
+
     // Asynchronously dispatch without blocking future typing
     sendChatMessageApi(Number(receiverId), trimmed, "Text", token).then(res => {
       if (res.success && res.data) {
@@ -442,6 +495,23 @@ export default function ChatWindow({
   };
 
   const handleSend = () => handleSendText(msg);
+
+  // Dismiss mobile keyboard on unmount to prevent touch coordinate lock
+  useEffect(() => {
+    return () => {
+      if (typeof document !== "undefined" && document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+    };
+  }, []);
+
+  const handleBackSafe = () => {
+    if (inputRef.current) inputRef.current.blur();
+    if (typeof document !== "undefined" && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    if (onBack) onBack();
+  };
 
   const handleToggleBlock = async () => {
     const token = getToken();
@@ -554,7 +624,7 @@ export default function ChatWindow({
       
       {/* 📌 WHATSAPP-STYLE STICKY TOP HEADER */}
       <div className="shrink-0 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] px-3 py-2.5 sm:px-4 sm:py-3 flex items-center gap-3 text-white shadow-md z-30 border-b border-rose-900/20">
-        <button onClick={onBack} className="p-2 hover:bg-white/15 rounded-2xl transition-colors cursor-pointer md:hidden">
+        <button onClick={handleBackSafe} className="p-2 hover:bg-white/15 rounded-2xl transition-colors cursor-pointer md:hidden">
           <ArrowLeft size={20} />
         </button>
 
@@ -828,9 +898,6 @@ export default function ChatWindow({
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
                   handleSend();
-                  requestAnimationFrame(() => {
-                    inputRef.current?.focus();
-                  });
                 }
               }}
               placeholder="Type a message..." 
@@ -839,12 +906,8 @@ export default function ChatWindow({
             <button 
               type="button"
               onMouseDown={(e) => e.preventDefault()}
-              onTouchEnd={(e) => {
-                e.preventDefault();
-                handleSend();
-              }}
               onClick={handleSend} 
-              className="h-10 w-10 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 rounded-full flex items-center justify-center text-white shadow-md active:scale-90 transition-all flex-shrink-0 cursor-pointer border border-rose-300/30"
+              className="h-10 w-10 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 rounded-full flex items-center justify-center text-white shadow-md active:scale-90 transition-all flex-shrink-0 cursor-pointer border border-rose-300/30 touch-manipulation"
               title="Send Message"
             >
               <Send size={16} className="ml-0.5 text-amber-300" />

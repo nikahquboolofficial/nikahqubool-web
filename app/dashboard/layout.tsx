@@ -315,11 +315,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 }
                 if (window.history.length > 1) {
                   router.back();
-                  setTimeout(() => {
-                    if (window.location.pathname === pathname) {
-                      router.push('/dashboard');
-                    }
-                  }, 250);
                   return;
                 }
               }

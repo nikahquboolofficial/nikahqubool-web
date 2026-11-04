@@ -100,6 +100,9 @@ function MessagesContainer() {
         window.dispatchEvent(new CustomEvent('active_chat_selected', { 
           detail: { activeReceiverId: null } 
         }));
+        window.dispatchEvent(new CustomEvent('chat_view_changed', { 
+          detail: { isChatOpen: false } 
+        }));
       }
     };
   }, [selectedChat]);
@@ -130,7 +133,10 @@ function MessagesContainer() {
               initialIsOnline={selectedChat.isOnline ?? selectedChat.IsOnline}
               initialLastSeen={selectedChat.lastSeen ?? selectedChat.LastSeen}
               initialAccountState={selectedChat.accountState ?? selectedChat.AccountState}
-              onBack={() => setSelectedChat(null)} 
+              onBack={() => {
+                setSelectedChat(null);
+                window.dispatchEvent(new CustomEvent('refresh_inbox_list'));
+              }} 
             />
           </ChatErrorBoundary>
         ) : (

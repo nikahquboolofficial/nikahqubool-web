@@ -278,6 +278,7 @@ export default function FindMatchesPage() {
 
   const openProfileView = (user: any) => {
     const uId = user.userId || user.UserId;
+    if (typeof window !== "undefined") { sessionStorage.setItem("last_browse_page", "/dashboard/find-match"); }
     sessionStorage.setItem('viewing_profile_target', JSON.stringify({
       userId: uId,
       targetUserId: uId
@@ -288,6 +289,7 @@ export default function FindMatchesPage() {
   const handleInitiateChat = (user: any) => {
     const status = getClientSubscriptionStatus();
     if (status.canChat) {
+      if (typeof window !== "undefined") { sessionStorage.setItem("last_browse_page", "/dashboard/find-match"); }
       sessionStorage.setItem('active_chat_target', JSON.stringify({
         userId: user.userId || user.UserId,
         fullName: user.fullName || user.FullName,

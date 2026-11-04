@@ -19,6 +19,10 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
   const selectedIdRef = useRef(selectedId); 
 
   useEffect(() => {
+    // When user closes active chat (onBack) or selectedId becomes null/undefined, refresh inbox
+    if (!selectedId && selectedIdRef.current) {
+      fetchInbox();
+    }
     selectedIdRef.current = selectedId;
   }, [selectedId]);
 
@@ -148,10 +152,57 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
       }
     };
 
+    // ⚡ INSTANT INBOX SYNC: When current user sends a message to any new or existing user
+    const handleConversationUpdated = (e: any) => {
+      const data = e.detail;
+      if (!data || !data.userId) return;
+      const targetUserId = Number(data.userId);
+
+      setChats((prevChats) => {
+        const currentList = Array.isArray(prevChats) ? [...prevChats] : [];
+        const index = currentList.findIndex(c => Number(c.userId ?? c.UserId) === targetUserId);
+
+        if (index !== -1) {
+          const target = { ...currentList[index] };
+          target.lastMessage = data.lastMessage;
+          target.lastMessageTime = data.lastMessageTime || new Date().toISOString();
+          currentList.splice(index, 1);
+          const updated = [target, ...currentList];
+          try { sessionStorage.setItem("cached_chat_inbox", JSON.stringify(updated)); } catch (err) {}
+          return updated;
+        } else {
+          const newChat = {
+            userId: targetUserId,
+            fullName: data.fullName || 'Member',
+            photoUrl: data.photoUrl || '',
+            lastMessage: data.lastMessage,
+            lastMessageTime: data.lastMessageTime || new Date().toISOString(),
+            unreadCount: 0,
+            accountState: 'Active',
+            isOnline: true
+          };
+          const updated = [newChat, ...currentList];
+          try { sessionStorage.setItem("cached_chat_inbox", JSON.stringify(updated)); } catch (err) {}
+          fetchInbox();
+          return updated;
+        }
+      });
+    };
+
+    const handleRefresh = () => {
+      fetchInbox();
+    };
+
     window.addEventListener("global_message_received", handleGlobalMsg);
+    window.addEventListener("chat_conversation_updated", handleConversationUpdated);
+    window.addEventListener("refresh_inbox_list", handleRefresh);
+    window.addEventListener("focus", handleRefresh);
 
     return () => {
       window.removeEventListener("global_message_received", handleGlobalMsg);
+      window.removeEventListener("chat_conversation_updated", handleConversationUpdated);
+      window.removeEventListener("refresh_inbox_list", handleRefresh);
+      window.removeEventListener("focus", handleRefresh);
     };
   }, []);
 
@@ -283,7 +334,7 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto p-2.5 space-y-1.5 bg-white">
+      <div className="flex-1 min-h-0 overflow-y-auto p-2.5 space-y-1.5 bg-white pb-24 md:pb-4">
         {loading && safeChatList.length === 0 ? (
           <div className="space-y-2 p-1">
             {[1, 2, 3, 4, 5, 6].map((i) => (

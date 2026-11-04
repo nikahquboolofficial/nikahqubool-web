@@ -243,6 +243,7 @@ export default function VIPCleanDashboardPage() {
     const token = getToken();
     const targetProfile = profiles.find((p) => Number(p.userId || p.UserId) === userId);
     if (typeof window !== "undefined") {
+      sessionStorage.setItem("last_browse_page", "/dashboard");
       const dataToStore = targetProfile ? { ...targetProfile, userId } : { userId };
       sessionStorage.setItem("viewing_profile_target", JSON.stringify(dataToStore));
       localStorage.setItem("viewing_profile_target", JSON.stringify(dataToStore));
@@ -258,6 +259,7 @@ export default function VIPCleanDashboardPage() {
     const canChat = isCurrentUserPaid || status.canChat;
 
     if (canChat) {
+      if (typeof window !== "undefined") { sessionStorage.setItem("last_browse_page", "/dashboard"); }
       sessionStorage.setItem('active_chat_target', JSON.stringify({
         userId: profile.userId || profile.UserId,
         fullName: profile.fullName || profile.FullName,
