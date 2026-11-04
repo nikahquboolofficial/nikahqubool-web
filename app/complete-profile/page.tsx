@@ -239,7 +239,7 @@ export default function CompleteProfilePage() {
 
   // Slide state: 1 to 17 (1 field per slide, except State & City together)
   const [step, setStep] = useState<number>(1);
-  const totalSteps = 18;
+  const totalSteps = 13;
   const [slideDirection, setSlideDirection] = useState<'forward' | 'backward'>('forward');
   const [loading, setLoading] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<string>('');
@@ -1046,89 +1046,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 5: WEIGHT (AUTO-ADVANCE)
+                SLIDE 5: SECT (AUTO-ADVANCE)
                 ========================================================= */}
             {step === 5 && (
-              <div className="space-y-3">
-                <div className="text-left space-y-0.5">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Physical Profile</span>
-                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
-                    What is your weight?
-                  </h2>
-                  <p className="text-[11px] text-slate-500 font-normal">Select your approximate weight</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  {WEIGHT_OPTIONS.map((w) => {
-                    const isSelected = formData.weight === w;
-                    return (
-                      <button
-                        key={w}
-                        type="button"
-                        onClick={() => handleSimpleAdvance('weight', w)}
-                        className={`p-3 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
-                          isSelected 
-                            ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' 
-                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'
-                        }`}
-                      >
-                        <span className="text-xs font-bold">{w}</span>
-                        <div className={`w-4 h-4 rounded-full flex items-center justify-center transition-all ${
-                          isSelected ? 'bg-[#e21e5b] text-white shadow-2xs' : 'border border-slate-300'
-                        }`}>
-                          {isSelected && <Check size={10} strokeWidth={3} />}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* =========================================================
-                SLIDE 6: COMPLEXION (AUTO-ADVANCE)
-                ========================================================= */}
-            {step === 6 && (
-              <div className="space-y-3">
-                <div className="text-left space-y-0.5">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Appearance</span>
-                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
-                    What is your complexion?
-                  </h2>
-                  <p className="text-[11px] text-slate-500 font-normal">Select one option</p>
-                </div>
-
-                <div className="space-y-2 pt-1">
-                  {(masterData.COMPLEXIONS || []).map((opt) => {
-                    const isSelected = formData.complexionId === opt.id;
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => handleAutoAdvance('complexionId', opt.id, 'complexionText', opt.value)}
-                        className={`w-full p-3 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
-                          isSelected 
-                            ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' 
-                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'
-                        }`}
-                      >
-                        <span className="text-xs uppercase tracking-wide">{opt.value}</span>
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
-                          isSelected ? 'bg-[#e21e5b] text-white shadow-2xs' : 'border border-slate-300'
-                        }`}>
-                          {isSelected && <Check size={12} strokeWidth={3} />}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* =========================================================
-                SLIDE 7: SECT (AUTO-ADVANCE)
-                ========================================================= */}
-            {step === 7 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Community</span>
@@ -1166,9 +1086,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 8: MASLAK (AUTO-ADVANCE)
+                SLIDE 6: MASLAK (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 8 && (
+            {step === 6 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Community</span>
@@ -1208,7 +1128,7 @@ export default function CompleteProfilePage() {
             {/* =========================================================
                 SLIDE 9: CASTE / BIRADARI (AUTO-ADVANCE WITH SEARCH)
                 ========================================================= */}
-            {step === 9 && (
+            {step === 7 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Roots & Heritage</span>
@@ -1260,49 +1180,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 10: MOTHER TONGUE (AUTO-ADVANCE)
+                SLIDE 8: STATE & CITY TOGETHER
                 ========================================================= */}
-            {step === 10 && (
-              <div className="space-y-3">
-                <div className="text-left space-y-0.5">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Language</span>
-                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
-                    What is your mother tongue?
-                  </h2>
-                  <p className="text-[11px] text-slate-500 font-normal">Select your primary language</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  {(masterData.MOTHER_TONGUES || []).map((opt) => {
-                    const isSelected = formData.motherTongueId === opt.id;
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => handleAutoAdvance('motherTongueId', opt.id, 'motherTongueText', opt.value)}
-                        className={`p-3 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
-                          isSelected 
-                            ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' 
-                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'
-                        }`}
-                      >
-                        <span className="text-xs font-semibold">{opt.value}</span>
-                        <div className={`w-4 h-4 rounded-full flex items-center justify-center transition-all ${
-                          isSelected ? 'bg-[#e21e5b] text-white shadow-2xs' : 'border border-slate-300'
-                        }`}>
-                          {isSelected && <Check size={10} strokeWidth={3} />}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* =========================================================
-                SLIDE 11: STATE & CITY TOGETHER (PER USER EXPLICIT REQUEST)
-                ========================================================= */}
-            {step === 11 && (
+            {step === 8 && (
               <div className="space-y-4">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Location</span>
@@ -1398,7 +1278,7 @@ export default function CompleteProfilePage() {
             {/* =========================================================
                 SLIDE 12: EDUCATION LEVEL (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 12 && (
+            {step === 9 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Education</span>
@@ -1438,7 +1318,7 @@ export default function CompleteProfilePage() {
             {/* =========================================================
                 SLIDE 13: EMPLOYMENT SECTOR (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 13 && (
+            {step === 10 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Career</span>
@@ -1478,7 +1358,7 @@ export default function CompleteProfilePage() {
             {/* =========================================================
                 SLIDE 14: PROFESSION / OCCUPATION (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 14 && (
+            {step === 11 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Career</span>
@@ -1518,7 +1398,7 @@ export default function CompleteProfilePage() {
             {/* =========================================================
                 SLIDE 15: ANNUAL INCOME (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 15 && (
+            {step === 12 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Financials</span>
@@ -1556,89 +1436,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 16: FAMILY TYPE (AUTO-ADVANCE)
+                SLIDE 13: PHOTO, SLEEK PRIVACY DROPDOWN & FINAL SUBMIT
                 ========================================================= */}
-            {step === 16 && (
-              <div className="space-y-3">
-                <div className="text-left space-y-0.5">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Family Background</span>
-                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
-                    What is your family type?
-                  </h2>
-                  <p className="text-[11px] text-slate-500 font-normal">Select your family structure</p>
-                </div>
-
-                <div className="space-y-2 pt-1">
-                  {(masterData.FAMILY_TYPES || []).map((opt) => {
-                    const isSelected = formData.familyTypeId === opt.id;
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => handleAutoAdvance('familyTypeId', opt.id, 'familyTypeText', opt.value)}
-                        className={`w-full p-3 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
-                          isSelected 
-                            ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' 
-                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'
-                        }`}
-                      >
-                        <span className="text-xs uppercase tracking-wide">{opt.value}</span>
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
-                          isSelected ? 'bg-[#e21e5b] text-white shadow-2xs' : 'border border-slate-300'
-                        }`}>
-                          {isSelected && <Check size={12} strokeWidth={3} />}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* =========================================================
-                SLIDE 17: FAMILY STATUS (AUTO-ADVANCE)
-                ========================================================= */}
-            {step === 17 && (
-              <div className="space-y-3">
-                <div className="text-left space-y-0.5">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Family Background</span>
-                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
-                    What is your family status?
-                  </h2>
-                  <p className="text-[11px] text-slate-500 font-normal">Select your family social status</p>
-                </div>
-
-                <div className="space-y-2 pt-1">
-                  {(masterData.FAMILY_STATUS || []).map((opt) => {
-                    const isSelected = formData.familyStatusId === opt.id;
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => handleAutoAdvance('familyStatusId', opt.id, 'familyStatusText', opt.value)}
-                        className={`w-full p-3 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
-                          isSelected 
-                            ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' 
-                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'
-                        }`}
-                      >
-                        <span className="text-xs uppercase tracking-wide">{opt.value}</span>
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
-                          isSelected ? 'bg-[#e21e5b] text-white shadow-2xs' : 'border border-slate-300'
-                        }`}>
-                          {isSelected && <Check size={12} strokeWidth={3} />}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* =========================================================
-                SLIDE 18: PHOTO, SLEEK PRIVACY DROPDOWN & FINAL SUBMIT
-                ========================================================= */}
-            {step === 18 && (
+            {step === 13 && (
               <div className="space-y-4">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Final Step</span>
