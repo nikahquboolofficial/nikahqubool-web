@@ -211,12 +211,15 @@ export default function ActivityTabContent({
 
   const handleViewProfile = (userId: number) => {
     const token = getToken();
+    const targetProfile = profiles.find((p) => Number(p.userId || p.UserId) === userId);
+    const dataToStore = targetProfile ? { ...targetProfile, userId } : { userId };
     if (typeof window !== "undefined") { sessionStorage.setItem("last_browse_page", "/dashboard/activity"); }
-    sessionStorage.setItem("viewing_profile_target", JSON.stringify({ userId }));
+    sessionStorage.setItem("viewing_profile_target", JSON.stringify(dataToStore));
+    localStorage.setItem("viewing_profile_target", JSON.stringify(dataToStore));
     if (token) {
       handleInteractionApiCall(userId, 'VISIT', 'PENDING', token).catch(() => {});
     }
-    router.push('/dashboard/profile');
+    router.push('/dashboard/profile?userId=' + userId);
   };
 
   const handleInitiateChat = (profile: any) => {

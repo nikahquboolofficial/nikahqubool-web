@@ -279,10 +279,9 @@ export default function FindMatchesPage() {
   const openProfileView = (user: any) => {
     const uId = user.userId || user.UserId;
     if (typeof window !== "undefined") { sessionStorage.setItem("last_browse_page", "/dashboard/find-match"); }
-    sessionStorage.setItem('viewing_profile_target', JSON.stringify({
-      userId: uId,
-      targetUserId: uId
-    }));
+    const dataToStore = { ...user, userId: uId, targetUserId: uId };
+    sessionStorage.setItem('viewing_profile_target', JSON.stringify(dataToStore));
+    localStorage.setItem('viewing_profile_target', JSON.stringify(dataToStore));
     router.push('/dashboard/profile?userId=' + uId);
   };
 
