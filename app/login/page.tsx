@@ -212,16 +212,16 @@ function LoginContent() {
   return (
     <div className="min-h-screen w-full flex bg-white font-sans selection:bg-[#d91b5c] selection:text-white">
       
-      {/* 👑 LEFT COLUMN: HERO COUPLE IMAGE (DESKTOP ONLY - HIDDEN ON MOBILE) */}
+      {/* 👑 LEFT COLUMN: HERO NIKAH BRIDE IMAGE (DESKTOP ONLY - HIDDEN ON MOBILE) */}
       <div className="hidden md:flex md:w-1/2 lg:w-[54%] relative flex-col justify-between p-10 lg:p-14 text-white overflow-hidden bg-slate-950 min-h-screen select-none">
         <div 
           className="absolute inset-0 bg-cover bg-center transition-transform duration-1000 scale-105"
           style={{ 
-            backgroundImage: `url('https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=1600')`,
-            filter: 'brightness(0.72)'
+            backgroundImage: "url('/login-hero-bride.jpg')",
+            filter: 'brightness(0.85)'
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/45 to-slate-950/20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-slate-950/20" />
 
         {/* Top Header Link to Home */}
         <div className="relative z-10 flex items-center justify-between">
@@ -237,36 +237,36 @@ function LoginContent() {
           </Link>
         </div>
 
-        {/* Bottom Inspirational Brand Text */}
+        {/* Bottom Inspirational Brand Text (Filled with Barakah & Hope for Marriage) */}
         <div className="relative z-10 space-y-4 max-w-lg text-left">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/20 backdrop-blur-md border border-rose-300/30 text-rose-200 text-[11px] font-black uppercase tracking-wider">
-            <CheckCircle2 size={12} className="text-rose-300" />
-            <span>#1 Trusted Muslim Matrimony</span>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 backdrop-blur-md border border-amber-300/30 text-amber-200 text-[11px] font-black uppercase tracking-wider">
+            <Sparkles size={12} className="text-amber-300" />
+            <span>Where Sincere Intentions Meet Sacred Unions</span>
           </div>
 
-          <h2 className="text-3xl lg:text-5xl font-serif font-black tracking-tight leading-[1.15] text-white drop-shadow-md">
-            Half Your Deen, <br />
+          <h2 className="text-3xl lg:text-5xl font-serif font-black tracking-tight leading-[1.18] text-white drop-shadow-md">
+            Begin Your Blessed Journey,<br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-rose-300 to-amber-300 italic font-normal">
-              Completed With Honor.
+              Filled With Barakah &amp; Hope.
             </span>
           </h2>
 
           <p className="text-xs sm:text-sm text-slate-200 font-medium leading-relaxed drop-shadow max-w-md">
-            A sacred platform dedicated to connecting pious Muslim brides and grooms. Preserving Islamic values, complete family dignity, and 100% verified identities.
+            &ldquo;And We created you in pairs with love, peace &amp; mercy.&rdquo; Every blessed Nikah starts with a sincere intention. Connect with verified practicing Muslim proposals guided by dignity and family trust.
           </p>
 
           <div className="pt-3 flex flex-wrap gap-2.5 text-xs font-bold text-slate-200">
             <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15">
-              <ShieldCheck size={14} className="text-emerald-400 shrink-0" />
-              <span>100% Verified Profiles</span>
+              <Heart size={14} className="text-rose-300 shrink-0" />
+              <span>Sacred Sunnah Nikah</span>
             </div>
             <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15">
-              <Heart size={14} className="text-rose-300 shrink-0" />
-              <span>Sunnah-Guided Nikah</span>
+              <ShieldCheck size={14} className="text-emerald-400 shrink-0" />
+              <span>100% Verified Proposals</span>
             </div>
             <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/15">
               <Lock size={14} className="text-amber-300 shrink-0" />
-              <span>Photo & Contact Privacy</span>
+              <span>Strict Privacy Shield</span>
             </div>
           </div>
         </div>

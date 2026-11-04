@@ -19,24 +19,9 @@ export default function HomePage() {
 
   // 🕌 High-Quality Halal Muslim Couple Banners
   const slides = [
-    {
-      img: "https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=1600",
-      title: "Where Sincere Hearts Meet For Halal Nikah",
-      subtitle: "Connecting pious Muslim singles and respected families across India on pure Sunnah values.",
-      badge: "India's #1 Trusted Muslim Matrimony"
-    },
-    {
-      img: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=1600",
-      title: "Completed With Honor, Dignity & Privacy",
-      subtitle: "100% verified identities with strict photo privacy and direct family-to-family interaction.",
-      badge: "100% Verified Muslim Rishte"
-    },
-    {
-      img: "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1600",
-      title: "Find Your Life Partner Guided by the Sunnah",
-      subtitle: "Begin your blessed journey towards marriage in a respectful, transparent, and secure environment.",
-      badge: "Halal & Family Centric"
-    }
+    { img: "https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=1600" },
+    { img: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=1600" },
+    { img: "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1600" }
   ];
 
   // Auto-advance banner every 6 seconds
@@ -190,180 +175,161 @@ export default function HomePage() {
     <div className="min-h-screen bg-white text-slate-800 font-sans selection:bg-[#d91b5c] selection:text-white">
       
       {/* ================================================================
-          1. HERO SLIDER BANNER (EDGE-TO-EDGE, NO SIDE GAPS, WITH APP DOWNLOADS & ATTRACTION HOOK)
+          1. LUXURY MUSLIM MATRIMONY HERO BANNER (ORIGINAL DESIGN)
           ================================================================ */}
-      <section className="relative w-full overflow-hidden bg-slate-950">
-        <div className="relative w-full min-h-[520px] sm:min-h-[560px] lg:h-[620px] overflow-hidden">
-          
-          {/* Banner Slideshow */}
-          {slides.map((s, idx) => (
-            <div
-              key={idx}
-              className="absolute inset-0 transition-opacity duration-1000 ease-in-out"
-              style={{
-                opacity: currentSlide === idx ? 1 : 0,
-                pointerEvents: currentSlide === idx ? 'auto' : 'none'
-              }}
-            >
-              <div
-                className="absolute inset-0 bg-cover bg-center transform scale-105 transition-transform duration-[6000ms]"
-                style={{
-                  backgroundImage: "url('" + s.img + "')",
-                  filter: 'brightness(0.58)'
-                }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/45 to-slate-950/30" />
-            </div>
-          ))}
+      <section className="relative w-full bg-[#15191e] overflow-hidden">
+        
+        {/* DESKTOP BANNER CONTAINER (HIDDEN ON MOBILE) */}
+        <div className="hidden md:block relative w-full h-[560px] lg:h-[620px] xl:h-[660px] overflow-hidden">
+          <div 
+            className="absolute inset-0 bg-cover"
+            style={{ 
+              backgroundImage: "url('/desktop-hero-banner.jpg')",
+              backgroundPosition: 'right 15%'
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#12161b] via-[#12161b]/70 via-40% to-transparent pointer-events-none" />
 
-          {/* Banner Content (Centered, Refined Typography, Edge-to-Edge) */}
-          <div className="relative z-10 h-full w-full flex flex-col justify-between px-4 sm:px-8 lg:px-16 py-8 sm:py-12 lg:py-14 text-center text-white">
-            
-            {/* Top Offer Badge */}
-            <div className="pt-1">
-              <span className="inline-flex items-center gap-2 px-3.5 sm:px-5 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-[11px] sm:text-xs font-bold text-amber-300 uppercase tracking-wider shadow-sm">
-                <Sparkles size={13} className="text-amber-300 shrink-0" />
-                <span>{slides[currentSlide].badge} • 100% Free Registration</span>
-              </span>
+          {/* Left-Aligned Headline, Tagline & Action Badges (Natural Wide Headline in 2 Lines) */}
+          <div className="relative z-10 h-full w-full max-w-2xl lg:max-w-3xl px-6 sm:px-10 lg:px-[6%] xl:px-[8%] flex flex-col justify-center items-start text-left text-white space-y-5 pb-12">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-400/10 backdrop-blur-md border border-amber-400/25 text-xs font-bold text-amber-300 uppercase tracking-wider shadow-sm">
+              <Sparkles size={13} className="text-amber-300 shrink-0" />
+              <span>Dedicated to Pure Sunnah Matchmaking</span>
             </div>
 
-            {/* Center Headline, Attraction Hook, CTAs & App Store Badges */}
-            <div className="max-w-4xl mx-auto space-y-4 sm:space-y-5 my-auto">
-              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-serif font-black tracking-tight leading-[1.2] text-white drop-shadow-md">
-                {slides[currentSlide].title}
-              </h1>
+            <h1 className="text-3xl sm:text-4xl lg:text-[42px] xl:text-5xl font-serif font-black tracking-tight leading-[1.2] text-white drop-shadow-md">
+              Find Your Pious Life Partner<br />With Trust &amp; Dignity
+            </h1>
 
-              {/* 🎯 Eye-Catching Attraction Line (High-Conversion Hook) */}
-              <div className="inline-block px-4 sm:px-6 py-2 rounded-full bg-gradient-to-r from-[#d91b5c]/95 via-rose-600/95 to-[#d91b5c]/95 backdrop-blur-md border border-rose-300/40 text-white text-xs sm:text-sm font-extrabold shadow-lg tracking-wide max-w-2xl mx-auto">
-                🌸 Half Your Deen Awaits — Register Free in 60 Seconds &amp; Connect With 10,000+ Verified Muslim Families!
-              </div>
+            <p className="text-sm lg:text-base text-slate-200 font-medium leading-relaxed drop-shadow max-w-xl">
+              India&apos;s verified matrimonial platform for practicing Muslim families. 100% verified identities with strict photo privacy and direct family interaction.
+            </p>
 
-              <p className="text-xs sm:text-sm md:text-base text-slate-200 max-w-xl mx-auto font-medium leading-relaxed drop-shadow">
-                {slides[currentSlide].subtitle}
-              </p>
+            {/* CTA + App Store Download Badges */}
+            <div className="pt-2 flex flex-wrap items-center gap-3.5">
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#d91b5c] to-rose-600 hover:from-[#c2144f] hover:to-rose-700 text-white font-bold text-sm shadow-lg active:scale-95 transition-all cursor-pointer"
+              >
+                <span>Register Free</span>
+                <ArrowRight size={15} />
+              </Link>
 
-              {/* Action Buttons: Clean & Compact */}
-              <div className="pt-1 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 max-w-md mx-auto">
-                <Link
-                  href="/login"
-                  className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#c21450] text-white text-xs sm:text-sm font-extrabold uppercase tracking-wider transition-all shadow-xl hover:shadow-rose-500/25 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <span>Register Free</span>
-                  <ArrowRight size={15} />
-                </Link>
-
-                <Link
-                  href="/login"
-                  className="w-full sm:w-auto px-7 py-3.5 rounded-full bg-white/20 hover:bg-white/30 text-white border border-white/40 text-xs sm:text-sm font-bold tracking-wider transition-all backdrop-blur-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Smartphone size={15} className="text-rose-200" />
-                  <span>Login with Mobile</span>
-                </Link>
-              </div>
-
-              {/* 📱 Android & iOS App Download Option Right in the Banner */}
-              <div className="pt-3 sm:pt-4 flex flex-col items-center justify-center gap-2">
-                <p className="text-[11px] sm:text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                  <Sparkles size={12} className="text-amber-400" />
-                  <span>Available for Android &amp; iOS Devices:</span>
-                </p>
-
-                <div className="flex items-center justify-center gap-3">
-                  {/* Google Play Button */}
-                  <Link
-                    href="/login"
-                    className="inline-flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-black/60 hover:bg-black/85 border border-white/25 text-white backdrop-blur-md transition-all active:scale-95 cursor-pointer shadow-md group"
-                    title="Download Nikah Qubool on Google Play"
-                  >
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 fill-current shrink-0" viewBox="0 0 24 24">
-                      <path d="M3.609 1.814L13.792 12 3.61 22.186a2.21 2.21 0 0 1-.61-.954V2.768c.14-.37.36-.697.61-.954zm11.306 11.309l2.428-2.428-2.428-2.428L12.59 10.59l2.325 2.533zM4.717.703l11.492 6.55-2.025 2.025L4.717.703zm11.492 16.044L4.717 23.297l9.467-8.575 2.025 2.025z"/>
-                    </svg>
-                    <div className="text-left leading-tight">
-                      <span className="block text-[8px] uppercase tracking-wider text-slate-300 font-medium">Get it on</span>
-                      <span className="block text-xs sm:text-sm font-bold text-white">Google Play</span>
-                    </div>
-                  </Link>
-
-                  {/* Apple App Store Button */}
-                  <Link
-                    href="/login"
-                    className="inline-flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-black/60 hover:bg-black/85 border border-white/25 text-white backdrop-blur-md transition-all active:scale-95 cursor-pointer shadow-md group"
-                    title="Download Nikah Qubool on Apple App Store"
-                  >
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white fill-current shrink-0" viewBox="0 0 24 24">
-                      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.64-.78 1.08-1.86.96-2.95-1 .04-2.16.67-2.83 1.45-.59.68-1.11 1.77-.97 2.83 1.11.09 2.2-.55 2.84-1.33z"/>
-                    </svg>
-                    <div className="text-left leading-tight">
-                      <span className="block text-[8px] uppercase tracking-wider text-slate-300 font-medium">Download on</span>
-                      <span className="block text-xs sm:text-sm font-bold text-white">App Store</span>
-                    </div>
-                  </Link>
+              {/* Google Play */}
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-black/80 hover:bg-black border border-white/25 text-white backdrop-blur-md transition-all active:scale-95 cursor-pointer shadow-lg group"
+                title="Download on Google Play"
+              >
+                <svg className="w-4 h-4 text-amber-400 fill-current shrink-0" viewBox="0 0 24 24">
+                  <path d="M3.609 1.814L13.792 12 3.61 22.186a2.21 2.21 0 0 1-.61-.954V2.768c.14-.37.36-.697.61-.954zm11.306 11.309l2.428-2.428-2.428-2.428L12.59 10.59l2.325 2.533zM4.717.703l11.492 6.55-2.025 2.025L4.717.703zm11.492 16.044L4.717 23.297l9.467-8.575 2.025 2.025z"/>
+                </svg>
+                <div className="text-left leading-tight">
+                  <span className="block text-[7px] uppercase tracking-wider text-slate-300 font-medium">Get it on</span>
+                  <span className="block text-xs font-bold text-white">Google Play</span>
                 </div>
-              </div>
+              </Link>
 
+              {/* Apple App Store */}
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-black/80 hover:bg-black border border-white/25 text-white backdrop-blur-md transition-all active:scale-95 cursor-pointer shadow-lg group"
+                title="Download on Apple App Store"
+              >
+                <svg className="w-4 h-4 text-white fill-current shrink-0" viewBox="0 0 24 24">
+                  <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.64-.78 1.08-1.86.96-2.95-1 .04-2.16.67-2.83 1.45-.59.68-1.11 1.77-.97 2.83 1.11.09 2.2-.55 2.84-1.33z"/>
+                </svg>
+                <div className="text-left leading-tight">
+                  <span className="block text-[7px] uppercase tracking-wider text-slate-300 font-medium">Download on</span>
+                  <span className="block text-xs font-bold text-white">App Store</span>
+                </div>
+              </Link>
             </div>
-
-            {/* Bottom Slider Dots */}
-            <div className="flex items-center justify-center gap-2 pt-4 pb-1">
-              {slides.map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setCurrentSlide(idx)}
-                  className={"h-2 rounded-full transition-all duration-300 " + (currentSlide === idx ? "w-8 bg-[#d91b5c]" : "w-2 bg-white/40 hover:bg-white/70")}
-                  aria-label={"Slide " + (idx + 1)}
-                />
-              ))}
-            </div>
-
           </div>
-
         </div>
+
+        {/* MOBILE BANNER CONTAINER (CLEAN ARTWORK WITHOUT TEXT OVER FACES - EXTENDED PROPORTIONAL HEIGHT) */}
+        <div className="block md:hidden relative w-full h-[450px] sm:h-[500px] overflow-hidden">
+          <div 
+            className="absolute inset-0 bg-cover"
+            style={{ 
+              backgroundImage: "url('/mobile-hero-banner.jpg')",
+              backgroundPosition: 'center top'
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#15191e] via-transparent to-black/20 pointer-events-none" />
+        </div>
+
       </section>
 
       {/* ================================================================
-          2. MINIMALIST TRUST STRIP (CLEAN 4-METRIC BAR)
+          2. FLOATING OVERLAPPING "OUR MATRIMONIAL PILLARS" CARD
           ================================================================ */}
-      <section className="px-3 sm:px-6 lg:px-[6%] py-4">
-        <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
+      <section className="relative z-20 px-3 sm:px-6 lg:px-[6%] -mt-6 sm:-mt-8 md:-mt-10">
+        <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-2xl border border-rose-100/80 p-5 sm:p-7 md:p-8 text-center space-y-5">
           
-          <div className="flex items-center gap-3 p-3.5 sm:p-4 rounded-2xl bg-rose-50/50 border border-rose-100">
-            <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center text-[#d91b5c] shrink-0">
-              <CheckCircle2 size={20} />
-            </div>
-            <div className="text-left">
-              <p className="text-xs sm:text-sm font-bold text-slate-900">100% Verified</p>
-              <p className="text-[11px] text-slate-500 font-medium">OTP & manual check</p>
-            </div>
+          <div className="space-y-1">
+            <h2 className="text-xs sm:text-sm font-black uppercase tracking-wider text-[#d91b5c]">
+              The Nikah Qubool Promise
+            </h2>
+            <p className="text-xs text-slate-500 font-medium">
+              Three sacred pillars that make our matchmaking safe, respectful, and blessed
+            </p>
           </div>
 
-          <div className="flex items-center gap-3 p-3.5 sm:p-4 rounded-2xl bg-rose-50/50 border border-rose-100">
-            <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center text-[#d91b5c] shrink-0">
-              <Lock size={20} />
+          {/* 3 DISTINCTIVE PILLARS (NOT NIKAHFOREVER COPIED COUNTERS) */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-6 pt-1">
+            
+            {/* Pillar 1 */}
+            <div className="flex sm:flex-col items-center gap-3 sm:gap-2.5 p-3.5 sm:p-4 rounded-2xl bg-rose-50/50 sm:bg-transparent border border-rose-100 sm:border-0 text-left sm:text-center">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-100 to-rose-50 text-[#d91b5c] flex items-center justify-center shadow-xs border border-rose-200/60 shrink-0">
+                <Heart size={22} className="stroke-[2.2] fill-[#d91b5c]/20" />
+              </div>
+              <div>
+                <p className="text-sm sm:text-base font-black text-slate-900 tracking-tight">100% Sunnah Aligned</p>
+                <p className="text-[11px] font-medium text-slate-500 leading-tight pt-0.5">Parent &amp; Wali guided dignified rishtey</p>
+              </div>
             </div>
-            <div className="text-left">
-              <p className="text-xs sm:text-sm font-bold text-slate-900">Strict Privacy</p>
-              <p className="text-[11px] text-slate-500 font-medium">Photo & phone safe</p>
+
+            {/* Pillar 2 */}
+            <div className="flex sm:flex-col items-center gap-3 sm:gap-2.5 p-3.5 sm:p-4 rounded-2xl bg-rose-50/50 sm:bg-transparent border border-rose-100 sm:border-0 text-left sm:text-center">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-100 to-rose-50 text-[#d91b5c] flex items-center justify-center shadow-xs border border-rose-200/60 shrink-0">
+                <Lock size={22} className="stroke-[2.2]" />
+              </div>
+              <div>
+                <p className="text-sm sm:text-base font-black text-slate-900 tracking-tight">Strict Photo Privacy</p>
+                <p className="text-[11px] font-medium text-slate-500 leading-tight pt-0.5">Visible only to profiles you approve</p>
+              </div>
             </div>
+
+            {/* Pillar 3 */}
+            <div className="flex sm:flex-col items-center gap-3 sm:gap-2.5 p-3.5 sm:p-4 rounded-2xl bg-rose-50/50 sm:bg-transparent border border-rose-100 sm:border-0 text-left sm:text-center">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-100 to-rose-50 text-[#d91b5c] flex items-center justify-center shadow-xs border border-rose-200/60 shrink-0">
+                <ShieldCheck size={22} className="stroke-[2.2]" />
+              </div>
+              <div>
+                <p className="text-sm sm:text-base font-black text-slate-900 tracking-tight">Manual Verification</p>
+                <p className="text-[11px] font-medium text-slate-500 leading-tight pt-0.5">Zero fake accounts, verified contacts</p>
+              </div>
+            </div>
+
           </div>
 
-          <div className="flex items-center gap-3 p-3.5 sm:p-4 rounded-2xl bg-rose-50/50 border border-rose-100">
-            <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center text-[#d91b5c] shrink-0">
-              <Heart size={20} />
-            </div>
-            <div className="text-left">
-              <p className="text-xs sm:text-sm font-bold text-slate-900">Halal & Sunnah</p>
-              <p className="text-[11px] text-slate-500 font-medium">Islamic matchmaking</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 p-3.5 sm:p-4 rounded-2xl bg-rose-50/50 border border-rose-100">
-            <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center text-[#d91b5c] shrink-0">
-              <Users size={20} />
-            </div>
-            <div className="text-left">
-              <p className="text-xs sm:text-sm font-bold text-slate-900">Family Centric</p>
-              <p className="text-[11px] text-slate-500 font-medium">Parent involvement</p>
-            </div>
+          {/* Mobile Quick Action Strip */}
+          <div className="block sm:hidden pt-2 border-t border-rose-100">
+            <Link
+              href="/login"
+              className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-[#d91b5c] to-rose-600 text-white shadow-md active:scale-95 transition-all cursor-pointer"
+            >
+              <div className="text-left">
+                <span className="block text-[10px] font-medium text-rose-100">Begin your blessed journey</span>
+                <span className="block text-xs font-black">Register Free on Nikah Qubool</span>
+              </div>
+              <div className="px-3 py-1.5 rounded-xl bg-white text-[#d91b5c] text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-xs">
+                <span>Start</span>
+                <ArrowRight size={12} />
+              </div>
+            </Link>
           </div>
 
         </div>
