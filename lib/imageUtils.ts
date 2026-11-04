@@ -2,17 +2,16 @@ import { API_BASE_URL } from '@/lib/api';
 
 export const CDN_BASE_URL = "https://cdn.nikahqubool.in";
 
-// 👤 SVG Data URI Fallback Avatars (0% 404 Network Errors)
-export const DEFAULT_MALE_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%23475569'><rect width='100' height='100' fill='%231e293b'/><circle cx='50' cy='38' r='18' fill='%2364748b'/><path d='M25,82 C25,62 75,62 75,82' fill='%2364748b'/></svg>";
-export const DEFAULT_FEMALE_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%23e11d48'><rect width='100' height='100' fill='%231e293b'/><circle cx='50' cy='38' r='18' fill='%23f43f5e'/><path d='M25,82 C25,62 75,62 75,82' fill='%23f43f5e'/></svg>";
+// 👤 PREMIUM VECTOR SILHOUETTE AVATARS (Clean, Elegant, Zero Network Requests)
+export const DEFAULT_MALE_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160' width='160' height='160'><defs><linearGradient id='bgM' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%23F8FAFC'/><stop offset='100%25' stop-color='%23E2E8F0'/></linearGradient><linearGradient id='silM' x1='0%25' y1='0%25' x2='0%25' y2='100%25'><stop offset='0%25' stop-color='%2394A3B8'/><stop offset='100%25' stop-color='%2364748B'/></linearGradient></defs><rect width='160' height='160' fill='url(%23bgM)'/><circle cx='80' cy='62' r='28' fill='url(%23silM)'/><path d='M36,142 C36,110 55,98 80,98 C105,98 124,110 124,142 C124,148 120,152 112,152 L48,152 C40,152 36,148 36,142 Z' fill='url(%23silM)'/><path d='M74,98 L80,107 L86,98 Z' fill='%23F8FAFC' opacity='0.8'/></svg>";
 
-// 👤 Default Fallback Avatar Photos (Jab user ki photo Na ho)
+export const DEFAULT_FEMALE_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160' width='160' height='160'><defs><linearGradient id='bgF' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%23FFF5F7'/><stop offset='100%25' stop-color='%23FFE4E6'/></linearGradient><linearGradient id='silF' x1='0%25' y1='0%25' x2='0%25' y2='100%25'><stop offset='0%25' stop-color='%23FB7185'/><stop offset='100%25' stop-color='%23E11D48'/></linearGradient></defs><rect width='160' height='160' fill='url(%23bgF)'/><path d='M80,32 C62,32 50,47 50,66 C50,78 55,87 60,94 C46,104 36,120 36,142 C36,148 40,152 48,152 L112,152 C120,152 124,148 124,142 C124,120 114,104 100,94 C105,87 110,78 110,66 C110,47 98,32 80,32 Z' fill='url(%23silF)'/><ellipse cx='80' cy='67' rx='16' ry='20' fill='%23FFF5F7' opacity='0.92'/></svg>";
+
+// 👤 Default Fallback Avatar Photos (Gender-Specific)
 export const getFallbackPhoto = (userId: number = 1, gender: string = 'Female'): string => {
   const isMale = gender?.toLowerCase() === 'male';
   return isMale ? DEFAULT_MALE_AVATAR : DEFAULT_FEMALE_AVATAR;
 };
-
-
 
 /**
  * Resolves a profile image URL cleanly whether it's relative ("user-profiles/abc.webp"),
@@ -34,7 +33,7 @@ export const getOptimizedImageUrl = (
     return cleanPath;
   }
 
-// Relative path (e.g. "user-profiles/abc.webp") ko Cloudflare CDN ke sath join karein
+  // Relative path (e.g. "user-profiles/abc.webp") joined with Cloudflare CDN
   const relative = cleanPath.startsWith('/') ? cleanPath.slice(1) : cleanPath;
   return `${CDN_BASE_URL}/${relative}`;
 };

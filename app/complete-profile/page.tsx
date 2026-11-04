@@ -1492,26 +1492,53 @@ export default function CompleteProfilePage() {
                         </div>
                         <div>
                           <span className="text-xs font-bold text-[#e21e5b] block">Tap to Upload Photo</span>
-                          <span className="text-[10px] text-slate-400 block">JPEG, PNG, WEBP</span>
+                          <span className="text-[10px] text-slate-400 block">Optional &bull; JPEG, PNG, WEBP</span>
                         </div>
                       </div>
                     )}
                   </div>
 
-                  {/* 🔒 SLEEK PHOTO PRIVACY TRIGGER DROPDOWN */}
-                  <div className="text-left space-y-1">
-                    <label className="text-[10px] font-bold uppercase text-slate-500 block">Photo Privacy</label>
-                    <div 
-                      onClick={() => setPrivacySheetOpen(true)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between cursor-pointer hover:bg-slate-100 transition-colors"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Lock size={14} className="text-[#e21e5b]" />
-                        <span className="text-xs font-bold text-slate-800">{formData.photoPrivacy}</span>
-                      </div>
-                      <ChevronDown size={14} className="text-slate-400" />
+                  {/* Remove photo option if uploaded */}
+                  {formData.photoUrl && (
+                    <div className="flex justify-center">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFormData(p => ({ ...p, photo: null, photoUrl: '', photoPrivacy: 'All Members' }));
+                        }}
+                        className="text-[11px] font-bold text-rose-600 hover:text-rose-700 underline cursor-pointer"
+                      >
+                        Remove photo (Continue without photo)
+                      </button>
                     </div>
-                  </div>
+                  )}
+
+                  {/* 🔒 SLEEK PHOTO PRIVACY TRIGGER DROPDOWN (ONLY VISIBLE WHEN PHOTO IS PRESENT) */}
+                  {formData.photoUrl ? (
+                    <div className="text-left space-y-1">
+                      <label className="text-[10px] font-bold uppercase text-slate-500 block">Photo Privacy Setting</label>
+                      <div 
+                        onClick={() => setPrivacySheetOpen(true)}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between cursor-pointer hover:bg-slate-100 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Lock size={14} className="text-[#e21e5b]" />
+                          <span className="text-xs font-bold text-slate-800">{formData.photoPrivacy}</span>
+                        </div>
+                        <ChevronDown size={14} className="text-slate-400" />
+                      </div>
+                      <p className="text-[10px] text-slate-400">
+                        Control who can view your photo across matches.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-left">
+                      <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                        Photo is optional. You can also upload photos and set privacy controls later from your dashboard gallery.
+                      </p>
+                    </div>
+                  )}
 
                   {/* QUICK ABOUT ME / BIO */}
                   <div className="text-left space-y-1">
@@ -1540,7 +1567,7 @@ export default function CompleteProfilePage() {
                     ) : (
                       <>
                         <Sparkles size={15} className="text-amber-300" />
-                        <span>Complete Profile</span>
+                        <span>{formData.photoUrl ? "Complete Profile" : "Skip Photo & Complete Profile"}</span>
                       </>
                     )}
                   </button>

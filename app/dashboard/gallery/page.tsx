@@ -243,6 +243,8 @@ export default function GalleryManagementPage() {
         }
       } else {
         updateSessionPhoto('');
+        setPrivacy('All Members');
+        updatePhotoPrivacyApi('All Members', token).catch(() => {});
       }
     } else {
       toast.error(res.message || "Failed to delete photo.");
@@ -385,14 +387,31 @@ export default function GalleryManagementPage() {
         )}
 
         {/* 🔒 PRIVACY DROPDOWN SELECTION */}
-        <div className="bg-white p-6 rounded-3xl border border-rose-100/80 shadow-md space-y-2">
-          <CompactSelect 
-            label="Photo Privacy Settings" 
-            options={privacyOptions} 
-            value={privacy} 
-            onChange={(val: any) => handlePrivacyChange(String(val))} 
-          />
-        </div>
+        {photos.length > 0 ? (
+          <div className="bg-white p-6 rounded-3xl border border-rose-100/80 shadow-md space-y-2">
+            <CompactSelect 
+              label="Photo Privacy Controls" 
+              options={privacyOptions} 
+              value={privacy} 
+              onChange={(val: any) => handlePrivacyChange(String(val))} 
+            />
+            <p className="text-[11px] text-slate-500 font-medium pl-1">
+              Choose who is permitted to view your uploaded profile and gallery photos.
+            </p>
+          </div>
+        ) : (
+          <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center text-[#e21e5b] shrink-0 border border-rose-100">
+              <Lock size={18} />
+            </div>
+            <div className="text-left">
+              <h4 className="text-xs font-bold text-slate-800">Photo Privacy Inactive</h4>
+              <p className="text-[11px] text-slate-500 font-medium">
+                Upload at least one photo above to configure and activate photo privacy controls.
+              </p>
+            </div>
+          </div>
+        )}
 
       </div>
 
