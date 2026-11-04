@@ -1,5 +1,7 @@
 "use client";
 
+import { ProfileStatusIcons } from '@/components/common/ProfileBadges';
+
 import { getClientSubscriptionStatus } from '@/lib/subscriptionUtils';
 import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
 import { useState, useEffect, useRef, useMemo } from 'react';
@@ -74,6 +76,7 @@ export default function ChatWindow({
   // 🛡️ Resolve User Identity Defensively
   const [resolvedName, setResolvedName] = useState<string>(userName || '');
   const [resolvedPhoto, setResolvedPhoto] = useState<string>(photoUrl || '');
+  const [targetProfile, setTargetProfile] = useState<any>(null);
 
   useEffect(() => {
     if (userName) setResolvedName(userName);
@@ -98,6 +101,7 @@ export default function ChatWindow({
             if (!resolvedPhoto) {
               setResolvedPhoto(found.photoUrl || found.PhotoUrl || '');
             }
+            setTargetProfile(found);
             return;
           }
         }
@@ -114,6 +118,7 @@ export default function ChatWindow({
           const freshPhoto = p.mainPhotoUrl || p.photoUrl || p.PhotoUrl;
           if (freshName) setResolvedName(freshName);
           if (freshPhoto) setResolvedPhoto(freshPhoto);
+          setTargetProfile(p);
         }
       }).catch(() => {});
     }
@@ -572,7 +577,10 @@ export default function ChatWindow({
 
           <div className="flex flex-col">
             <h3 className={`font-serif font-extrabold text-sm md:text-base leading-tight uppercase tracking-tight flex items-center gap-1.5 text-white ${(isDeletedUser || isDeactiveUser || isAdminBlockedUser) ? '' : 'group-hover:underline'}`}>
-              {displayName} {(!isDeletedUser && !isDeactiveUser && !isAdminBlockedUser) && <Heart size={14} className="fill-amber-300 text-amber-300" />}
+              <span>{displayName}</span>
+              {(!isDeletedUser && !isDeactiveUser && !isAdminBlockedUser) && (
+                <ProfileStatusIcons profile={targetProfile} size={16} />
+              )}
             </h3>
             <span className={`text-[10px] font-black uppercase tracking-widest mt-0.5 ${
               isUserTyping ? "text-amber-200 animate-pulse font-bold" : (isOnline ? "text-emerald-200" : "text-rose-100")
@@ -790,23 +798,6 @@ export default function ChatWindow({
                 Unblock User
               </button>
             )}
-          </div>
-        ) : (!canChatUser && messages.length === 0 && !loading) ? (
-          <div className="p-3 bg-gradient-to-r from-amber-50 via-rose-50 to-amber-50 rounded-2xl text-center border border-amber-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 px-4">
-            <div className="flex items-center gap-2 text-left">
-              <Crown className="text-amber-500 fill-amber-500 shrink-0" size={20} />
-              <div>
-                <p className="text-xs font-black text-slate-800">VIP Subscription Required to Start Chat</p>
-                <p className="text-[11px] text-slate-500 font-medium">Free members can reply freely to received messages. Upgrade to VIP to initiate new chats.</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowSubscriptionModal(true)}
-              className="bg-gradient-to-r from-amber-500 to-[#d91b5c] text-white text-xs font-black px-4 py-2 rounded-full shadow-md hover:brightness-110 shrink-0 cursor-pointer"
-            >
-              Upgrade VIP Plan
-            </button>
           </div>
         ) : (
           <div className="max-w-4xl mx-auto bg-slate-50 p-1.5 pl-3 rounded-full border-2 border-rose-100 flex items-center gap-2 focus-within:ring-2 focus-within:ring-[#d91b5c]/20 focus-within:bg-white transition-all shadow-xs">

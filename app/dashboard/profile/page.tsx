@@ -1,5 +1,7 @@
 "use client";
 
+import { ProfileStatusIcons, checkIsVerified, checkIsPremium } from '@/components/common/ProfileBadges';
+
 import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
 
 import { getClientSubscriptionStatus } from '@/lib/subscriptionUtils';
@@ -733,8 +735,8 @@ export default function ProfileDetailPage() {
     }
   }
 
-  const isVerified = Boolean(profileData.isVerified ?? profileData.IsVerified);
-  const isPremium = Boolean(profileData.isPremium ?? profileData.IsPremium ?? isUserPaid);
+  const isVerified = checkIsVerified(profileData);
+  const isPremium = checkIsPremium(profileData);
   const rawPhotoSrc = allPhotos[activePhotoIndex]?.photoUrl || profileData.mainPhotoUrl || profileData.photoUrl;
   const currentPhotoSrc = getOptimizedImageUrl(rawPhotoSrc, profileData.userId || 1, profileData.gender);
   const myAvatarUrl = currentUserData?.mainPhotoUrl || currentUserData?.photoUrl || DEFAULT_FEMALE_AVATAR;
@@ -929,8 +931,7 @@ export default function ProfileDetailPage() {
                   <span>{fullName}, {displayAge}</span>
                 </h2>
                 <div className="flex items-center gap-1.5 pointer-events-auto">
-                  {isVerified && <CheckCircle2 size={20} className="fill-emerald-500 text-slate-950" />}
-                  {isPremium && <Crown size={20} className="fill-amber-400 text-amber-400 drop-shadow-xs" />}
+                  <ProfileStatusIcons isVerified={isVerified} isPremium={isPremium} size={22} />
                   
                   {/* ⚡ Sleek Compatibility Badge inside Hero */}
                   <button

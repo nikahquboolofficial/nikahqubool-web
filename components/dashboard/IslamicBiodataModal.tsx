@@ -1,5 +1,7 @@
 "use client";
 
+import { ProfileStatusIcons } from '@/components/common/ProfileBadges';
+
 import React, { useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -270,13 +272,8 @@ export default function IslamicBiodataModal({
                 <div className="flex-1 text-center sm:text-left space-y-1.5 w-full">
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
                     <h1 className="text-xl sm:text-2xl font-bold text-stone-900">
-                      {fullName}
-                    </h1>
-                    {isVerified && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                        <CheckCircle2 size={12} className="text-emerald-600" /> Verified Profile
-                      </span>
-                    )}
+                      {fullName}</h1>
+                    <ProfileStatusIcons profile={profile} size={20} />
                   </div>
 
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs">

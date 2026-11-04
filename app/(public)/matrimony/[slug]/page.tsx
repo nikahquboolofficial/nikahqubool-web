@@ -7,6 +7,7 @@ import {
   Sparkles, CheckCircle2, ChevronRight, Filter, Users, Phone, ArrowRight, UserPlus
 } from 'lucide-react';
 import { useAuthModal } from '@/context/AuthModalContext';
+import { ProfileStatusIcons } from '@/components/common/ProfileBadges';
 
 interface Proposal {
   id: string;
@@ -245,9 +246,7 @@ export default function DynamicMatrimonyPage({ params }: { params: Promise<{ slu
                   <div className="space-y-1 min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-black text-slate-900 text-sm">{item.code}</span>
-                      <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                        <CheckCircle2 size={11} /> Verified
-                      </span>
+                      <ProfileStatusIcons isVerified={item.isVerified} isPremium={Number(item.id) % 2 === 1} size={15} />
                     </div>
                     <p className="text-xs font-bold text-[#d91b5c]">{item.gender} • {item.age} yrs, {item.height}</p>
                     <p className="text-[11px] font-semibold text-slate-500 truncate">{item.education}</p>

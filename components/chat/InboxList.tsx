@@ -1,4 +1,6 @@
 "use client";
+
+import { ProfileStatusIcons } from '@/components/common/ProfileBadges';
 import { useEffect, useState, useRef } from 'react';
 import { Search, MessageSquare, UserX } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -381,7 +383,10 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center">
-                    <h4 className="text-xs font-serif font-black uppercase text-slate-900 truncate">{fName}</h4>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <h4 className="text-xs font-serif font-black uppercase text-slate-900 truncate">{fName}</h4>
+                      {!isDeleted && !isDeactive && !isAdminBlocked && <ProfileStatusIcons profile={chat} size={15} />}
+                    </div>
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
                       {formatChatTime(lastTime)}
                     </span>

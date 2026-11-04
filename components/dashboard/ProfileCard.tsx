@@ -9,6 +9,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { getOptimizedImageUrl, getFallbackPhoto } from '@/lib/imageUtils';
 import { useSignalR } from '@/context/SignalRContext';
+import { ProfileStatusIcons, checkIsVerified, checkIsPremium } from '@/components/common/ProfileBadges';
 
 export interface ProfileCardProps {
   profile: any;
@@ -35,8 +36,8 @@ export default function ProfileCard({
   const userIdNum = Number(profile.userId || profile.UserId || 0);
   const presence = onlineUsers[userIdNum];
   const isOnline = presence ? Boolean(presence.isOnline) : false;
-  const isVerified = Boolean(profile.isVerified ?? profile.IsVerified ?? false);
-  const isTargetPremium = Boolean(profile.isPremium ?? profile.IsPremium ?? false);
+  const isVerified = checkIsVerified(profile);
+  const isTargetPremium = checkIsPremium(profile);
   const isProfileBoosted = Boolean(profile.isBoosted ?? profile.IsBoosted ?? false);
 
   let localPaid = false;
@@ -250,11 +251,8 @@ export default function ProfileCard({
             {/* Line 1: Mohd Saif, 26 [Verified Star/Badge] */}
             <h4 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-1.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
               <span>{displayName}, {displayAge}</span>
-              {isVerified && (
-                <span title="Verified Profile" className="inline-flex items-center text-amber-400 shrink-0">
-                  <CheckCircle2 size={17} className="fill-amber-400 text-black shrink-0" />
-                </span>
-              )}
+              <ProfileStatusIcons isVerified={isVerified} isPremium={isTargetPremium} size={19} />
+              
             </h4>
 
             {/* Line 2: Management / Executive • New Delhi, India • Sunni/Sheikh */}

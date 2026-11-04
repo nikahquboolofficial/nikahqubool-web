@@ -10,6 +10,7 @@ import {
   Award, Building2, MapPin, GraduationCap, Briefcase
 } from 'lucide-react';
 import BrowseProfilesSection from '@/components/home/BrowseProfilesSection';
+import { ProfileStatusIcons } from '@/components/common/ProfileBadges';
 
 export default function HomePage() {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -423,12 +424,11 @@ export default function HomePage() {
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 via-transparent to-transparent" />
                     
-                    <span className="absolute top-2.5 left-2.5 bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
-                      <CheckCircle2 size={11} /> Verified
-                    </span>
-
-                    <div className="absolute bottom-2.5 left-3 text-white">
-                      <p className="text-sm font-bold">{p.name}</p>
+                    <div className="absolute bottom-2.5 left-3 right-3 text-white">
+                      <div className="flex items-center gap-1.5 drop-shadow-md">
+                        <p className="text-sm font-bold">{p.name}</p>
+                        <ProfileStatusIcons isVerified={true} isPremium={p.id % 2 === 1} size={16} />
+                      </div>
                       <p className="text-[11px] text-slate-200">{p.age} yrs • {p.height}</p>
                     </div>
                   </div>
