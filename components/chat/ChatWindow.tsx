@@ -4,6 +4,7 @@ import { getClientSubscriptionStatus } from '@/lib/subscriptionUtils';
 import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { 
+  Crown,
   Send, ArrowLeft, MoreVertical, CheckCheck, Heart, 
   ShieldAlert, UserX, Smile, ChevronDown, Loader2, 
   CheckCircle2, ShieldCheck, Sparkles, MessageCircle, X
@@ -31,16 +32,6 @@ const EMOJI_CATEGORIES = {
   "Gestures": ["👍", "🙏", "🤝", "👌", "👏", "🙌", "👋", "🎉", "🔥", "💯", "⭐", "💫"]
 };
 
-// 💬 INSTANT PREDEFINED QUICK ICEBREAKERS (Click to Send)
-const QUICK_TEMPLATES = [
-  "Assalam Alaikum! Kaise hain aap? 🌸",
-  "Aapki profile achhi lagi! ✨",
-  "Family se baat kar sakte hain? 🤲",
-  "Biodata share karenge? 📄",
-  "Photos dekh sakte hain? 📸",
-  "Aap kahan se belong karte hain? 📍"
-];
-
 export default function ChatWindow({ 
   receiverId, 
   userName, 
@@ -60,7 +51,6 @@ export default function ChatWindow({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [selectedEmojiCategory, setSelectedEmojiCategory] = useState<keyof typeof EMOJI_CATEGORIES>("Nikah & Pure");
   const [showScrollBottom, setShowScrollBottom] = useState(false);
-  const [dismissSafetyBanner, setDismissSafetyBanner] = useState(false);
   const typingTimeoutRef = useRef<any>(null);
 
   const [blockStatus, setBlockStatus] = useState<{
@@ -622,25 +612,6 @@ export default function ChatWindow({
         </div>
       </div>
 
-      {/* 🛡️ NIKAH QUBOOL OFFICIAL SAFETY & SCAM ADVISORY BANNER */}
-      {!dismissSafetyBanner && (
-        <div className="shrink-0 bg-amber-50/95 border-b border-amber-200/80 px-3.5 py-2 flex items-center justify-between gap-2.5 text-[11px] font-bold text-amber-900 shadow-2xs z-20">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <ShieldCheck size={16} className="text-amber-600 shrink-0" />
-            <p className="truncate sm:whitespace-normal">
-              <strong>Nikah Qubool Advisory:</strong> Kabhi kisi ko OTP, password ya online payment na bhejein. Suraksha ka dhyan rakhein.
-            </p>
-          </div>
-          <button 
-            onClick={() => setDismissSafetyBanner(true)}
-            className="text-amber-600 hover:text-amber-900 p-1 rounded-full hover:bg-amber-100/50 shrink-0"
-            title="Dismiss"
-          >
-            <X size={14} />
-          </button>
-        </div>
-      )}
-
       {/* 📜 MESSAGES SCROLL AREA */}
       <div 
         ref={scrollRef} 
@@ -809,26 +780,6 @@ export default function ChatWindow({
       {/* 📌 WHATSAPP-STYLE STICKY BOTTOM INPUT PANEL */}
       <div className="shrink-0 bg-white/95 backdrop-blur-md border-t border-rose-100 z-30 shadow-lg p-2.5 sm:p-3 space-y-2 pb-[max(env(safe-area-inset-bottom,0px),10px)]">
         
-        {/* 💬 QUICK ICEBREAKER CHIPS */}
-        {!isBlocked && (
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0 flex items-center gap-1 pl-1">
-              <Sparkles size={11} className="text-amber-500" /> Quick:
-            </span>
-            {QUICK_TEMPLATES.map((tmpl, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => handleSendText(tmpl)}
-                className="text-[11px] font-bold text-slate-700 bg-rose-50/70 hover:bg-[#d91b5c] hover:text-white border border-rose-200/60 rounded-full px-3 py-1 whitespace-nowrap transition-all shrink-0 cursor-pointer shadow-2xs active:scale-95"
-              >
-                {tmpl}
-              </button>
-            ))}
-          </div>
-        )}
-
         {isBlocked ? (
           <div className="p-3 bg-rose-50 rounded-2xl text-center border border-rose-200">
             <p className="text-xs font-extrabold text-slate-600 uppercase tracking-wide">
@@ -840,13 +791,13 @@ export default function ChatWindow({
               </button>
             )}
           </div>
-        ) : !canChatUser ? (
+        ) : (!canChatUser && messages.length === 0 && !loading) ? (
           <div className="p-3 bg-gradient-to-r from-amber-50 via-rose-50 to-amber-50 rounded-2xl text-center border border-amber-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 px-4">
             <div className="flex items-center gap-2 text-left">
               <Crown className="text-amber-500 fill-amber-500 shrink-0" size={20} />
               <div>
-                <p className="text-xs font-black text-slate-800">VIP Subscription Required to Chat</p>
-                <p className="text-[11px] text-slate-500 font-medium">Direct messaging is an exclusive feature for active VIP members.</p>
+                <p className="text-xs font-black text-slate-800">VIP Subscription Required to Start Chat</p>
+                <p className="text-[11px] text-slate-500 font-medium">Free members can reply freely to received messages. Upgrade to VIP to initiate new chats.</p>
               </div>
             </div>
             <button

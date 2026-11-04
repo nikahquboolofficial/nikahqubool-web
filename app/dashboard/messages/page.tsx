@@ -5,14 +5,20 @@ import ChatWindow from '@/components/chat/ChatWindow';
 import { MessageSquare, Sparkles, Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-class ChatErrorBoundary extends Component<{ children: ReactNode; onReset?: () => void }, { hasError: boolean }> {
+class ChatErrorBoundary extends Component<{ children: ReactNode; onReset?: () => void; resetKey?: any }, { hasError: boolean; error: Error | null }> {
   constructor(props: any) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, error: null };
   }
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidUpdate(prevProps: any) {
+    if (prevProps.resetKey !== this.props.resetKey && this.state.hasError) {
+      this.setState({ hasError: false, error: null });
+    }
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
@@ -35,7 +41,7 @@ class ChatErrorBoundary extends Component<{ children: ReactNode; onReset?: () =>
           <button
             type="button"
             onClick={() => {
-              this.setState({ hasError: false });
+              this.setState({ hasError: false, error: null });
               if (this.props.onReset) this.props.onReset();
             }}
             className="px-5 py-2.5 rounded-full bg-[#d91b5c] hover:bg-[#b01348] text-white text-xs font-bold shadow-md flex items-center gap-2 cursor-pointer transition-all"
@@ -65,12 +71,37 @@ function MessagesContainer() {
     }
   }, []);
 
+  // 🔔 Handle direct conversation switch from incoming notification banner
+  useEffect(() => {
+    const handleOpenDirect = (e: any) => {
+      if (e.detail) {
+        setSelectedChat(e.detail);
+      }
+    };
+    window.addEventListener('open_chat_direct', handleOpenDirect);
+    return () => window.removeEventListener('open_chat_direct', handleOpenDirect);
+  }, []);
+
+  // 🎯 Track currently active open chat globally so notifications for THIS user are muted
   useEffect(() => {
     if (typeof window !== "undefined") {
+      const activeId = selectedChat ? Number(selectedChat.userId ?? selectedChat.UserId) : null;
+      (window as any).activeChatReceiverId = activeId;
+      window.dispatchEvent(new CustomEvent('active_chat_selected', { 
+        detail: { activeReceiverId: activeId } 
+      }));
       window.dispatchEvent(new CustomEvent('chat_view_changed', { 
         detail: { isChatOpen: Boolean(selectedChat) } 
       }));
     }
+    return () => {
+      if (typeof window !== "undefined") {
+        (window as any).activeChatReceiverId = null;
+        window.dispatchEvent(new CustomEvent('active_chat_selected', { 
+          detail: { activeReceiverId: null } 
+        }));
+      }
+    };
   }, [selectedChat]);
 
   return (
@@ -87,8 +118,12 @@ function MessagesContainer() {
       {/* CHAT WINDOW */}
       <div className={`flex-1 h-full min-w-0 bg-[#FAF8F5] flex flex-col ${!selectedChat ? 'hidden md:flex' : 'flex'}`}>
         {selectedChat ? (
-          <ChatErrorBoundary onReset={() => setSelectedChat({ ...selectedChat })}>
+          <ChatErrorBoundary 
+            resetKey={selectedChat.userId ?? selectedChat.UserId}
+            onReset={() => setSelectedChat({ ...selectedChat })}
+          >
             <ChatWindow 
+              key={`chat-win-${selectedChat.userId ?? selectedChat.UserId}`}
               receiverId={selectedChat.userId ?? selectedChat.UserId} 
               userName={selectedChat.fullName ?? selectedChat.FullName} 
               photoUrl={selectedChat.photoUrl ?? selectedChat.PhotoUrl ?? selectedChat.mainPhotoUrl ?? selectedChat.MainPhotoUrl}

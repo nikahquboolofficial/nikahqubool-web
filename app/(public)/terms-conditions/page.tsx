@@ -6,7 +6,7 @@ import { FileText, ShieldCheck, UserCheck, AlertTriangle, Scale, Lock } from 'lu
 
 export default function TermsConditionsPage() {
   return (
-    <div className="min-h-screen bg-slate-50 py-10 px-4 sm:px-6 lg:px-[8%] font-sans text-slate-800 selection:bg-[#d91b5c] selection:text-white">
+    <div className="min-h-screen bg-white py-10 px-4 sm:px-6 lg:px-[8%] font-sans text-slate-800 selection:bg-[#d91b5c] selection:text-white">
       <div className="max-w-4xl mx-auto bg-white rounded-3xl p-6 sm:p-12 shadow-xl border border-slate-200">
         
         {/* HEADER */}
@@ -25,7 +25,7 @@ export default function TermsConditionsPage() {
         {/* CONTENT */}
         <div className="space-y-8 text-xs sm:text-sm text-slate-700 leading-relaxed">
           
-          <div className="bg-rose-50/50 rounded-2xl p-5 border border-rose-100 space-y-2">
+          <div className="bg-[#faf7f5] rounded-2xl p-5 border border-rose-100 space-y-2">
             <h3 className="font-serif font-extrabold text-slate-900 text-base flex items-center gap-2 text-[#d91b5c]">
               <Scale size={18} /> Welcome to Nikah Qubool
             </h3>

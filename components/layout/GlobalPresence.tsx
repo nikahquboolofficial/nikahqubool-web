@@ -22,68 +22,83 @@ export default function GlobalPresence() {
   const router = useRouter();
 
   const [activeBanner, setActiveBanner] = useState<IncomingNotification | null>(null);
+  const [activeChatUserId, setActiveChatUserId] = useState<number | null>(null);
   const dismissTimerRef = useRef<any>(null);
+
+  useEffect(() => {
+    const handleActiveChatSelected = (e: any) => {
+      setActiveChatUserId(e.detail?.activeReceiverId ?? null);
+    };
+    window.addEventListener('active_chat_selected', handleActiveChatSelected);
+    return () => window.removeEventListener('active_chat_selected', handleActiveChatSelected);
+  }, []);
 
   useEffect(() => {
     const handleGlobalMsg = async (e: any) => {
       const { senderId, messageText, senderName, senderPhoto } = e.detail || {};
       if (!senderId || !messageText) return;
 
-      // Only show banner if user is NOT currently inside the active chat with this sender
-      if (!pathname?.startsWith('/dashboard/messages')) {
-        playMessageChime();
+      const currentActive = (typeof window !== "undefined" && (window as any).activeChatReceiverId) 
+        ?? activeChatUserId;
 
-        let resolvedName = senderName || '';
-        let resolvedPhoto = senderPhoto || '';
+      // 🎯 RULE: If the chat with THIS sender is currently open, DO NOT show notification banner
+      if (currentActive && Number(currentActive) === Number(senderId)) {
+        return;
+      }
 
-        // 1. Try resolving name and avatar from cached chat inbox (0ms instant)
-        if (!resolvedName || !resolvedPhoto) {
-          try {
-            const cached = sessionStorage.getItem('cached_chat_inbox');
-            if (cached) {
-              const list = JSON.parse(cached);
-              if (Array.isArray(list)) {
-                const found = list.find((c: any) => Number(c.userId ?? c.UserId) === Number(senderId));
-                if (found) {
-                  resolvedName = resolvedName || found.fullName || found.FullName;
-                  resolvedPhoto = resolvedPhoto || found.photoUrl || found.PhotoUrl;
-                }
+      // 🔔 If no chat is open, OR if another user's chat is open:
+      // Play sound chime and show incoming message notification banner!
+      playMessageChime();
+
+      let resolvedName = senderName || '';
+      let resolvedPhoto = senderPhoto || '';
+
+      // 1. Try resolving name and avatar from cached chat inbox (0ms instant)
+      if (!resolvedName || !resolvedPhoto) {
+        try {
+          const cached = sessionStorage.getItem('cached_chat_inbox');
+          if (cached) {
+            const list = JSON.parse(cached);
+            if (Array.isArray(list)) {
+              const found = list.find((c: any) => Number(c.userId ?? c.UserId) === Number(senderId));
+              if (found) {
+                resolvedName = resolvedName || found.fullName || found.FullName;
+                resolvedPhoto = resolvedPhoto || found.photoUrl || found.PhotoUrl;
               }
+            }
+          }
+        } catch (e) {}
+      }
+
+      // 2. Fallback: Fetch profile details in background if still missing
+      if (!resolvedName) {
+        const token = getAuthToken();
+        if (token) {
+          try {
+            const pRes = await fetchProfileDetailsApi(Number(senderId), token);
+            if (pRes?.success && pRes.data) {
+              const profile = pRes.data.profile || pRes.data.Profile || pRes.data;
+              resolvedName = profile.fullName || profile.FullName;
+              resolvedPhoto = resolvedPhoto || profile.mainPhotoUrl || profile.photoUrl;
             }
           } catch (e) {}
         }
-
-        // 2. Fallback: Fetch profile details in background if still missing
-        if (!resolvedName) {
-          const token = getAuthToken();
-          if (token) {
-            try {
-              const pRes = await fetchProfileDetailsApi(Number(senderId), token);
-              if (pRes?.success && pRes.data) {
-                const profile = pRes.data.profile || pRes.data.Profile || pRes.data;
-                resolvedName = profile.fullName || profile.FullName;
-                resolvedPhoto = resolvedPhoto || profile.mainPhotoUrl || profile.photoUrl;
-              }
-            } catch (e) {}
-          }
-        }
-
-        const bannerData: IncomingNotification = {
-          senderId: Number(senderId),
-          fullName: resolvedName || 'Member',
-          photoUrl: resolvedPhoto || ''
-        ,
-          messageText
-        };
-
-        setActiveBanner(bannerData);
-
-        // Auto-dismiss after 6 seconds
-        if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
-        dismissTimerRef.current = setTimeout(() => {
-          setActiveBanner(null);
-        }, 6000);
       }
+
+      const bannerData: IncomingNotification = {
+        senderId: Number(senderId),
+        fullName: resolvedName || 'Member',
+        photoUrl: resolvedPhoto || '',
+        messageText
+      };
+
+      setActiveBanner(bannerData);
+
+      // Auto-dismiss after 6 seconds
+      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+      dismissTimerRef.current = setTimeout(() => {
+        setActiveBanner(null);
+      }, 6000);
     };
 
     window.addEventListener("global_message_received", handleGlobalMsg);
@@ -91,16 +106,18 @@ export default function GlobalPresence() {
       window.removeEventListener("global_message_received", handleGlobalMsg);
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
     };
-  }, [pathname]);
+  }, [activeChatUserId]);
 
   const handleOpenChat = () => {
     if (!activeBanner) return;
+    const target = {
+      userId: activeBanner.senderId,
+      fullName: activeBanner.fullName,
+      photoUrl: activeBanner.photoUrl
+    };
     if (typeof window !== "undefined") {
-      sessionStorage.setItem('active_chat_target', JSON.stringify({
-        userId: activeBanner.senderId,
-        fullName: activeBanner.fullName,
-        photoUrl: activeBanner.photoUrl
-      }));
+      sessionStorage.setItem('active_chat_target', JSON.stringify(target));
+      window.dispatchEvent(new CustomEvent('open_chat_direct', { detail: target }));
     }
     setActiveBanner(null);
     router.push('/dashboard/messages');

@@ -54,7 +54,7 @@ export default function PublicGroupLayout({ children }: { children: React.ReactN
     <AuthModalProvider>
       <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-[#d91b5c] selection:text-white font-sans antialiased">
         <Navbar />
-        <main className="flex-grow pt-20 sm:pt-24 w-full">
+        <main className="flex-grow pt-16 sm:pt-20 w-full">
           {children}
         </main>
         <Footer />

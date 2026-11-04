@@ -91,15 +91,42 @@ export const handleAuthSuccessRedirect = (result: any, router: any) => {
 };
 
 /**
+ * ⚡ Ultra-fast 0ms Synchronous User Photo Resolver
+ * Instantly retrieves the user's authentic Cloudflare CDN photo from localStorage
+ * without any flash of default placeholder avatar across any page redirect.
+ */
+export const getStoredUserPhoto = (): string => {
+  if (typeof window === "undefined") {
+    return "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%23e11d48'><rect width='100' height='100' fill='%231e293b'/><circle cx='50' cy='38' r='18' fill='%23f43f5e'/><path d='M25,82 C25,62 75,62 75,82' fill='%23f43f5e'/></svg>";
+  }
+  try {
+    for (const key of ['user_details', 'user_session', 'cached_profile_details']) {
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const p = parsed.profile || parsed.Profile || parsed;
+        const rawPhoto = p?.mainPhotoUrl || p?.photoUrl || p?.PhotoUrl || p?.mainPhoto || p?.photo;
+        if (rawPhoto && rawPhoto !== '/placeholder.png' && rawPhoto !== 'placeholder.png' && !String(rawPhoto).includes('default') && !String(rawPhoto).startsWith('data:image')) {
+          const cleanPath = String(rawPhoto).trim();
+          if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) return cleanPath;
+          const relative = cleanPath.startsWith('/') ? cleanPath.slice(1) : cleanPath;
+          return `https://cdn.nikahqubool.in/${relative}`;
+        }
+      }
+    }
+  } catch (e) {}
+  return "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%23e11d48'><rect width='100' height='100' fill='%231e293b'/><circle cx='50' cy='38' r='18' fill='%23f43f5e'/><path d='M25,82 C25,62 75,62 75,82' fill='%23f43f5e'/></svg>";
+};
+
+/**
  * ⚡ Synchronizes a new or updated profile photo everywhere across the application:
- * 1. Updates 'user_details' in localStorage
- * 2. Updates 'user_session' in localStorage
- * 3. Triggers window event 'user_photo_updated' so DashboardBottomNav, DashboardHeader, and components update in real-time
+ * 1. Updates 'user_details', 'user_session', and 'cached_profile_details' in localStorage
+ * 2. Triggers window event 'user_photo_updated' so DashboardBottomNav, DashboardHeader, EditProfile, and MyProfile update in real-time
  */
 export const syncUserProfilePhoto = (photoUrl: string) => {
   if (!photoUrl || typeof window === "undefined") return;
   try {
-    ['user_details', 'user_session'].forEach(key => {
+    ['user_details', 'user_session', 'cached_profile_details'].forEach(key => {
       const stored = localStorage.getItem(key);
       if (stored) {
         try {
@@ -109,6 +136,10 @@ export const syncUserProfilePhoto = (photoUrl: string) => {
           parsed.PhotoUrl = photoUrl;
           parsed.mainPhoto = photoUrl;
           parsed.photo = photoUrl;
+          if (parsed.profile && typeof parsed.profile === 'object') {
+            parsed.profile.mainPhotoUrl = photoUrl;
+            parsed.profile.photoUrl = photoUrl;
+          }
           localStorage.setItem(key, JSON.stringify(parsed));
         } catch (e) {}
       }

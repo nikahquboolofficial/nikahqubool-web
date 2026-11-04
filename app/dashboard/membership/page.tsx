@@ -384,7 +384,7 @@ export default function MembershipPage() {
             planName: activePlan.name,
             isPaid: true,
             isExpired: false,
-            remainingContacts: activePlan.contactViewsAllowed || 50
+            remainingContacts: (activePlan as any).contactViewsAllowed || (activePlan as any).contacts || 50
           });
         }
       } catch (e) {}

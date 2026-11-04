@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Sparkles, Search, MessageCircle, User } from 'lucide-react';
 import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
-import { getAuthToken, syncUserProfilePhoto } from '@/lib/auth';
+import { getAuthToken, syncUserProfilePhoto, getStoredUserPhoto } from '@/lib/auth';
 import { fetchProfileDetailsApi } from '@/lib/api';
 
 interface BottomNavProps {
@@ -15,11 +15,11 @@ interface BottomNavProps {
 }
 
 export default function DashboardBottomNav({ 
-  unreadCount = 0,
-  unreadChatCount = 0
+  unreadCount = 0, 
+  unreadChatCount = 0 
 }: BottomNavProps) {
   const pathname = usePathname();
-  const [userPhoto, setUserPhoto] = useState<string>(DEFAULT_FEMALE_AVATAR);
+  const [userPhoto, setUserPhoto] = useState<string>(() => getStoredUserPhoto());
 
   useEffect(() => {
     const updatePhotoFromStorage = async () => {

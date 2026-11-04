@@ -1,152 +1,214 @@
 "use client";
 
 import React from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
+import { 
+  ShieldCheck, Lock, Heart, Phone, Mail, MapPin, 
+  Clock, CheckCircle2, ArrowUpRight
+} from 'lucide-react';
 
 export default function Footer() {
   return (
-    <footer className="w-full bg-slate-950 text-white border-t-2 border-[#d91b5c] relative overflow-hidden">
-      {/* GRADIENT TOP BAR */}
-      <div className="w-full h-1.5 bg-gradient-to-r from-[#d91b5c] via-amber-400 via-rose-500 to-[#d91b5c]" />
+    <footer className="w-full bg-[#fcf1f3] text-slate-700 border-t border-rose-200 font-sans">
+      
+      {/* 🌸 SUBTLE TOP ACCENT LINE */}
+      <div className="w-full h-1 bg-gradient-to-r from-[#d91b5c] via-rose-300 to-[#d91b5c]" />
 
-      <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 py-14 md:py-18 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-12 sm:py-16">
+        
+        {/* MAIN 4-COLUMN FOOTER GRID */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-10">
           
-          {/* BRAND COLUMN */}
-          <div className="lg:col-span-5 space-y-4 text-center lg:text-left">
-            <div className="flex flex-col items-center lg:items-start">
-              <Link href="/" className="inline-block group">
-                <img
-                  src="/nikah-qubool-logo.png"
-                  alt="Nikah Qubool Logo"
-                  className="h-14 sm:h-16 md:h-18 w-auto max-w-[260px] sm:max-w-[320px] object-contain transition-transform duration-200 group-hover:scale-105"
-                />
-              </Link>
-              <p className="text-xs font-bold text-amber-300 uppercase tracking-widest mt-2">
-                Halal & Trusted Matrimony Platform
-              </p>
-            </div>
-            
-            <p className="text-slate-300 font-serif italic text-sm leading-relaxed max-w-sm mx-auto lg:mx-0">
-              "And We created you in pairs." <br />
-              <span className="not-italic font-sans text-[11px] text-rose-300 font-bold uppercase tracking-wider block mt-1">
-                Most Trusted Halal Matchmaking Platform
-              </span>
+          {/* COLUMN 1: BRAND & MISSION (LG: 4 COLS) */}
+          <div className="lg:col-span-4 space-y-4 text-left">
+            <Link href="/" className="inline-block">
+              <img
+                src="/nikah-qubool-logo.png"
+                alt="Nikah Qubool Matrimony"
+                className="h-10 sm:h-12 w-auto object-contain"
+              />
+            </Link>
+
+            <p className="text-xs text-slate-600 leading-relaxed font-normal max-w-sm">
+              Nikah Qubool is India&apos;s most trusted Halal Muslim matrimony platform. We are dedicated to connecting pious singles and respected families with honor, Islamic etiquette, and 100% verified identities.
             </p>
 
-            <div className="pt-2 flex items-center justify-center lg:justify-start gap-2.5 flex-wrap">
-              <div className="mt-4 p-4 rounded-2xl bg-white/5 border border-white/10 shadow-xs space-y-1.5">
-                <p className="text-[11px] font-bold text-white flex items-center gap-1.5">
-                  <span>📍</span> UP, India
-                </p>
-                <p className="text-[10px] font-bold text-amber-300 flex items-center gap-1.5">
-                  <span>📞</span> Official Support Active
-                </p>
+            {/* Helpline & Support Card */}
+            <div className="p-4 rounded-2xl bg-white/95 border border-rose-200/90 shadow-xs space-y-2 text-xs">
+              <div className="flex items-center gap-2 text-slate-800 font-bold">
+                <Phone size={14} className="text-[#d91b5c]" />
+                <span>Helpline: +91 84452 20256</span>
               </div>
+              <div className="flex items-center gap-2 text-slate-600 font-medium">
+                <Mail size={14} className="text-[#d91b5c]" />
+                <span>support@nikahqubool.in</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-500 text-[11px]">
+                <Clock size={13} className="text-slate-400" />
+                <span>Mon – Sat, 10:00 AM – 7:00 PM IST</span>
+              </div>
+            </div>
+
+            {/* Trust Badges */}
+            <div className="pt-1 flex flex-wrap gap-2 text-[11px] font-bold text-slate-700">
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white border border-rose-200/90 shadow-2xs">
+                <ShieldCheck size={12} className="text-emerald-600" />
+                <span>100% Verified Profiles</span>
+              </span>
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white border border-rose-200/90 shadow-2xs">
+                <Lock size={12} className="text-[#d91b5c]" />
+                <span>Photo Privacy Control</span>
+              </span>
             </div>
           </div>
 
-          {/* LINKS COLUMN */}
-          <div className="lg:col-span-7 grid grid-cols-2 sm:grid-cols-3 gap-8">
-            <div className="space-y-3">
-              <h4 className="font-bold uppercase tracking-widest text-xs text-amber-300 flex items-center gap-1.5">
-                <span>✨</span> Explore
-              </h4>
-              <ul className="space-y-2.5">
-                {['About Us', 'Safety Tips', 'Contact Us'].map((item, i) => (
-                  <li key={i}>
-                    <a 
-                      href={`/${item.toLowerCase().replace(/\s+/g, '-')}`}
-                      className="text-xs font-medium text-slate-300 hover:text-rose-400 hover:translate-x-1 transition-all block py-1"
-                    >
-                      › {item}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
+          {/* COLUMN 2: QUICK LINKS (LG: 2 COLS) */}
+          <div className="lg:col-span-2 space-y-3 text-left">
+            <h4 className="font-serif font-bold text-sm text-slate-900 border-b border-rose-200/70 pb-2">
+              Quick Links
+            </h4>
+            <ul className="space-y-2 text-xs">
+              <li>
+                <Link href="/login" className="text-slate-600 hover:text-[#d91b5c] transition-colors flex items-center justify-between group font-medium">
+                  <span>Register Free</span>
+                  <ArrowUpRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-[#d91b5c]" />
+                </Link>
+              </li>
+              <li>
+                <Link href="/login" className="text-slate-600 hover:text-[#d91b5c] transition-colors flex items-center justify-between group font-medium">
+                  <span>Login with Mobile</span>
+                  <ArrowUpRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-[#d91b5c]" />
+                </Link>
+              </li>
+              <li>
+                <Link href="/dashboard/find-match" className="text-slate-600 hover:text-[#d91b5c] transition-colors font-medium">
+                  Find Compatible Matches
+                </Link>
+              </li>
+              <li>
+                <Link href="/dashboard/membership" className="text-slate-600 hover:text-[#d91b5c] transition-colors font-medium">
+                  VIP Membership Plans
+                </Link>
+              </li>
+              <li>
+                <Link href="/about-us" className="text-slate-600 hover:text-[#d91b5c] transition-colors font-medium">
+                  Our Mission & Values
+                </Link>
+              </li>
+              <li>
+                <Link href="/faq" className="text-slate-600 hover:text-[#d91b5c] transition-colors font-medium">
+                  Frequently Asked Questions
+                </Link>
+              </li>
+            </ul>
+          </div>
 
-            <div className="space-y-3">
-              <h4 className="font-bold uppercase tracking-widest text-xs text-amber-300 flex items-center gap-1.5">
-                <span>🛡️</span> Trust & Legal
-              </h4>
-              <ul className="space-y-2.5">
-                {[
-                  { label: 'Terms & Conditions', path: '/terms-conditions' },
-                  { label: 'Privacy Policy', path: '/privacy-policy' },
-                  { label: 'Refund Policy', path: '/refund-policy' },
-                  { label: 'Service & Pricing', path: '/pricing-policy' },
-                ].map((item, i) => (
-                  <li key={i}>
-                    <Link
-                      href={item.path}
-                      className="text-xs font-medium text-slate-300 hover:text-rose-400 hover:translate-x-1 transition-all block py-1"
-                    >
-                      › {item.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
+          {/* COLUMN 3: BROWSE BY CITIES & SECTS (LG: 3 COLS) */}
+          <div className="lg:col-span-3 space-y-3 text-left">
+            <h4 className="font-serif font-bold text-sm text-slate-900 border-b border-rose-200/70 pb-2">
+              Explore Proposals
+            </h4>
+            <ul className="space-y-2 text-xs">
+              <li>
+                <Link href="/matrimony/sunni-rishte-in-delhi" className="text-slate-600 hover:text-[#d91b5c] transition-colors font-medium">
+                  Sunni Rishte in Delhi NCR
+                </Link>
+              </li>
+              <li>
+                <Link href="/matrimony/syed-rishte-in-lucknow" className="text-slate-600 hover:text-[#d91b5c] transition-colors font-medium">
+                  Syed Matrimony in Lucknow
+                </Link>
+              </li>
+              <li>
+                <Link href="/matrimony/bareilly-muslim-matrimony" className="text-slate-600 hover:text-[#d91b5c] transition-colors font-medium">
+                  Muslim Rishte in Bareilly & UP
+                </Link>
+              </li>
+              <li>
+                <Link href="/matrimony/muslim-matrimony-in-mumbai" className="text-slate-600 hover:text-[#d91b5c] transition-colors font-medium">
+                  Muslim Proposals in Mumbai
+                </Link>
+              </li>
+              <li>
+                <Link href="/matrimony/deobandi-matrimony-in-hyderabad" className="text-slate-600 hover:text-[#d91b5c] transition-colors font-medium">
+                  Deobandi & Hanafi Hyderabad
+                </Link>
+              </li>
+              <li>
+                <Link href="/matrimony/muslim-doctor-rishte" className="text-slate-600 hover:text-[#d91b5c] transition-colors font-medium">
+                  Muslim Doctors & Engineers
+                </Link>
+              </li>
+            </ul>
+          </div>
 
-            <div className="space-y-3 col-span-2 sm:col-span-1">
-              <h4 className="font-bold uppercase tracking-widest text-xs text-amber-300 flex items-center gap-1.5">
-                <span>💌</span> Support
-              </h4>
-              <ul className="space-y-2.5">
-                <li>
-                  <a href="/faq" className="text-xs font-medium text-slate-300 hover:text-rose-400 hover:translate-x-1 transition-all block py-1">
-                    › FAQs
-                  </a>
-                </li>
-              </ul>
-
-              <div className="mt-4 p-4 rounded-2xl bg-white/5 border border-white/10 shadow-xs space-y-1.5">
-                <p className="text-[11px] font-bold text-white flex items-center gap-1.5">
-                  <span>📍</span> Bareilly, UP, India
-                </p>
-                <p className="text-[10px] font-bold text-amber-300 flex items-center gap-1.5">
-                  <span>📞</span> Official Support Active
-                </p>
-              </div>
-            </div>
+          {/* COLUMN 4: TRUST, SAFETY & LEGAL POLICIES (LG: 3 COLS) */}
+          <div className="lg:col-span-3 space-y-3 text-left">
+            <h4 className="font-serif font-bold text-sm text-slate-900 border-b border-rose-200/70 pb-2">
+              Trust & Legal Policies
+            </h4>
+            <ul className="space-y-2 text-xs">
+              <li>
+                <Link href="/privacy-policy" className="text-slate-600 hover:text-[#d91b5c] transition-colors font-medium">
+                  Privacy Policy (Data & Photo)
+                </Link>
+              </li>
+              <li>
+                <Link href="/terms-conditions" className="text-slate-600 hover:text-[#d91b5c] transition-colors font-medium">
+                  Terms & Conditions
+                </Link>
+              </li>
+              <li>
+                <Link href="/safety-tips" className="text-slate-600 hover:text-[#d91b5c] transition-colors font-medium">
+                  Safe Matrimony Guidelines
+                </Link>
+              </li>
+              <li>
+                <Link href="/refund-policy" className="text-slate-600 hover:text-[#d91b5c] transition-colors font-medium">
+                  Refund & Cancellation Policy
+                </Link>
+              </li>
+              <li>
+                <Link href="/pricing-policy" className="text-slate-600 hover:text-[#d91b5c] transition-colors font-medium">
+                  Pricing & Service Terms
+                </Link>
+              </li>
+              <li>
+                <Link href="/contact-us" className="text-slate-600 hover:text-[#d91b5c] transition-colors font-medium">
+                  Contact Support Team
+                </Link>
+              </li>
+            </ul>
           </div>
 
         </div>
 
-        {/* POPULAR SEARCHES SEO SECTION */}
-        <div className="mt-12 pt-8 border-t border-slate-800">
-          <h4 className="font-bold uppercase tracking-widest text-xs text-amber-300 mb-3 flex items-center gap-1.5 justify-center lg:justify-start">
-            <span>🔎</span> Popular Matrimony Searches
-          </h4>
-          <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-4 gap-y-2 text-xs text-slate-400">
-            {[
-              { label: 'Sunni Rishte in Delhi', slug: 'sunni-rishte-in-delhi' },
-              { label: 'Muslim Matrimony Mumbai', slug: 'muslim-matrimony-in-mumbai' },
-              { label: 'Syed Rishte Lucknow', slug: 'syed-rishte-in-lucknow' },
-              { label: 'Deobandi Matrimony Hyderabad', slug: 'deobandi-matrimony-in-hyderabad' },
-              { label: 'Muslim Doctor Rishte', slug: 'muslim-doctor-rishte' },
-              { label: 'Muslim Engineer Rishte', slug: 'muslim-engineer-rishte' },
-            ].map((item, idx) => (
-              <Link
-                key={idx}
-                href={`/matrimony/${item.slug}`}
-                className="hover:text-rose-400 transition-colors text-[11px] font-medium"
-              >
-                • {item.label}
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        {/* COPYRIGHT BAR */}
-        <div className="mt-8 pt-6 border-t border-slate-900 text-center">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
-            © 2026 Nikah Qubool • A PROUD DIGITAL PROPERTY OF IT CREATIVE SOLUTION
+        {/* 🕌 ISLAMIC QUOTE ACCENT STRIP */}
+        <div className="mt-10 pt-6 border-t border-rose-200/70 text-center">
+          <p className="font-serif italic text-xs sm:text-sm text-slate-700 max-w-xl mx-auto leading-relaxed">
+            &ldquo;And of His signs is that He created for you spouses from among yourselves, that you may find tranquility in them; and He placed between you love and mercy.&rdquo;
           </p>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-[#d91b5c] mt-1 block">
+            — Surah Ar-Rum (30:21)
+          </span>
         </div>
+
+        {/* BOTTOM COPYRIGHT & COMPLIANCE BAR */}
+        <div className="mt-8 pt-6 border-t border-rose-200/70 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left text-[11px] text-slate-600">
+          <p>
+            © 2026 Nikah Qubool Matrimony. All Rights Reserved. A Trusted Platform for the Ummah.
+          </p>
+          <div className="flex items-center gap-4 text-[11px]">
+            <span className="flex items-center gap-1 text-slate-700 font-bold">
+              <CheckCircle2 size={12} className="text-emerald-600" /> 256-Bit SSL Encrypted
+            </span>
+            <span>•</span>
+            <span className="text-slate-700 font-bold">100% Halal Certified</span>
+          </div>
+        </div>
+
       </div>
+
     </footer>
   );
 }

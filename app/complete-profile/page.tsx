@@ -4,14 +4,24 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Sparkles, ChevronRight, Loader2, ArrowLeft, Check, Search, 
-  Camera, Lock, CheckCircle2, Calendar, Shield, ChevronDown
+  Camera, Lock, CheckCircle2, Calendar, Shield, ChevronDown,
+  User, Mail, Users
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
-import { fetchMasterDataApi, fetchCitiesApi, updateProfileApi, fetchProfileDetailsApi, MasterOption } from '@/lib/api';
+import { fetchMasterDataApi, fetchCitiesApi, updateProfileApi, fetchProfileDetailsApi, checkEmailAvailabilityApi, MasterOption } from '@/lib/api';
 import { getAuthToken, syncUserProfilePhoto } from '@/lib/auth';
 
 // MASTER FALLBACK DATA
+const PROFILE_CREATED_FOR_OPTIONS = [
+  { id: 1, value: "Self" },
+  { id: 2, value: "Son", gender: "male" },
+  { id: 3, value: "Daughter", gender: "female" },
+  { id: 4, value: "Brother", gender: "male" },
+  { id: 5, value: "Sister", gender: "female" },
+  { id: 6, value: "Friend / Relative" }
+];
+
 const FALLBACK_MASTERS: { [key: string]: MasterOption[] } = {
   MARITAL_STATUS: [
     { id: 1, value: "Never Married" },
@@ -229,7 +239,7 @@ export default function CompleteProfilePage() {
 
   // Slide state: 1 to 17 (1 field per slide, except State & City together)
   const [step, setStep] = useState<number>(1);
-  const totalSteps = 17;
+  const totalSteps = 18;
   const [slideDirection, setSlideDirection] = useState<'forward' | 'backward'>('forward');
   const [loading, setLoading] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<string>('');
@@ -242,6 +252,11 @@ export default function CompleteProfilePage() {
 
   // Form State
   const [formData, setFormData] = useState({
+    profileCreatedFor: 1,
+    profileCreatedForText: 'Self',
+    gender: 'male',
+    fullName: '',
+    email: '',
     maritalStatusId: 0,
     maritalStatusText: '',
     dob: '',
@@ -306,6 +321,36 @@ export default function CompleteProfilePage() {
     return age > 0 ? age : null;
   }, [dobDay, dobMonth, dobYear]);
 
+  
+  // Email check & validation state
+  const [emailChecking, setEmailChecking] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<{ available: boolean | null; message: string }>({ available: null, message: '' });
+
+  const handleEmailBlur = async () => {
+    const trimmed = formData.email.trim();
+    if (!trimmed) {
+      setEmailStatus({ available: null, message: '' });
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setEmailStatus({ available: false, message: 'Please enter a valid email address.' });
+      return;
+    }
+    setEmailChecking(true);
+    let uId = undefined;
+    try {
+      const stored = localStorage.getItem('user_details') || localStorage.getItem('user_session');
+      if (stored) uId = Number(JSON.parse(stored)?.userId);
+    } catch (e) {}
+    const res = await checkEmailAvailabilityApi(trimmed, uId);
+    setEmailChecking(false);
+    if (res?.available === false) {
+      setEmailStatus({ available: false, message: res.message || 'This email is already in use by another account.' });
+    } else {
+      setEmailStatus({ available: true, message: 'Email is available.' });
+    }
+  };
+
   // Sync initial DOB
   useEffect(() => {
     if (dobYear && dobMonth && dobDay) {
@@ -353,6 +398,26 @@ export default function CompleteProfilePage() {
       router.push('/');
       return;
     }
+
+    
+    // Prepopulate name, email, gender from stored user session
+    try {
+      const sessionRaw = localStorage.getItem('user_session') || localStorage.getItem('user_details');
+      if (sessionRaw) {
+        const u = JSON.parse(sessionRaw);
+        const name = u.fullName || u.FullName || '';
+        const em = u.email || u.Email || '';
+        const gen = u.gender || u.Gender || '';
+        const pFor = u.profileCreatedFor || u.ProfileCreatedFor || 0;
+        setFormData(prev => ({
+          ...prev,
+          fullName: name && name !== 'User' && name !== 'New Member' ? name : prev.fullName,
+          email: em && em !== 'null' ? em : prev.email,
+          gender: gen ? gen.toLowerCase() : prev.gender,
+          profileCreatedFor: pFor > 0 ? Number(pFor) : prev.profileCreatedFor
+        }));
+      }
+    } catch (e) {}
 
     const loadAllMasters = async () => {
       const types = ['MARITAL_STATUS', 'SECTS', 'MASLAKS', 'CASTES', 'MOTHER_TONGUES', 'EDUCATIONS', 'EMPLOYMENT_SECTORS', 'OCCUPATIONS', 'STATES', 'FAMILY_TYPES', 'FAMILY_STATUS', 'Complexion'];
@@ -446,9 +511,13 @@ export default function CompleteProfilePage() {
 
     const fd = new FormData();
     fd.append("UserId", String(userData?.userId || 0));
-    if (userData?.fullName && userData.fullName !== "User") {
-      fd.append("FullName", userData.fullName);
+    const finalFullName = formData.fullName || userData?.fullName || "";
+    if (finalFullName && finalFullName !== "User" && finalFullName !== "New Member") {
+      fd.append("FullName", finalFullName);
     }
+    if (formData.email) fd.append("Email", formData.email);
+    if (formData.gender) fd.append("Gender", formData.gender);
+    if (formData.profileCreatedFor) fd.append("ProfileCreatedFor", String(formData.profileCreatedFor));
     if (formData.dob) fd.append("DateOfBirth", formData.dob);
     fd.append("Height", formData.height);
     fd.append("Weight", formData.weight);
@@ -490,6 +559,10 @@ export default function CompleteProfilePage() {
       if (res.success) {
         let updatedSessionData: any = session ? JSON.parse(session) : {};
         updatedSessionData.isProfileCompleted = true;
+        if (finalFullName) { updatedSessionData.fullName = finalFullName; updatedSessionData.FullName = finalFullName; }
+        if (formData.email) { updatedSessionData.email = formData.email; updatedSessionData.Email = formData.email; }
+        if (formData.gender) { updatedSessionData.gender = formData.gender; updatedSessionData.Gender = formData.gender; }
+        if (formData.profileCreatedFor) { updatedSessionData.profileCreatedFor = formData.profileCreatedFor; }
 
         // 1. Fetch fresh profile details from API to get the canonical Cloudflare URL
         try {
@@ -504,6 +577,9 @@ export default function CompleteProfilePage() {
               updatedSessionData.photo = canonicalPhoto;
               updatedSessionData.mainPhoto = canonicalPhoto;
               syncUserProfilePhoto(canonicalPhoto);
+              if (typeof window !== "undefined") {
+                localStorage.setItem('cached_profile_details', JSON.stringify(p));
+              }
             }
           }
         } catch (fetchErr) {
@@ -603,9 +679,176 @@ export default function CompleteProfilePage() {
           >
 
             {/* =========================================================
-                SLIDE 1: MARITAL STATUS (AUTO-ADVANCE)
+                SLIDE 1: BASIC IDENTITY (PROFILE FOR, NAME, EMAIL, GENDER)
                 ========================================================= */}
             {step === 1 && (
+              <div className="space-y-4">
+                <div className="text-left space-y-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Basic Identity</span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                    Who are you creating this profile for?
+                  </h2>
+                  <p className="text-[11px] text-slate-500 font-normal">Select relationship and basic profile details</p>
+                </div>
+
+                {/* 1. Relationship Selector */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                    Profile Created For
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {PROFILE_CREATED_FOR_OPTIONS.map((opt) => {
+                      const isSelected = formData.profileCreatedFor === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => {
+                            const newGender = opt.gender ? opt.gender : formData.gender;
+                            setFormData(prev => ({
+                              ...prev,
+                              profileCreatedFor: opt.id,
+                              profileCreatedForText: opt.value,
+                              gender: newGender
+                            }));
+                          }}
+                          className={`p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center ${
+                            isSelected
+                              ? 'border-[#e21e5b] bg-rose-50 text-[#e21e5b] shadow-2xs'
+                              : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                          }`}
+                        >
+                          {opt.value}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 2. Gender Selection (Only if Self or Friend / Relative) */}
+                {(formData.profileCreatedFor === 1 || formData.profileCreatedFor === 6) && (
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                      Gender
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { val: 'male', label: 'Groom (Male)' },
+                        { val: 'female', label: 'Bride (Female)' }
+                      ].map(g => (
+                        <button
+                          key={g.val}
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, gender: g.val }))}
+                          className={`p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center ${
+                            formData.gender === g.val
+                              ? 'border-[#e21e5b] bg-rose-50 text-[#e21e5b] shadow-2xs'
+                              : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                          }`}
+                        >
+                          {g.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. Full Name */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                    Full Name <span className="text-[#e21e5b]">*</span>
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input
+                      type="text"
+                      value={formData.fullName}
+                      onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
+                      placeholder="e.g. Farhan Ali / Ayesha Khan"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-[#e21e5b] focus:ring-2 focus:ring-[#e21e5b]/10 text-xs font-bold text-slate-800 outline-none transition-all placeholder-slate-400"
+                    />
+                  </div>
+                </div>
+
+                {/* 4. Email Address with Duplicate Verification */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                    Email Address <span className="text-[#e21e5b]">*</span>
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFormData(prev => ({ ...prev, email: val }));
+                        if (emailStatus.message) setEmailStatus({ available: null, message: '' });
+                      }}
+                      onBlur={handleEmailBlur}
+                      placeholder="e.g. name@gmail.com"
+                      className={`w-full pl-10 pr-10 py-2.5 rounded-xl border text-xs font-bold text-slate-800 outline-none transition-all placeholder-slate-400 ${
+                        emailStatus.available === false 
+                          ? 'border-rose-400 bg-rose-50/30' 
+                          : emailStatus.available === true 
+                            ? 'border-emerald-400 bg-emerald-50/20' 
+                            : 'border-slate-200 focus:border-[#e21e5b] focus:ring-2 focus:ring-[#e21e5b]/10'
+                      }`}
+                    />
+                    {emailChecking && (
+                      <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 animate-spin" size={15} />
+                    )}
+                    {!emailChecking && emailStatus.available === true && (
+                      <CheckCircle2 className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-500" size={15} />
+                    )}
+                  </div>
+                  {emailStatus.message && (
+                    <p className={`text-[11px] font-bold px-1 ${emailStatus.available === false ? 'text-rose-600' : 'text-emerald-600'}`}>
+                      {emailStatus.message}
+                    </p>
+                  )}
+                </div>
+
+                {/* Continue Button for Step 1 */}
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    disabled={
+                      !formData.fullName.trim() || 
+                      formData.fullName.trim().length < 2 || 
+                      !formData.email.trim() || 
+                      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim()) ||
+                      emailStatus.available === false ||
+                      emailChecking
+                    }
+                    onClick={() => {
+                      if (emailStatus.available === null) {
+                        handleEmailBlur().then(() => nextStep());
+                      } else {
+                        nextStep();
+                      }
+                    }}
+                    className={`w-full py-3 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
+                      formData.fullName.trim().length >= 2 && 
+                      formData.email.trim() && 
+                      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim()) &&
+                      emailStatus.available !== false &&
+                      !emailChecking
+                        ? 'bg-gradient-to-r from-[#e21e5b] to-[#ce1b53] text-white shadow-md cursor-pointer hover:brightness-105 active:scale-[0.99]'
+                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    }`}
+                  >
+                    <span>Continue</span>
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* =========================================================
+                SLIDE 2: MARITAL STATUS (AUTO-ADVANCE)
+                ========================================================= */}
+            {step === 2 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Basic Details</span>
@@ -643,9 +886,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 2: MODERN UNIQUE DATE OF BIRTH PICKER (CONTINUE)
+                SLIDE 3: MODERN UNIQUE DATE OF BIRTH PICKER (CONTINUE)
                 ========================================================= */}
-            {step === 2 && (
+            {step === 3 && (
               <div className="space-y-4">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Age Verification</span>
@@ -763,9 +1006,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 3: HEIGHT (AUTO-ADVANCE)
+                SLIDE 4: HEIGHT (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 3 && (
+            {step === 4 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Physical Profile</span>
@@ -803,9 +1046,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 4: WEIGHT (AUTO-ADVANCE)
+                SLIDE 5: WEIGHT (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 4 && (
+            {step === 5 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Physical Profile</span>
@@ -843,9 +1086,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 5: COMPLEXION (AUTO-ADVANCE)
+                SLIDE 6: COMPLEXION (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 5 && (
+            {step === 6 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Appearance</span>
@@ -883,9 +1126,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 6: SECT (AUTO-ADVANCE)
+                SLIDE 7: SECT (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 6 && (
+            {step === 7 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Community</span>
@@ -923,9 +1166,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 7: MASLAK (AUTO-ADVANCE)
+                SLIDE 8: MASLAK (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 7 && (
+            {step === 8 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Community</span>
@@ -963,9 +1206,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 8: CASTE / BIRADARI (AUTO-ADVANCE WITH SEARCH)
+                SLIDE 9: CASTE / BIRADARI (AUTO-ADVANCE WITH SEARCH)
                 ========================================================= */}
-            {step === 8 && (
+            {step === 9 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Roots & Heritage</span>
@@ -1017,9 +1260,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 9: MOTHER TONGUE (AUTO-ADVANCE)
+                SLIDE 10: MOTHER TONGUE (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 9 && (
+            {step === 10 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Language</span>
@@ -1057,9 +1300,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 10: STATE & CITY TOGETHER (PER USER EXPLICIT REQUEST)
+                SLIDE 11: STATE & CITY TOGETHER (PER USER EXPLICIT REQUEST)
                 ========================================================= */}
-            {step === 10 && (
+            {step === 11 && (
               <div className="space-y-4">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Location</span>
@@ -1153,9 +1396,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 11: EDUCATION LEVEL (AUTO-ADVANCE)
+                SLIDE 12: EDUCATION LEVEL (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 11 && (
+            {step === 12 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Education</span>
@@ -1193,9 +1436,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 12: EMPLOYMENT SECTOR (AUTO-ADVANCE)
+                SLIDE 13: EMPLOYMENT SECTOR (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 12 && (
+            {step === 13 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Career</span>
@@ -1233,9 +1476,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 13: PROFESSION / OCCUPATION (AUTO-ADVANCE)
+                SLIDE 14: PROFESSION / OCCUPATION (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 13 && (
+            {step === 14 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Career</span>
@@ -1273,9 +1516,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 14: ANNUAL INCOME (AUTO-ADVANCE)
+                SLIDE 15: ANNUAL INCOME (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 14 && (
+            {step === 15 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Financials</span>
@@ -1313,9 +1556,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 15: FAMILY TYPE (AUTO-ADVANCE)
+                SLIDE 16: FAMILY TYPE (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 15 && (
+            {step === 16 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Family Background</span>
@@ -1353,9 +1596,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 16: FAMILY STATUS (AUTO-ADVANCE)
+                SLIDE 17: FAMILY STATUS (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 16 && (
+            {step === 17 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Family Background</span>
@@ -1393,9 +1636,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 17: PHOTO, SLEEK PRIVACY DROPDOWN & FINAL SUBMIT
+                SLIDE 18: PHOTO, SLEEK PRIVACY DROPDOWN & FINAL SUBMIT
                 ========================================================= */}
-            {step === 17 && (
+            {step === 18 && (
               <div className="space-y-4">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Final Step</span>

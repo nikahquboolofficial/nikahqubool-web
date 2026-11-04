@@ -12,9 +12,28 @@ import { syncUserProfilePhoto } from '@/lib/auth';
 
 export default function GalleryManagementPage() {
   const router = useRouter();
-  const [photos, setPhotos] = useState<any[]>([]);
+  const [photos, setPhotos] = useState<any[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("cached_profile_details") || localStorage.getItem("user_details");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          const p = parsed.profile || parsed.Profile || parsed;
+          const g = parsed.gallery || parsed.Gallery || p?.userPhotos || p?.UserPhotos || [];
+          if (Array.isArray(g) && g.length > 0) return g;
+          if (p?.mainPhotoUrl || p?.photoUrl) return [{ photoId: 1, photoUrl: p.mainPhotoUrl || p.photoUrl, isMain: true }];
+        }
+      } catch (e) {}
+    }
+    return [];
+  });
   const [privacy, setPrivacy] = useState<string>('All Members');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => {
+    if (typeof window !== "undefined") {
+      return !(localStorage.getItem("cached_profile_details") || localStorage.getItem("user_details"));
+    }
+    return false;
+  });
   const [uploading, setUploading] = useState(false);
 
   // Modal State for Photo Action
@@ -73,7 +92,9 @@ export default function GalleryManagementPage() {
       }
     }
 
-    setLoading(true);
+    if (photos.length === 0 && !localStorage.getItem("cached_profile_details")) {
+      setLoading(true);
+    }
     const res = await fetchProfileDetailsApi(userId, token);
     if (res.success && res.data) {
       const p = res.data.profile || res.data.Profile || res.data;

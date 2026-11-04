@@ -1,560 +1,746 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ShieldCheck, Lock, Heart, Sparkles, CheckCircle2, 
   ChevronRight, ChevronLeft, ArrowRight, HelpCircle, Star, Users,
-  Phone, Flame, UserCheck, ChevronDown, Crown, MessageSquare, Eye, Award
+  Phone, Smartphone, Check, UserCheck, Search, MessageCircle, 
+  Award, Building2, MapPin, GraduationCap, Briefcase
 } from 'lucide-react';
-import HeroRegisterForm from '@/components/home/HeroRegisterForm';
 import BrowseProfilesSection from '@/components/home/BrowseProfilesSection';
-import { useAuthModal } from '@/context/AuthModalContext';
 
 export default function HomePage() {
-  const { openRegisterModal, openLoginModal } = useAuthModal();
-  const [currentSlide, setCurrentSlide] = useState<number>(0);
-  const [activeStory, setActiveStory] = useState(0);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [profileType, setProfileType] = useState<'bride' | 'groom'>('bride');
   const [activeFaq, setActiveFaq] = useState<number | null>(0);
-  const [profileType, setProfileType] = useState<'groom' | 'bride'>('bride');
 
-  const stories = [
+  // 🕌 High-Quality Halal Muslim Couple Banners
+  const slides = [
     {
-      name: "Sana & Zaid Siddiqui",
-      location: "Bareilly, UP",
-      date: "Nikah: Jan 2026",
-      img: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=1200",
-      text: "Alhamdulillah, Nikah Qubool se humein wo sab mila jo hum ek partner mein dhoond rahe the. Family-centric approach aur 100% verified profiles ki wajah se humari baat 15 din me final ho gayi!"
-    },
-    {
-      name: "Mehak & Dr. Arif Khan",
-      location: "Civil Lines, Bareilly",
-      date: "Nikah: Dec 2025",
-      img: "https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=1200",
-      text: "Photo protection aur phone privacy feature bohot hi umda hai. Mujhe exact meri preference aur Maslak ke mutabiq rishta mila. May Allah bless the Nikah Qubool team!"
+      img: "https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=1600",
+      title: "Where Sincere Hearts Meet For Halal Nikah",
+      subtitle: "Connecting pious Muslim singles and respected families across India on pure Sunnah values.",
+      badge: "India's #1 Trusted Muslim Matrimony"
     },
     {
-      name: "Iqra & Er. Sameer Ansari",
-      location: "Lucknow, UP",
-      date: "Nikah: Nov 2025",
-      img: "https://images.unsplash.com/photo-1529634806980-85c3dd6d34ac?q=80&w=1200",
-      text: "Apne hi shehar me decent aur verified rishta dhoondna bohot mushkil tha pehle. Nikah Qubool ne process ko transparent aur aasan bana diya."
+      img: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=1600",
+      title: "Completed With Honor, Dignity & Privacy",
+      subtitle: "100% verified identities with strict photo privacy and direct family-to-family interaction.",
+      badge: "100% Verified Muslim Rishte"
     },
-  ];
-
-  const sampleProfiles = {
-    bride: [
-      { id: 1, name: "Farheen S.", age: 23, height: "5' 3\"", degree: "M.Sc Computer Science", city: "Bareilly", sect: "Sunni Hanafi", photo: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=600" },
-      { id: 2, name: "Ayesha K.", age: 25, height: "5' 4\"", degree: "B.Tech IT", city: "Lucknow", sect: "Sunni Hanafi", photo: "https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=600" },
-      { id: 3, name: "Zainab F.", age: 22, height: "5' 2\"", degree: "B.A. B.Ed", city: "Moradabad", sect: "Sunni Hanafi", photo: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=600" },
-      { id: 4, name: "Mariyam R.", age: 24, height: "5' 5\"", degree: "B.Pharm", city: "Aligarh", sect: "Sunni Hanafi", photo: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=600" },
-    ],
-    groom: [
-      { id: 5, name: "Er. Yasar M.", age: 26, height: "5' 10\"", degree: "B.Tech Software Engineer", city: "Bareilly", sect: "Sunni Hanafi", photo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600" },
-      { id: 6, name: "Dr. Danish A.", age: 28, height: "5' 11\"", degree: "M.D. Physician", city: "Lucknow", sect: "Sunni Hanafi", photo: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=600" },
-      { id: 7, name: "Bilal H.", age: 27, height: "5' 9\"", degree: "MBA Marketing Manager", city: "Noida / UP", sect: "Sunni Hanafi", photo: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=600" },
-      { id: 8, name: "Shahbaz K.", age: 29, height: "6' 0\"", degree: "Chartered Accountant", city: "Delhi NCR", sect: "Sunni Hanafi", photo: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=600" },
-    ]
-  };
-
-  const banners = [
-    "https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=100&w=2400",
-    "https://images.unsplash.com/photo-1519741497674-611481863552?q=100&w=2400",
-    "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=100&w=2400"
-  ];
-
-  const faqs = [
-    { 
-      q: "How are profiles verified on Nikah Qubool?", 
-      a: "Every single profile undergoes mandatory phone OTP verification and strict manual screening by our team. Family backgrounds and documents are cross-verified to maintain 100% genuine proposals." 
-    },
-    { 
-      q: "Is photo privacy and contact number protection available?", 
-      a: "Yes! Nikah Qubool offers complete privacy controls. You can set your photos to 'Only Approved Members' or 'Blurred', and your phone number remains masked until you explicitly grant access." 
-    },
-    { 
-      q: "Can parents or family members create a profile?", 
-      a: "Absolutely! Over 70% of profiles on Nikah Qubool are managed directly by parents, brothers, or sisters. You can select 'Creating for Son/Daughter/Sibling' during registration." 
-    },
-    { 
-      q: "Is basic registration free on Nikah Qubool?", 
-      a: "Yes, creating a profile, searching compatible proposals, and expressing interests are 100% Free! Optional VIP plans unlock direct contact numbers and instant messaging." 
+    {
+      img: "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1600",
+      title: "Find Your Life Partner Guided by the Sunnah",
+      subtitle: "Begin your blessed journey towards marriage in a respectful, transparent, and secure environment.",
+      badge: "Halal & Family Centric"
     }
   ];
 
+  // Auto-advance banner every 6 seconds
   useEffect(() => {
-    const int = setInterval(() => setCurrentSlide(p => (p === 2 ? 0 : p + 1)), 7000);
-    return () => clearInterval(int);
-  }, []);
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slides.length);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [slides.length]);
+
+  // Sample verified proposals preview
+  const sampleProfiles = {
+    bride: [
+      {
+        id: 1,
+        name: "Ayesha S.",
+        age: 24,
+        height: "5'4\"",
+        city: "Bareilly, UP",
+        sect: "Sunni Hanafi",
+        education: "M.Sc Mathematics",
+        profession: "Lecturer",
+        photo: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=600"
+      },
+      {
+        id: 2,
+        name: "Dr. Farhana K.",
+        age: 26,
+        height: "5'5\"",
+        city: "Lucknow, UP",
+        sect: "Syed Sunni",
+        education: "MBBS, MD",
+        profession: "Resident Doctor",
+        photo: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=600"
+      },
+      {
+        id: 3,
+        name: "Zainab F.",
+        age: 23,
+        height: "5'3\"",
+        city: "Delhi NCR",
+        sect: "Sunni",
+        education: "B.Tech Computer Science",
+        profession: "Software Engineer",
+        photo: "https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=600"
+      },
+      {
+        id: 4,
+        name: "Mariam Q.",
+        age: 25,
+        height: "5'6\"",
+        city: "Hyderabad, TS",
+        sect: "Sunni Hanafi",
+        education: "MBA Finance",
+        profession: "Financial Analyst",
+        photo: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=600"
+      }
+    ],
+    groom: [
+      {
+        id: 5,
+        name: "Er. Zaid Siddiqui",
+        age: 28,
+        height: "5'11\"",
+        city: "Delhi NCR",
+        sect: "Sunni Siddiqui",
+        education: "B.Tech IIT Delhi",
+        profession: "Senior Tech Lead",
+        photo: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=600"
+      },
+      {
+        id: 6,
+        name: "Dr. Hamza Khan",
+        age: 29,
+        height: "6'0\"",
+        city: "Bareilly, UP",
+        sect: "Sunni Pathan",
+        education: "MS General Surgery",
+        profession: "Surgeon",
+        photo: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=600"
+      },
+      {
+        id: 7,
+        name: "Tariq Mansoori",
+        age: 27,
+        height: "5'10\"",
+        city: "Mumbai, MH",
+        sect: "Sunni",
+        education: "Chartered Accountant (CA)",
+        profession: "Senior Auditor",
+        photo: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=600"
+      },
+      {
+        id: 8,
+        name: "Rehan Alvi",
+        age: 28,
+        height: "5'9\"",
+        city: "Lucknow, UP",
+        sect: "Sunni Alvi",
+        education: "MBA Marketing",
+        profession: "Product Manager",
+        photo: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600"
+      }
+    ]
+  };
+
+  const stories = [
+    {
+      couple: "Sana & Zaid Siddiqui",
+      location: "Bareilly & Delhi",
+      date: "Blessed Nikah: January 2026",
+      text: "Alhamdulillah, Nikah Qubool made our matchmaking so dignified. The 100% verified identity check and respect for family values gave our parents complete confidence.",
+      img: "https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=600"
+    },
+    {
+      couple: "Dr. Farheen & Dr. Arif Khan",
+      location: "Lucknow & Aligarh",
+      date: "Blessed Nikah: November 2025",
+      text: "Finding someone who shares the same Islamic mindset and professional background seemed tough until we connected on Nikah Qubool. Truly a blessed platform.",
+      img: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=600"
+    },
+    {
+      couple: "Nida & Er. Salman Ansari",
+      location: "Mumbai & Pune",
+      date: "Blessed Nikah: February 2026",
+      text: "The photo privacy feature is what convinced me to register. Only serious, verified proposals could connect, and within 3 weeks our families met and finalized everything.",
+      img: "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=600"
+    }
+  ];
+
+  const faqs = [
+    {
+      q: "How does Nikah Qubool ensure genuine, verified profiles?",
+      a: "Every member verifies their mobile number through an authentic 6-digit OTP during registration. Furthermore, our dedicated moderation team manually screens each profile, photos, and family details before granting full access."
+    },
+    {
+      q: "Is my photo and contact information private?",
+      a: "Yes, 100%. We take Islamic modesty and privacy very seriously. You have complete control to set photo visibility to 'Visible to all', 'Visible on request only', or 'Blurred preview'. Your phone number is never shared without your mutual consent."
+    },
+    {
+      q: "Can parents or guardians register on behalf of their children?",
+      a: "Absolutely. A significant percentage of profiles on Nikah Qubool are managed by parents, elder siblings, or guardians looking for honorable proposals for their son, daughter, brother, or sister."
+    },
+    {
+      q: "How can I start interacting with a compatible proposal?",
+      a: "Simply create your profile in 1 minute. Once registered, you can browse compatible matches, send interest requests, and initiate dignified conversations through our secure real-time chat."
+    }
+  ];
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-[#d91b5c] selection:text-white">
+    <div className="min-h-screen bg-white text-slate-800 font-sans selection:bg-[#d91b5c] selection:text-white">
       
-      {/* 🌟 HERO SECTION */}
-      <section className="relative min-h-[95vh] flex items-center justify-center pt-24 pb-16 overflow-hidden bg-slate-950">
-        
-        {/* BACKGROUND SLIDESHOW WITH LUXURY BLUR */}
-        <div className="absolute inset-0 z-0">
-          {banners.map((img, idx) => (
-            <div 
-              key={idx} 
-              className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000 transform scale-105"
-              style={{ 
-                backgroundImage: `url('${img}')`, 
-                opacity: currentSlide === idx ? 0.35 : 0,
-                filter: 'brightness(0.65)'
-              }}
-            />
-          ))}
-          <div className="absolute top-1/4 left-10 w-[500px] h-[500px] bg-[#d91b5c]/30 rounded-full blur-[140px] pointer-events-none" />
-          <div className="absolute bottom-10 right-10 w-[500px] h-[500px] bg-amber-500/20 rounded-full blur-[140px] pointer-events-none" />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/75 to-slate-950/40" />
-        </div>
-
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 flex flex-col lg:grid lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+      {/* ================================================================
+          1. HERO SLIDER BANNER (EDGE-TO-EDGE, NO SIDE GAPS, WITH APP DOWNLOADS & ATTRACTION HOOK)
+          ================================================================ */}
+      <section className="relative w-full overflow-hidden bg-slate-950">
+        <div className="relative w-full min-h-[520px] sm:min-h-[560px] lg:h-[620px] overflow-hidden">
           
-          {/* HERO CONTENT LEFT */}
-          <motion.div 
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6 }}
-            className="w-full lg:col-span-7 text-center lg:text-left space-y-6 order-2 lg:order-1"
-          >
-            {/* VIP BADGE */}
-            <div className="inline-flex items-center gap-2.5 px-4.5 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-amber-300 text-xs font-bold uppercase tracking-widest shadow-xl">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-              #1 Trusted Muslim Matrimony Platform
-            </div>
-
-            {/* MAIN HEADLINE */}
-            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-serif font-black text-white leading-[1.1] tracking-tight">
-              Find Your Blessed <br/>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-rose-300 to-amber-400 italic font-normal">
-                Halal Life Partner.
-              </span>
-            </h1>
-
-            <p className="text-slate-200 text-sm sm:text-base max-w-xl mx-auto lg:mx-0 font-medium leading-relaxed bg-white/5 p-5 rounded-2xl border border-white/10 backdrop-blur-md shadow-2xl">
-              Connect with thousands of verified Muslim brides and grooms. Complete privacy control, family-centric matchmaking, and Sunnah-guided Nikah process.
-            </p>
-
-            {/* TRUST BADGES ROW */}
-            <div className="pt-2 flex flex-wrap items-center justify-center lg:justify-start gap-5 text-xs font-black text-slate-200 uppercase tracking-wider">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
-                <CheckCircle2 size={16} className="text-emerald-400" />
-                <span>100% Verified Profiles</span>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
-                <ShieldCheck size={16} className="text-amber-400" />
-                <span>Halal & Secure</span>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
-                <Lock size={16} className="text-rose-400" />
-                <span>Privacy Control</span>
-              </div>
-            </div>
-
-            {/* STATS HIGHLIGHT */}
-            <div className="grid grid-cols-3 gap-3 pt-4 max-w-lg mx-auto lg:mx-0">
-              <div className="bg-white/10 backdrop-blur-md border border-white/15 p-3 rounded-2xl text-center">
-                <p className="text-xl sm:text-2xl font-serif font-black text-amber-300">10,000+</p>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-300">Active Profiles</p>
-              </div>
-              <div className="bg-white/10 backdrop-blur-md border border-white/15 p-3 rounded-2xl text-center">
-                <p className="text-xl sm:text-2xl font-serif font-black text-rose-300">2,500+</p>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-300">Blessed Nikahs</p>
-              </div>
-              <div className="bg-white/10 backdrop-blur-md border border-white/15 p-3 rounded-2xl text-center">
-                <p className="text-xl sm:text-2xl font-serif font-black text-emerald-300">100%</p>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-300">Privacy Safe</p>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* HERO REGISTER FORM RIGHT */}
-          <div className="w-full lg:col-span-5 flex justify-center order-1 lg:order-2">
-            <HeroRegisterForm />
-          </div>
-
-        </div>
-      </section>
-
-      {/* 🚀 TRUST TICKER BAR */}
-      <div className="relative py-4 bg-gradient-to-r from-[#d91b5c] via-[#a3124e] to-[#d91b5c] text-white overflow-hidden shadow-lg border-y border-rose-900">
-        <div className="relative flex overflow-hidden">
-          <div className="flex whitespace-nowrap animate-[scrollText_28s_linear_infinite] hover:[animation-play-state:paused] cursor-pointer">
-            {[1, 2].map((group) => (
-              <div key={group} className="flex items-center">
-                {[
-                  { t: "100% Verified Profiles", i: "✅" },
-                  { t: "Secure & Halal Nikah Platform", i: "🕌" },
-                  { t: "Photo & Phone Privacy Control", i: "🔒" },
-                  { t: "Trusted Family Matchmaking", i: "🤝" },
-                  { t: "Bareilly & UP Top Matrimony", i: "⭐" },
-                  { t: "Strict Manual Screening", i: "🛡️" }
-                ].map((item, idx) => (
-                  <div 
-                    key={idx} 
-                    className="relative flex items-center mx-3 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 shadow-xs hover:bg-white/20 transition-all duration-300"
-                  >
-                    <span className="text-sm mr-2">{item.i}</span>
-                    <span className="text-[11px] font-black tracking-wider uppercase text-white">{item.t}</span>
-                    <div className="ml-3 text-amber-300 text-xs">✦</div>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <style jsx>{`
-          @keyframes scrollText {
-            0% { transform: translateX(0); }
-            100% { transform: translateX(-50%); }
-          }
-        `}</style>
-      </div>
-
-      {/* 💖 FEATURED PROFILES PREVIEW SECTION */}
-      <section className="relative py-16 md:py-24 px-4 sm:px-6 bg-slate-50 border-b border-slate-200">
-        <div className="max-w-7xl mx-auto space-y-10">
-          <div className="text-center max-w-2xl mx-auto space-y-3">
-            <span className="text-[#d91b5c] font-black uppercase tracking-[0.25em] text-xs bg-rose-50 px-5 py-2 rounded-full border border-rose-200 shadow-xs">
-              Verified Proposals
-            </span>
-            <h2 className="text-3xl md:text-5xl font-serif font-black text-slate-900 tracking-tight">
-              Explore Compatible <span className="text-[#d91b5c] italic font-normal">Proposals</span>
-            </h2>
-            <p className="text-slate-600 text-sm font-medium">
-              Browse genuine verified profiles looking for honorable Nikah connections.
-            </p>
-
-            {/* GROOM / BRIDE FILTER TOGGLE */}
-            <div className="inline-flex p-1 bg-white rounded-full border-2 border-rose-100 shadow-md">
-              <button 
-                onClick={() => setProfileType('bride')}
-                className={`px-6 py-2 rounded-full text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                  profileType === 'bride' 
-                    ? 'bg-[#d91b5c] text-white shadow-sm' 
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                👰 Muslim Brides
-              </button>
-              <button 
-                onClick={() => setProfileType('groom')}
-                className={`px-6 py-2 rounded-full text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                  profileType === 'groom' 
-                    ? 'bg-[#d91b5c] text-white shadow-sm' 
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                🤵 Muslim Grooms
-              </button>
-            </div>
-          </div>
-
-          {/* PROFILES GRID */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {sampleProfiles[profileType].map((p) => (
-              <motion.div 
-                key={p.id}
-                whileHover={{ y: -6 }}
-                className="bg-white rounded-3xl border-2 border-rose-100/80 shadow-lg overflow-hidden group hover:border-rose-300 transition-all duration-300 flex flex-col justify-between"
-              >
-                <div>
-                  <div className="relative h-64 w-full overflow-hidden bg-slate-900">
-                    <img 
-                      src={p.photo} 
-                      alt={p.name} 
-                      className="w-full h-full object-cover object-top filter blur-xs group-hover:blur-0 transition-all duration-500 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
-                    
-                    <span className="absolute top-3 left-3 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-md flex items-center gap-1">
-                      <CheckCircle2 size={12} /> Verified
-                    </span>
-
-                    <div className="absolute bottom-3 left-3 right-3 text-white">
-                      <h3 className="font-serif font-extrabold text-lg uppercase tracking-tight">{p.name}</h3>
-                      <p className="text-xs font-bold text-amber-300">{p.age} yrs | {p.height}</p>
-                    </div>
-                  </div>
-
-                  <div className="p-5 space-y-2 text-xs font-semibold text-slate-600">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                      <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Education</span>
-                      <span className="font-extrabold text-slate-800">{p.degree}</span>
-                    </div>
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                      <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">City</span>
-                      <span className="font-extrabold text-slate-800">{p.city}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Sect</span>
-                      <span className="font-extrabold text-[#d91b5c]">{p.sect}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-4 bg-slate-50 border-t border-rose-100">
-                  <button 
-                    onClick={openRegisterModal}
-                    className="w-full py-2.5 rounded-2xl bg-[#d91b5c] hover:bg-[#6e0932] text-white text-xs font-black uppercase tracking-wider shadow-md cursor-pointer transition-all flex items-center justify-center gap-1.5"
-                  >
-                    <span>Connect Now</span>
-                    <ArrowRight size={14} className="text-amber-300" />
-                  </button>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-
-          <div className="text-center pt-4">
-            <button 
-              onClick={openRegisterModal}
-              className="px-8 py-3.5 rounded-full bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 text-white font-black text-xs uppercase tracking-wider shadow-xl shadow-rose-900/20 cursor-pointer border border-rose-300/30 inline-flex items-center gap-2"
+          {/* Banner Slideshow */}
+          {slides.map((s, idx) => (
+            <div
+              key={idx}
+              className="absolute inset-0 transition-opacity duration-1000 ease-in-out"
+              style={{
+                opacity: currentSlide === idx ? 1 : 0,
+                pointerEvents: currentSlide === idx ? 'auto' : 'none'
+              }}
             >
-              <Sparkles size={16} className="text-amber-300" />
-              <span>Register Free to View All 10,000+ Profiles</span>
-            </button>
-          </div>
-        </div>
-      </section>
+              <div
+                className="absolute inset-0 bg-cover bg-center transform scale-105 transition-transform duration-[6000ms]"
+                style={{
+                  backgroundImage: "url('" + s.img + "')",
+                  filter: 'brightness(0.58)'
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/45 to-slate-950/30" />
+            </div>
+          ))}
 
-      {/* 🛡️ WHY CHOOSE Nikah Qubool */}
-      <section className="relative py-20 md:py-28 px-6 bg-white overflow-hidden border-b border-slate-200">
-        <div className="max-w-7xl mx-auto relative z-10">
-          <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
-            <span className="text-[#d91b5c] font-black uppercase tracking-[0.25em] text-xs bg-rose-50 px-5 py-2 rounded-full border border-rose-200 shadow-xs">
-              Excellence in Matchmaking
-            </span>
-            <h2 className="text-3xl md:text-5xl font-serif font-black text-slate-900 tracking-tight">
-              Why Choose <span className="text-[#d91b5c] italic font-normal">Nikah Qubool?</span>
-            </h2>
-            <p className="text-slate-600 text-sm md:text-base font-medium">
-              Designed exclusively keeping Islamic values, absolute privacy, and verified families in mind.
-            </p>
-          </div>
+          {/* Banner Content (Centered, Refined Typography, Edge-to-Edge) */}
+          <div className="relative z-10 h-full w-full flex flex-col justify-between px-4 sm:px-8 lg:px-16 py-8 sm:py-12 lg:py-14 text-center text-white">
+            
+            {/* Top Offer Badge */}
+            <div className="pt-1">
+              <span className="inline-flex items-center gap-2 px-3.5 sm:px-5 py-1.5 rounded-full bg-white/15 backdrop-blur-md border border-white/25 text-[11px] sm:text-xs font-bold text-amber-300 uppercase tracking-wider shadow-sm">
+                <Sparkles size={13} className="text-amber-300 shrink-0" />
+                <span>{slides[currentSlide].badge} • 100% Free Registration</span>
+              </span>
+            </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { 
-                title: "100% Halal & Secure", 
-                desc: "Every single profile undergoes rigorous manual 3-step screening to ensure zero fake accounts and complete peace of mind for Nikah.", 
-                badge: "100% VERIFIED", 
-                icon: "🛡️" 
-              },
-              { 
-                title: "Privacy First Control", 
-                desc: "Advanced privacy controls put you in charge. Choose exactly who views your family details, pictures, and contact numbers.", 
-                badge: "COMPLETE PRIVACY", 
-                icon: "🔒" 
-              },
-              { 
-                title: "Family Involvement", 
-                desc: "Built for serious families looking for honorable Sunnah Nikah. No casual dating or swiping, only dignified proposals.", 
-                badge: "FAMILY FIRST", 
-                icon: "🤝" 
-              }
-            ].map((item, index) => (
-              <motion.div 
-                key={index} 
-                whileHover={{ y: -8 }}
-                className="group relative bg-slate-50 p-8 rounded-3xl border-2 border-slate-200/80 shadow-sm hover:shadow-2xl hover:border-rose-300 transition-all duration-300 flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="w-14 h-14 rounded-2xl bg-white shadow-md border border-slate-200 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
-                      {item.icon}
-                    </div>
-                    <span className="text-[10px] font-black tracking-widest text-[#d91b5c] bg-rose-50 px-3 py-1.5 rounded-full border border-rose-200">
-                      {item.badge}
-                    </span>
-                  </div>
-                  <h3 className="text-xl md:text-2xl font-serif font-bold text-slate-900 mb-3">
-                    {item.title}
-                  </h3>
-                  <p className="text-slate-600 text-sm leading-relaxed font-medium">
-                    {item.desc}
-                  </p>
-                </div>
-                <div className="pt-6 mt-6 border-t border-slate-200/80 flex items-center justify-between text-[#d91b5c] font-bold text-xs tracking-wider uppercase">
-                  <span>Explore More</span>
-                  <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
+            {/* Center Headline, Attraction Hook, CTAs & App Store Badges */}
+            <div className="max-w-4xl mx-auto space-y-4 sm:space-y-5 my-auto">
+              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-serif font-black tracking-tight leading-[1.2] text-white drop-shadow-md">
+                {slides[currentSlide].title}
+              </h1>
 
-      {/* 🚀 HOW IT WORKS STEP BY STEP */}
-      <section className="relative py-20 md:py-28 px-6 bg-slate-100 overflow-hidden border-b border-slate-200">
-        <div className="max-w-7xl mx-auto relative z-10">
-          <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
-            <span className="text-[#d91b5c] font-black uppercase tracking-[0.25em] text-xs bg-white px-5 py-2 rounded-full border border-slate-200 shadow-xs">
-              Simple Process
-            </span>
-            <h2 className="text-3xl md:text-5xl font-serif font-black text-slate-900 tracking-tight">
-              How Nikah Qubool <span className="text-[#d91b5c] italic font-normal">Works</span>
-            </h2>
-            <p className="text-slate-600 text-sm md:text-base font-medium">
-              Finding your ideal life partner is now structured, safe, and transparent in just 3 easy steps.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { step: "01", title: "Create Free Profile", desc: "Register securely with your family background, education, and partner preferences." },
-              { step: "02", title: "Discover & Express Interest", desc: "Browse verified profiles and send interest requests directly to compatible candidates." },
-              { step: "03", title: "Connect & Perform Nikah", desc: "Interact safely through instant chat, involve families, and take the blessed step forward." }
-            ].map((box, i) => (
-              <motion.div 
-                key={i}
-                whileHover={{ y: -5 }}
-                className="bg-white p-8 rounded-3xl border-2 border-slate-200 shadow-sm space-y-4 relative overflow-hidden group hover:border-rose-300 transition-all duration-300"
-              >
-                <span className="text-6xl font-serif font-black text-slate-200/80 absolute top-4 right-6 group-hover:text-rose-200 transition-colors">{box.step}</span>
-                <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-[#d91b5c] font-black text-lg shadow-xs">
-                  {box.step}
-                </div>
-                <h3 className="text-xl font-serif font-bold text-slate-900">{box.title}</h3>
-                <p className="text-slate-600 text-sm leading-relaxed font-medium">{box.desc}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 💖 TESTIMONIALS & SUCCESS STORIES */}
-      <section className="relative py-20 md:py-28 px-6 bg-white overflow-hidden border-b border-slate-200">
-        <div className="max-w-7xl mx-auto relative z-10">
-          <div className="text-center mb-16 space-y-3">
-            <span className="text-[#d91b5c] font-black uppercase tracking-[0.25em] text-xs bg-rose-50 px-4 py-2 rounded-full border border-rose-200 shadow-xs">
-              Alhamdulillah
-            </span>
-            <h2 className="text-3xl md:text-5xl font-serif font-black text-slate-900 tracking-tight">
-              United by <span className="text-[#d91b5c] italic font-normal">Destiny</span>
-            </h2>
-          </div>
-
-          <div className="relative max-w-5xl mx-auto">
-            <div className="flex flex-col lg:flex-row items-center gap-10 md:gap-14">
-              <div className="w-full lg:w-[45%]">
-                <div className="relative aspect-[4/5] w-full rounded-3xl overflow-hidden shadow-2xl border-4 border-white bg-slate-900">
-                  <img 
-                    key={activeStory}
-                    src={stories[activeStory].img} 
-                    className="w-full h-full object-cover transition-all duration-700"
-                    alt={stories[activeStory].name} 
-                  />
-                </div>
+              {/* 🎯 Eye-Catching Attraction Line (High-Conversion Hook) */}
+              <div className="inline-block px-4 sm:px-6 py-2 rounded-full bg-gradient-to-r from-[#d91b5c]/95 via-rose-600/95 to-[#d91b5c]/95 backdrop-blur-md border border-rose-300/40 text-white text-xs sm:text-sm font-extrabold shadow-lg tracking-wide max-w-2xl mx-auto">
+                🌸 Half Your Deen Awaits — Register Free in 60 Seconds &amp; Connect With 10,000+ Verified Muslim Families!
               </div>
 
-              <div className="w-full lg:w-[55%] text-center lg:text-left space-y-6">
-                <div>
-                  <h3 className="text-3xl font-serif font-bold text-slate-900 italic">
-                    {stories[activeStory].name}
-                  </h3>
-                  <p className="text-[#d91b5c] font-black text-xs tracking-widest uppercase mt-1">
-                    Location: {stories[activeStory].location} • {stories[activeStory].date}
-                  </p>
-                </div>
+              <p className="text-xs sm:text-sm md:text-base text-slate-200 max-w-xl mx-auto font-medium leading-relaxed drop-shadow">
+                {slides[currentSlide].subtitle}
+              </p>
 
-                <p className="text-base text-slate-700 leading-relaxed font-medium italic bg-slate-50 p-6 rounded-2xl border border-slate-200 shadow-sm">
-                  "{stories[activeStory].text}"
+              {/* Action Buttons: Clean & Compact */}
+              <div className="pt-1 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 max-w-md mx-auto">
+                <Link
+                  href="/login"
+                  className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#c21450] text-white text-xs sm:text-sm font-extrabold uppercase tracking-wider transition-all shadow-xl hover:shadow-rose-500/25 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>Register Free</span>
+                  <ArrowRight size={15} />
+                </Link>
+
+                <Link
+                  href="/login"
+                  className="w-full sm:w-auto px-7 py-3.5 rounded-full bg-white/20 hover:bg-white/30 text-white border border-white/40 text-xs sm:text-sm font-bold tracking-wider transition-all backdrop-blur-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Smartphone size={15} className="text-rose-200" />
+                  <span>Login with Mobile</span>
+                </Link>
+              </div>
+
+              {/* 📱 Android & iOS App Download Option Right in the Banner */}
+              <div className="pt-3 sm:pt-4 flex flex-col items-center justify-center gap-2">
+                <p className="text-[11px] sm:text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <Sparkles size={12} className="text-amber-400" />
+                  <span>Available for Android &amp; iOS Devices:</span>
                 </p>
 
-                <div className="flex items-center justify-center lg:justify-start gap-3 pt-2">
-                  <button 
-                    onClick={() => setActiveStory(activeStory === 0 ? stories.length - 1 : activeStory - 1)}
-                    className="w-12 h-12 rounded-full border border-slate-300 bg-white flex items-center justify-center hover:bg-[#d91b5c] hover:text-white transition-all text-slate-800 cursor-pointer shadow-md"
+                <div className="flex items-center justify-center gap-3">
+                  {/* Google Play Button */}
+                  <Link
+                    href="/login"
+                    className="inline-flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-black/60 hover:bg-black/85 border border-white/25 text-white backdrop-blur-md transition-all active:scale-95 cursor-pointer shadow-md group"
+                    title="Download Nikah Qubool on Google Play"
                   >
-                    <ChevronLeft size={20} />
-                  </button>
-                  <button 
-                    onClick={() => setActiveStory(activeStory === stories.length - 1 ? 0 : activeStory + 1)}
-                    className="w-12 h-12 rounded-full border border-slate-300 bg-white flex items-center justify-center hover:bg-[#d91b5c] hover:text-white transition-all text-slate-800 cursor-pointer shadow-md"
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 fill-current shrink-0" viewBox="0 0 24 24">
+                      <path d="M3.609 1.814L13.792 12 3.61 22.186a2.21 2.21 0 0 1-.61-.954V2.768c.14-.37.36-.697.61-.954zm11.306 11.309l2.428-2.428-2.428-2.428L12.59 10.59l2.325 2.533zM4.717.703l11.492 6.55-2.025 2.025L4.717.703zm11.492 16.044L4.717 23.297l9.467-8.575 2.025 2.025z"/>
+                    </svg>
+                    <div className="text-left leading-tight">
+                      <span className="block text-[8px] uppercase tracking-wider text-slate-300 font-medium">Get it on</span>
+                      <span className="block text-xs sm:text-sm font-bold text-white">Google Play</span>
+                    </div>
+                  </Link>
+
+                  {/* Apple App Store Button */}
+                  <Link
+                    href="/login"
+                    className="inline-flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-black/60 hover:bg-black/85 border border-white/25 text-white backdrop-blur-md transition-all active:scale-95 cursor-pointer shadow-md group"
+                    title="Download Nikah Qubool on Apple App Store"
                   >
-                    <ChevronRight size={20} />
-                  </button>
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white fill-current shrink-0" viewBox="0 0 24 24">
+                      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.64-.78 1.08-1.86.96-2.95-1 .04-2.16.67-2.83 1.45-.59.68-1.11 1.77-.97 2.83 1.11.09 2.2-.55 2.84-1.33z"/>
+                    </svg>
+                    <div className="text-left leading-tight">
+                      <span className="block text-[8px] uppercase tracking-wider text-slate-300 font-medium">Download on</span>
+                      <span className="block text-xs sm:text-sm font-bold text-white">App Store</span>
+                    </div>
+                  </Link>
                 </div>
+              </div>
+
+            </div>
+
+            {/* Bottom Slider Dots */}
+            <div className="flex items-center justify-center gap-2 pt-4 pb-1">
+              {slides.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentSlide(idx)}
+                  className={"h-2 rounded-full transition-all duration-300 " + (currentSlide === idx ? "w-8 bg-[#d91b5c]" : "w-2 bg-white/40 hover:bg-white/70")}
+                  aria-label={"Slide " + (idx + 1)}
+                />
+              ))}
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      {/* ================================================================
+          2. MINIMALIST TRUST STRIP (CLEAN 4-METRIC BAR)
+          ================================================================ */}
+      <section className="px-3 sm:px-6 lg:px-[6%] py-4">
+        <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
+          
+          <div className="flex items-center gap-3 p-3.5 sm:p-4 rounded-2xl bg-rose-50/50 border border-rose-100">
+            <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center text-[#d91b5c] shrink-0">
+              <CheckCircle2 size={20} />
+            </div>
+            <div className="text-left">
+              <p className="text-xs sm:text-sm font-bold text-slate-900">100% Verified</p>
+              <p className="text-[11px] text-slate-500 font-medium">OTP & manual check</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 p-3.5 sm:p-4 rounded-2xl bg-rose-50/50 border border-rose-100">
+            <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center text-[#d91b5c] shrink-0">
+              <Lock size={20} />
+            </div>
+            <div className="text-left">
+              <p className="text-xs sm:text-sm font-bold text-slate-900">Strict Privacy</p>
+              <p className="text-[11px] text-slate-500 font-medium">Photo & phone safe</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 p-3.5 sm:p-4 rounded-2xl bg-rose-50/50 border border-rose-100">
+            <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center text-[#d91b5c] shrink-0">
+              <Heart size={20} />
+            </div>
+            <div className="text-left">
+              <p className="text-xs sm:text-sm font-bold text-slate-900">Halal & Sunnah</p>
+              <p className="text-[11px] text-slate-500 font-medium">Islamic matchmaking</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 p-3.5 sm:p-4 rounded-2xl bg-rose-50/50 border border-rose-100">
+            <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center text-[#d91b5c] shrink-0">
+              <Users size={20} />
+            </div>
+            <div className="text-left">
+              <p className="text-xs sm:text-sm font-bold text-slate-900">Family Centric</p>
+              <p className="text-[11px] text-slate-500 font-medium">Parent involvement</p>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* ================================================================
+          3. FEATURED PROPOSALS PREVIEW (CLEAN CARDS)
+          ================================================================ */}
+      <section className="px-3 sm:px-6 lg:px-[6%] py-12 sm:py-16 bg-[#faf7f5] border-y border-rose-100/60">
+        <div className="max-w-6xl mx-auto space-y-8">
+          
+          <div className="text-center max-w-xl mx-auto space-y-2">
+            <span className="text-[11px] font-black uppercase tracking-widest text-[#d91b5c] bg-white px-3.5 py-1 rounded-full border border-rose-200 shadow-xs inline-block">
+              Verified Profiles
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-serif font-black text-slate-900 tracking-tight">
+              Explore Suitable Proposals
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 font-medium">
+              Browse genuine, verified candidates seeking pure Sunnah matrimony.
+            </p>
+
+            {/* Groom / Bride Toggle */}
+            <div className="pt-2 flex justify-center">
+              <div className="inline-flex p-1 bg-white rounded-full border border-rose-200 shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => setProfileType('bride')}
+                  className={"px-5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer " + (profileType === 'bride' ? "bg-[#d91b5c] text-white shadow-xs" : "text-slate-600 hover:text-slate-900")}
+                >
+                  Muslim Brides
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProfileType('groom')}
+                  className={"px-5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer " + (profileType === 'groom' ? "bg-[#d91b5c] text-white shadow-xs" : "text-slate-600 hover:text-slate-900")}
+                >
+                  Muslim Grooms
+                </button>
               </div>
             </div>
           </div>
+
+          {/* Profiles Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {sampleProfiles[profileType].map((p) => (
+              <div
+                key={p.id}
+                className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md hover:border-rose-300 transition-all duration-300 flex flex-col justify-between"
+              >
+                <div>
+                  {/* Photo with privacy watermark preview */}
+                  <div className="relative h-56 w-full overflow-hidden bg-slate-100">
+                    <img
+                      src={p.photo}
+                      alt={p.name}
+                      className="w-full h-full object-cover object-top filter blur-[1px] hover:blur-0 transition-all duration-300"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 via-transparent to-transparent" />
+                    
+                    <span className="absolute top-2.5 left-2.5 bg-emerald-600 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
+                      <CheckCircle2 size={11} /> Verified
+                    </span>
+
+                    <div className="absolute bottom-2.5 left-3 text-white">
+                      <p className="text-sm font-bold">{p.name}</p>
+                      <p className="text-[11px] text-slate-200">{p.age} yrs • {p.height}</p>
+                    </div>
+                  </div>
+
+                  {/* Profile Key Details */}
+                  <div className="p-3.5 space-y-1.5 text-xs text-slate-600 text-left">
+                    <p className="flex items-center gap-1.5 truncate">
+                      <MapPin size={13} className="text-[#d91b5c] shrink-0" />
+                      <span>{p.city}</span>
+                    </p>
+                    <p className="flex items-center gap-1.5 truncate">
+                      <Building2 size={13} className="text-[#d91b5c] shrink-0" />
+                      <span>{p.sect}</span>
+                    </p>
+                    <p className="flex items-center gap-1.5 truncate">
+                      <GraduationCap size={13} className="text-[#d91b5c] shrink-0" />
+                      <span>{p.education}</span>
+                    </p>
+                    <p className="flex items-center gap-1.5 truncate font-semibold text-slate-800">
+                      <Briefcase size={13} className="text-[#d91b5c] shrink-0" />
+                      <span>{p.profession}</span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Connect CTA */}
+                <div className="p-3 bg-slate-50 border-t border-slate-100">
+                  <Link
+                    href="/login"
+                    className="w-full py-2 rounded-xl bg-[#d91b5c] hover:bg-[#c21450] text-white text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1 shadow-xs cursor-pointer"
+                  >
+                    <span>Connect Now</span>
+                    <ArrowRight size={13} />
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center pt-2">
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-white border border-rose-200 text-[#d91b5c] hover:bg-rose-50 text-xs font-bold tracking-wider shadow-xs transition-all cursor-pointer"
+            >
+              <Search size={14} />
+              <span>Browse All 10,000+ Verified Proposals</span>
+            </Link>
+          </div>
+
         </div>
       </section>
 
-      {/* 🧭 BROWSE PROFILES BY CATEGORY SECTION */}
-      <BrowseProfilesSection />
+      {/* ================================================================
+          4. WHY CHOOSE NIKAH QUBOOL (CLEAN VALUE CARDS)
+          ================================================================ */}
+      <section className="px-3 sm:px-6 lg:px-[6%] py-12 sm:py-18 bg-white">
+        <div className="max-w-6xl mx-auto space-y-10">
+          
+          <div className="text-center max-w-xl mx-auto space-y-2">
+            <span className="text-[11px] font-black uppercase tracking-widest text-[#d91b5c] bg-rose-50 px-3.5 py-1 rounded-full border border-rose-200 shadow-xs inline-block">
+              Why Nikah Qubool
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-serif font-black text-slate-900 tracking-tight">
+              Designed For Honor, Privacy & Faith
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 font-medium">
+              We prioritize Sunnah values and user security above everything else.
+            </p>
+          </div>
 
-      {/* ❓ FREQUENTLY ASKED QUESTIONS */}
-      <section className="relative py-20 md:py-28 px-6 bg-slate-50 overflow-hidden">
-        <div className="max-w-4xl mx-auto space-y-12">
-          <div className="text-center space-y-4">
-            <span className="text-[#d91b5c] font-black uppercase tracking-[0.25em] text-xs bg-white px-5 py-2 rounded-full border border-slate-200 shadow-xs">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <div className="p-6 sm:p-7 rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-rose-200 hover:shadow-md transition-all space-y-3 text-left">
+              <div className="w-12 h-12 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-[#d91b5c]">
+                <ShieldCheck size={24} />
+              </div>
+              <h3 className="text-lg font-serif font-bold text-slate-900">
+                100% Manual Screening
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
+                Every profile is thoroughly reviewed to eliminate non-serious users. We verify identities via phone OTP and documentation.
+              </p>
+            </div>
+
+            <div className="p-6 sm:p-7 rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-rose-200 hover:shadow-md transition-all space-y-3 text-left">
+              <div className="w-12 h-12 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-[#d91b5c]">
+                <Lock size={24} />
+              </div>
+              <h3 className="text-lg font-serif font-bold text-slate-900">
+                Photo & Contact Privacy
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
+                Control exactly who views your photos and personal contacts. Only members you mutually accept can see your full details.
+              </p>
+            </div>
+
+            <div className="p-6 sm:p-7 rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-rose-200 hover:shadow-md transition-all space-y-3 text-left">
+              <div className="w-12 h-12 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-[#d91b5c]">
+                <Heart size={24} />
+              </div>
+              <h3 className="text-lg font-serif font-bold text-slate-900">
+                Pure Halal Matchmaking
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
+                No casual dating or meaningless swiping. Nikah Qubool is built exclusively for serious Muslim singles and respectable families.
+              </p>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      {/* ================================================================
+          5. HOW IT WORKS (3 SIMPLE STEPS)
+          ================================================================ */}
+      <section className="px-3 sm:px-6 lg:px-[6%] py-12 sm:py-16 bg-[#faf7f5] border-y border-rose-100/60">
+        <div className="max-w-6xl mx-auto space-y-10">
+          
+          <div className="text-center max-w-xl mx-auto space-y-2">
+            <span className="text-[11px] font-black uppercase tracking-widest text-[#d91b5c] bg-white px-3.5 py-1 rounded-full border border-rose-200 shadow-xs inline-block">
+              Easy Journey
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-serif font-black text-slate-900 tracking-tight">
+              How Nikah Qubool Works
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 font-medium">
+              Find your ideal life partner in three simple, respectful steps.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-xs text-left space-y-3 relative overflow-hidden">
+              <span className="text-3xl font-serif font-black text-rose-200 absolute top-4 right-4">
+                01
+              </span>
+              <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-[#d91b5c] font-black text-sm">
+                1
+              </div>
+              <h3 className="text-base font-serif font-bold text-slate-900">
+                Create Free Profile
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                Enter your mobile number, verify via OTP, and fill basic family and lifestyle details in under 2 minutes.
+              </p>
+            </div>
+
+            <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-xs text-left space-y-3 relative overflow-hidden">
+              <span className="text-3xl font-serif font-black text-rose-200 absolute top-4 right-4">
+                02
+              </span>
+              <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-[#d91b5c] font-black text-sm">
+                2
+              </div>
+              <h3 className="text-base font-serif font-bold text-slate-900">
+                Set Preferences & Search
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                Filter proposals by age, location, education, sect (Hanafi, Shafi, Syed, etc.), and professional background.
+              </p>
+            </div>
+
+            <div className="bg-white p-6 sm:p-7 rounded-2xl border border-slate-200 shadow-xs text-left space-y-3 relative overflow-hidden">
+              <span className="text-3xl font-serif font-black text-rose-200 absolute top-4 right-4">
+                03
+              </span>
+              <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-[#d91b5c] font-black text-sm">
+                3
+              </div>
+              <h3 className="text-base font-serif font-bold text-slate-900">
+                Connect & Involve Family
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                Express interest, chat securely, and share contact details when both families are ready to take discussions forward.
+              </p>
+            </div>
+
+          </div>
+
+          <div className="text-center pt-2">
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-2 px-8 py-3 rounded-full bg-[#d91b5c] hover:bg-[#c21450] text-white text-xs sm:text-sm font-bold uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer"
+            >
+              <span>Begin Your Search Today</span>
+              <ArrowRight size={14} />
+            </Link>
+          </div>
+
+        </div>
+      </section>
+
+      {/* ================================================================
+          6. BLESSED STORIES / TESTIMONIALS
+          ================================================================ */}
+      <section className="px-3 sm:px-6 lg:px-[6%] py-12 sm:py-18 bg-white">
+        <div className="max-w-6xl mx-auto space-y-10">
+          
+          <div className="text-center max-w-xl mx-auto space-y-2">
+            <span className="text-[11px] font-black uppercase tracking-widest text-[#d91b5c] bg-rose-50 px-3.5 py-1 rounded-full border border-rose-200 shadow-xs inline-block">
+              Blessed Beginnings
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-serif font-black text-slate-900 tracking-tight">
+              Real Stories of Halal Nikahs
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 font-medium">
+              Read how couples completed their deen through Nikah Qubool.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {stories.map((s, idx) => (
+              <div
+                key={idx}
+                className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4 text-left flex flex-col justify-between"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={s.img}
+                      alt={s.couple}
+                      className="w-12 h-12 rounded-full object-cover border-2 border-rose-200"
+                    />
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">{s.couple}</p>
+                      <p className="text-[11px] text-slate-500">{s.location}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed italic">
+                    "{s.text}"
+                  </p>
+                </div>
+                <p className="text-[10px] font-bold text-[#d91b5c] uppercase tracking-wider pt-2 border-t border-slate-100">
+                  {s.date}
+                </p>
+              </div>
+            ))}
+          </div>
+
+        </div>
+      </section>
+
+      {/* ================================================================
+          7. FREQUENTLY ASKED QUESTIONS (ACCORDION)
+          ================================================================ */}
+      <section className="px-3 sm:px-6 lg:px-[6%] py-12 sm:py-16 bg-[#faf7f5] border-t border-rose-100/60">
+        <div className="max-w-3xl mx-auto space-y-8">
+          
+          <div className="text-center space-y-2">
+            <span className="text-[11px] font-black uppercase tracking-widest text-[#d91b5c] bg-white px-3.5 py-1 rounded-full border border-rose-200 shadow-xs inline-block">
               Got Questions?
             </span>
-            <h2 className="text-3xl md:text-5xl font-serif font-black text-slate-900 tracking-tight">
-              Frequently Asked <span className="text-[#d91b5c] italic font-normal">Questions</span>
+            <h2 className="text-2xl sm:text-3xl font-serif font-black text-slate-900 tracking-tight">
+              Frequently Asked Questions
             </h2>
+            <p className="text-xs sm:text-sm text-slate-500 font-medium">
+              Everything you need to know about our halal matrimonial platform.
+            </p>
           </div>
 
-          <div className="space-y-4">
-            {faqs.map((faq, idx) => {
-              const isOpen = activeFaq === idx;
-              return (
-                <div 
-                  key={idx} 
-                  className="bg-white border-2 border-slate-200 rounded-2xl overflow-hidden shadow-xs transition-all"
+          <div className="space-y-3">
+            {faqs.map((f, idx) => (
+              <div
+                key={idx}
+                className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs"
+              >
+                <button
+                  type="button"
+                  onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
+                  className="w-full p-4 sm:p-5 text-left flex items-center justify-between text-xs sm:text-sm font-bold text-slate-900 hover:text-[#d91b5c] transition-colors cursor-pointer"
                 >
-                  <button
-                    onClick={() => setActiveFaq(isOpen ? null : idx)}
-                    className="w-full p-6 text-left flex items-center justify-between gap-4 cursor-pointer"
-                  >
-                    <h4 className="text-base sm:text-lg font-serif font-bold text-slate-900">{faq.q}</h4>
-                    <ChevronDown size={20} className={`text-[#d91b5c] transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
-                  </button>
-
-                  <AnimatePresence>
-                    {isOpen && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="px-6 pb-6 text-sm text-slate-600 font-medium leading-relaxed border-t border-slate-100 pt-3"
-                      >
-                        {faq.a}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              );
-            })}
+                  <span>{f.q}</span>
+                  <ChevronRight
+                    size={16}
+                    className={"text-slate-400 transition-transform duration-200 shrink-0 ml-2 " + (activeFaq === idx ? "rotate-90 text-[#d91b5c]" : "")}
+                  />
+                </button>
+                {activeFaq === idx && (
+                  <div className="px-4 pb-4 sm:px-5 sm:pb-5 pt-0 text-xs text-slate-600 leading-relaxed border-t border-slate-50">
+                    {f.a}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
+
         </div>
       </section>
 
-      {/* 🌟 VIP FOOTER CTA BANNER */}
-      <section className="py-16 px-6 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white text-center relative overflow-hidden shadow-2xl">
-        <div className="max-w-4xl mx-auto space-y-6 relative z-10">
-          <Crown size={42} className="text-amber-300 mx-auto animate-bounce" />
-          <h2 className="text-3xl sm:text-5xl font-serif font-black tracking-tight">
+      {/* ================================================================
+          8. CALL TO ACTION BANNER (CLEAN & WARM)
+          ================================================================ */}
+      <section className="px-3 sm:px-6 lg:px-[6%] py-12 sm:py-16 bg-white">
+        <div className="max-w-4xl mx-auto rounded-3xl bg-gradient-to-r from-[#d91b5c] via-[#ce1755] to-[#b8124b] text-white p-8 sm:p-12 text-center space-y-4 shadow-xl">
+          <span className="inline-block p-2 rounded-full bg-white/15 text-amber-300">
+            <Heart size={24} />
+          </span>
+          <h2 className="text-2xl sm:text-4xl font-serif font-black tracking-tight">
             Your Soulmate is Waiting.
           </h2>
-          <p className="text-rose-100 text-sm sm:text-base font-semibold max-w-xl mx-auto">
-            Take the first step towards a blessed life partnership today. Registration takes less than 2 minutes!
+          <p className="text-xs sm:text-sm text-rose-100 max-w-lg mx-auto font-medium">
+            Take the first step towards completing half your deen today. Free registration takes less than 2 minutes!
           </p>
           <div className="pt-2">
-            <button
-              onClick={openRegisterModal}
-              className="px-10 py-4 rounded-full bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs uppercase tracking-widest shadow-2xl shadow-amber-500/30 active:scale-95 transition-all cursor-pointer border-2 border-amber-300 inline-flex items-center gap-2"
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-2 px-8 py-3 rounded-full bg-white text-[#d91b5c] hover:bg-rose-50 text-xs sm:text-sm font-bold uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer"
             >
-              <span>Begin Free Registration Now</span>
-              <ArrowRight size={16} />
-            </button>
+              <span>Register Free Now</span>
+              <ArrowRight size={15} />
+            </Link>
           </div>
         </div>
       </section>

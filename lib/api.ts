@@ -14,8 +14,18 @@ const masterCategoryCache: { [key: string]: MasterOption[] } = {};
 // 🕒 Last Seen Formatter Helper
 export const formatLastSeen = (lastSeenDate?: string | Date | null) => {
   if (!lastSeenDate) return "Active recently";
-  const d = new Date(lastSeenDate);
-  if (isNaN(d.getTime())) return "Active recently";
+  let d: Date;
+  if (typeof lastSeenDate === 'object' && lastSeenDate instanceof Date) {
+    d = isNaN(lastSeenDate.getTime()) ? new Date() : lastSeenDate;
+  } else {
+    try {
+      const str = String(lastSeenDate).trim().replace(/z$/i, '').replace(' ', 'T');
+      d = new Date(str);
+      if (isNaN(d.getTime())) return "Active recently";
+    } catch {
+      return "Active recently";
+    }
+  }
   
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
@@ -26,7 +36,7 @@ export const formatLastSeen = (lastSeenDate?: string | Date | null) => {
   
   const isToday = d.toDateString() === now.toDateString();
   if (isToday) {
-    return `Last seen today at ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    return `Last seen today at ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
   }
   return `Last seen ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
 };
@@ -180,7 +190,7 @@ export const fetchCitiesApi = async (stateId: number | string): Promise<MasterOp
 };
 
 // 🔓 Public: Send OTP (No Token Needed)
-export const sendOtpApi = async (phone: string, mail: string, action: 'Register' | 'Login') => {
+export const sendOtpApi = async (phone: string, mail: string = "null", action: string = 'Both') => {
   try {
     const res = await fetch(`${API_BASE_URL}/auth/send-otp`, {
       method: "POST",
@@ -193,7 +203,7 @@ export const sendOtpApi = async (phone: string, mail: string, action: 'Register'
   }
 };
 
-// 🔓 Public: Verify OTP & Login (No Token Needed)
+// 🔓 Public: Verify OTP & Login/Register (No Token Needed)
 export const verifyOtpApi = async (payload: any) => {
   try {
     const res = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
@@ -204,6 +214,27 @@ export const verifyOtpApi = async (payload: any) => {
     return await res.json();
   } catch (e) {
     return { success: false, message: 'Connection error. Please check internet connection.' };
+  }
+};
+
+// 🔍 Check Email Availability (Public or with UserId)
+export const checkEmailAvailabilityApi = async (email: string, userId?: number | null) => {
+  if (!email || !email.trim()) return { success: false, available: false, message: "Please enter an email address." };
+  try {
+    const query = new URLSearchParams({ email: email.trim() });
+    if (userId) query.append("currentUserId", String(userId));
+    const res = await fetch(`${API_BASE_URL}/auth/check-email?${query.toString()}`);
+    if (!res.ok) {
+      return { success: false, available: false, message: "Email verification service unavailable. Please try again." };
+    }
+    const data = await res.json();
+    return {
+      success: data.success ?? true,
+      available: data.available === true,
+      message: data.message || (data.available ? "Email is available." : "This email address is already registered with another account.")
+    };
+  } catch (e) {
+    return { success: false, available: false, message: "Connection error verifying email." };
   }
 };
 

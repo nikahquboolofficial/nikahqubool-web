@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { getOptimizedImageUrl, getFallbackPhoto, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
 import { fetchProfileDetailsApi, fetchBoostStatusApi, fetchActiveSubscriptionApi } from '@/lib/api';
-import { getAuthToken } from '@/lib/auth';
+import { getAuthToken, getStoredUserPhoto } from '@/lib/auth';
 import { getClientSubscriptionStatus, syncSubscriptionToStorage } from '@/lib/subscriptionUtils';
 import BoostModal from '@/components/dashboard/BoostModal';
 
@@ -30,11 +30,22 @@ export default function DashboardHeader({
   const pathname = usePathname();
   const router = useRouter();
 
-  const [userPhoto, setUserPhoto] = useState<string>(DEFAULT_FEMALE_AVATAR);
-  const [userName, setUserName] = useState<string>('My Account');
+  const [userPhoto, setUserPhoto] = useState<string>(() => getStoredUserPhoto());
+  const [userName, setUserName] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("user_details") || localStorage.getItem("user_session");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          return parsed.fullName || parsed.FullName || 'My Account';
+        }
+      } catch (e) {}
+    }
+    return 'My Account';
+  });
   const [isVerified, setIsVerified] = useState<boolean>(false);
-  const [isPaid, setIsPaid] = useState<boolean>(false);
-  const [planName, setPlanName] = useState<string>('Free Member');
+  const [isPaid, setIsPaid] = useState<boolean>(() => getClientSubscriptionStatus().isPaid);
+  const [planName, setPlanName] = useState<string>(() => getClientSubscriptionStatus().planName || 'Free Member');
   const [isBoostModalOpen, setIsBoostModalOpen] = useState<boolean>(false);
   const [isBoosted, setIsBoosted] = useState<boolean>(false);
 

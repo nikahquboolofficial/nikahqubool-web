@@ -17,13 +17,18 @@ import {
 } from '@/lib/api';
 import { CompactSelect, MultiSelectDropdown } from '@/components/profile/CompactSelect';
 import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
-import { getAuthToken, clearAuthCookies } from '@/lib/auth';
+import { getAuthToken, clearAuthCookies, getStoredUserPhoto } from '@/lib/auth';
 
 type SectionKey = 'intro' | 'basic' | 'personal' | 'education' | 'religious' | 'address' | 'family' | 'partner';
 
 export default function EditMyProfilePage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => {
+    if (typeof window !== "undefined") {
+      return !(localStorage.getItem("cached_profile_details") || localStorage.getItem("user_details"));
+    }
+    return false;
+  });
   const [saving, setSaving] = useState(false);
   const [currentSection, setCurrentSection] = useState<SectionKey>('intro');
   const [mobileSubScreenOpen, setMobileSubScreenOpen] = useState(false);
@@ -40,6 +45,7 @@ export default function EditMyProfilePage() {
           const parsed = JSON.parse(cached);
           const p = parsed.profile || parsed.Profile || parsed;
           if (p && (p.fullName || p.FullName || p.userId || p.UserId)) {
+            const rawPhoto = p.mainPhotoUrl || p.photoUrl || p.PhotoUrl || p.mainPhoto || p.photo;
             setFormData((prev: any) => ({
               ...prev,
               UserId: p.userId || p.UserId || prev.UserId,
@@ -48,6 +54,7 @@ export default function EditMyProfilePage() {
               Email: p.email || p.Email || prev.Email,
               Age: p.age || prev.Age,
               Gender: p.gender || p.Gender || prev.Gender,
+              PhotoUrl: rawPhoto ? getOptimizedImageUrl(rawPhoto, p.userId || p.UserId, p.gender) : prev.PhotoUrl,
               AboutMe: p.aboutMe || p.AboutMe || prev.AboutMe,
               Height: p.height || p.Height || prev.Height,
               Weight: p.weight || p.Weight || prev.Weight,
@@ -64,6 +71,23 @@ export default function EditMyProfilePage() {
     }
   }, []);
 
+  // 🔄 Real-time reactive photo synchronization
+  useEffect(() => {
+    const handlePhotoUpdated = (e: any) => {
+      const newPhoto = e?.detail?.photoUrl || getStoredUserPhoto();
+      if (newPhoto) {
+        setFormData((prev: any) => ({
+          ...prev,
+          PhotoUrl: getOptimizedImageUrl(newPhoto, prev.UserId, prev.Gender)
+        }));
+      }
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("user_photo_updated", handlePhotoUpdated);
+      return () => window.removeEventListener("user_photo_updated", handlePhotoUpdated);
+    }
+  }, []);
+
   // Form State
   const [formData, setFormData] = useState<any>({
     UserId: 0,
@@ -75,7 +99,7 @@ export default function EditMyProfilePage() {
     Age: 25,
     Gender: 'Female',
     DateOfBirth: '',
-    PhotoUrl: DEFAULT_FEMALE_AVATAR,
+    PhotoUrl: getStoredUserPhoto(),
 
     // Section 1: Intro / Bio
     AboutMe: '',
@@ -251,7 +275,9 @@ export default function EditMyProfilePage() {
       return;
     }
 
-    setLoading(true);
+    if (!formData.FullName && typeof window !== "undefined" && !localStorage.getItem("cached_profile_details") && !localStorage.getItem("user_details")) {
+      setLoading(true);
+    }
     let userId = 0;
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("user_details") || localStorage.getItem("user_session");
@@ -305,7 +331,7 @@ export default function EditMyProfilePage() {
         Gender: getValidText(p.gender || p.Gender, 'Female'),
         DateOfBirth: parsedDob,
         DateOfBirthFormatted: p.dateOfBirth ? new Date(p.dateOfBirth).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'N/A',
-        PhotoUrl: getOptimizedImageUrl(p.mainPhotoUrl || p.photoUrl),
+        PhotoUrl: getOptimizedImageUrl(p.mainPhotoUrl || p.photoUrl || p.PhotoUrl || p.mainPhoto || p.photo, p.userId || p.UserId, p.gender),
 
         AboutMe: p.aboutMe || p.AboutMe || '',
         FamilyAbout: p.familyAbout || p.aboutFamily || '',

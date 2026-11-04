@@ -1,180 +1,188 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Mail, Phone, MapPin, Clock, Send, CheckCircle2, ShieldCheck, HelpCircle } from 'lucide-react';
+import Link from 'next/link';
+import { 
+  Phone, Mail, MapPin, Clock, MessageSquare, 
+  CheckCircle2, Send, ShieldCheck 
+} from 'lucide-react';
 
 export default function ContactUsPage() {
   const [submitted, setSubmitted] = useState(false);
+  const [form, setForm] = useState({ name: '', email: '', mobile: '', message: '' });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.name || !form.mobile || !form.message) return;
     setSubmitted(true);
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10 px-4 sm:px-6 lg:px-[8%] font-sans text-slate-800 selection:bg-[#d91b5c] selection:text-white">
-      <div className="max-w-5xl mx-auto bg-white rounded-3xl p-6 sm:p-12 shadow-xl border border-slate-200">
+    <div className="min-h-screen bg-white py-12 sm:py-16 px-4 sm:px-6 lg:px-[8%] font-sans text-slate-800">
+      <div className="max-w-5xl mx-auto space-y-12">
         
         {/* HEADER */}
-        <div className="text-center mb-10 pb-6 border-b border-slate-100">
+        <div className="text-center max-w-2xl mx-auto space-y-3">
           <span className="bg-rose-50 text-[#d91b5c] border border-rose-200 text-[11px] font-black uppercase px-3.5 py-1 rounded-full tracking-widest inline-flex items-center gap-1.5">
-            <Mail size={13} /> Official Support
+            <MessageSquare size={13} /> Here For You
           </span>
-          <h1 className="text-2xl sm:text-4xl font-serif font-black text-slate-900 mt-3">
-            Contact Us & Customer Support
+          <h1 className="text-3xl sm:text-5xl font-serif font-black text-slate-900 tracking-tight">
+            Contact Our Support Team
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 font-semibold mt-2">
-            We are here to assist you with profiles, memberships, billing, or queries.
+          <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed">
+            Have questions about registration, profile verification, or membership plans? Our dedicated matrimonial advisors are ready to assist you.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* 2-COLUMN CONTACT GRID */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start text-left">
           
-          {/* LEFT: COMPANY CONTACT DETAILS */}
+          {/* LEFT COLUMN: CONTACT DETAILS & HELPLINES */}
           <div className="lg:col-span-5 space-y-6">
             
-            <div className="bg-rose-50/50 rounded-2xl p-6 border border-rose-100 space-y-5">
-              
-              <div className="flex items-start gap-3.5">
-                <div className="w-10 h-10 rounded-xl bg-[#d91b5c] text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
-                  <MapPin size={20} />
+            <div className="p-6 rounded-3xl bg-[#faf7f5] border border-rose-100 shadow-xs space-y-5">
+              <h3 className="text-lg font-serif font-bold text-slate-900 border-b border-rose-100 pb-3">
+                Official Helpdesk
+              </h3>
+
+              <div className="space-y-4 text-xs sm:text-sm">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-rose-100/70 flex items-center justify-center text-[#d91b5c] shrink-0">
+                    <Phone size={16} />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-900">Phone & WhatsApp Support</p>
+                    <p className="text-slate-600 mt-0.5">+91 84452 20256</p>
+                    <p className="text-[11px] text-slate-400">Available Mon – Sat, 10 AM to 7 PM IST</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-bold text-sm text-slate-900">Headquarters / Registered Address</h4>
-                  <p className="text-xs text-slate-600 mt-0.5 font-medium leading-relaxed">
-                    IT Creative Solution / Nikah Qubool<br />
-                    Civil Lines, Bareilly, Uttar Pradesh - 243001, India
-                  </p>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-rose-100/70 flex items-center justify-center text-[#d91b5c] shrink-0">
+                    <Mail size={16} />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-900">Email Inquiries</p>
+                    <p className="text-slate-600 mt-0.5">support@nikahqubool.in</p>
+                    <p className="text-[11px] text-slate-400">Response within 4–6 business hours</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-rose-100/70 flex items-center justify-center text-[#d91b5c] shrink-0">
+                    <MapPin size={16} />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-900">Registered Corporate Office</p>
+                    <p className="text-slate-600 mt-0.5 leading-relaxed">
+                      Nikah Qubool Matrimony (IT Creative Solutions), <br />
+                      Civil Lines / Stadium Road, Bareilly, UP 243001, India
+                    </p>
+                  </div>
                 </div>
               </div>
-
-              <div className="flex items-start gap-3.5 pt-3 border-t border-rose-100">
-                <div className="w-10 h-10 rounded-xl bg-[#d91b5c] text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
-                  <Mail size={20} />
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm text-slate-900">Support & Billing Emails</h4>
-                  <p className="text-xs text-slate-600 mt-0.5 font-semibold">
-                    General Enquiries: <span className="text-[#d91b5c]">support@nikahqubool.in</span><br />
-                    Billing & Refunds: <span className="text-[#d91b5c]">support@nikahqubool.com</span>
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3.5 pt-3 border-t border-rose-100">
-                <div className="w-10 h-10 rounded-xl bg-[#d91b5c] text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
-                  <Phone size={20} />
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm text-slate-900">Helpline Phone Support</h4>
-                  <p className="text-xs text-slate-600 mt-0.5 font-bold text-[#d91b5c]">
-                    +91 (Mon - Sat, 10:00 AM - 7:00 PM IST)
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3.5 pt-3 border-t border-rose-100">
-                <div className="w-10 h-10 rounded-xl bg-[#d91b5c] text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
-                  <Clock size={20} />
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm text-slate-900">Working Hours</h4>
-                  <p className="text-xs text-slate-600 mt-0.5 font-medium">
-                    Monday to Saturday: 10:00 AM – 7:00 PM IST<br />
-                    Sunday: Email Support Active
-                  </p>
-                </div>
-              </div>
-
             </div>
 
-            <div className="p-5 rounded-2xl bg-slate-900 text-white space-y-2">
-              <h4 className="font-bold text-sm text-amber-300 flex items-center gap-1.5">
-                <ShieldCheck size={16} /> Fast Resolution Guarantee
-              </h4>
-              <p className="text-xs text-slate-300 leading-relaxed font-medium">
-                Our dedicated support desk responds to all billing, account verification, and profile inquiries within 24 business hours.
+            <div className="p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2">
+              <p className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                <ShieldCheck size={16} className="text-emerald-600" /> Need Immediate Profile Assistance?
+              </p>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                If you are an active member facing any verification or technical issues, mention your registered mobile number in your message for expedited resolution.
               </p>
             </div>
 
           </div>
 
-          {/* RIGHT: INTERACTIVE CONTACT FORM */}
-          <div className="lg:col-span-7 bg-slate-50/80 p-6 sm:p-8 rounded-3xl border border-slate-200">
+          {/* RIGHT COLUMN: CONTACT FORM */}
+          <div className="lg:col-span-7 bg-[#faf7f5] p-6 sm:p-10 rounded-3xl border border-rose-100 shadow-xs">
             {submitted ? (
-              <div className="bg-emerald-50 border-2 border-emerald-200 text-emerald-900 p-8 rounded-2xl text-center space-y-3 my-auto">
-                <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+              <div className="py-12 text-center space-y-3">
+                <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
                   <CheckCircle2 size={32} />
                 </div>
-                <h3 className="font-serif font-bold text-xl text-emerald-900">Message Received!</h3>
-                <p className="text-xs font-semibold text-emerald-700 max-w-md mx-auto">
-                  Thank you for reaching out to Nikah Qubool. Our official support representative will review your message and get back to you shortly.
+                <h3 className="text-xl font-serif font-bold text-slate-900">
+                  Message Sent Successfully
+                </h3>
+                <p className="text-xs text-slate-600 max-w-sm mx-auto">
+                  JazakAllah Khair for reaching out. One of our matrimonial coordinators will get back to you shortly.
                 </p>
+                <button
+                  type="button"
+                  onClick={() => setSubmitted(false)}
+                  className="mt-2 text-xs font-bold text-[#d91b5c] underline hover:text-rose-700 cursor-pointer"
+                >
+                  Send another inquiry
+                </button>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-4">
-                <h3 className="font-serif font-bold text-lg text-slate-900 mb-2">Send us a direct message</h3>
-                
-                <div>
-                  <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">
-                    Your Full Name <span className="text-rose-500">*</span>
-                  </label>
+                <h3 className="text-lg font-serif font-bold text-slate-900 border-b border-rose-100 pb-3">
+                  Leave Us a Message
+                </h3>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700">Full Name *</label>
                   <input
                     type="text"
                     required
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-xs text-slate-900 outline-none focus:border-[#d91b5c] focus:ring-4 focus:ring-rose-100 font-semibold"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
                     placeholder="Enter your name"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 outline-none focus:border-[#d91b5c]"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">
-                    Mobile Number <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-xs text-slate-900 outline-none focus:border-[#d91b5c] focus:ring-4 focus:ring-rose-100 font-semibold"
-                    placeholder="10-digit mobile number"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700">Mobile Number *</label>
+                    <input
+                      type="tel"
+                      required
+                      value={form.mobile}
+                      onChange={(e) => setForm({ ...form, mobile: e.target.value })}
+                      placeholder="10-digit mobile number"
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 outline-none focus:border-[#d91b5c]"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700">Email Address (Optional)</label>
+                    <input
+                      type="email"
+                      value={form.email}
+                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                      placeholder="your.email@example.com"
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 outline-none focus:border-[#d91b5c]"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">
-                    Email Address <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-xs text-slate-900 outline-none focus:border-[#d91b5c] focus:ring-4 focus:ring-rose-100 font-semibold"
-                    placeholder="name@example.com"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-1">
-                    Message / Query <span className="text-rose-500">*</span>
-                  </label>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700">Your Message / Query *</label>
                   <textarea
-                    rows={4}
                     required
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 bg-white text-xs text-slate-900 outline-none focus:border-[#d91b5c] focus:ring-4 focus:ring-rose-100 font-semibold"
-                    placeholder="How can we assist you with profile or membership?"
-                  ></textarea>
+                    rows={4}
+                    value={form.message}
+                    onChange={(e) => setForm({ ...form, message: e.target.value })}
+                    placeholder="Describe how we can help you..."
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 outline-none focus:border-[#d91b5c] resize-none"
+                  />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-4 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md hover:brightness-110 transition-all cursor-pointer flex items-center justify-center gap-2"
+                  className="w-full py-3 rounded-xl bg-[#d91b5c] hover:bg-[#c21450] text-white text-xs font-bold uppercase tracking-wider transition-all shadow-md active:scale-98 cursor-pointer flex items-center justify-center gap-2"
                 >
-                  <span>Submit Inquiry</span>
-                  <Send size={15} />
+                  <Send size={14} />
+                  <span>Send Message</span>
                 </button>
               </form>
             )}
           </div>
 
         </div>
+
       </div>
     </div>
   );

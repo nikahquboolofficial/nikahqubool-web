@@ -17,7 +17,7 @@ import {
 } from '@/lib/api';
 import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
 import VerificationModal from '@/components/profile/VerificationModal';
-import { getAuthToken } from '@/lib/auth';
+import { getAuthToken, getStoredUserPhoto } from '@/lib/auth';
 
 // 🧮 100% REAL PROFILE COMPLETION CALCULATION
 export const calculateRealProfileCompletion = (p: any): number => {
@@ -61,7 +61,18 @@ export const calculateRealProfileCompletion = (p: any): number => {
 export default function MyProfilePage() {
   const router = useRouter();
 
-  const [profileData, setProfileData] = useState<any>(null);
+  const [profileData, setProfileData] = useState<any>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("cached_profile_details") || localStorage.getItem("user_details");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          return parsed.profile || parsed.Profile || parsed;
+        }
+      } catch (e) {}
+    }
+    return null;
+  });
   const [activePlan, setActivePlan] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [isVerificationOpen, setIsVerificationOpen] = useState(false);
@@ -78,8 +89,9 @@ export default function MyProfilePage() {
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
-          if (parsed && typeof parsed === "object") {
-            setProfileData(parsed);
+          const p = parsed.profile || parsed.Profile || parsed;
+          if (p && typeof p === "object") {
+            setProfileData(p);
           }
         } catch (e) {}
       }
@@ -139,7 +151,18 @@ export default function MyProfilePage() {
   }, [loadMyProfile]);
 
   useEffect(() => {
-    const handlePhotoUpdated = () => {
+    const handlePhotoUpdated = (e: any) => {
+      const newPhoto = e?.detail?.photoUrl || getStoredUserPhoto();
+      if (newPhoto) {
+        setProfileData((prev: any) => ({
+          ...prev,
+          mainPhotoUrl: newPhoto,
+          photoUrl: newPhoto,
+          PhotoUrl: newPhoto,
+          mainPhoto: newPhoto,
+          photo: newPhoto
+        }));
+      }
       loadMyProfile();
     };
     if (typeof window !== "undefined") {
@@ -176,8 +199,8 @@ export default function MyProfilePage() {
   };
 
   // Calculations
-  const rawPhoto = profileData?.mainPhotoUrl || profileData?.photoUrl || profileData?.PhotoUrl;
-  const photo = getOptimizedImageUrl(rawPhoto);
+  const rawPhoto = profileData?.mainPhotoUrl || profileData?.photoUrl || profileData?.PhotoUrl || profileData?.mainPhoto || profileData?.photo;
+  const photo = rawPhoto ? getOptimizedImageUrl(rawPhoto, profileData?.userId || 1, profileData?.gender) : getStoredUserPhoto();
   const fullName = profileData?.fullName || 'Member Profile';
   const isVerified = Boolean(profileData?.isVerified ?? profileData?.IsVerified ?? false);
   

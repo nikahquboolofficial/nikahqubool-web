@@ -35,6 +35,8 @@ export function middleware(request: NextRequest) {
   // Public pages list (Sabhi users ke liye accessible)
   const publicRoutes = [
     '/',
+    '/login',
+    '/register',
     '/about-us',
     '/contact-us',
     '/faq',
@@ -72,8 +74,8 @@ export function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/complete-profile', request.url));
     }
   } else {
-    // 🔒 Profile complete: User can NEVER open '/' or '/complete-profile'
-    if (pathname === '/' || pathname === '/complete-profile') {
+    // 🔒 Profile complete: User can NEVER open '/', '/login', '/register' or '/complete-profile'
+    if (pathname === '/' || pathname === '/login' || pathname === '/register' || pathname === '/complete-profile') {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
   }

@@ -1,16 +1,18 @@
 "use client";
 
 import { useAuthModal } from '@/context/AuthModalContext';
-import LoginModal from '@/components/auth/LoginModal';
-import RegisterModal from '@/components/auth/RegisterModal';
+import UnifiedAuthModal from '@/components/auth/UnifiedAuthModal';
 
 export default function LoginModalWrapper() {
   const { showLoginModal, closeLoginModal, showRegisterModal, closeRegisterModal } = useAuthModal();
+  const isAuthOpen = showLoginModal || showRegisterModal;
+
+  const handleClose = () => {
+    closeLoginModal();
+    closeRegisterModal();
+  };
 
   return (
-    <>
-      <LoginModal isOpen={showLoginModal} onClose={closeLoginModal} />
-      <RegisterModal isOpen={showRegisterModal} onClose={closeRegisterModal} />
-    </>
+    <UnifiedAuthModal isOpen={isAuthOpen} onClose={handleClose} />
   );
 }
