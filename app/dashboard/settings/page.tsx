@@ -74,7 +74,7 @@ function SettingsContent() {
   const handleLogout = useCallback((showToast: boolean = true) => {
     clearAuthCookies();
     if (showToast) {
-      toast.success("Logged out successfully.");
+      // Logged out quietly without toast
     }
     setTimeout(() => {
       router.push('/');

@@ -239,13 +239,19 @@ function ActivityPageContent() {
     const token = getToken();
 
     // ⚡ INSTANT CARD REMOVAL IF ACCEPTED OR DECLINED
+    const targetId = Number(receiverUserId);
     if (status === 'ACCEPTED' || status === 'DECLINED' || activeSubTab === 'requests' || activeSubTab === 'gallery-requests-received') {
-      setProfiles((prev) => prev.filter((p) => (p.userId || p.UserId) !== receiverUserId));
+      setProfiles((prev) => prev.filter((p) => Number(p.userId || p.UserId) !== targetId));
       
       // Update instant cache
       if (tabCacheRef.current[activeSubTab]) {
         tabCacheRef.current[activeSubTab].profiles = tabCacheRef.current[activeSubTab].profiles.filter(
-          (p) => (p.userId || p.UserId) !== receiverUserId
+          (p) => Number(p.userId || p.UserId) !== targetId
+        );
+      }
+      if (globalActivityFeedCache[activeSubTab]) {
+        globalActivityFeedCache[activeSubTab].profiles = globalActivityFeedCache[activeSubTab].profiles.filter(
+          (p) => Number(p.userId || p.UserId) !== targetId
         );
       }
     } else {

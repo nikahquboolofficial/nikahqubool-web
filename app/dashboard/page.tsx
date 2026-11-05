@@ -218,22 +218,33 @@ export default function VIPCleanDashboardPage() {
   const handleInteraction = async (receiverUserId: number, type: string, status: string = 'PENDING') => {
     const token = getToken();
 
-    setProfiles((prevProfiles) =>
-      prevProfiles.map((p) => {
-        const uId = Number(p.userId || p.UserId || 0);
-        if (uId === receiverUserId) {
-          if (type === 'SHORTLIST') {
-            const currentIsShort = Boolean(p.isShortlisted ?? p.IsShortlisted);
-            return { ...p, isShortlisted: !currentIsShort, IsShortlisted: !currentIsShort };
+    const targetId = Number(receiverUserId);
+    // ⚡ INSTANT CARD REMOVAL IF ACCEPTED OR DECLINED ON DASHBOARD
+    if (status === 'ACCEPTED' || status === 'DECLINED' || activeTab === 'requests') {
+      setProfiles((prevProfiles) => prevProfiles.filter((p) => Number(p.userId || p.UserId || 0) !== targetId));
+      if (globalFeedCache[activeTab]) {
+        globalFeedCache[activeTab].profiles = globalFeedCache[activeTab].profiles.filter(
+          (p) => Number(p.userId || p.UserId || 0) !== targetId
+        );
+      }
+    } else {
+      setProfiles((prevProfiles) =>
+        prevProfiles.map((p) => {
+          const uId = Number(p.userId || p.UserId || 0);
+          if (uId === targetId) {
+            if (type === 'SHORTLIST') {
+              const currentIsShort = Boolean(p.isShortlisted ?? p.IsShortlisted);
+              return { ...p, isShortlisted: !currentIsShort, IsShortlisted: !currentIsShort };
+            }
+            if (type === 'INTEREST') {
+              const newStatus = status === 'ACCEPTED' ? 'Accepted' : status === 'DECLINED' ? 'Declined' : 'SentPending';
+              return { ...p, interestStatus: newStatus, InterestStatus: newStatus };
+            }
           }
-          if (type === 'INTEREST') {
-            const newStatus = status === 'ACCEPTED' ? 'Accepted' : status === 'DECLINED' ? 'Declined' : 'SentPending';
-            return { ...p, interestStatus: newStatus, InterestStatus: newStatus };
-          }
-        }
-        return p;
-      })
-    );
+          return p;
+        })
+      );
+    }
 
     setActionState((prev) => ({ ...prev, [receiverUserId]: true }));
     setActionTypeState((prev) => ({ ...prev, [receiverUserId]: type }));

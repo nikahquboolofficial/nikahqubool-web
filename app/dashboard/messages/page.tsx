@@ -135,7 +135,6 @@ function MessagesContainer() {
               initialAccountState={selectedChat.accountState ?? selectedChat.AccountState}
               onBack={() => {
                 setSelectedChat(null);
-                window.dispatchEvent(new CustomEvent('refresh_inbox_list'));
               }} 
             />
           </ChatErrorBoundary>

@@ -204,7 +204,7 @@ export default function MyProfilePage() {
       localStorage.removeItem("user_details");
       document.cookie = "user_token=; path=/; max-age=0;";
     }
-    toast.success("Logged out successfully");
+    // Logged out quietly without toast
     router.push('/');
   };
 

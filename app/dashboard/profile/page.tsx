@@ -322,7 +322,7 @@ export default function ProfileDetailPage() {
           ...prev,
           interestStatus: status === 'ACCEPTED' ? 'Accepted' : status === 'DECLINED' ? 'Declined' : 'SentPending'
         }));
-        toast.success(status === 'ACCEPTED' ? "Interest accepted!" : status === 'DECLINED' ? "Interest declined." : "Interest sent successfully!");
+        if (status !== "ACCEPTED" && status !== "DECLINED") { toast.success("Interest sent successfully!"); }
       } else if (type === 'SHORTLIST') {
         setProfileData((prev: any) => ({
           ...prev,
@@ -1011,15 +1011,7 @@ export default function ProfileDetailPage() {
                 <div className="flex items-center gap-1.5 pointer-events-auto">
                   <ProfileStatusIcons isVerified={isVerified} isPremium={isPremium} size={22} />
                   
-                  {/* ⚡ Sleek Compatibility Badge inside Hero */}
-                  <button
-                    type="button"
-                    onClick={() => setShowCompatibilityModal(true)}
-                    className="inline-flex items-center gap-1 bg-emerald-500/30 hover:bg-emerald-500/50 backdrop-blur-md border border-emerald-400/50 text-white text-[11px] font-extrabold px-2.5 py-0.5 rounded-full shadow-sm cursor-pointer transition-all active:scale-95 ml-1"
-                  >
-                    <Sparkles size={11} className="text-emerald-300" />
-                    <span>{compatibility.score}% Match</span>
-                  </button>
+
                 </div>
               </div>
             </div>
@@ -1339,7 +1331,7 @@ export default function ProfileDetailPage() {
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(contactData.mobile);
-                        toast.success("Phone number copied!");
+                        // silent copy
                       }}
                       className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-[#E21E5B] hover:border-rose-200 transition-all cursor-pointer shadow-xs"
                       title="Copy Number"
@@ -1373,7 +1365,7 @@ export default function ProfileDetailPage() {
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(contactData.email);
-                        toast.success("Email address copied!");
+                        // silent copy
                       }}
                       className="p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-[#E21E5B] hover:border-rose-200 transition-all cursor-pointer shadow-xs"
                       title="Copy Email"

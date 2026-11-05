@@ -32,6 +32,41 @@ const EMOJI_CATEGORIES = {
   "Gestures": ["👍", "🙏", "🤝", "👌", "👏", "🙌", "👋", "🎉", "🔥", "💯", "⭐", "💫"]
 };
 
+// ⚡ In-Memory Cache to guarantee 0ms instant display and zero message disappearance
+const globalChatHistoryCache: Record<string, any[]> = {};
+
+// 🛡️ High-Precision UTC to Local Indian Time Parser
+export const parseChatUtcDate = (dateVal: any): Date => {
+  if (!dateVal) return new Date();
+  if (typeof dateVal === 'object' && dateVal instanceof Date) {
+    return isNaN(dateVal.getTime()) ? new Date() : dateVal;
+  }
+  try {
+    let str = String(dateVal).trim();
+    if (!str) return new Date();
+    if (/^\d{10,13}$/.test(str)) {
+      const num = Number(str);
+      const d = new Date(num < 10000000000 ? num * 1000 : num);
+      if (!isNaN(d.getTime())) return d;
+    }
+    // If it already contains 'Z' or timezone offset (+05:30, etc.), parse as standard ISO
+    if (/Z$/i.test(str) || /[+-]\d{2}:?\d{2}$/.test(str)) {
+      const d = new Date(str);
+      if (!isNaN(d.getTime())) return d;
+    }
+    // Backend API & SQL Server send UTC timestamps without trailing 'Z' (e.g. 2026-11-05T06:32:00)
+    // Appending 'Z' tells JavaScript the timestamp is in UTC, allowing accurate conversion to local IST (+5:30)
+    const isoUtc = str.replace(' ', 'T') + 'Z';
+    const dUtc = new Date(isoUtc);
+    if (!isNaN(dUtc.getTime())) return dUtc;
+
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? new Date() : d;
+  } catch {
+    return new Date();
+  }
+};
+
 export default function ChatWindow({ 
   receiverId, 
   userName, 
@@ -46,7 +81,29 @@ export default function ChatWindow({
   const { connection, onlineUsers, typingUsers, sendTyping } = useSignalR();
 
   const [msg, setMsg] = useState("");
-  const [messages, setMessages] = useState<any[]>([]);
+  // ⚡ Synchronously initialize from in-memory cache or sessionStorage (Zero Blank Glitch)
+  const [messages, setMessages] = useState<any[]>(() => {
+    if (receiverId && globalChatHistoryCache[String(receiverId)]?.length) {
+      return globalChatHistoryCache[String(receiverId)];
+    }
+    if (typeof window !== "undefined" && receiverId) {
+      try {
+        const cached = sessionStorage.getItem(`cached_chat_history_${receiverId}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const initial = parsed.map((m: any) => ({
+              ...m,
+              timestamp: parseChatUtcDate(m.timestamp)
+            }));
+            globalChatHistoryCache[String(receiverId)] = initial;
+            return initial;
+          }
+        }
+      } catch (e) {}
+    }
+    return [];
+  });
   const [showMenu, setShowMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [selectedEmojiCategory, setSelectedEmojiCategory] = useState<keyof typeof EMOJI_CATEGORIES>("Nikah & Pure");
@@ -169,27 +226,7 @@ export default function ChatWindow({
     router.push('/dashboard/profile?userId=' + receiverId);
   };
 
-  const parseUtcDate = (dateVal: any): Date => {
-    if (!dateVal) return new Date();
-    if (typeof dateVal === 'object' && dateVal instanceof Date) {
-      return isNaN(dateVal.getTime()) ? new Date() : dateVal;
-    }
-    try {
-      let str = String(dateVal).trim();
-      if (!str) return new Date();
-      if (/^\d{10,13}$/.test(str)) {
-        const num = Number(str);
-        const d = new Date(num < 10000000000 ? num * 1000 : num);
-        if (!isNaN(d.getTime())) return d;
-      }
-      // 🛡️ Strip trailing Z and +00:00 because SQL Server stores local Indian Standard Time (IST)
-      str = str.replace(/z$/i, '').replace(/\+00:?00$/, '').replace(' ', 'T');
-      const d = new Date(str);
-      return isNaN(d.getTime()) ? new Date() : d;
-    } catch {
-      return new Date();
-    }
-  };
+  const parseUtcDate = parseChatUtcDate;
 
   // 📥 FETCH CHAT HISTORY DEFENSIVELY (0ms CACHE HYDRATION + AUTO-RETRY + SMART MERGE)
   useEffect(() => {
@@ -197,17 +234,19 @@ export default function ChatWindow({
     const token = getToken();
     if (!token) return;
 
-    // ⚡ 1. 0ms Instant Hydration from Session Cache
+    // ⚡ 1. 0ms Instant Hydration from Session Cache & Memory Cache
     if (typeof window !== "undefined") {
       try {
         const cached = sessionStorage.getItem(`cached_chat_history_${receiverId}`);
         if (cached) {
           const parsed = JSON.parse(cached);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            setMessages(parsed.map((m: any) => ({
+            const list = parsed.map((m: any) => ({
               ...m,
               timestamp: parseUtcDate(m.timestamp)
-            })));
+            }));
+            globalChatHistoryCache[String(receiverId)] = list;
+            setMessages(list);
           }
         }
       } catch (e) {}
@@ -240,7 +279,7 @@ export default function ChatWindow({
           uniqueKey: `hist-${m.messageId ?? m.MessageId ?? idx}`,
           messageId: m.messageId ?? m.MessageId,
           senderId: m.senderId ?? m.SenderId, 
-          text: m.messageText ?? m.MessageText, 
+          text: m.messageText ?? m.MessageText ?? m.text ?? m.Text ?? m.message ?? m.Message ?? "", 
           timestamp: parseUtcDate(m.sentAt ?? m.SentAt ?? Date.now()),
           isRead: (m.isRead === 1 || m.isRead === true || m.IsRead === 1 || m.IsRead === true) ? 1 : 0
         }));
@@ -259,7 +298,7 @@ export default function ChatWindow({
               return false;
             });
 
-            if (!exists && isTemp && p.isPending) {
+            if (!exists && isTemp && (p.isPending || p.isError)) {
               const age = Date.now() - new Date(p.timestamp).getTime();
               if (age < 30000) {
                 merged.push(p);
@@ -280,6 +319,7 @@ export default function ChatWindow({
 
           cleanMerged.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
+          globalChatHistoryCache[String(receiverId)] = cleanMerged;
           if (typeof window !== "undefined") {
             try {
               sessionStorage.setItem(`cached_chat_history_${receiverId}`, JSON.stringify(cleanMerged));
@@ -333,9 +373,10 @@ export default function ChatWindow({
             messageId: newMsgId,
             senderId: incomingSenderId, 
             text: messageText, 
-            timestamp: sentAt ? new Date(sentAt) : new Date(), 
+            timestamp: sentAt ? parseUtcDate(sentAt) : new Date(), 
             isRead: 1 
           }];
+          globalChatHistoryCache[String(receiverId)] = updated.slice(-100);
           if (typeof window !== "undefined") {
             try {
               sessionStorage.setItem(`cached_chat_history_${receiverId}`, JSON.stringify(updated.slice(-100)));
@@ -439,6 +480,7 @@ export default function ChatWindow({
 
     setMessages(prev => {
       const updated = [...prev, optimisticMsg];
+      globalChatHistoryCache[String(receiverId)] = updated.slice(-100);
       if (typeof window !== "undefined") {
         try {
           sessionStorage.setItem(`cached_chat_history_${receiverId}`, JSON.stringify(updated.slice(-100)));
@@ -493,6 +535,7 @@ export default function ChatWindow({
         if (realId) {
           setMessages(prev => {
             const updated = prev.map(m => m.uniqueKey === tempId ? { ...m, messageId: realId, uniqueKey: `real-${realId}`, isPending: false } : m);
+            globalChatHistoryCache[String(receiverId)] = updated.slice(-100);
             if (typeof window !== "undefined") {
               try {
                 sessionStorage.setItem(`cached_chat_history_${receiverId}`, JSON.stringify(updated.slice(-100)));
@@ -502,8 +545,17 @@ export default function ChatWindow({
           });
         }
       } else {
-        // Rollback optimistic message if failed or rejected
-        setMessages(prev => prev.filter(m => m.uniqueKey !== tempId));
+        // Mark failed rather than completely vanishing
+        setMessages(prev => {
+          const updated = prev.map(m => m.uniqueKey === tempId ? { ...m, isPending: false, isError: true } : m);
+          globalChatHistoryCache[String(receiverId)] = updated.slice(-100);
+          if (typeof window !== "undefined") {
+            try {
+              sessionStorage.setItem(`cached_chat_history_${receiverId}`, JSON.stringify(updated.slice(-100)));
+            } catch (e) {}
+          }
+          return updated;
+        });
         if (typeof window !== "undefined") {
           try {
             const inboxRaw = sessionStorage.getItem("cached_chat_inbox");
@@ -573,7 +625,7 @@ export default function ChatWindow({
     messages.forEach(m => {
       if (!m) return;
       try {
-        const dateObj = m.timestamp ? new Date(m.timestamp) : new Date();
+        const dateObj = m.timestamp ? parseUtcDate(m.timestamp) : new Date();
         const dateKey = !isNaN(dateObj.getTime()) ? dateObj.toDateString() : new Date().toDateString();
         if (!groups[dateKey]) groups[dateKey] = [];
         groups[dateKey].push(m);
@@ -611,7 +663,7 @@ export default function ChatWindow({
     setProposalLoading(false);
     if (res.success) {
       setProposalState(finalStatus);
-      toast.success(finalStatus === 'ACCEPTED' ? "Proposal Accepted! You can now chat freely." : "Proposal Declined.");
+      // silent accept/decline without toast
     } else {
       toast.error(res.message || "Failed to update proposal status.");
     }

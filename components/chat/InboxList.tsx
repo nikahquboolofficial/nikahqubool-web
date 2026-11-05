@@ -9,14 +9,37 @@ import { fetchChatInboxApi, markChatReadApi, blockUserApiCall } from '@/lib/api'
 import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
 import { getAuthToken } from '@/lib/auth';
 
+// ⚡ Module-level memory cache to eliminate blank flickers and protect inbox data
+let memoryInboxCache: any[] | null = null;
+
 export default function InboxList({ onSelectUser, selectedId }: any) {
   const router = useRouter();
   const { connection, onlineUsers, typingUsers } = useSignalR();
 
-  const [chats, setChats] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  // ⚡ Synchronously initialize from memory cache or session storage (0ms instant display, no blank state)
+  const [chats, setChats] = useState<any[]>(() => {
+    if (memoryInboxCache && memoryInboxCache.length > 0) return memoryInboxCache;
+    if (typeof window !== "undefined") {
+      try {
+        const cached = sessionStorage.getItem("cached_chat_inbox");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            memoryInboxCache = parsed;
+            return parsed;
+          }
+        }
+      } catch (e) {}
+    }
+    return [];
+  });
+
+  const [loading, setLoading] = useState<boolean>(() => {
+    return !(memoryInboxCache?.length || (typeof window !== 'undefined' && sessionStorage.getItem("cached_chat_inbox")));
+  });
   const [searchTerm, setSearchTerm] = useState("");
   const selectedIdRef = useRef(selectedId); 
+  const isFetchingInboxRef = useRef(false);
 
   useEffect(() => {
     // When user closes active chat (onBack) or selectedId becomes null/undefined, refresh inbox
@@ -34,6 +57,7 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
         if (cached) {
           const parsed = JSON.parse(cached);
           if (Array.isArray(parsed) && parsed.length > 0) {
+            memoryInboxCache = parsed;
             setChats(parsed);
             setLoading(false);
           }
@@ -45,6 +69,7 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
   // ⚡ Sync Unread Count to Bottom Nav & Global Layout whenever chats change
   useEffect(() => {
     if (typeof window !== "undefined" && Array.isArray(chats)) {
+      memoryInboxCache = chats;
       const total = chats.reduce((sum, c) => sum + Number(c.unreadCount ?? c.UnreadCount ?? 0), 0);
       window.dispatchEvent(new CustomEvent('chat_unread_count_updated', { detail: { count: total } }));
       try {
@@ -101,16 +126,24 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
       setLoading(false);
       return;
     }
+    // Concurrency guard: avoid duplicate simultaneous calls racing and causing empty states
+    if (isFetchingInboxRef.current) return;
+    isFetchingInboxRef.current = true;
+
     try {
       const res = await fetchChatInboxApi(1, 50, token);
-      const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.data?.data) ? res.data.data : []);
-      setChats(list);
-      if (typeof window !== "undefined") {
-        try { sessionStorage.setItem("cached_chat_inbox", JSON.stringify(list)); } catch (e) {}
+      if (res && res.success) {
+        const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.data?.data) ? res.data.data : []);
+        memoryInboxCache = list;
+        setChats(list);
+        if (typeof window !== "undefined") {
+          try { sessionStorage.setItem("cached_chat_inbox", JSON.stringify(list)); } catch (e) {}
+        }
       }
     } catch {
-      // keep existing if any
+      // keep existing if any - never wipe out conversations
     } finally {
+      isFetchingInboxRef.current = false;
       setLoading(false);
     }
   };

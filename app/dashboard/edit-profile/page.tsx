@@ -650,7 +650,7 @@ export default function EditMyProfilePage() {
                   <img 
                     src={formData.PhotoUrl} 
                     alt="Avatar" 
-                    className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl object-cover object-top border-2 border-rose-100 shadow-xs"
+                    className="w-16 h-16 sm:w-18 sm:h-18 rounded-none object-cover object-top border-2 border-rose-100 shadow-xs"
                     onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_FEMALE_AVATAR; }}
                   />
                 </div>
