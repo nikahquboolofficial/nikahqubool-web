@@ -56,14 +56,23 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
   const getToken = (): string | null => getAuthToken();
   const processedInboxMsgIdsRef = useRef<Set<string>>(new Set());
 
-  const parseUtcDate = (dateVal: any) => {
+  const parseUtcDate = (dateVal: any): Date => {
     if (!dateVal) return new Date();
     if (typeof dateVal === 'object' && dateVal instanceof Date) {
       return isNaN(dateVal.getTime()) ? new Date() : dateVal;
     }
     try {
-      // Clean string and strip trailing Z to preserve Indian Standard Time without artificial +5:30 offset
-      const str = String(dateVal).trim().replace(/z$/i, '').replace(' ', 'T');
+      let str = String(dateVal).trim();
+      if (!str) return new Date();
+      if (/^\d{10,13}$/.test(str)) {
+        const num = Number(str);
+        const d = new Date(num < 10000000000 ? num * 1000 : num);
+        if (!isNaN(d.getTime())) return d;
+      }
+      str = str.replace(' ', 'T');
+      if (!str.endsWith('Z') && !str.endsWith('z') && !/[+-]\d{2}:?\d{2}$/.test(str)) {
+        str += 'Z';
+      }
       const d = new Date(str);
       return isNaN(d.getTime()) ? new Date() : d;
     } catch {
@@ -77,7 +86,15 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
     const now = new Date();
     const isToday = messageDate.toDateString() === now.toDateString();
     if (isToday) return messageDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-    return messageDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' });
+
+    const yesterday = new Date();
+    yesterday.setDate(now.getDate() - 1);
+    if (messageDate.toDateString() === yesterday.toDateString()) return "Yesterday";
+
+    if (messageDate.getFullYear() === now.getFullYear()) {
+      return messageDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    }
+    return messageDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
   const fetchInbox = async () => {

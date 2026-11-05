@@ -82,9 +82,12 @@ function SettingsContent() {
   }, [router]);
 
   useEffect(() => {
+    router.prefetch('/dashboard/payment-info');
+    router.prefetch('/dashboard/my-profile');
+    router.prefetch('/dashboard/membership');
     const tabParam = searchParams.get('tab');
     if (tabParam) setActiveTab(tabParam);
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   // Load Master Data & Existing Partner Preferences when tab is opened
   useEffect(() => {

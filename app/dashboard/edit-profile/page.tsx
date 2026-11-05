@@ -191,6 +191,11 @@ export default function EditMyProfilePage() {
     router.push('/');
   }, [router]);
 
+  useEffect(() => {
+    router.prefetch('/dashboard/my-profile');
+    router.prefetch('/dashboard/gallery');
+  }, [router]);
+
   // Master Data Ref to keep loadUserData stable without infinite loops
   const masterDataRef = React.useRef(masterData);
   useEffect(() => {

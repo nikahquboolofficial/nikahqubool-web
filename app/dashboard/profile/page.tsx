@@ -27,10 +27,40 @@ import { getAuthToken } from '@/lib/auth';
 export default function ProfileDetailPage() {
   const router = useRouter();
   const { onlineUsers, fetchBulkOnlineStatuses } = useSignalR();
-  const [profileData, setProfileData] = useState<any>(null);
+  const [profileData, setProfileData] = useState<any>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlId = Number(urlParams.get('userId') || urlParams.get('id') || urlParams.get('targetUserId') || 0);
+      const preview = sessionStorage.getItem("viewing_profile_target") || localStorage.getItem("viewing_profile_target");
+      if (preview) {
+        const parsed = JSON.parse(preview);
+        const parsedId = Number(parsed.userId || parsed.UserId || parsed.targetUserId || 0);
+        if (!urlId || parsedId === urlId) {
+          return parsed;
+        }
+      }
+    } catch (e) {}
+    return null;
+  });
   const [gallery, setGallery] = useState<any[]>([]);
   const [preferences, setPreferences] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlId = Number(urlParams.get('userId') || urlParams.get('id') || urlParams.get('targetUserId') || 0);
+      const preview = sessionStorage.getItem("viewing_profile_target") || localStorage.getItem("viewing_profile_target");
+      if (preview) {
+        const parsed = JSON.parse(preview);
+        const parsedId = Number(parsed.userId || parsed.UserId || parsed.targetUserId || 0);
+        if (!urlId || parsedId === urlId) {
+          return false;
+        }
+      }
+    } catch (e) {}
+    return true;
+  });
   const [currentUserData, setCurrentUserData] = useState<any>(null);
   const [contactData, setContactData] = useState<{ mobile: string; email: string } | null>(null);
   const [contactQuota, setContactQuota] = useState<{ total: number; used: number; remaining: number } | null>(null);
@@ -56,10 +86,13 @@ export default function ProfileDetailPage() {
           setCurrentUserData(JSON.parse(stored));
         }
 
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlId = Number(urlParams.get('userId') || urlParams.get('id') || urlParams.get('targetUserId') || 0);
         const previewTarget = sessionStorage.getItem("viewing_profile_target") || localStorage.getItem("viewing_profile_target");
         if (previewTarget) {
           const parsed = JSON.parse(previewTarget);
-          if (parsed && (parsed.fullName || parsed.FullName || parsed.photoUrl || parsed.PhotoUrl)) {
+          const parsedId = Number(parsed.userId || parsed.UserId || parsed.targetUserId || 0);
+          if (parsed && (!urlId || parsedId === urlId) && (parsed.fullName || parsed.FullName || parsed.photoUrl || parsed.PhotoUrl)) {
             setProfileData((prev: any) => prev || parsed);
             setLoading(false);
           }
@@ -171,7 +204,7 @@ export default function ProfileDetailPage() {
           handleInteractionApiCall(targetUserId, 'PROFILE_VIEW', 'VIEW', token).catch(() => {});
         } catch (e) {}
       }
-    } else if (showFullLoader) {
+    } else if (showFullLoader && !profileData) {
       toast.error(res.message || "Failed to load profile details.");
     }
     if (showFullLoader) setLoading(false);
@@ -669,7 +702,52 @@ export default function ProfileDetailPage() {
     );
   }
 
-  const allPhotos = gallery.length > 0 ? gallery : [{ photoUrl: profileData.mainPhotoUrl || profileData.photoUrl || DEFAULT_FEMALE_AVATAR }];
+  const outsideCardPhoto = useMemo(() => {
+    return profileData?.mainPhotoUrl || profileData?.MainPhotoUrl || 
+           profileData?.photoUrl || profileData?.PhotoUrl || 
+           profileData?.mainPhoto || profileData?.MainPhoto || 
+           profileData?.profilePhoto || profileData?.ProfilePhoto || 
+           profileData?.avatarUrl || profileData?.AvatarUrl || null;
+  }, [profileData]);
+
+  const allPhotos = useMemo(() => {
+    let list: any[] = Array.isArray(gallery) && gallery.length > 0 ? [...gallery] : [];
+
+    const getUrl = (item: any) => item?.photoUrl || item?.PhotoUrl || item?.url || item?.Url || '';
+
+    if (list.length > 0) {
+      list.sort((a: any, b: any) => {
+        const urlA = getUrl(a);
+        const urlB = getUrl(b);
+        const aIsOutside = Boolean(outsideCardPhoto && urlA && (urlA === outsideCardPhoto || urlA.endsWith(outsideCardPhoto) || outsideCardPhoto.endsWith(urlA)));
+        const bIsOutside = Boolean(outsideCardPhoto && urlB && (urlB === outsideCardPhoto || urlB.endsWith(outsideCardPhoto) || outsideCardPhoto.endsWith(urlB)));
+        if (aIsOutside && !bIsOutside) return -1;
+        if (!aIsOutside && bIsOutside) return 1;
+
+        const aMain = Boolean(a.isMain ?? a.IsMain);
+        const bMain = Boolean(b.isMain ?? b.IsMain);
+        if (aMain && !bMain) return -1;
+        if (!aMain && bMain) return 1;
+        return 0;
+      });
+
+      if (outsideCardPhoto) {
+        const exists = list.some((item) => {
+          const u = getUrl(item);
+          return u === outsideCardPhoto || (u && (u.endsWith(outsideCardPhoto) || outsideCardPhoto.endsWith(u)));
+        });
+        if (!exists) {
+          list.unshift({ photoUrl: outsideCardPhoto, isMain: true });
+        }
+      }
+    } else if (outsideCardPhoto) {
+      list = [{ photoUrl: outsideCardPhoto, isMain: true }];
+    } else {
+      list = [{ photoUrl: DEFAULT_FEMALE_AVATAR, isMain: true }];
+    }
+
+    return list;
+  }, [gallery, outsideCardPhoto]);
   const interestStatus = profileData.interestStatus || profileData.InterestStatus || 'None';
   const rawPrivacy = profileData.photoPrivacy || profileData.PhotoPrivacy || 'All Members';
   const privacyClean = String(rawPrivacy).toLowerCase().replace(/\s+/g, '');
@@ -752,7 +830,7 @@ export default function ProfileDetailPage() {
 
   const isVerified = checkIsVerified(profileData);
   const isPremium = checkIsPremium(profileData);
-  const rawPhotoSrc = allPhotos[activePhotoIndex]?.photoUrl || profileData.mainPhotoUrl || profileData.photoUrl;
+  const rawPhotoSrc = allPhotos[activePhotoIndex]?.photoUrl || outsideCardPhoto;
   const currentPhotoSrc = getOptimizedImageUrl(rawPhotoSrc, profileData.userId || 1, profileData.gender);
   const myAvatarUrl = currentUserData?.mainPhotoUrl || currentUserData?.photoUrl || DEFAULT_FEMALE_AVATAR;
 

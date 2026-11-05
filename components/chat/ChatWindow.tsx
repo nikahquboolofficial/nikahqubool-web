@@ -169,14 +169,23 @@ export default function ChatWindow({
     router.push('/dashboard/profile?userId=' + receiverId);
   };
 
-  const parseUtcDate = (dateVal: any) => {
+  const parseUtcDate = (dateVal: any): Date => {
     if (!dateVal) return new Date();
     if (typeof dateVal === 'object' && dateVal instanceof Date) {
       return isNaN(dateVal.getTime()) ? new Date() : dateVal;
     }
     try {
-      // Clean string and strip trailing Z to preserve Indian Standard Time without artificial offset
-      const str = String(dateVal).trim().replace(/z$/i, '').replace(' ', 'T');
+      let str = String(dateVal).trim();
+      if (!str) return new Date();
+      if (/^\d{10,13}$/.test(str)) {
+        const num = Number(str);
+        const d = new Date(num < 10000000000 ? num * 1000 : num);
+        if (!isNaN(d.getTime())) return d;
+      }
+      str = str.replace(' ', 'T');
+      if (!str.endsWith('Z') && !str.endsWith('z') && !/[+-]\d{2}:?\d{2}$/.test(str)) {
+        str += 'Z';
+      }
       const d = new Date(str);
       return isNaN(d.getTime()) ? new Date() : d;
     } catch {
@@ -239,29 +248,47 @@ export default function ChatWindow({
         }));
 
         setMessages(prev => {
-          // Merge with any real-time or optimistic messages that arrived while loading
+          // formatted is authoritative from server
           const merged = [...formatted];
+
+          // Only keep genuine recent in-flight pending messages that haven't landed yet
           prev.forEach(p => {
-            const exists = merged.some(m => 
-              (m.messageId && m.messageId === p.messageId) || 
-              (m.uniqueKey && m.uniqueKey === p.uniqueKey) ||
-              (m.text === p.text && Math.abs(new Date(m.timestamp).getTime() - new Date(p.timestamp).getTime()) < 3000)
-            );
-            if (!exists) {
-              merged.push(p);
+            const isTemp = String(p.messageId).startsWith('temp-') || String(p.uniqueKey).startsWith('temp-');
+            const exists = merged.some(m => {
+              if (m.messageId && String(m.messageId) === String(p.messageId)) return true;
+              if (m.uniqueKey && m.uniqueKey === p.uniqueKey) return true;
+              if (isTemp && m.text === p.text && (p.senderId === 'me' || String(m.senderId) !== String(receiverId))) return true;
+              return false;
+            });
+
+            if (!exists && isTemp && p.isPending) {
+              const age = Date.now() - new Date(p.timestamp).getTime();
+              if (age < 30000) {
+                merged.push(p);
+              }
             }
           });
 
-          // Sort chronologically (oldest at top, newest at bottom)
-          merged.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+          // Deduplicate by messageId or uniqueKey
+          const seen = new Set();
+          const cleanMerged: any[] = [];
+          for (const m of merged) {
+            const key = m.messageId ? `id-${m.messageId}` : m.uniqueKey;
+            if (!seen.has(key)) {
+              seen.add(key);
+              cleanMerged.push(m);
+            }
+          }
+
+          cleanMerged.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
           if (typeof window !== "undefined") {
             try {
-              sessionStorage.setItem(`cached_chat_history_${receiverId}`, JSON.stringify(merged));
+              sessionStorage.setItem(`cached_chat_history_${receiverId}`, JSON.stringify(cleanMerged));
             } catch (e) {}
           }
 
-          return merged;
+          return cleanMerged;
         });
 
         scrollToBottom("auto");
@@ -465,7 +492,15 @@ export default function ChatWindow({
       if (res.success && res.data) {
         const realId = res.data?.messageId ?? res.data?.MessageId;
         if (realId) {
-          setMessages(prev => prev.map(m => m.uniqueKey === tempId ? { ...m, messageId: realId, uniqueKey: `real-${realId}`, isPending: false } : m));
+          setMessages(prev => {
+            const updated = prev.map(m => m.uniqueKey === tempId ? { ...m, messageId: realId, uniqueKey: `real-${realId}`, isPending: false } : m);
+            if (typeof window !== "undefined") {
+              try {
+                sessionStorage.setItem(`cached_chat_history_${receiverId}`, JSON.stringify(updated.slice(-100)));
+              } catch (e) {}
+            }
+            return updated;
+          });
         }
       } else {
         // Rollback optimistic message if failed or rejected
