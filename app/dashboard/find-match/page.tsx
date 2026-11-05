@@ -12,7 +12,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { toast, Toaster } from 'sonner';
-import { searchMatchesApi, handleInteractionApiCall, fetchMasterDataApi } from '@/lib/api';
+import { searchMatchesApi, handleInteractionApiCall, fetchMasterDataApi, fetchDashboardApi } from '@/lib/api';
 import { checkDailyViewLimit, formatTimeRemaining } from '@/lib/limitUtils';
 import ProfileCard from '@/components/dashboard/ProfileCard';
 import ProfileCardSkeleton from '@/components/dashboard/ProfileCardSkeleton';
@@ -49,6 +49,127 @@ const MASTER_FALLBACKS: Record<string, string[]> = {
   ]
 };
 
+
+// 🎯 SHADI.COM HYBRID FILTER LOGIC (MULTI-SELECT 'OR' WITHIN CATEGORY, 'AND' ACROSS CATEGORIES, 'ANY' = MATCH ALL)
+const MARITAL_MAP: Record<string, string> = {
+  "Never Married": "1",
+  "Divorced": "2",
+  "Widowed": "3",
+  "Awaiting Divorce": "4",
+  "Annulled": "5"
+};
+
+function parseHeightValue(h: any): number {
+  if (!h) return 5.4;
+  if (typeof h === 'number') return h;
+  const str = String(h).trim();
+  const match = str.match(/(\d+)\s*(?:ft|')(?:\s*(\d+)\s*(?:in|"))?/i);
+  if (match) {
+    const feet = parseInt(match[1], 10) || 5;
+    const inches = parseInt(match[2], 10) || 0;
+    return feet + inches / 12;
+  }
+  const num = parseFloat(str);
+  return isNaN(num) ? 5.4 : num;
+}
+
+function matchesShaadiFilter(p: any, f: typeof DEFAULT_FILTERS): boolean {
+  if (!p) return false;
+
+  // 1. Age Range
+  const age = Number(p.age ?? p.Age ?? 24);
+  if (f.ageMin && age < f.ageMin) return false;
+  if (f.ageMax && age > f.ageMax) return false;
+
+  // 2. Height Range (allow slight grace boundary)
+  if (f.heightMin > 4.1 || f.heightMax < 6.9) {
+    const hVal = parseHeightValue(p.height ?? p.Height);
+    if (f.heightMin && hVal < f.heightMin - 0.25) return false;
+    if (f.heightMax && hVal > f.heightMax + 0.25) return false;
+  }
+
+  // 3. Marital Status (Any = all allowed; Multi-select = OR match)
+  if (f.maritalStatus && f.maritalStatus.length > 0) {
+    const pMarital = String(p.maritalStatus ?? p.MaritalStatus ?? '').toLowerCase().trim();
+    const match = f.maritalStatus.some(item => {
+      const target = item.toLowerCase().trim();
+      const mappedId = MARITAL_MAP[item] || '';
+      return pMarital === target || 
+             pMarital === mappedId || 
+             (target.includes('never') && (pMarital.includes('never') || pMarital === '1')) ||
+             (target.includes('divorce') && (pMarital.includes('divorce') || pMarital === '2')) ||
+             (target.includes('widow') && (pMarital.includes('widow') || pMarital === '3'));
+    });
+    if (!match) return false;
+  }
+
+  // 4. Sect / Maslak (Any = all allowed; Multi-select = OR match across Sect and Maslak)
+  if (f.sect && f.sect.length > 0) {
+    const pSect = String(p.sect ?? p.Sect ?? '').toLowerCase().trim();
+    const pMaslak = String(p.maslak ?? p.Maslak ?? '').toLowerCase().trim();
+    const match = f.sect.some(item => {
+      const target = item.toLowerCase().trim();
+      return pSect.includes(target) || target.includes(pSect) ||
+             pMaslak.includes(target) || target.includes(pMaslak);
+    });
+    if (!match) return false;
+  }
+
+  // 5. Caste / Community (Any = all allowed; Multi-select = OR match with flexible token matching)
+  if (f.caste && f.caste.length > 0) {
+    const pCaste = String(p.caste ?? p.Caste ?? '').toLowerCase().trim();
+    const match = f.caste.some(item => {
+      const target = item.toLowerCase().trim();
+      const tokens = target.split(/[\/\s,]+/).filter(w => w.length > 2);
+      if (pCaste.includes(target) || target.includes(pCaste)) return true;
+      return tokens.some(tok => pCaste.includes(tok));
+    });
+    if (!match) return false;
+  }
+
+  // 6. States Location (Any = all allowed; Multi-select = OR match)
+  if (f.states && f.states.length > 0) {
+    const pState = String(p.stateName ?? p.StateName ?? p.state ?? p.State ?? '').toLowerCase().trim();
+    const match = f.states.some(item => {
+      const target = item.toLowerCase().trim();
+      return pState.includes(target) || target.includes(pState);
+    });
+    if (!match) return false;
+  }
+
+  // 7. Cities Location (Any = all allowed; Multi-select = OR match)
+  if (f.cities && f.cities.length > 0) {
+    const pCity = String(p.cityName ?? p.CityName ?? p.city ?? p.City ?? '').toLowerCase().trim();
+    const match = f.cities.some(item => {
+      const target = item.toLowerCase().trim();
+      return pCity.includes(target) || target.includes(pCity);
+    });
+    if (!match) return false;
+  }
+
+  // 8. Education (Any = all allowed; Multi-select = OR match)
+  if (f.education && f.education.length > 0) {
+    const pEdu = String(p.education ?? p.Education ?? p.highestDegree ?? p.HighestDegree ?? '').toLowerCase().trim();
+    const match = f.education.some(item => {
+      const target = item.toLowerCase().trim();
+      return pEdu.includes(target) || target.includes(pEdu);
+    });
+    if (!match) return false;
+  }
+
+  // 9. Profession (Any = all allowed; Multi-select = OR match)
+  if (f.employedIn && f.employedIn.length > 0) {
+    const pOcc = String(p.profession ?? p.Profession ?? p.designation ?? p.Designation ?? '').toLowerCase().trim();
+    const match = f.employedIn.some(item => {
+      const target = item.toLowerCase().trim();
+      return pOcc.includes(target) || target.includes(pOcc);
+    });
+    if (!match) return false;
+  }
+
+  return true;
+}
+
 const DEFAULT_FILTERS = {
   ageMin: 18, ageMax: 50,
   heightMin: 4.5, heightMax: 6.8,
@@ -68,7 +189,8 @@ let globalMatchCache: { profiles: any[], hasMore: boolean, timestamp: number } |
 
 export default function FindMatchesPage() {
   const router = useRouter();
-  const [profiles, setProfiles] = useState<any[]>(() => globalMatchCache?.profiles || []);
+  const [allCandidates, setAllCandidates] = useState<any[]>(() => globalMatchCache?.profiles || []);
+  const allCandidatesRef = React.useRef<any[]>(globalMatchCache?.profiles || []);
   const [loading, setLoading] = useState<boolean>(() => !globalMatchCache || globalMatchCache.profiles.length === 0);
   const [fetchingMore, setFetchingMore] = useState(false);
   const [page, setPage] = useState(1);
@@ -87,6 +209,11 @@ export default function FindMatchesPage() {
 
   // FILTERS STATE
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
+
+  // 🎯 Instant Shaadi.com Client-side filter over candidate pool
+  const displayedProfiles = React.useMemo(() => {
+    return allCandidates.filter(p => matchesShaadiFilter(p, filters));
+  }, [allCandidates, filters]);
 
   const getToken = useCallback(() => getAuthToken(), []);
 
@@ -147,60 +274,75 @@ export default function FindMatchesPage() {
       return;
     }
 
-    if (pageNum === 1) setLoading(true);
-    else setFetchingMore(true);
+    if (pageNum === 1 && allCandidatesRef.current.length === 0) setLoading(true);
+    else if (pageNum > 1) setFetchingMore(true);
 
     const activeFilters = overrideFilters || filters;
 
+    // Expand marital status to include both name and numeric ID so SQL procedure matches
+    const expandedMarital = activeFilters.maritalStatus.flatMap(m => [m, MARITAL_MAP[m] || '']).filter(Boolean);
+
     const payload = {
       searchText: "",
-      ageMin: activeFilters.ageMin,
-      ageMax: activeFilters.ageMax,
-      heightMin: activeFilters.heightMin,
-      heightMax: activeFilters.heightMax,
-      maritalStatus: activeFilters.maritalStatus,
-      sect: activeFilters.sect,
-      caste: activeFilters.caste,
-      states: activeFilters.states,
-      cities: isUserPaid ? activeFilters.cities : [],
-      education: isUserPaid ? activeFilters.education : [],
-      employedIn: isUserPaid ? activeFilters.employedIn : [],
+      ageMin: activeFilters.ageMin || 18,
+      ageMax: activeFilters.ageMax || 60,
+      maritalStatus: expandedMarital.length > 0 ? expandedMarital : [],
+      sect: activeFilters.sect.length > 0 ? activeFilters.sect : [],
+      caste: activeFilters.caste.length > 0 ? activeFilters.caste : [],
+      states: activeFilters.states.length > 0 ? activeFilters.states : [],
+      cities: isUserPaid && activeFilters.cities.length > 0 ? activeFilters.cities : [],
+      education: isUserPaid && activeFilters.education.length > 0 ? activeFilters.education : [],
+      employedIn: isUserPaid && activeFilters.employedIn.length > 0 ? activeFilters.employedIn : [],
       pageNumber: pageNum,
-      pageSize: 12
+      pageSize: 24
     };
 
-    const res = await searchMatchesApi(payload, token);
-    setLoading(false);
-    setFetchingMore(false);
+    try {
+      const res = await searchMatchesApi(payload, token);
+      let list = (res && res.success && Array.isArray(res.data)) ? res.data : [];
 
-    if (res && res.success && res.data) {
-      const list = res.data || [];
-      const userPaid = Boolean(res.isUserPaid ?? isUserPaid);
+      // Fallback: If search returned 0 and candidate pool is empty, fetch general feed to populate pool
+      if (list.length === 0 && allCandidatesRef.current.length === 0) {
+        try {
+          const feedRes = await fetchDashboardApi('best-matches', 1, token);
+          if (feedRes && feedRes.success && Array.isArray(feedRes.data)) {
+            list = feedRes.data;
+          }
+        } catch (e) {}
+      }
+
+      const userPaid = Boolean(res?.isUserPaid ?? isUserPaid);
       setIsUserPaid(userPaid);
 
       const limitState = checkDailyViewLimit(list.length, userPaid);
       setDailyLimitReached(limitState.isLimitReached && !userPaid);
 
-      if (append) {
-        setProfiles((prev) => {
-          const combined = [...prev, ...list];
-          const curLimit = checkDailyViewLimit(combined.length, userPaid);
-          if (curLimit.isLimitReached && !userPaid) {
-            return combined.slice(0, 20);
-          }
-          return combined;
-        });
-      } else {
-        let updatedList = list;
-        if (limitState.isLimitReached && !userPaid) {
-          updatedList = list.slice(0, 20);
+      const existingIds = new Set(append ? allCandidatesRef.current.map(p => Number(p.userId || p.UserId)) : []);
+      const newItems: any[] = [];
+      for (const item of list) {
+        const id = Number(item.userId || item.UserId);
+        if (id && !existingIds.has(id)) {
+          existingIds.add(id);
+          newItems.push(item);
         }
-        setProfiles(updatedList);
       }
 
+      const combined = append ? [...allCandidatesRef.current, ...newItems] : (newItems.length > 0 ? newItems : allCandidatesRef.current);
+      allCandidatesRef.current = combined;
+      setAllCandidates(combined);
+
+      globalMatchCache = {
+        profiles: combined,
+        hasMore: list.length >= 12,
+        timestamp: Date.now()
+      };
+
       setHasMore(list.length >= 12 && (!limitState.isLimitReached || userPaid));
-    } else {
-      if (!append) setProfiles([]);
+    } catch {
+      // keep existing candidate pool
+    } finally {
+      setLoading(false);
+      setFetchingMore(false);
     }
   }, [getToken, filters, isUserPaid, router]);
 
@@ -233,7 +375,6 @@ export default function FindMatchesPage() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(filters));
     }
     setShowFilters(false);
-    toast.success("Filters applied and saved!");
     loadMatches(1, false);
   };
 
@@ -244,7 +385,6 @@ export default function FindMatchesPage() {
     setFilters(DEFAULT_FILTERS);
     loadMatches(1, false, DEFAULT_FILTERS);
     setShowFilters(false);
-    toast.info("Filters cleared.");
   };
 
   const openCategorySheet = (categoryKey: string, isLocked: boolean = false) => {
@@ -273,7 +413,9 @@ export default function FindMatchesPage() {
     setActionLoading(false);
 
     if (res && (res.success)) {
-      setProfiles(prev => prev.filter(p => (p.userId || p.UserId) !== receiverId));
+      const rId = Number(receiverId);
+      allCandidatesRef.current = allCandidatesRef.current.filter(p => Number(p.userId || p.UserId) !== rId);
+      setAllCandidates(prev => prev.filter(p => Number(p.userId || p.UserId) !== rId));
     } else {
       toast.error("Unable to update action. Please try again.");
     }
@@ -365,7 +507,7 @@ export default function FindMatchesPage() {
               Find Matches
             </h1>
             <span className="text-[11px] font-black bg-rose-50 text-[#d91b5c] px-2.5 py-0.5 rounded-full border border-rose-200/60">
-              {profiles.length} Profiles
+              {displayedProfiles.length} Profiles
             </span>
           </div>
 
@@ -386,7 +528,7 @@ export default function FindMatchesPage() {
           <div className="py-4">
             <ProfileCardSkeleton count={4} />
           </div>
-        ) : profiles.length === 0 ? (
+        ) : displayedProfiles.length === 0 ? (
           <div className="py-16 px-4 text-center max-w-md mx-auto space-y-4">
             <div className="w-16 h-16 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center text-[#d91b5c] mx-auto shadow-xs">
               <Users2 size={28} />
@@ -405,7 +547,7 @@ export default function FindMatchesPage() {
         ) : (
           <div className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {profiles.map((user) => {
+              {displayedProfiles.map((user) => {
                 const uId = user.userId || user.UserId;
                 return (
                   <ProfileCard
