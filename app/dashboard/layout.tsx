@@ -176,6 +176,25 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     return String(item?.id || item?.notificationId || item?.interactionId || `${item?.senderUserId || item?.userId}_${item?.type || 'msg'}_${item?.createdAt || ''}`);
   };
 
+  const getNotificationActivityRoute = (item: any, currentCat: string | null): string => {
+    const rawType = String(item?.type || item?.notificationType || item?.interactionType || item?.category || currentCat || '').toUpperCase();
+    const rawStatus = String(item?.status || item?.interactionStatus || '').toUpperCase();
+
+    if (rawType.includes('PHOTO') || rawType.includes('GALLERY') || rawType.includes('UNLOCK')) {
+      return '/dashboard/activity?cat=gallery&tab=gallery-requests-received';
+    }
+    if (rawType.includes('VISIT') || rawType.includes('VIEW') || rawType.includes('VISITOR')) {
+      return '/dashboard/activity?cat=visitors&tab=visitors';
+    }
+    if (rawType.includes('SHORTLIST')) {
+      return '/dashboard/activity?cat=shortlist&tab=shortlisted-me';
+    }
+    if (rawStatus === 'ACCEPTED' || rawType.includes('ACCEPTED')) {
+      return '/dashboard/activity?cat=interests&tab=accepted';
+    }
+    return '/dashboard/activity?cat=interests&tab=requests';
+  };
+
   const markNotificationAsRead = (notifId: string) => {
     if (!notifId) return;
     setReadNotificationIds((prev) => {
@@ -480,7 +499,12 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
                         return (
                           <div key={idx} className="p-4 bg-white rounded-2xl border-2 border-slate-200 shadow-xs flex items-center justify-between gap-3 hover:border-rose-300 transition-all">
-                            <div className="flex items-center gap-3 cursor-pointer" onClick={() => { markNotificationAsRead(getNotifId(item)); handleViewUserProfile(senderId); }}>
+                            <div className="flex items-center gap-3 cursor-pointer" onClick={() => { 
+                                const targetPath = getNotificationActivityRoute(item, selectedCategory);
+                                markNotificationAsRead(getNotifId(item));
+                                closeAll();
+                                router.push(targetPath);
+                              }}>
                               <img src={senderPhoto} alt={senderName} className="w-11 h-11 rounded-full object-cover border-2 border-rose-100 flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_FEMALE_AVATAR; }} />
                               <div>
                                 <h4 className="text-xs font-black text-slate-900 hover:text-[#d91b5c] line-clamp-1 uppercase">{senderName}</h4>
@@ -499,7 +523,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                               ) : selectedCategory === 'photo-requests' ? (
                                 <button onClick={() => { markNotificationAsRead(getNotifId(item)); handleNotificationAction(senderId, 'PHOTO_REQUEST', 'ACCEPTED'); }} className="px-3.5 py-1 rounded-full bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white text-[10px] font-black uppercase shadow-xs cursor-pointer hover:brightness-110 border border-rose-300/30">UNLOCK</button>
                               ) : (
-                                <button onClick={() => { markNotificationAsRead(getNotifId(item)); handleViewUserProfile(senderId); }} className="px-3.5 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-[#d91b5c] text-[10px] font-black uppercase border border-rose-200 cursor-pointer">VIEW</button>
+                                <button onClick={() => { 
+                                  const targetPath = getNotificationActivityRoute(item, selectedCategory);
+                                  markNotificationAsRead(getNotifId(item));
+                                  closeAll();
+                                  router.push(targetPath);
+                                }} className="px-3.5 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-[#d91b5c] text-[10px] font-black uppercase border border-rose-200 cursor-pointer">
+                                  VIEW
+                                </button>
                               )}
                             </div>
                           </div>

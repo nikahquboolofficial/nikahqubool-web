@@ -67,6 +67,9 @@ const resolveCatAndTab = (rawCatParam: string | null, rawTabParam: string | null
   return { cat, tab };
 };
 
+// ⚡ GLOBAL IN-MEMORY ACTIVITY FEED CACHE (0ms TAB SWITCHING, NO DATA LEAK BETWEEN TABS)
+const globalActivityFeedCache: Record<string, { profiles: any[]; counts: any; hasMore: boolean; timestamp: number }> = {};
+
 function ActivityPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -110,15 +113,20 @@ function ActivityPageContent() {
   }, [activeSubTab]);
 
   useEffect(() => {
-    const { cat: targetCat, tab: targetTab } = resolveCatAndTab(searchParams.get('cat'), searchParams.get('tab'));
-    if (targetCat !== activeCat) {
-      setActiveCat(targetCat);
+    const rawCat = searchParams.get('cat');
+    const rawTab = searchParams.get('tab');
+    if (rawCat || rawTab) {
+      const { cat: targetCat, tab: targetTab } = resolveCatAndTab(rawCat, rawTab);
+      setActiveCat((prev) => (prev !== targetCat ? targetCat : prev));
+      setActiveSubTab((prev) => {
+        if (prev !== targetTab) {
+          activeSubTabRef.current = targetTab;
+          return targetTab;
+        }
+        return prev;
+      });
     }
-    if (targetTab !== activeSubTab) {
-      setActiveSubTab(targetTab);
-      activeSubTabRef.current = targetTab;
-    }
-  }, [searchParams, activeCat, activeSubTab]);
+  }, [searchParams]);
 
   const loadActivityData = useCallback(async (tabName: string, pageNum: number, append: boolean = false) => {
     const token = getToken();
@@ -128,13 +136,14 @@ function ActivityPageContent() {
     }
 
     if (pageNum === 1) {
-      if (tabCacheRef.current[tabName]?.profiles?.length > 0) {
-        // ⚡ INSTANT 0ms RENDER FROM CACHE (Zero UI Lag / No Flash)
-        setProfiles(tabCacheRef.current[tabName].profiles);
-        if (tabCacheRef.current[tabName].counts) setTabCounts(tabCacheRef.current[tabName].counts);
-        setHasMore(tabCacheRef.current[tabName].hasMore);
+      if (globalActivityFeedCache[tabName]?.profiles?.length > 0) {
+        // ⚡ Frame 0 Instant render for this specific tab
+        setProfiles(globalActivityFeedCache[tabName].profiles);
+        if (globalActivityFeedCache[tabName].counts) setTabCounts(globalActivityFeedCache[tabName].counts);
+        setHasMore(globalActivityFeedCache[tabName].hasMore);
         setLoading(false);
       } else {
+        // 🛡️ STRICT ISOLATION: Instantly clear previous tab profiles to prevent data leaking
         setProfiles([]);
         setLoading(true);
       }
@@ -169,11 +178,13 @@ function ActivityPageContent() {
         } else {
           setProfiles(rawProfiles);
           // ⚡ SAVE TO INSTANT TAB CACHE
-          tabCacheRef.current[tabName] = {
+          globalActivityFeedCache[tabName] = {
             profiles: rawProfiles,
             counts: counts && Object.keys(counts).length > 0 ? counts : tabCounts,
-            hasMore: rawProfiles.length >= 12
+            hasMore: rawProfiles.length >= 12,
+            timestamp: Date.now()
           };
+          tabCacheRef.current[tabName] = globalActivityFeedCache[tabName];
         }
 
         if (counts && Object.keys(counts).length > 0) {
@@ -204,13 +215,17 @@ function ActivityPageContent() {
     setActiveCat(cat);
     setActiveSubTab(firstSubTab);
     activeSubTabRef.current = firstSubTab;
-    router.replace(`/dashboard/activity?cat=${cat}&tab=${firstSubTab}`, { scroll: false });
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, '', `/dashboard/activity?cat=${cat}&tab=${firstSubTab}`);
+    }
   };
 
   const handleSubTabChange = (subTabId: string) => {
     setActiveSubTab(subTabId);
     activeSubTabRef.current = subTabId;
-    router.replace(`/dashboard/activity?cat=${activeCat}&tab=${subTabId}`, { scroll: false });
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, '', `/dashboard/activity?cat=${activeCat}&tab=${subTabId}`);
+    }
   };
 
   const handleLoadMore = () => {
