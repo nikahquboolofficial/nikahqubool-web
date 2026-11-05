@@ -210,7 +210,8 @@ export default function MyProfilePage() {
 
   // Calculations
   const rawPhoto = profileData?.mainPhotoUrl || profileData?.photoUrl || profileData?.PhotoUrl || profileData?.mainPhoto || profileData?.photo;
-  const photo = rawPhoto ? getOptimizedImageUrl(rawPhoto, profileData?.userId || 1, profileData?.gender) : getStoredUserPhoto();
+  const hasRealPhoto = Boolean(rawPhoto && rawPhoto !== '/placeholder.png' && !String(rawPhoto).includes('default') && !String(rawPhoto).startsWith('data:image'));
+  const photo = hasRealPhoto ? getOptimizedImageUrl(rawPhoto, profileData?.userId || 1, profileData?.gender) : getStoredUserPhoto();
   const fullName = profileData?.fullName || 'Member Profile';
   const isVerified = Boolean(profileData?.isVerified ?? profileData?.IsVerified ?? false);
   
@@ -288,7 +289,7 @@ export default function MyProfilePage() {
           </span>
         </div>
 
-        {/* 🎴 MAIN PROFILE SUMMARY CARD (EXACT TARGET SCREENSHOT DESIGN) */}
+                {/* 🎴 MAIN PROFILE SUMMARY CARD (EXACT TARGET SCREENSHOT DESIGN) */}
         <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-slate-100 text-center space-y-4 relative overflow-hidden">
           
           {/* AVATAR WITH CIRCULAR COMPLETION RING & BADGE */}
@@ -319,11 +320,11 @@ export default function MyProfilePage() {
 
             {/* Photo inside Ring */}
             <div 
-              className="absolute inset-2 rounded-full overflow-hidden cursor-pointer group bg-slate-100 relative flex items-center justify-center"
+              className="absolute inset-2 rounded-full overflow-hidden cursor-pointer group bg-slate-100"
               onClick={() => router.push('/dashboard/gallery')}
               title="Click to view/change photos"
             >
-              {!isPhotoLoaded && (
+              {hasRealPhoto && !isPhotoLoaded && (
                 <div className="absolute inset-0 bg-slate-200 animate-pulse flex items-center justify-center z-10">
                   <Loader2 size={24} className="animate-spin text-slate-400" />
                 </div>
@@ -332,7 +333,7 @@ export default function MyProfilePage() {
                 src={photo} 
                 alt={fullName} 
                 onLoad={() => setIsPhotoLoaded(true)}
-                className={`w-full h-full object-cover object-top transition-all duration-300 group-hover:scale-105 ${isPhotoLoaded ? 'opacity-100' : 'opacity-0'}`}
+                className={`w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-105 ${hasRealPhoto && !isPhotoLoaded ? 'opacity-0' : 'opacity-100'}`}
                 onError={(e) => { 
                   (e.target as HTMLImageElement).src = DEFAULT_FEMALE_AVATAR;
                   setIsPhotoLoaded(true);
@@ -347,14 +348,14 @@ export default function MyProfilePage() {
                 e.stopPropagation();
                 router.push('/dashboard/gallery');
               }}
-              className="absolute top-1 right-1 w-7 h-7 rounded-full bg-white border border-rose-200 text-[#E21E5B] shadow-sm flex items-center justify-center hover:bg-rose-50 transition-all cursor-pointer"
+              className="absolute top-1 right-1 w-7 h-7 rounded-full bg-white border border-rose-200 text-[#E21E5B] shadow-sm flex items-center justify-center hover:bg-rose-50 transition-all cursor-pointer z-20"
               title="Manage Photos"
             >
               <Camera size={13} />
             </button>
 
             {/* Percentage Badge */}
-            <div className="absolute -bottom-1 inset-x-0 mx-auto w-fit px-3 py-0.5 rounded-full bg-[#E21E5B] text-white text-[11px] font-black shadow-sm border-2 border-white">
+            <div className="absolute -bottom-1 inset-x-0 mx-auto w-fit px-3 py-0.5 rounded-full bg-[#E21E5B] text-white text-[11px] font-black shadow-sm border-2 border-white z-20">
               {profileCompletion}%
             </div>
           </div>
@@ -407,23 +408,6 @@ export default function MyProfilePage() {
                 </>
               )}
             </p>
-          </div>
-
-          {/* PROMINENT ACTION BANNER */}
-          <div className="pt-2">
-            {isIncomplete ? (
-              <Link prefetch={true} href="/complete-profile"
-                className="w-full py-3.5 px-6 rounded-2xl bg-[#E21E5B] hover:bg-[#D1184F] text-white font-bold text-sm shadow-[0_4px_16px_rgba(226,30,91,0.3)] transition-all flex items-center justify-between cursor-pointer"
-              >
-                <span>Complete your profile</span>
-                <ChevronRight size={18} />
-              </Link>
-            ) : (
-              <div className="w-full py-3.5 px-6 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold text-xs sm:text-sm flex items-center justify-center gap-2">
-                <CheckCircle2 size={16} className="text-emerald-600" />
-                <span>Your profile is 100% complete & visible to matches ✨</span>
-              </div>
-            )}
           </div>
 
         </div>

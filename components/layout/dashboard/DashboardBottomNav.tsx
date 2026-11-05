@@ -172,22 +172,17 @@ export default function DashboardBottomNav({
           }`}
         >
           <div className="relative pointer-events-none">
-            <div className={`w-6 h-6 rounded-full overflow-hidden border transition-all relative flex items-center justify-center bg-slate-100 ${
+            <div className={`w-6 h-6 rounded-full overflow-hidden border transition-all ${
               isProfile ? 'border-[#e21e5b] ring-2 ring-[#e21e5b]/20 scale-105' : 'border-slate-300'
             }`}>
-              {!isPhotoLoaded && (
-                <div className="absolute inset-0 bg-slate-200 animate-pulse" />
-              )}
               <img 
                 src={userPhoto} 
                 alt="My Profile" 
-                onLoad={() => setIsPhotoLoaded(true)}
-                className={`w-full h-full object-cover object-top transition-opacity duration-200 ${isPhotoLoaded ? 'opacity-100' : 'opacity-0'}`}
+                className="w-full h-full object-cover object-top"
                 onError={(e) => { 
                   const target = e.target as HTMLImageElement;
                   target.onerror = null;
                   target.src = DEFAULT_FEMALE_AVATAR; 
-                  setIsPhotoLoaded(true);
                 }}
               />
             </div>

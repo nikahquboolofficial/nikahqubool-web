@@ -237,6 +237,27 @@ const compressPhoto = async (file: File): Promise<File> => {
 export default function CompleteProfilePage() {
   const router = useRouter();
 
+  // 🔒 DOUBLE GUARD: Completed Profile users can NEVER access complete-profile page
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const isDoneCookie = document.cookie.includes('is_profile_completed=1');
+      const isDoneLocal = localStorage.getItem('is_profile_completed') === '1';
+      let isDoneStored = false;
+      try {
+        const stored = localStorage.getItem('user_details') || localStorage.getItem('user_session');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const pRaw = parsed?.isProfileCompleted ?? parsed?.IsProfileCompleted ?? parsed?.data?.isProfileCompleted;
+          isDoneStored = (pRaw === true || pRaw === 1 || pRaw === "1" || pRaw === "true");
+        }
+      } catch (e) {}
+
+      if (isDoneCookie || isDoneLocal || isDoneStored) {
+        router.replace('/dashboard');
+      }
+    }
+  }, [router]);
+
   // Slide state: 1 to 17 (1 field per slide, except State & City together)
   const [step, setStep] = useState<number>(1);
   const totalSteps = 13;
