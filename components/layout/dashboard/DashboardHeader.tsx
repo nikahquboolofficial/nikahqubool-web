@@ -164,7 +164,7 @@ export default function DashboardHeader({
       
       {/* 👑 BRAND LOGO IMAGE */}
       <div className="flex items-center gap-3">
-        <Link prefetch={true} href="/dashboard" className="flex items-center gap-2 group">
+        <Link prefetch={false} href="/dashboard" className="flex items-center gap-2 group">
           <img
             src="/nikah-qubool-logo.png"
             alt="Nikah Qubool Logo"
@@ -175,7 +175,7 @@ export default function DashboardHeader({
 
       {/* DESKTOP NAVIGATION */}
       <nav className="hidden lg:flex items-center gap-3 h-full">
-        <Link prefetch={true} href="/dashboard" className={`text-xs font-black uppercase tracking-wider transition-all px-3.5 py-1.5 rounded-full ${
+        <Link prefetch={false} href="/dashboard" className={`text-xs font-black uppercase tracking-wider transition-all px-3.5 py-1.5 rounded-full ${
             pathname === '/dashboard' 
               ? 'bg-rose-50 text-[#d91b5c] border border-rose-200/80 shadow-xs' 
               : 'text-slate-600 hover:text-[#d91b5c] hover:bg-rose-50/50'
@@ -184,7 +184,7 @@ export default function DashboardHeader({
           Dashboard
         </Link>
 
-        <Link prefetch={true} href="/dashboard/activity" 
+        <Link prefetch={false} href="/dashboard/activity" 
           className={`text-xs font-black uppercase tracking-wider transition-all px-3.5 py-1.5 rounded-full flex items-center gap-1.5 ${
             pathname.startsWith('/dashboard/activity') 
               ? 'bg-rose-50 text-[#d91b5c] border border-rose-200/80 shadow-xs' 
@@ -194,7 +194,7 @@ export default function DashboardHeader({
           <HeartHandshake size={15} className="text-[#d91b5c]" /> Activity
         </Link>
 
-        <Link prefetch={true} href="/dashboard/find-match" 
+        <Link prefetch={false} href="/dashboard/find-match" 
           className={`text-xs font-black uppercase tracking-wider transition-all px-3.5 py-1.5 rounded-full ${
             pathname.startsWith('/dashboard/find-match') 
               ? 'bg-rose-50 text-[#d91b5c] border border-rose-200/80 shadow-xs' 
@@ -204,7 +204,7 @@ export default function DashboardHeader({
           Find Matches
         </Link>
 
-        <Link prefetch={true} href="/dashboard/messages" 
+        <Link prefetch={false} href="/dashboard/messages" 
           className={`text-xs font-black uppercase tracking-wider transition-all px-3.5 py-1.5 rounded-full flex items-center gap-1.5 ${
             pathname.startsWith('/dashboard/messages') 
               ? 'bg-rose-50 text-[#d91b5c] border border-rose-200/80 shadow-xs' 
@@ -214,7 +214,7 @@ export default function DashboardHeader({
           <MessageSquare size={15} className="text-[#d91b5c]" /> Messages
         </Link>
 
-        <Link prefetch={true} href="/dashboard/my-profile" 
+        <Link prefetch={false} href="/dashboard/my-profile" 
           className={`text-xs font-black uppercase tracking-wider transition-all px-3.5 py-1.5 rounded-full ${
             pathname.startsWith('/dashboard/my-profile') 
               ? 'bg-rose-50 text-[#d91b5c] border border-rose-200/80 shadow-xs' 
@@ -229,14 +229,14 @@ export default function DashboardHeader({
       <div className="flex items-center gap-3 sm:gap-4">
         
         {isPaid ? (
-          <Link prefetch={true} href="/dashboard/payment-info"
+          <Link prefetch={false} href="/dashboard/payment-info"
             className="hidden sm:inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:brightness-110 text-slate-950 px-4 py-2 rounded-full font-black text-xs shadow-[0_4px_14px_rgba(245,158,11,0.35)] transition-all transform hover:-translate-y-0.5 border border-amber-300"
           >
             <Crown size={15} className="text-slate-950 fill-slate-950" />
             <span className="uppercase">{planName || 'VIP Member'}</span>
           </Link>
         ) : (
-          <Link prefetch={true} href="/dashboard/membership"
+          <Link prefetch={false} href="/dashboard/membership"
             className="hidden sm:inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-500 via-rose-500 to-[#d91b5c] hover:brightness-110 text-white px-4 py-2 rounded-full font-black text-xs shadow-[0_4px_14px_rgba(217,27,92,0.25)] transition-all transform hover:-translate-y-0.5 border border-white/20"
           >
             <Crown size={15} className="text-amber-200 fill-amber-200 animate-pulse" />
@@ -278,7 +278,7 @@ export default function DashboardHeader({
 
         {/* USER PROFILE AVATAR DP (DESKTOP ONLY) */}
         <div className="relative group hidden md:flex">
-          <Link prefetch={true} href="/dashboard/my-profile" 
+          <Link prefetch={false} href="/dashboard/my-profile" 
             className="flex items-center gap-2.5 py-1 px-2.5 rounded-full bg-rose-50/60 hover:bg-rose-100/60 border border-rose-200/60 transition-all duration-200 shadow-xs"
           >
             <div className="relative w-9 h-9 rounded-full overflow-hidden border-2 border-[#d91b5c] shadow-xs bg-slate-100">

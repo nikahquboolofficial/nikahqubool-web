@@ -18,8 +18,13 @@ export default function DashboardBottomNav({
   unreadChatCount = 0 
 }: BottomNavProps) {
   const pathname = usePathname();
+  const [activeTabOverride, setActiveTabOverride] = useState<string | null>(null);
   const [userPhoto, setUserPhoto] = useState<string>(() => getStoredUserPhoto());
   const [isPhotoLoaded, setIsPhotoLoaded] = useState<boolean>(false);
+
+  useEffect(() => {
+    setActiveTabOverride(null);
+  }, [pathname]);
 
   useEffect(() => {
     const updatePhotoFromStorage = () => {
@@ -46,11 +51,11 @@ export default function DashboardBottomNav({
     }
   }, []);
 
-  const isHome = pathname === '/dashboard';
-  const isActivity = pathname.startsWith('/dashboard/activity');
-  const isSearch = pathname.startsWith('/dashboard/find-match');
-  const isChat = pathname.startsWith('/dashboard/messages');
-  const isProfile = pathname.startsWith('/dashboard/my-profile') || pathname.startsWith('/dashboard/edit-profile');
+  const isHome = activeTabOverride ? activeTabOverride === 'home' : pathname === '/dashboard';
+  const isActivity = activeTabOverride ? activeTabOverride === 'activity' : pathname.startsWith('/dashboard/activity');
+  const isSearch = activeTabOverride ? activeTabOverride === 'search' : pathname.startsWith('/dashboard/find-match');
+  const isChat = activeTabOverride ? activeTabOverride === 'chat' : pathname.startsWith('/dashboard/messages');
+  const isProfile = activeTabOverride ? activeTabOverride === 'profile' : (pathname.startsWith('/dashboard/my-profile') || pathname.startsWith('/dashboard/edit-profile'));
 
   const recordBrowseLocation = (url: string) => {
     if (typeof window !== "undefined") {
@@ -65,8 +70,11 @@ export default function DashboardBottomNav({
         {/* 1. HOME */}
         <Link 
           href="/dashboard"
-          prefetch={true}
-          onClick={() => recordBrowseLocation('/dashboard')}
+          prefetch={false}
+          onClick={() => {
+            setActiveTabOverride('home');
+            recordBrowseLocation('/dashboard');
+          }}
           className={`touch-manipulation select-none active:scale-90 transition-transform duration-100 flex flex-col items-center justify-center py-1 cursor-pointer ${
             isHome 
               ? 'text-[#e21e5b]' 
@@ -87,8 +95,11 @@ export default function DashboardBottomNav({
         {/* 2. ACTIVITY */}
         <Link 
           href="/dashboard/activity" 
-          prefetch={true}
-          onClick={() => recordBrowseLocation('/dashboard/activity')}
+          prefetch={false}
+          onClick={() => {
+            setActiveTabOverride('activity');
+            recordBrowseLocation('/dashboard/activity');
+          }}
           className={`touch-manipulation select-none active:scale-90 transition-transform duration-100 relative flex flex-col items-center justify-center py-1 cursor-pointer ${
             isActivity 
               ? 'text-[#e21e5b]' 
@@ -114,8 +125,11 @@ export default function DashboardBottomNav({
         {/* 3. SEARCH */}
         <Link 
           href="/dashboard/find-match" 
-          prefetch={true}
-          onClick={() => recordBrowseLocation('/dashboard/find-match')}
+          prefetch={false}
+          onClick={() => {
+            setActiveTabOverride('search');
+            recordBrowseLocation('/dashboard/find-match');
+          }}
           className={`touch-manipulation select-none active:scale-90 transition-transform duration-100 flex flex-col items-center justify-center py-1 cursor-pointer ${
             isSearch 
               ? 'text-[#e21e5b]' 
@@ -136,8 +150,11 @@ export default function DashboardBottomNav({
         {/* 4. CHAT */}
         <Link 
           href="/dashboard/messages" 
-          prefetch={true}
-          onClick={() => recordBrowseLocation('/dashboard/messages')}
+          prefetch={false}
+          onClick={() => {
+            setActiveTabOverride('chat');
+            recordBrowseLocation('/dashboard/messages');
+          }}
           className={`touch-manipulation select-none active:scale-90 transition-transform duration-100 relative flex flex-col items-center justify-center py-1 cursor-pointer ${
             isChat 
               ? 'text-[#e21e5b]' 
@@ -163,8 +180,11 @@ export default function DashboardBottomNav({
         {/* 5. PROFILE */}
         <Link 
           href="/dashboard/my-profile" 
-          prefetch={true}
-          onClick={() => recordBrowseLocation('/dashboard/my-profile')}
+          prefetch={false}
+          onClick={() => {
+            setActiveTabOverride('profile');
+            recordBrowseLocation('/dashboard/my-profile');
+          }}
           className={`touch-manipulation select-none active:scale-90 transition-transform duration-100 flex flex-col items-center justify-center py-1 cursor-pointer ${
             isProfile 
               ? 'text-[#e21e5b]' 

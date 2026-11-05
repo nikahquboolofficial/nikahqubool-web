@@ -162,10 +162,10 @@ export default function ProfileCard({
     >
       {/* 🖼️ CARD MEDIA CONTAINER */}
       <div className="relative w-full h-[530px] sm:h-[500px] md:h-[515px] overflow-hidden select-none">
-        {/* 🔗 FULL CARD LINK (Prefetches and opens profile in 0ms on click) */}
+        {/* 🔗 FULL CARD LINK (Opens profile with TopLoader progress bar) */}
         <Link 
           href={`/dashboard/profile?userId=${userIdNum}`}
-          prefetch={true}
+          prefetch={false}
           onClick={() => onViewProfile(userIdNum)}
           className="absolute inset-0 z-10 block cursor-pointer touch-manipulation select-none active:brightness-95 transition-all duration-75"
           aria-label={`View profile of ${displayName}`}

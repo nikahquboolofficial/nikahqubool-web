@@ -402,7 +402,7 @@ export default function MyProfilePage() {
                 <>
                   <span className="text-slate-500 font-medium">Free Member</span>
                   <span className="text-slate-300">•</span>
-                  <Link prefetch={true} href="/dashboard/membership" className="text-[#E21E5B] font-bold hover:underline">
+                  <Link prefetch={false} href="/dashboard/membership" className="text-[#E21E5B] font-bold hover:underline">
                     Upgrade to VIP
                   </Link>
                 </>
@@ -413,7 +413,7 @@ export default function MyProfilePage() {
         </div>
 
         {/* 👑 SECOND CARD: UPGRADE BANNER (MATCHING TARGET SCREENSHOT) */}
-        <Link prefetch={true} href="/dashboard/membership"
+        <Link prefetch={false} href="/dashboard/membership"
           className="bg-[#FFFBF2] hover:bg-[#FFF7E6] border border-[#FDE68A] rounded-2xl p-4 sm:p-4.5 flex items-center justify-between text-slate-900 transition-all shadow-xs group cursor-pointer block"
         >
           <div className="flex items-center gap-3">
@@ -431,7 +431,7 @@ export default function MyProfilePage() {
         <div className="bg-white rounded-3xl shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-slate-100 overflow-hidden divide-y divide-slate-100">
           
           {/* 1. Edit my profile */}
-          <Link prefetch={true} href="/dashboard/edit-profile"
+          <Link prefetch={false} href="/dashboard/edit-profile"
             className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer"
           >
             <div className="flex items-center gap-3.5">
@@ -482,7 +482,7 @@ export default function MyProfilePage() {
           </button>
 
           {/* 4. Payment Info */}
-          <Link prefetch={true} href="/dashboard/payment-info"
+          <Link prefetch={false} href="/dashboard/payment-info"
             className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer"
           >
             <div className="flex items-center gap-3.5">
@@ -493,7 +493,7 @@ export default function MyProfilePage() {
           </Link>
 
           {/* 5. Explore Plans */}
-          <Link prefetch={true} href="/dashboard/membership"
+          <Link prefetch={false} href="/dashboard/membership"
             className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer"
           >
             <div className="flex items-center gap-3.5">
@@ -504,7 +504,7 @@ export default function MyProfilePage() {
           </Link>
 
           {/* 6. Help & Support */}
-          <Link prefetch={true} href="/dashboard/support"
+          <Link prefetch={false} href="/dashboard/support"
             className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer"
           >
             <div className="flex items-center gap-3.5">
@@ -515,7 +515,7 @@ export default function MyProfilePage() {
           </Link>
 
           {/* 7. Account Settings */}
-          <Link prefetch={true} href="/dashboard/settings"
+          <Link prefetch={false} href="/dashboard/settings"
             className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer"
           >
             <div className="flex items-center gap-3.5">
