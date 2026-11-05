@@ -182,7 +182,8 @@ export default function ChatWindow({
         const d = new Date(num < 10000000000 ? num * 1000 : num);
         if (!isNaN(d.getTime())) return d;
       }
-      str = str.replace(' ', 'T');
+      // 🛡️ Strip trailing Z and +00:00 because SQL Server stores local Indian Standard Time (IST)
+      str = str.replace(/z$/i, '').replace(/\+00:?00$/, '').replace(' ', 'T');
       const d = new Date(str);
       return isNaN(d.getTime()) ? new Date() : d;
     } catch {
@@ -424,7 +425,8 @@ export default function ChatWindow({
     sendTyping(Number(receiverId), false);
 
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    const nowIso = new Date().toISOString();
+    const nowD = new Date();
+    const nowIso = `${nowD.getFullYear()}-${String(nowD.getMonth() + 1).padStart(2, '0')}-${String(nowD.getDate()).padStart(2, '0')}T${String(nowD.getHours()).padStart(2, '0')}:${String(nowD.getMinutes()).padStart(2, '0')}:${String(nowD.getSeconds()).padStart(2, '0')}`;
     const optimisticMsg = {
       uniqueKey: tempId,
       messageId: tempId,

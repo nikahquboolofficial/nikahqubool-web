@@ -58,6 +58,15 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [notificationsList, setNotificationsList] = useState<any[]>([]);
   const [readKeys, setReadKeys] = useState<{ [key: string]: boolean }>({});
+  const [readNotificationIds, setReadNotificationIds] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("read_notification_ids");
+        return saved ? JSON.parse(saved) : [];
+      } catch (e) {}
+    }
+    return [];
+  });
   const [unreadChatCount, setUnreadChatCount] = useState<number>(0);
 
   // 💬 REAL UNREAD CHAT COUNT TRACKER
@@ -163,6 +172,35 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     } catch (e) {}
   }, []);
 
+  const getNotifId = (item: any): string => {
+    return String(item?.id || item?.notificationId || item?.interactionId || `${item?.senderUserId || item?.userId}_${item?.type || 'msg'}_${item?.createdAt || ''}`);
+  };
+
+  const markNotificationAsRead = (notifId: string) => {
+    if (!notifId) return;
+    setReadNotificationIds((prev) => {
+      if (prev.includes(notifId)) return prev;
+      const updated = [...prev, notifId];
+      try { localStorage.setItem("read_notification_ids", JSON.stringify(updated)); } catch (e) {}
+      return updated;
+    });
+  };
+
+  const markAllNotificationsAsRead = () => {
+    const allIds = notificationsList.map(getNotifId);
+    setReadNotificationIds((prev) => {
+      const merged = Array.from(new Set([...prev, ...allIds]));
+      try { localStorage.setItem("read_notification_ids", JSON.stringify(merged)); } catch (e) {}
+      return merged;
+    });
+    setReadKeys({
+      'interests-requests': true,
+      'interests-accepted': true,
+      'photo-requests': true,
+      'other-visitors': true
+    });
+  };
+
   const markKeyAsRead = (key: string) => {
     setReadKeys((prev) => {
       const updated = { ...prev };
@@ -261,9 +299,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   const activeCategoryObj = categoriesList.find((c) => c.key === selectedCategory);
 
+  const activeNotifications = useMemo(() => {
+    return notificationsList.filter(item => !readNotificationIds.includes(getNotifId(item)));
+  }, [notificationsList, readNotificationIds]);
+
   const filteredNotifications = useMemo(() => {
-    if (!selectedCategory) return notificationsList;
-    const matches = notificationsList.filter((item) => {
+    if (!selectedCategory) return activeNotifications;
+    return activeNotifications.filter((item) => {
       if (item.category === selectedCategory || item.key === selectedCategory || item.type === selectedCategory) return true;
       const itemType = String(item.type || item.notificationType || item.interactionType || item.category || '').toUpperCase();
       const itemStatus = String(item.status || item.interactionStatus || '').toUpperCase();
@@ -276,14 +318,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       if (selectedCategory === 'other-visitors') return itemType.includes('VIEW') || itemType.includes('VISIT');
       return true;
     });
-    return matches.length > 0 ? matches : notificationsList;
-  }, [selectedCategory, notificationsList]);
+  }, [selectedCategory, activeNotifications]);
 
   // TOTAL UNREAD NOTIFICATIONS COUNT ACROSS ALL CATEGORIES
-  const unreadTotal = (readKeys['interests-requests'] ? 0 : counts.requestsCount) 
+  const rawTotal = (readKeys['interests-requests'] ? 0 : counts.requestsCount) 
     + (readKeys['interests-accepted'] ? 0 : counts.acceptedCount) 
     + (readKeys['photo-requests'] ? 0 : counts.photosCount)
     + (readKeys['other-visitors'] ? 0 : counts.visitorsCount);
+  const unreadTotal = Math.max(0, rawTotal - readNotificationIds.length);
 
   return (
     <div className="min-h-screen bg-[#FAF8F5] flex flex-col font-sans text-slate-900 selection:bg-[#d91b5c] selection:text-white">
@@ -366,9 +408,20 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                     </p>
                   </div>
                 </div>
-                <button onClick={closeAll} className="p-1.5 hover:bg-white/20 rounded-full text-white transition-colors cursor-pointer">
-                  <X size={20}/>
-                </button>
+                <div className="flex items-center gap-2">
+                  {unreadTotal > 0 && (
+                    <button 
+                      onClick={markAllNotificationsAsRead}
+                      className="px-2.5 py-1 rounded-full bg-white/20 hover:bg-white/30 text-[10px] font-bold text-white transition-all cursor-pointer"
+                      title="Mark all as read"
+                    >
+                      Clear all
+                    </button>
+                  )}
+                  <button onClick={closeAll} className="p-1.5 hover:bg-white/20 rounded-full text-white transition-colors cursor-pointer">
+                    <X size={20}/>
+                  </button>
+                </div>
               </div>
 
               {!selectedCategory ? (
@@ -427,7 +480,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
                         return (
                           <div key={idx} className="p-4 bg-white rounded-2xl border-2 border-slate-200 shadow-xs flex items-center justify-between gap-3 hover:border-rose-300 transition-all">
-                            <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleViewUserProfile(senderId)}>
+                            <div className="flex items-center gap-3 cursor-pointer" onClick={() => { markNotificationAsRead(getNotifId(item)); handleViewUserProfile(senderId); }}>
                               <img src={senderPhoto} alt={senderName} className="w-11 h-11 rounded-full object-cover border-2 border-rose-100 flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_FEMALE_AVATAR; }} />
                               <div>
                                 <h4 className="text-xs font-black text-slate-900 hover:text-[#d91b5c] line-clamp-1 uppercase">{senderName}</h4>
@@ -440,13 +493,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                             <div className="flex items-center gap-1.5 flex-shrink-0">
                               {selectedCategory === 'interests-requests' ? (
                                 <>
-                                  <button onClick={() => handleNotificationAction(senderId, 'INTEREST', 'ACCEPTED')} className="px-3 py-1 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase shadow-xs transition-all cursor-pointer">ACCEPT</button>
-                                  <button onClick={() => handleNotificationAction(senderId, 'INTEREST', 'DECLINED')} className="px-3 py-1 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black uppercase shadow-xs transition-all cursor-pointer">REJECT</button>
+                                  <button onClick={() => { markNotificationAsRead(getNotifId(item)); handleNotificationAction(senderId, 'INTEREST', 'ACCEPTED'); }} className="px-3 py-1 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase shadow-xs transition-all cursor-pointer">ACCEPT</button>
+                                  <button onClick={() => { markNotificationAsRead(getNotifId(item)); handleNotificationAction(senderId, 'INTEREST', 'DECLINED'); }} className="px-3 py-1 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black uppercase shadow-xs transition-all cursor-pointer">REJECT</button>
                                 </>
                               ) : selectedCategory === 'photo-requests' ? (
-                                <button onClick={() => handleNotificationAction(senderId, 'PHOTO_REQUEST', 'ACCEPTED')} className="px-3.5 py-1 rounded-full bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white text-[10px] font-black uppercase shadow-xs cursor-pointer hover:brightness-110 border border-rose-300/30">UNLOCK</button>
+                                <button onClick={() => { markNotificationAsRead(getNotifId(item)); handleNotificationAction(senderId, 'PHOTO_REQUEST', 'ACCEPTED'); }} className="px-3.5 py-1 rounded-full bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white text-[10px] font-black uppercase shadow-xs cursor-pointer hover:brightness-110 border border-rose-300/30">UNLOCK</button>
                               ) : (
-                                <button onClick={() => handleViewUserProfile(senderId)} className="px-3.5 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-[#d91b5c] text-[10px] font-black uppercase border border-rose-200 cursor-pointer">VIEW</button>
+                                <button onClick={() => { markNotificationAsRead(getNotifId(item)); handleViewUserProfile(senderId); }} className="px-3.5 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-[#d91b5c] text-[10px] font-black uppercase border border-rose-200 cursor-pointer">VIEW</button>
                               )}
                             </div>
                           </div>

@@ -69,7 +69,8 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
         const d = new Date(num < 10000000000 ? num * 1000 : num);
         if (!isNaN(d.getTime())) return d;
       }
-      str = str.replace(' ', 'T');
+      // 🛡️ Strip trailing Z and +00:00 because SQL Server stores local Indian Standard Time (IST)
+      str = str.replace(/z$/i, '').replace(/\+00:?00$/, '').replace(' ', 'T');
       const d = new Date(str);
       return isNaN(d.getTime()) ? new Date() : d;
     } catch {
