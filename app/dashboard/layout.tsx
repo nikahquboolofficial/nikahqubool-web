@@ -513,13 +513,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <SignalRProvider>
-      <Suspense fallback={
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center text-[#d91b5c] font-black text-xs uppercase tracking-widest">
-          Loading Dashboard...
-        </div>
-      }>
-        <DashboardLayoutContent>{children}</DashboardLayoutContent>
-      </Suspense>
+      <DashboardLayoutContent>
+        <Suspense fallback={null}>
+          {children}
+        </Suspense>
+      </DashboardLayoutContent>
     </SignalRProvider>
   );
 }

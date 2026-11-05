@@ -703,7 +703,7 @@ export default function ProfileDetailPage() {
   }
 
   const outsideCardPhoto = useMemo(() => {
-    return profileData?.mainPhotoUrl || profileData?.MainPhotoUrl || 
+    return profileData?.outsideCardPhoto || profileData?.mainPhotoUrl || profileData?.MainPhotoUrl || 
            profileData?.photoUrl || profileData?.PhotoUrl || 
            profileData?.mainPhoto || profileData?.MainPhoto || 
            profileData?.profilePhoto || profileData?.ProfilePhoto || 
@@ -714,35 +714,19 @@ export default function ProfileDetailPage() {
     let list: any[] = Array.isArray(gallery) && gallery.length > 0 ? [...gallery] : [];
 
     const getUrl = (item: any) => item?.photoUrl || item?.PhotoUrl || item?.url || item?.Url || '';
+    const cleanUrl = (u: string) => (u || '').split('?')[0].replace(/^https?:\/\/[^\/]+\//, '').replace(/^\/+/, '').toLowerCase();
 
-    if (list.length > 0) {
-      list.sort((a: any, b: any) => {
-        const urlA = getUrl(a);
-        const urlB = getUrl(b);
-        const aIsOutside = Boolean(outsideCardPhoto && urlA && (urlA === outsideCardPhoto || urlA.endsWith(outsideCardPhoto) || outsideCardPhoto.endsWith(urlA)));
-        const bIsOutside = Boolean(outsideCardPhoto && urlB && (urlB === outsideCardPhoto || urlB.endsWith(outsideCardPhoto) || outsideCardPhoto.endsWith(urlB)));
-        if (aIsOutside && !bIsOutside) return -1;
-        if (!aIsOutside && bIsOutside) return 1;
+    const targetUrl = cleanUrl(outsideCardPhoto || '');
 
-        const aMain = Boolean(a.isMain ?? a.IsMain);
-        const bMain = Boolean(b.isMain ?? b.IsMain);
-        if (aMain && !bMain) return -1;
-        if (!aMain && bMain) return 1;
-        return 0;
-      });
-
-      if (outsideCardPhoto) {
-        const exists = list.some((item) => {
-          const u = getUrl(item);
-          return u === outsideCardPhoto || (u && (u.endsWith(outsideCardPhoto) || outsideCardPhoto.endsWith(u)));
-        });
-        if (!exists) {
-          list.unshift({ photoUrl: outsideCardPhoto, isMain: true });
-        }
+    if (targetUrl) {
+      const matchIndex = list.findIndex(item => cleanUrl(getUrl(item)) === targetUrl);
+      if (matchIndex > -1) {
+        const [matched] = list.splice(matchIndex, 1);
+        list.unshift(matched);
+      } else {
+        list.unshift({ photoUrl: outsideCardPhoto, isMain: true });
       }
-    } else if (outsideCardPhoto) {
-      list = [{ photoUrl: outsideCardPhoto, isMain: true }];
-    } else {
+    } else if (list.length === 0) {
       list = [{ photoUrl: DEFAULT_FEMALE_AVATAR, isMain: true }];
     }
 

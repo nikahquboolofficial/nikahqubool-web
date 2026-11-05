@@ -31,6 +31,7 @@ export default function DashboardHeader({
   const router = useRouter();
 
   const [userPhoto, setUserPhoto] = useState<string>(() => getStoredUserPhoto());
+  const [isPhotoLoaded, setIsPhotoLoaded] = useState<boolean>(false);
   const [userName, setUserName] = useState<string>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -281,16 +282,23 @@ export default function DashboardHeader({
             className="flex items-center gap-2.5 py-1 px-2.5 rounded-full bg-rose-50/60 hover:bg-rose-100/60 border border-rose-200/60 transition-all duration-200 shadow-xs"
           >
             <div className="relative w-9 h-9 rounded-full overflow-hidden border-2 border-[#d91b5c] shadow-xs bg-slate-100">
-              <img 
-                src={userPhoto} 
-                alt={userName} 
-                className="w-full h-full object-cover object-top"
-                onError={(e) => { 
-                  const target = e.target as HTMLImageElement;
-                  target.onerror = null;
-                  target.src = DEFAULT_FEMALE_AVATAR;
-                }}
-              />
+              <div className="w-full h-full relative flex items-center justify-center bg-slate-100">
+                {!isPhotoLoaded && (
+                  <div className="absolute inset-0 bg-slate-200 animate-pulse" />
+                )}
+                <img 
+                  src={userPhoto} 
+                  alt={userName} 
+                  onLoad={() => setIsPhotoLoaded(true)}
+                  className={`w-full h-full object-cover object-top transition-opacity duration-200 ${isPhotoLoaded ? 'opacity-100' : 'opacity-0'}`}
+                  onError={(e) => { 
+                    const target = e.target as HTMLImageElement;
+                    target.onerror = null;
+                    target.src = DEFAULT_FEMALE_AVATAR; 
+                    setIsPhotoLoaded(true);
+                  }}
+                />
+              </div>
             </div>
             <div className="hidden md:block text-left">
               <div className="flex items-center gap-1">

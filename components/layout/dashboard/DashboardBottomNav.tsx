@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Sparkles, Search, MessageCircle, User } from 'lucide-react';
+import { Loader2, Home, Sparkles, Search, MessageCircle, User } from 'lucide-react';
 import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
 import { getStoredUserPhoto } from '@/lib/auth';
 
@@ -19,6 +19,7 @@ export default function DashboardBottomNav({
 }: BottomNavProps) {
   const pathname = usePathname();
   const [userPhoto, setUserPhoto] = useState<string>(() => getStoredUserPhoto());
+  const [isPhotoLoaded, setIsPhotoLoaded] = useState<boolean>(false);
 
   useEffect(() => {
     const updatePhotoFromStorage = () => {
@@ -171,17 +172,22 @@ export default function DashboardBottomNav({
           }`}
         >
           <div className="relative pointer-events-none">
-            <div className={`w-6 h-6 rounded-full overflow-hidden border transition-all ${
+            <div className={`w-6 h-6 rounded-full overflow-hidden border transition-all relative flex items-center justify-center bg-slate-100 ${
               isProfile ? 'border-[#e21e5b] ring-2 ring-[#e21e5b]/20 scale-105' : 'border-slate-300'
             }`}>
+              {!isPhotoLoaded && (
+                <div className="absolute inset-0 bg-slate-200 animate-pulse" />
+              )}
               <img 
                 src={userPhoto} 
                 alt="My Profile" 
-                className="w-full h-full object-cover object-top"
+                onLoad={() => setIsPhotoLoaded(true)}
+                className={`w-full h-full object-cover object-top transition-opacity duration-200 ${isPhotoLoaded ? 'opacity-100' : 'opacity-0'}`}
                 onError={(e) => { 
                   const target = e.target as HTMLImageElement;
                   target.onerror = null;
                   target.src = DEFAULT_FEMALE_AVATAR; 
+                  setIsPhotoLoaded(true);
                 }}
               />
             </div>

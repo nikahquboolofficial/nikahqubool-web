@@ -84,6 +84,7 @@ export default function MyProfilePage() {
   });
   const [activePlan, setActivePlan] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [isPhotoLoaded, setIsPhotoLoaded] = useState<boolean>(false);
   const [isVerificationOpen, setIsVerificationOpen] = useState(false);
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
   const [selectedPrivacy, setSelectedPrivacy] = useState<string>('All Members');
@@ -153,7 +154,7 @@ export default function MyProfilePage() {
     } finally {
       setLoading(false);
     }
-  }, [getToken, router, profileData]);
+  }, [getToken, router]);
 
   useEffect(() => {
     loadMyProfile();
@@ -318,15 +319,24 @@ export default function MyProfilePage() {
 
             {/* Photo inside Ring */}
             <div 
-              className="absolute inset-2 rounded-full overflow-hidden cursor-pointer group bg-slate-100"
+              className="absolute inset-2 rounded-full overflow-hidden cursor-pointer group bg-slate-100 relative flex items-center justify-center"
               onClick={() => router.push('/dashboard/gallery')}
               title="Click to view/change photos"
             >
+              {!isPhotoLoaded && (
+                <div className="absolute inset-0 bg-slate-200 animate-pulse flex items-center justify-center z-10">
+                  <Loader2 size={24} className="animate-spin text-slate-400" />
+                </div>
+              )}
               <img 
                 src={photo} 
                 alt={fullName} 
-                className="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-105"
-                onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_FEMALE_AVATAR; }}
+                onLoad={() => setIsPhotoLoaded(true)}
+                className={`w-full h-full object-cover object-top transition-all duration-300 group-hover:scale-105 ${isPhotoLoaded ? 'opacity-100' : 'opacity-0'}`}
+                onError={(e) => { 
+                  (e.target as HTMLImageElement).src = DEFAULT_FEMALE_AVATAR;
+                  setIsPhotoLoaded(true);
+                }}
               />
             </div>
 

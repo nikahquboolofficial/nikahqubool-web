@@ -1,5 +1,7 @@
 "use client";
 
+import Link from 'next/link';
+
 import { getClientSubscriptionStatus } from '@/lib/subscriptionUtils';
 import React, { useState } from 'react';
 import { 
@@ -32,6 +34,7 @@ export default function ProfileCard({
 }: ProfileCardProps) {
   const { onlineUsers } = useSignalR();
   const [localHearts, setLocalHearts] = useState<{ id: number; x: number }[]>([]);
+  const [isImgLoaded, setIsImgLoaded] = useState<boolean>(false);
 
   const userIdNum = Number(profile.userId || profile.UserId || 0);
   const presence = onlineUsers[userIdNum];
@@ -158,25 +161,34 @@ export default function ProfileCard({
       style={{ scrollSnapAlign: 'center', scrollSnapStop: 'always' }}
     >
       {/* 🖼️ CARD MEDIA CONTAINER */}
-      <div 
-        className="relative w-full h-[530px] sm:h-[500px] md:h-[515px] overflow-hidden cursor-pointer touch-manipulation select-none active:brightness-95 transition-all duration-75" 
-        onClick={(e) => {
-          e.stopPropagation();
-          onViewProfile(userIdNum);
-        }}
-      >
-        {/* PHOTO */}
+      <div className="relative w-full h-[530px] sm:h-[500px] md:h-[515px] overflow-hidden select-none">
+        {/* 🔗 FULL CARD LINK (Prefetches and opens profile in 0ms on click) */}
+        <Link 
+          href={`/dashboard/profile?userId=${userIdNum}`}
+          prefetch={true}
+          onClick={() => onViewProfile(userIdNum)}
+          className="absolute inset-0 z-10 block cursor-pointer touch-manipulation select-none active:brightness-95 transition-all duration-75"
+          aria-label={`View profile of ${displayName}`}
+        />
+        {/* PHOTO & SKELETON LOADER */}
+        {!isImgLoaded && (
+          <div className="absolute inset-0 bg-slate-900 animate-pulse flex items-center justify-center z-0">
+            <Loader2 size={32} className="animate-spin text-slate-600" />
+          </div>
+        )}
         <img 
           src={photo} 
           alt={displayName}
-          className={`w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-[1.03] ${
-            isPhotoHidden ? 'blur-2xl scale-110 opacity-75' : 'opacity-100'
-          }`}
+          onLoad={() => setIsImgLoaded(true)}
+          className={`w-full h-full object-cover object-top transition-all duration-300 group-hover:scale-[1.03] ${
+            isImgLoaded ? 'opacity-100' : 'opacity-0'
+          } ${isPhotoHidden ? 'blur-2xl scale-110 opacity-75' : ''}`}
           onError={(e) => { 
-            const fallback = getFallbackPhoto(userIdNum, profile.gender || profile.Gender);
+            const fallback = DEFAULT_MALE_AVATAR;
             if ((e.target as HTMLImageElement).src !== fallback) {
               (e.target as HTMLImageElement).src = fallback;
             }
+            setIsImgLoaded(true);
           }} 
         />
 
@@ -270,8 +282,8 @@ export default function ProfileCard({
 
           {/* 🔘 EXACT NIKAH FOREVER 3-BUTTON CIRCULAR ACTION DECK */}
           <div 
-            className="pt-1 flex items-center justify-center gap-6 sm:gap-8"
-            onClick={(e) => e.stopPropagation()}
+            className="pt-1 flex items-center justify-center gap-6 sm:gap-8 z-30 relative pointer-events-auto"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
           >
             
             {/* INCOMING INTEREST PROPOSAL DECK: DECLINE / ACCEPT */}

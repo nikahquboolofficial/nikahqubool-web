@@ -70,9 +70,6 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
         if (!isNaN(d.getTime())) return d;
       }
       str = str.replace(' ', 'T');
-      if (!str.endsWith('Z') && !str.endsWith('z') && !/[+-]\d{2}:?\d{2}$/.test(str)) {
-        str += 'Z';
-      }
       const d = new Date(str);
       return isNaN(d.getTime()) ? new Date() : d;
     } catch {

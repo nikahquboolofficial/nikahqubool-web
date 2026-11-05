@@ -39,6 +39,9 @@ interface FlyingHeart {
   y: number;
 }
 
+// ⚡ GLOBAL IN-MEMORY ACTIVITY CACHE (0MS TAB SWITCHING, NO SHIMMER SKELETONS)
+const globalActivityCache: Record<string, { profiles: any[], totalRecords: number, hasMore: boolean, timestamp: number }> = {};
+
 export default function ActivityTabContent({ 
   activeTab, 
   title, 
@@ -46,13 +49,13 @@ export default function ActivityTabContent({
   iconName 
 }: ActivityTabContentProps) {
   const router = useRouter();
-  const [profiles, setProfiles] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<any[]>(() => globalActivityCache[activeTab]?.profiles || []);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(() => !globalActivityCache[activeTab]);
   const [fetchingMore, setFetchingMore] = useState(false);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
-  const [totalRecords, setTotalRecords] = useState(0);
+  const [totalRecords, setTotalRecords] = useState<number>(() => globalActivityCache[activeTab]?.totalRecords || 0);
   const [actionState, setActionState] = useState<{ [key: number]: boolean }>({});
   const [actionTypeState, setActionTypeState] = useState<{ [key: number]: string | null }>({});
   
@@ -81,8 +84,18 @@ export default function ActivityTabContent({
       return;
     }
 
-    if (pageNum === 1) setLoading(true);
-    else setFetchingMore(true);
+    if (pageNum === 1 && globalActivityCache[activeTab]) {
+      const cached = globalActivityCache[activeTab];
+      setProfiles(cached.profiles);
+      setTotalRecords(cached.totalRecords);
+      setHasMore(cached.hasMore);
+      setLoading(false);
+      if (Date.now() - cached.timestamp < 60000) return;
+    } else if (pageNum === 1) {
+      if (!globalActivityCache[activeTab]) setLoading(true);
+    } else {
+      setFetchingMore(true);
+    }
 
     try {
       const res = await fetchDashboardApi(activeTab, pageNum, token);

@@ -42,25 +42,36 @@ export const getAuthToken = (): string | null => {
 
 export const setAuthCookies = (result: any) => {
   if (!result) return;
-  const token = result?.token ?? result?.Token;
+  const rawData = result?.data ?? result?.Data ?? result;
+  const token = result?.token ?? result?.Token ?? rawData?.token ?? rawData?.Token;
   if (!token) return;
 
   const days = 14;
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
-  const isCompletedRaw = result?.isProfileCompleted ?? result?.IsProfileCompleted;
+  const isCompletedRaw = rawData?.isProfileCompleted ?? rawData?.IsProfileCompleted ?? result?.isProfileCompleted ?? result?.IsProfileCompleted;
   const isCompleted = (isCompletedRaw === true || isCompletedRaw === 1 || isCompletedRaw === "1" || isCompletedRaw === "true");
   const profileCompletedVal = isCompleted ? '1' : '0';
 
   const isSecure = typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : "";
 
-  // 🛡️ Wipe old conflicting session & profile cache to ensure clean login for new/switched account
+  // 🛡️ Completely wipe all old conflicting session, profile & user cache to ensure 100% clean account switch
   if (typeof window !== "undefined") {
     try {
-      localStorage.removeItem("cached_profile_details");
-      localStorage.removeItem("active_subscription");
-      localStorage.removeItem("cached_chat_inbox");
-      localStorage.removeItem("viewing_profile_target");
-      localStorage.removeItem("unlocked_contact_profiles");
+      const keysToPurge = [
+        "user_token",
+        "user_details",
+        "user_session",
+        "is_profile_completed",
+        "cached_profile_details",
+        "active_subscription",
+        "cached_chat_inbox",
+        "viewing_profile_target",
+        "daily_profile_views_tracker",
+        "unlocked_contact_profiles",
+        "cache_profile_options",
+        "read_notifications"
+      ];
+      keysToPurge.forEach((k) => localStorage.removeItem(k));
       sessionStorage.clear();
     } catch (e) {}
   }
@@ -68,11 +79,13 @@ export const setAuthCookies = (result: any) => {
   document.cookie = `user_token=${token}; expires=${expires}; path=/; SameSite=Lax${isSecure}`;
   document.cookie = `is_profile_completed=${profileCompletedVal}; expires=${expires}; path=/; SameSite=Lax${isSecure}`;
 
+  const userDetailsObj = (rawData?.userId || rawData?.UserId) ? rawData : (result?.userId || result?.UserId) ? result : { ...rawData, ...result, token };
+
   if (typeof window !== "undefined") {
     try {
       localStorage.setItem("user_token", token);
-      localStorage.setItem("user_details", JSON.stringify(result));
-      localStorage.setItem("user_session", JSON.stringify(result));
+      localStorage.setItem("user_details", JSON.stringify(userDetailsObj));
+      localStorage.setItem("user_session", JSON.stringify(userDetailsObj));
       localStorage.setItem("is_profile_completed", profileCompletedVal);
     } catch (e) {}
   }
@@ -109,7 +122,8 @@ export const clearAuthCookies = () => {
 
 export const handleAuthSuccessRedirect = (result: any, router: any) => {
   setAuthCookies(result);
-  const isCompletedRaw = result?.isProfileCompleted ?? result?.IsProfileCompleted;
+  const rawData = result?.data ?? result?.Data ?? result;
+  const isCompletedRaw = rawData?.isProfileCompleted ?? rawData?.IsProfileCompleted ?? result?.isProfileCompleted ?? result?.IsProfileCompleted;
   const isProfileDone = (isCompletedRaw === true || isCompletedRaw === 1 || isCompletedRaw === "1" || isCompletedRaw === "true");
 
   if (isProfileDone) {
@@ -119,7 +133,7 @@ export const handleAuthSuccessRedirect = (result: any, router: any) => {
       router.push('/dashboard');
     }
   } else {
-    // 🔒 Direct hard redirect to ensure zero stale client router cache interference
+    // 🔒 New or Incomplete Profile: Direct hard redirect to complete profile
     if (typeof window !== "undefined") {
       window.location.href = '/complete-profile';
     } else {
@@ -134,15 +148,16 @@ export const handleAuthSuccessRedirect = (result: any, router: any) => {
  * If user has no photo, returns the professional vector avatar without leaking old user cache.
  */
 export const getStoredUserPhoto = (): string => {
+  const neutralAvatar = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160' width='160' height='160'><defs><linearGradient id='bgM' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%23F8FAFC'/><stop offset='100%25' stop-color='%23E2E8F0'/></linearGradient><linearGradient id='silM' x1='0%25' y1='0%25' x2='0%25' y2='100%25'><stop offset='0%25' stop-color='%2394A3B8'/><stop offset='100%25' stop-color='%2364748B'/></linearGradient></defs><rect width='160' height='160' fill='url(%23bgM)'/><circle cx='80' cy='62' r='28' fill='url(%23silM)'/><path d='M36,142 C36,110 55,98 80,98 C105,98 124,110 124,142 C124,148 120,152 112,152 L48,152 C40,152 36,148 36,142 Z' fill='url(%23silM)'/><path d='M74,98 L80,107 L86,98 Z' fill='%23F8FAFC' opacity='0.8'/></svg>";
   if (typeof window === "undefined") {
-    return "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%23e11d48'><rect width='100' height='100' fill='%231e293b'/><circle cx='50' cy='38' r='18' fill='%23f43f5e'/><path d='M25,82 C25,62 75,62 75,82' fill='%23f43f5e'/></svg>";
+    return neutralAvatar;
   }
   try {
-    for (const key of ['user_details', 'user_session']) {
+    for (const key of ['user_details', 'user_session', 'cached_profile_details']) {
       const stored = localStorage.getItem(key);
       if (stored) {
         const parsed = JSON.parse(stored);
-        const p = parsed.profile || parsed.Profile || parsed;
+        const p = parsed.profile || parsed.Profile || parsed.data?.profile || parsed.data || parsed;
         const rawPhoto = p?.mainPhotoUrl || p?.photoUrl || p?.PhotoUrl || p?.mainPhoto || p?.photo;
         if (rawPhoto && rawPhoto !== '/placeholder.png' && rawPhoto !== 'placeholder.png' && !String(rawPhoto).includes('default') && !String(rawPhoto).startsWith('data:image')) {
           const cleanPath = String(rawPhoto).trim();
@@ -154,8 +169,7 @@ export const getStoredUserPhoto = (): string => {
     }
   } catch (e) {}
 
-  // Safe fallback to clean gender-neutral avatar
-  return "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160' width='160' height='160'><defs><linearGradient id='bgD' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%23F8FAFC'/><stop offset='100%25' stop-color='%23E2E8F0'/></linearGradient><linearGradient id='silD' x1='0%25' y1='0%25' x2='0%25' y2='100%25'><stop offset='0%25' stop-color='%23FB7185'/><stop offset='100%25' stop-color='%23E11D48'/></linearGradient></defs><rect width='160' height='160' fill='url(%23bgD)'/><circle cx='80' cy='62' r='28' fill='url(%23silD)'/><path d='M36,142 C36,110 55,98 80,98 C105,98 124,110 124,142 C124,148 120,152 112,152 L48,152 C40,152 36,148 36,142 Z' fill='url(%23silD)'/></svg>";
+  return neutralAvatar;
 };
 
 /**

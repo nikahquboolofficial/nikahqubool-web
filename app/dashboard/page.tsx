@@ -37,21 +37,25 @@ function LiveCountdownDisplay() {
   return <span>{timeText}</span>;
 }
 
+// ⚡ GLOBAL IN-MEMORY FEED CACHE (PERSISTS ACROSS SPA ROUTING FOR ZERO SKELETON FLASHES)
+const globalFeedCache: Record<string, { profiles: any[], hasMore: boolean, timestamp: number }> = {};
+
 export default function VIPCleanDashboardPage() {
   const router = useRouter();
   const { onlineUsers, fetchBulkOnlineStatuses } = useSignalR();
   const [activeTab, setActiveTab] = useState('best-matches');
-  const [profiles, setProfiles] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<any[]>(() => globalFeedCache['best-matches']?.profiles || []);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(() => !globalFeedCache['best-matches']);
   const [fetchingMore, setFetchingMore] = useState(false);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [actionState, setActionState] = useState<{ [key: number]: boolean }>({});
   const [actionTypeState, setActionTypeState] = useState<{ [key: number]: string | null }>({});
 
   // ⚡ HIGH-SPEED CLIENT TAB CACHE (STALE-WHILE-REVALIDATE FOR 0MS TAB SWITCHING)
-  const tabCacheRef = React.useRef<Record<string, { profiles: any[], hasMore: boolean, timestamp: number }>>({});
+  // Tab cache ref synced with globalFeedCache
+  const tabCacheRef = React.useRef(globalFeedCache);
 
   // 🔒 24-HOUR / 20 PROFILE VIEW LIMIT STATE FOR FREE USERS
   const [isCurrentUserPaid, setIsCurrentUserPaid] = useState<boolean>(false);
@@ -74,18 +78,20 @@ export default function VIPCleanDashboardPage() {
     }
 
     // ⚡ 0MS INSTANT TAB CACHE HIT
-    if (pageNum === 1 && !append && tabCacheRef.current[tabName]) {
-      const cached = tabCacheRef.current[tabName];
+    if (pageNum === 1 && !append && globalFeedCache[tabName]) {
+      const cached = globalFeedCache[tabName];
       setProfiles(cached.profiles);
       setHasMore(cached.hasMore);
       setLoading(false);
 
-      // If cached less than 45 seconds ago, skip network call entirely (Zero DB Hit)
-      if (Date.now() - cached.timestamp < 45000) {
+      // If cached less than 60 seconds ago, skip network call entirely (Zero DB Hit)
+      if (Date.now() - cached.timestamp < 60000) {
         return;
       }
     } else if (pageNum === 1 && !append) {
-      setLoading(true);
+      if (!globalFeedCache[tabName]) {
+        setLoading(true);
+      }
     } else {
       setFetchingMore(true);
     }
@@ -157,14 +163,17 @@ export default function VIPCleanDashboardPage() {
 
       // Save to client-side tab cache
       if (!append) {
-        tabCacheRef.current[tabName] = {
+        globalFeedCache[tabName] = {
           profiles: finalProfiles,
           hasMore: nextHasMore,
           timestamp: Date.now()
         };
+        tabCacheRef.current[tabName] = globalFeedCache[tabName];
       }
     } else {
-      toast.error(res.message || "Failed to load profiles.");
+      if (!globalFeedCache[tabName] || globalFeedCache[tabName].profiles.length === 0) {
+        toast.error("Connecting to server... Please check your internet connection.");
+      }
     }
 
     setLoading(false);
@@ -244,14 +253,15 @@ export default function VIPCleanDashboardPage() {
     const targetProfile = profiles.find((p) => Number(p.userId || p.UserId) === userId);
     if (typeof window !== "undefined") {
       sessionStorage.setItem("last_browse_page", "/dashboard");
-      const dataToStore = targetProfile ? { ...targetProfile, userId } : { userId };
+      const rawPhoto = targetProfile?.mainPhotoUrl || targetProfile?.MainPhotoUrl || targetProfile?.photoUrl || targetProfile?.PhotoUrl || targetProfile?.mainPhoto || targetProfile?.photo;
+      const outsidePhoto = rawPhoto ? (String(rawPhoto).startsWith('http') ? rawPhoto : `https://cdn.nikahqubool.in/${String(rawPhoto).replace(/^\/+/, '')}`) : null;
+      const dataToStore = targetProfile ? { ...targetProfile, userId, outsideCardPhoto: outsidePhoto } : { userId };
       sessionStorage.setItem("viewing_profile_target", JSON.stringify(dataToStore));
       localStorage.setItem("viewing_profile_target", JSON.stringify(dataToStore));
     }
     if (token) {
       handleInteractionApiCall(userId, 'VISIT', 'PENDING', token).catch(() => {});
     }
-    router.push('/dashboard/profile?userId=' + userId);
   };
 
   const handleInitiateChat = async (profile: any) => {

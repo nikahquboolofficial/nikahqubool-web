@@ -63,10 +63,13 @@ const DEFAULT_FILTERS = {
 
 const STORAGE_KEY = "nikah_find_match_saved_filters";
 
+// ⚡ GLOBAL IN-MEMORY MATCH CACHE (0MS MATCH RENDERING)
+let globalMatchCache: { profiles: any[], hasMore: boolean, timestamp: number } | null = null;
+
 export default function FindMatchesPage() {
   const router = useRouter();
-  const [profiles, setProfiles] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [profiles, setProfiles] = useState<any[]>(() => globalMatchCache?.profiles || []);
+  const [loading, setLoading] = useState<boolean>(() => !globalMatchCache || globalMatchCache.profiles.length === 0);
   const [fetchingMore, setFetchingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
