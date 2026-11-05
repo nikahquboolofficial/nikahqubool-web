@@ -64,7 +64,7 @@ export default function DashboardBottomNav({
         {/* 1. HOME */}
         <Link 
           href="/dashboard"
-          prefetch={false}
+          prefetch={true}
           onClick={() => recordBrowseLocation('/dashboard')}
           className={`touch-manipulation select-none active:scale-90 transition-transform duration-100 flex flex-col items-center justify-center py-1 cursor-pointer ${
             isHome 
@@ -86,7 +86,7 @@ export default function DashboardBottomNav({
         {/* 2. ACTIVITY */}
         <Link 
           href="/dashboard/activity" 
-          prefetch={false}
+          prefetch={true}
           onClick={() => recordBrowseLocation('/dashboard/activity')}
           className={`touch-manipulation select-none active:scale-90 transition-transform duration-100 relative flex flex-col items-center justify-center py-1 cursor-pointer ${
             isActivity 
@@ -113,7 +113,7 @@ export default function DashboardBottomNav({
         {/* 3. SEARCH */}
         <Link 
           href="/dashboard/find-match" 
-          prefetch={false}
+          prefetch={true}
           onClick={() => recordBrowseLocation('/dashboard/find-match')}
           className={`touch-manipulation select-none active:scale-90 transition-transform duration-100 flex flex-col items-center justify-center py-1 cursor-pointer ${
             isSearch 
@@ -135,7 +135,7 @@ export default function DashboardBottomNav({
         {/* 4. CHAT */}
         <Link 
           href="/dashboard/messages" 
-          prefetch={false}
+          prefetch={true}
           onClick={() => recordBrowseLocation('/dashboard/messages')}
           className={`touch-manipulation select-none active:scale-90 transition-transform duration-100 relative flex flex-col items-center justify-center py-1 cursor-pointer ${
             isChat 
@@ -162,7 +162,7 @@ export default function DashboardBottomNav({
         {/* 5. PROFILE */}
         <Link 
           href="/dashboard/my-profile" 
-          prefetch={false}
+          prefetch={true}
           onClick={() => recordBrowseLocation('/dashboard/my-profile')}
           className={`touch-manipulation select-none active:scale-90 transition-transform duration-100 flex flex-col items-center justify-center py-1 cursor-pointer ${
             isProfile 

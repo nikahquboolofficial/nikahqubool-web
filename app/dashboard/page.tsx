@@ -256,7 +256,7 @@ export default function VIPCleanDashboardPage() {
 
   const handleInitiateChat = async (profile: any) => {
     const status = getClientSubscriptionStatus();
-    const canChat = isCurrentUserPaid || status.canChat;
+    const canChat = isCurrentUserPaid || (status.isPaid && status.canChat);
 
     if (canChat) {
       if (typeof window !== "undefined") { sessionStorage.setItem("last_browse_page", "/dashboard"); }

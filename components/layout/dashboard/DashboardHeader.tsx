@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -48,6 +48,8 @@ export default function DashboardHeader({
   const [planName, setPlanName] = useState<string>(() => getClientSubscriptionStatus().planName || 'Free Member');
   const [isBoostModalOpen, setIsBoostModalOpen] = useState<boolean>(false);
   const [isBoosted, setIsBoosted] = useState<boolean>(false);
+  const lastSubCheckRef = useRef<number>(0);
+  const lastBoostCheckRef = useRef<number>(0);
 
   useEffect(() => {
     const updatePhotoFromStorage = async () => {
@@ -92,11 +94,15 @@ export default function DashboardHeader({
       }
     };
 
-    const checkSubscriptionStatus = async () => {
+    const checkSubscriptionStatus = async (force: boolean = false) => {
       // 1. Immediately read client subscription status (0ms latency, zero flash)
       const clientStatus = getClientSubscriptionStatus();
       setIsPaid(clientStatus.isPaid);
       setPlanName(clientStatus.isPaid ? clientStatus.planName : 'Free Member');
+
+      const now = Date.now();
+      if (!force && now - lastSubCheckRef.current < 60000) return;
+      lastSubCheckRef.current = now;
 
       const token = getAuthToken();
       if (!token) return;
@@ -111,7 +117,11 @@ export default function DashboardHeader({
       } catch (e) {}
     };
 
-    const checkBoostStatus = async () => {
+    const checkBoostStatus = async (force: boolean = false) => {
+      const now = Date.now();
+      if (!force && now - lastBoostCheckRef.current < 60000) return;
+      lastBoostCheckRef.current = now;
+
       const token = getAuthToken();
       if (!token) return;
       try {
@@ -123,8 +133,8 @@ export default function DashboardHeader({
     };
 
     updatePhotoFromStorage();
-    checkBoostStatus();
-    checkSubscriptionStatus();
+    checkBoostStatus(false);
+    checkSubscriptionStatus(false);
 
     const handleBoostUpdated = (e: any) => {
       if (e?.detail) {

@@ -87,9 +87,9 @@ export default function ProfileDetailPage() {
 
   const checkIsUserPaid = useCallback((profile?: any, apiData?: any): boolean => {
     const status = getClientSubscriptionStatus();
-    if (status.canChat) return true;
-    if (apiData && (apiData.isCurrentUserPaid || apiData.IsCurrentUserPaid)) return true;
-    if (profile && (profile.isCurrentUserPaid || profile.IsCurrentUserPaid)) return true;
+    if (status.isPaid && status.canChat) return true;
+    if (apiData && (apiData.isCurrentUserPaid === true || apiData.isCurrentUserPaid === 1 || apiData.IsCurrentUserPaid === true || apiData.IsCurrentUserPaid === 1)) return true;
+    if (profile && (profile.isCurrentUserPaid === true || profile.isCurrentUserPaid === 1 || profile.IsCurrentUserPaid === true || profile.IsCurrentUserPaid === 1)) return true;
     return false;
   }, []);
 

@@ -223,7 +223,8 @@ export default function ActivityTabContent({
   };
 
   const handleInitiateChat = (profile: any) => {
-    const isPaid = Boolean(
+    const subStatus = getClientSubscriptionStatus();
+    const isPaid = (subStatus.isPaid && subStatus.canChat) || Boolean(
       profile.isCanChat ?? profile.IsCanChat ?? 
       profile.isCurrentUserPaid ?? profile.IsCurrentUserPaid
     );

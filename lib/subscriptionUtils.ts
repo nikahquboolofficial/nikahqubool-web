@@ -127,68 +127,92 @@ export const getClientSubscriptionStatus = (): SubscriptionStatus => {
   }
 
   try {
+    // 🛡️ Resolve current logged-in user ID for strict session isolation
+    let currentUserId: number = 0;
+    let currentUserPaidFromDetails: boolean = false;
+    let currentUserPlanFromDetails: string = '';
+    let currentUserExpiryFromDetails: string | null = null;
+
+    try {
+      const userRaw = localStorage.getItem("user_details") || localStorage.getItem("user_session");
+      if (userRaw) {
+        const u = JSON.parse(userRaw);
+        currentUserId = Number(u.userId || u.UserId || u.id || 0);
+        currentUserPaidFromDetails = Boolean(u.isPaid ?? u.IsPaid ?? u.isCurrentUserPaid ?? u.IsCurrentUserPaid ?? false);
+        currentUserPlanFromDetails = String(u.planName || u.PlanName || u.membershipType || u.MembershipType || '').trim();
+        currentUserExpiryFromDetails = u.planExpiryDate || u.PlanExpiryDate || u.expiryDate || u.ExpiresAt || null;
+      }
+    } catch (e) {}
+
     // 1. Check dedicated active_subscription snapshot first (highest accuracy)
     const activeRaw = localStorage.getItem("active_subscription");
     if (activeRaw) {
       try {
         const active = JSON.parse(activeRaw);
-        const rawExpiry = active.expiryDate || active.ExpiryDate || active.endDate || active.EndDate || 
-                          active.planExpiryDate || active.PlanExpiryDate || active.ExpiresAt || active.expiresAt || null;
-        let isExpired = Boolean(active.isExpired ?? active.IsExpired ?? false);
-        if (rawExpiry) {
-          const expDate = new Date(rawExpiry);
-          if (!isNaN(expDate.getTime())) {
-            isExpired = expDate.getTime() < Date.now();
+        const subUserId = Number(active.userId || active.UserId || 0);
+
+        // 🛡️ User isolation: If subscription belongs to a previous user session, purge it immediately!
+        if (currentUserId > 0 && subUserId > 0 && currentUserId !== subUserId) {
+          localStorage.removeItem("active_subscription");
+        } else {
+          const rawExpiry = active.expiryDate || active.ExpiryDate || active.endDate || active.EndDate || 
+                            active.planExpiryDate || active.PlanExpiryDate || active.ExpiresAt || active.expiresAt || null;
+          let isExpired = Boolean(active.isExpired ?? active.IsExpired ?? false);
+          if (rawExpiry) {
+            const expDate = new Date(rawExpiry);
+            if (!isNaN(expDate.getTime())) {
+              isExpired = expDate.getTime() < Date.now();
+            }
           }
-        }
 
-        const rawName = String(
-          active.planName || active.PlanName || 
-          active.membershipType || active.MembershipType || 
-          active.name || ''
-        ).trim();
+          const rawName = String(
+            active.planName || active.PlanName || 
+            active.membershipType || active.MembershipType || 
+            active.name || ''
+          ).trim();
 
-        const isPaidFlag = Boolean(active.isPaid ?? active.IsPaid ?? active.isCurrentUserPaid ?? active.IsCurrentUserPaid);
-        const hasPaidPlanName = rawName.length > 0 && 
-          !rawName.toLowerCase().includes('free') && 
-          (
-            rawName.toLowerCase().includes('gold') || 
-            rawName.toLowerCase().includes('silver') || 
-            rawName.toLowerCase().includes('diamond') || 
-            rawName.toLowerCase().includes('vip') || 
-            rawName.toLowerCase().includes('premium') ||
-            rawName.toLowerCase().includes('membership')
-          );
+          const isPaidFlag = Boolean(active.isPaid ?? active.IsPaid ?? active.isCurrentUserPaid ?? active.IsCurrentUserPaid);
+          const hasPaidPlanName = rawName.length > 0 && 
+            !rawName.toLowerCase().includes('free') && 
+            (
+              rawName.toLowerCase().includes('gold') || 
+              rawName.toLowerCase().includes('silver') || 
+              rawName.toLowerCase().includes('diamond') || 
+              rawName.toLowerCase().includes('vip') || 
+              rawName.toLowerCase().includes('premium') ||
+              rawName.toLowerCase().includes('membership')
+            );
 
-        const isPaid = !isExpired && (hasPaidPlanName || (isPaidFlag && rawName.length > 0 && !rawName.toLowerCase().includes('free')));
-        
-        let remainingContacts = 0;
-        if (active.remainingContacts != null) remainingContacts = Number(active.remainingContacts);
-        else if (active.RemainingContacts != null) remainingContacts = Number(active.RemainingContacts);
-        else if (active.remainingContactsAllowed != null) remainingContacts = Number(active.remainingContactsAllowed);
-        else if (active.totalContactsAllowed != null && active.contactsUsed != null) remainingContacts = Math.max(0, Number(active.totalContactsAllowed) - Number(active.contactsUsed));
-        else if (isPaid) remainingContacts = 50;
+          const isPaid = !isExpired && (hasPaidPlanName || (isPaidFlag && rawName.length > 0 && !rawName.toLowerCase().includes('free')));
+          
+          let remainingContacts = 0;
+          if (active.remainingContacts != null) remainingContacts = Number(active.remainingContacts);
+          else if (active.RemainingContacts != null) remainingContacts = Number(active.RemainingContacts);
+          else if (active.remainingContactsAllowed != null) remainingContacts = Number(active.remainingContactsAllowed);
+          else if (active.totalContactsAllowed != null && active.contactsUsed != null) remainingContacts = Math.max(0, Number(active.totalContactsAllowed) - Number(active.contactsUsed));
+          else if (isPaid) remainingContacts = 50;
 
-        if (isPaid) {
-          return {
-            isPaid: true,
-            planName: rawName || 'VIP Member',
-            isExpired: false,
-            expiryDate: rawExpiry,
-            remainingContacts: Math.max(0, remainingContacts),
-            canChat: true,
-            canViewContact: remainingContacts > 0
-          };
-        } else if (isExpired) {
-          return {
-            isPaid: false,
-            planName: 'Free Member',
-            isExpired: true,
-            expiryDate: rawExpiry,
-            remainingContacts: 0,
-            canChat: false,
-            canViewContact: false
-          };
+          if (isPaid) {
+            return {
+              isPaid: true,
+              planName: rawName || 'VIP Member',
+              isExpired: false,
+              expiryDate: rawExpiry,
+              remainingContacts: Math.max(0, remainingContacts),
+              canChat: true,
+              canViewContact: remainingContacts > 0
+            };
+          } else if (isExpired) {
+            return {
+              isPaid: false,
+              planName: 'Free Member',
+              isExpired: true,
+              expiryDate: rawExpiry,
+              remainingContacts: 0,
+              canChat: false,
+              canViewContact: false
+            };
+          }
         }
       } catch (e) {}
     }

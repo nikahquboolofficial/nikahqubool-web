@@ -63,10 +63,13 @@ export function middleware(request: NextRequest) {
   const payload = decodeJwtPayload(token);
   const tokenProfileStatus = payload?.IsProfileCompleted ?? payload?.isProfileCompleted;
 
-  // Priority: Browser Cookie (updated dynamically upon submission) || Token Claim
+  // 🛡️ CRITICAL AUTH LOGIC:
+  const isCookieIncomplete = cookieProfileStatus === '0' || cookieProfileStatus === 'false';
   const isCookieDone = cookieProfileStatus === '1' || cookieProfileStatus === 'true';
   const isTokenDone = tokenProfileStatus === '1' || tokenProfileStatus === 'true' || tokenProfileStatus === true;
-  const isDone = isCookieDone || isTokenDone;
+
+  // If cookie explicitly flags profile as incomplete ('0' / 'false'), user MUST complete profile first!
+  const isDone = isCookieIncomplete ? false : (isTokenDone || isCookieDone);
 
   if (!isDone) {
     // 🔒 Profile incomplete: User can ONLY stay on '/complete-profile'

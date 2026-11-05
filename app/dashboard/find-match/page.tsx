@@ -287,7 +287,7 @@ export default function FindMatchesPage() {
 
   const handleInitiateChat = (user: any) => {
     const status = getClientSubscriptionStatus();
-    if (status.canChat) {
+    if (status.isPaid && status.canChat) {
       if (typeof window !== "undefined") { sessionStorage.setItem("last_browse_page", "/dashboard/find-match"); }
       sessionStorage.setItem('active_chat_target', JSON.stringify({
         userId: user.userId || user.UserId,

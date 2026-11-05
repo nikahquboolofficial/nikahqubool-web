@@ -2,8 +2,6 @@
 
 import { ProfileStatusIcons } from '@/components/common/ProfileBadges';
 
-import { getClientSubscriptionStatus } from '@/lib/subscriptionUtils';
-import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Crown,
@@ -71,8 +69,6 @@ export default function ChatWindow({
   const [proposalState, setProposalState] = useState<'NONE' | 'PENDING' | 'ACCEPTED' | 'DECLINED'>('NONE');
   const [proposalLoading, setProposalLoading] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
-  const [canChatUser, setCanChatUser] = useState(true);
 
   // 🛡️ Resolve User Identity Defensively
   const [resolvedName, setResolvedName] = useState<string>(userName || '');
@@ -124,20 +120,6 @@ export default function ChatWindow({
       }).catch(() => {});
     }
   }, [receiverId, resolvedName, resolvedPhoto]);
-
-  useEffect(() => {
-    const checkSub = () => {
-      const sub = getClientSubscriptionStatus();
-      setCanChatUser(sub.canChat);
-    };
-    checkSub();
-    window.addEventListener("user_details_updated", checkSub);
-    window.addEventListener("subscription_updated", checkSub);
-    return () => {
-      window.removeEventListener("user_details_updated", checkSub);
-      window.removeEventListener("subscription_updated", checkSub);
-    };
-  }, []);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -408,6 +390,8 @@ export default function ChatWindow({
       return;
     }
 
+    const hadExistingConversation = messages.some(m => !String(m.messageId).startsWith('temp-') && !m.isError);
+
     // Immediately clear input
     setMsg(""); 
     setShowEmojiPicker(false);
@@ -484,10 +468,22 @@ export default function ChatWindow({
           setMessages(prev => prev.map(m => m.uniqueKey === tempId ? { ...m, messageId: realId, uniqueKey: `real-${realId}`, isPending: false } : m));
         }
       } else {
-        setMessages(prev => prev.map(m => m.uniqueKey === tempId ? { ...m, isPending: false, isError: true } : m));
-        if (res.message && (res.message.toLowerCase().includes('subscription') || res.message.toLowerCase().includes('upgrade') || res.message.toLowerCase().includes('vip') || res.message.toLowerCase().includes('renew'))) {
-          setShowSubscriptionModal(true);
+        // Rollback optimistic message if failed or rejected
+        setMessages(prev => prev.filter(m => m.uniqueKey !== tempId));
+        if (typeof window !== "undefined") {
+          try {
+            const inboxRaw = sessionStorage.getItem("cached_chat_inbox");
+            if (inboxRaw) {
+              let inboxList: any[] = JSON.parse(inboxRaw);
+              if (Array.isArray(inboxList) && !hadExistingConversation) {
+                inboxList = inboxList.filter(c => Number(c.userId ?? c.UserId) !== Number(receiverId));
+                sessionStorage.setItem("cached_chat_inbox", JSON.stringify(inboxList));
+                window.dispatchEvent(new Event("refresh_inbox_list"));
+              }
+            }
+          } catch (e) {}
         }
+        toast.error(res?.message || "Failed to send message.");
       }
     }).catch(() => {
       setMessages(prev => prev.map(m => m.uniqueKey === tempId ? { ...m, isPending: false, isError: true } : m));
@@ -848,12 +844,6 @@ export default function ChatWindow({
           </div>
         </div>
       )}
-
-      {/* 👑 VIP SUBSCRIPTION MODAL */}
-      <SubscriptionModal 
-        isOpen={showSubscriptionModal} 
-        onClose={() => setShowSubscriptionModal(false)} 
-      />
 
       {/* 📌 WHATSAPP-STYLE STICKY BOTTOM INPUT PANEL */}
       <div className="shrink-0 bg-white/95 backdrop-blur-md border-t border-rose-100 z-30 shadow-lg p-2.5 sm:p-3 space-y-2 pb-[max(env(safe-area-inset-bottom,0px),10px)]">

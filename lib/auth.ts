@@ -53,6 +53,18 @@ export const setAuthCookies = (result: any) => {
 
   const isSecure = typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : "";
 
+  // 🛡️ Wipe old conflicting session & profile cache to ensure clean login for new/switched account
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.removeItem("cached_profile_details");
+      localStorage.removeItem("active_subscription");
+      localStorage.removeItem("cached_chat_inbox");
+      localStorage.removeItem("viewing_profile_target");
+      localStorage.removeItem("unlocked_contact_profiles");
+      sessionStorage.clear();
+    } catch (e) {}
+  }
+
   document.cookie = `user_token=${token}; expires=${expires}; path=/; SameSite=Lax${isSecure}`;
   document.cookie = `is_profile_completed=${profileCompletedVal}; expires=${expires}; path=/; SameSite=Lax${isSecure}`;
 
@@ -67,14 +79,31 @@ export const setAuthCookies = (result: any) => {
 };
 
 export const clearAuthCookies = () => {
-  document.cookie = "user_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-  document.cookie = "is_profile_completed=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+  // Wipe cookies with immediate expiration on path=/
+  document.cookie = "user_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax;";
+  document.cookie = "is_profile_completed=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax;";
+  document.cookie = "user_token=; max-age=0; path=/;";
+  document.cookie = "is_profile_completed=; max-age=0; path=/;";
+
   if (typeof window !== "undefined") {
-    localStorage.removeItem("user_token");
-    localStorage.removeItem("user_details");
-    localStorage.removeItem("user_session");
-    localStorage.removeItem("is_profile_completed");
-    sessionStorage.clear();
+    try {
+      const keysToPurge = [
+        "user_token",
+        "user_details",
+        "user_session",
+        "is_profile_completed",
+        "cached_profile_details",
+        "active_subscription",
+        "cached_chat_inbox",
+        "viewing_profile_target",
+        "daily_profile_views_tracker",
+        "unlocked_contact_profiles",
+        "cache_profile_options",
+        "read_notifications"
+      ];
+      keysToPurge.forEach((k) => localStorage.removeItem(k));
+      sessionStorage.clear();
+    } catch (e) {}
   }
 };
 
@@ -84,23 +113,32 @@ export const handleAuthSuccessRedirect = (result: any, router: any) => {
   const isProfileDone = (isCompletedRaw === true || isCompletedRaw === 1 || isCompletedRaw === "1" || isCompletedRaw === "true");
 
   if (isProfileDone) {
-    router.push('/dashboard');
+    if (typeof window !== "undefined") {
+      window.location.href = '/dashboard';
+    } else {
+      router.push('/dashboard');
+    }
   } else {
-    router.push('/complete-profile');
+    // 🔒 Direct hard redirect to ensure zero stale client router cache interference
+    if (typeof window !== "undefined") {
+      window.location.href = '/complete-profile';
+    } else {
+      router.push('/complete-profile');
+    }
   }
 };
 
 /**
  * ⚡ Ultra-fast 0ms Synchronous User Photo Resolver
- * Instantly retrieves the user's authentic Cloudflare CDN photo from localStorage
- * without any flash of default placeholder avatar across any page redirect.
+ * Instantly retrieves the authentic photo for the currently logged-in user.
+ * If user has no photo, returns the professional vector avatar without leaking old user cache.
  */
 export const getStoredUserPhoto = (): string => {
   if (typeof window === "undefined") {
     return "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%23e11d48'><rect width='100' height='100' fill='%231e293b'/><circle cx='50' cy='38' r='18' fill='%23f43f5e'/><path d='M25,82 C25,62 75,62 75,82' fill='%23f43f5e'/></svg>";
   }
   try {
-    for (const key of ['user_details', 'user_session', 'cached_profile_details']) {
+    for (const key of ['user_details', 'user_session']) {
       const stored = localStorage.getItem(key);
       if (stored) {
         const parsed = JSON.parse(stored);
@@ -115,7 +153,9 @@ export const getStoredUserPhoto = (): string => {
       }
     }
   } catch (e) {}
-  return "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%23e11d48'><rect width='100' height='100' fill='%231e293b'/><circle cx='50' cy='38' r='18' fill='%23f43f5e'/><path d='M25,82 C25,62 75,62 75,82' fill='%23f43f5e'/></svg>";
+
+  // Safe fallback to clean gender-neutral avatar
+  return "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160' width='160' height='160'><defs><linearGradient id='bgD' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%23F8FAFC'/><stop offset='100%25' stop-color='%23E2E8F0'/></linearGradient><linearGradient id='silD' x1='0%25' y1='0%25' x2='0%25' y2='100%25'><stop offset='0%25' stop-color='%23FB7185'/><stop offset='100%25' stop-color='%23E11D48'/></linearGradient></defs><rect width='160' height='160' fill='url(%23bgD)'/><circle cx='80' cy='62' r='28' fill='url(%23silD)'/><path d='M36,142 C36,110 55,98 80,98 C105,98 124,110 124,142 C124,148 120,152 112,152 L48,152 C40,152 36,148 36,142 Z' fill='url(%23silD)'/></svg>";
 };
 
 /**

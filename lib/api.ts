@@ -62,7 +62,7 @@ export const sanitizeErrorMessage = (msg: string | undefined | null): string => 
 };
 
 // ⚡ High-Performance Resilient Fetcher with Timeout Shield (Prevents Infinite Spinners)
-export const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs: number = 15000): Promise<Response> => {
+export const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs: number = 8000): Promise<Response> => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
