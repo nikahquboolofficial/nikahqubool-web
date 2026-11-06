@@ -569,8 +569,8 @@ export default function MyProfilePage() {
               <div className="space-y-2 pt-2">
                 {[
                   { value: 'All Members', title: 'All Members', desc: 'Visible to all registered members (Recommended for fastest proposals)' },
-                  { value: 'Only Premium Members', title: 'VIP Members Only', desc: 'Visible only to verified paid VIP subscribers' },
-                  { value: 'Visible on Request', title: 'Visible on Request', desc: 'Photos blurred until you accept photo request' }
+                  { value: 'Premium Only', title: 'Premium Only', desc: 'Visible only to verified paid VIP subscribers' },
+                  { value: 'Only Approved', title: 'Only Approved', desc: 'Photos blurred until you accept photo request' }
                 ].map((item) => {
                   const isSelected = selectedPrivacy === item.value;
                   return (

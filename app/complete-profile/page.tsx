@@ -5,12 +5,19 @@ import { useRouter } from 'next/navigation';
 import { 
   Sparkles, ChevronRight, Loader2, ArrowLeft, Check, Search, 
   Camera, Lock, CheckCircle2, Calendar, Shield, ChevronDown,
-  User, Mail, Users
+  User, Mail, Users, Plus, Info, X, ScanFace
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
-import { fetchMasterDataApi, fetchCitiesApi, updateProfileApi, fetchProfileDetailsApi, checkEmailAvailabilityApi, MasterOption } from '@/lib/api';
+import { fetchMasterDataApi, fetchCitiesApi, updateProfileApi, uploadGalleryPhotoApi, verifySelfieFaceMatchApi, fetchProfileDetailsApi, checkEmailAvailabilityApi, MasterOption } from '@/lib/api';
 import { getAuthToken, syncUserProfilePhoto } from '@/lib/auth';
+import {
+  fileToDataUrl,
+  PhotoGuidelinesModal,
+  PhotoRejectedModal,
+  VerifyIdentityIntroModal,
+  LiveOvalSelfieScannerModal,
+} from '@/components/profile/PhotoVerificationModals';
 
 // MASTER FALLBACK DATA
 const PROFILE_CREATED_FOR_OPTIONS = [
@@ -481,7 +488,56 @@ export default function CompleteProfilePage() {
     }
   }, [formData.stateId]);
 
-  // Handle Photo Selection with instant compression
+  // Multi-Photo (Max 4) + Muzz-style AI Face & Selfie Verification State
+  const [photoSlots, setPhotoSlots] = useState<Array<{ file: File; previewUrl: string; dataUrl: string } | null>>([null, null, null, null]);
+  const [activeSlotIndex, setActiveSlotIndex] = useState<number>(0);
+  const [validatingSlotIndex, setValidatingSlotIndex] = useState<number | null>(null);
+  const [guidelinesOpen, setGuidelinesOpen] = useState(false);
+  const [rejectedModal, setRejectedModal] = useState<{ open: boolean; previewUrl: string; errorCode: string; message: string; slotIndex: number }>({
+    open: false,
+    previewUrl: '',
+    errorCode: '',
+    message: '',
+    slotIndex: 0,
+  });
+  const [introModalOpen, setIntroModalOpen] = useState(false);
+  const [scannerModalOpen, setScannerModalOpen] = useState(false);
+  const [selfieVerifying, setSelfieVerifying] = useState(false);
+  const [selfieStatusText, setSelfieStatusText] = useState('');
+  const [verifiedSelfieUrl, setVerifiedSelfieUrl] = useState<string>('');
+
+  const activePhotosList = React.useMemo(
+    () => photoSlots.filter((p): p is { file: File; previewUrl: string; dataUrl: string } => p !== null),
+    [photoSlots]
+  );
+
+  const triggerSlotPicker = (slotIdx: number) => {
+    setActiveSlotIndex(slotIdx);
+    const input = document.getElementById('final-photo-picker') as HTMLInputElement | null;
+    if (input) {
+      input.value = '';
+      input.click();
+    }
+  };
+
+  const handleRemoveSlotPhoto = (slotIdx: number) => {
+    setPhotoSlots((prev) => {
+      const next = [...prev];
+      next[slotIdx] = null;
+      // Compact non-null photos so Slot 0 is always Main Photo
+      const compacted = next.filter((p) => p !== null);
+      while (compacted.length < 4) compacted.push(null);
+      const first = compacted[0];
+      setFormData((f) => ({
+        ...f,
+        photo: first ? first.file : null,
+        photoUrl: first ? first.previewUrl : '',
+      }));
+      return compacted;
+    });
+  };
+
+  // Handle Photo Selection with instant compression + AWS Rekognition Face Detection & Cross-Photo Match
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -491,29 +547,137 @@ export default function CompleteProfilePage() {
       return;
     }
 
-    toast.loading('Optimizing photo quality...', { id: 'compress-toast' });
+    const slotIdx = activeSlotIndex;
+    setValidatingSlotIndex(slotIdx);
+    toast.loading('Scanning photo for clear face...', { id: 'compress-toast' });
+
     try {
       const compressed = await compressPhoto(file);
       const previewUrl = URL.createObjectURL(compressed);
-      setFormData(prev => ({
-        ...prev,
-        photo: compressed,
-        photoUrl: previewUrl
-      }));
-      toast.success('Photo ready!', { id: 'compress-toast' });
+      const dataUrl = await fileToDataUrl(compressed);
+
+      // If Slot 0 already has a Main Photo and user is uploading to Slot 1/2/3, compare against Slot 0!
+      const mainSlot = slotIdx > 0 ? photoSlots[0] : null;
+
+      const verifyRes = await fetch('/api/face-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'validate-photo',
+          photoBase64: dataUrl,
+          referencePhotoBase64: mainSlot ? mainSlot.dataUrl : undefined,
+          referencePhotoUrl: verifiedSelfieUrl || undefined,
+        }),
+      });
+      const verifyData = await verifyRes.json();
+      toast.dismiss('compress-toast');
+      setValidatingSlotIndex(null);
+
+      if (!verifyData.success) {
+        setRejectedModal({
+          open: true,
+          previewUrl,
+          errorCode: verifyData.errorCode || 'NO_FACE',
+          message: verifyData.message || 'We were unable to detect a clear face in your photo.',
+          slotIndex: slotIdx,
+        });
+        return;
+      }
+
+      setPhotoSlots((prev) => {
+        const next = [...prev];
+        next[slotIdx] = { file: compressed, previewUrl, dataUrl };
+        // Ensure compact ordering so Slot 0 is always Main
+        const compacted = next.filter((p) => p !== null);
+        while (compacted.length < 4) compacted.push(null);
+        const first = compacted[0];
+        setFormData((f) => ({
+          ...f,
+          photo: first ? first.file : null,
+          photoUrl: first ? first.previewUrl : '',
+        }));
+        return compacted;
+      });
+
+      toast.success(slotIdx === 0 ? 'Main photo face verified!' : `Photo #${slotIdx + 1} verified & matched!`);
     } catch (err) {
       toast.dismiss('compress-toast');
-      const previewUrl = URL.createObjectURL(file);
-      setFormData(prev => ({
-        ...prev,
-        photo: file,
-        photoUrl: previewUrl
-      }));
+      setValidatingSlotIndex(null);
+      toast.error('Unable to verify photo. Please try another image.');
     }
   };
 
-  // Final Profile Submit
+  // Handle Live Oval Selfie Capture & AWS Rekognition Verification + R2 `user-selfies` upload
+  const handleCaptureAndVerifySelfie = async (selfieDataUrl: string) => {
+    const photosToVerify = photoSlots.filter((p): p is { file: File; previewUrl: string; dataUrl: string } => p !== null);
+    if (photosToVerify.length === 0) return;
+
+    let userData: any = null;
+    const session = typeof window !== 'undefined' ? localStorage.getItem('user_session') || localStorage.getItem('user_details') : null;
+    if (session) {
+      try { userData = JSON.parse(session); } catch {}
+    }
+    const currentUserId = Number(userData?.userId || userData?.UserId || 0);
+
+    setSelfieVerifying(true);
+    setSelfieStatusText('Scanning live selfie & matching with your photos...');
+
+    try {
+      const res = await fetch('/api/face-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'verify-selfie',
+          userId: currentUserId,
+          selfieBase64: selfieDataUrl,
+          photosBase64: photosToVerify.map((p) => p.dataUrl),
+        }),
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        setSelfieVerifying(false);
+        setScannerModalOpen(false);
+        setRejectedModal({
+          open: true,
+          previewUrl: selfieDataUrl,
+          errorCode: data.errorCode || 'SELFIE_MISMATCH',
+          message: data.message || 'Face verification failed. Please ensure your face is clearly visible and matches your photos.',
+          slotIndex: data.failedPhotoIndex || 0,
+        });
+        return;
+      }
+
+      const r2SelfieUrl = data.selfieUrl || '';
+      const r2SelfieKey = data.selfieRelativeKey || '';
+      setVerifiedSelfieUrl(r2SelfieUrl);
+      if (typeof window !== 'undefined' && currentUserId > 0) {
+        localStorage.setItem(`verified_selfie_url_${currentUserId}`, r2SelfieUrl);
+      }
+
+      setSelfieStatusText('Identity verified! Saving your profile & photos...');
+      setScannerModalOpen(false);
+      setSelfieVerifying(false);
+      toast.success('Identity verified! Saving your profile...');
+
+      await executeFinalProfileSave(r2SelfieKey, r2SelfieUrl);
+    } catch (err: any) {
+      setSelfieVerifying(false);
+      toast.error(err?.message || 'Verification failed. Please try again.');
+    }
+  };
+
+  // Final Profile Submit (Triggers Muzz-style Selfie Verification first if photos are uploaded & not yet verified)
   const handleFinalSubmit = async () => {
+    const selectedPhotos = photoSlots.filter((p): p is { file: File; previewUrl: string; dataUrl: string } => p !== null);
+    if (selectedPhotos.length > 0 && !verifiedSelfieUrl) {
+      setIntroModalOpen(true);
+      return;
+    }
+    await executeFinalProfileSave('', verifiedSelfieUrl);
+  };
+
+  const executeFinalProfileSave = async (selfieR2Key = '', selfieCdnUrl = '') => {
     const token = getAuthToken();
     if (!token) {
       toast.error("Session expired. Please login again.");
@@ -568,9 +732,10 @@ export default function CompleteProfilePage() {
     fd.append("PhotoPrivacy", formData.photoPrivacy || "All Members");
     if (formData.aboutMe) fd.append("AboutMe", formData.aboutMe);
 
-    if (formData.photo) {
-      setSubmitStatus("Uploading optimized photo to Cloudflare R2...");
-      fd.append("Photo", formData.photo);
+    const selectedPhotos = photoSlots.filter((p): p is { file: File; previewUrl: string; dataUrl: string } => p !== null);
+    if (selectedPhotos.length > 0) {
+      setSubmitStatus("Uploading Main photo to Cloudflare R2...");
+      fd.append("Photo", selectedPhotos[0].file);
     }
 
     try {
@@ -578,6 +743,20 @@ export default function CompleteProfilePage() {
       const res = await updateProfileApi(fd, token);
 
       if (res.success) {
+        // Upload any additional gallery photos (Slots 2, 3, 4)
+        for (let i = 1; i < selectedPhotos.length; i++) {
+          setSubmitStatus(`Uploading gallery photo ${i + 1} of ${selectedPhotos.length}...`);
+          const gfd = new FormData();
+          gfd.append("Photo", selectedPhotos[i].file);
+          gfd.append("Privacy", formData.photoPrivacy || "All Members");
+          await uploadGalleryPhotoApi(gfd, token);
+        }
+
+        // If selfie was verified, mark user verified on backend
+        const finalSelfieKey = selfieR2Key || selfieCdnUrl || verifiedSelfieUrl;
+        if (finalSelfieKey) {
+          await verifySelfieFaceMatchApi(`R2_VERIFIED:${finalSelfieKey}`, token);
+        }
         let updatedSessionData: any = session ? JSON.parse(session) : {};
         updatedSessionData.isProfileCompleted = true;
         if (finalFullName) { updatedSessionData.fullName = finalFullName; updatedSessionData.FullName = finalFullName; }
@@ -1457,16 +1636,18 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 13: PHOTO, SLEEK PRIVACY DROPDOWN & FINAL SUBMIT
+                SLIDE 13: 4-SLOT PHOTO GRID, GUIDELINES, PRIVACY & SUBMIT
                 ========================================================= */}
             {step === 13 && (
               <div className="space-y-4">
                 <div className="text-left space-y-0.5">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Final Step</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Final Step • AI Verified</span>
                   <h2 className="text-base sm:text-lg font-bold text-slate-800">
-                    Upload profile photo
+                    Add your profile photos
                   </h2>
-                  <p className="text-[11px] text-slate-500 font-normal">Profiles with photo get 10X more genuine proposals</p>
+                  <p className="text-[11px] text-slate-500 font-normal">
+                    Upload up to 4 clear solo photos ({activePhotosList.length} / 4 added). You can also add or change them later.
+                  </p>
                 </div>
 
                 {/* HIDDEN FILE PICKER */}
@@ -1478,65 +1659,93 @@ export default function CompleteProfilePage() {
                   onChange={handlePhotoSelect} 
                 />
 
-                {/* SLEEK PHOTO UPLOAD CARD */}
+                {/* SLEEK 4-SLOT PHOTO UPLOAD CARD */}
                 <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3.5 text-center">
-                  
-                  {/* Photo Preview Frame */}
-                  <div 
-                    onClick={() => document.getElementById('final-photo-picker')?.click()}
-                    className={`relative w-40 h-52 mx-auto rounded-2xl overflow-hidden cursor-pointer group border-2 transition-all transform hover:scale-[1.01] shadow-md flex items-center justify-center ${
-                      formData.photoUrl 
-                        ? 'border-[#e21e5b] bg-black' 
-                        : 'border-dashed border-rose-300 bg-rose-50/40 hover:border-[#e21e5b]'
-                    }`}
-                  >
-                    {formData.photoUrl ? (
-                      <>
-                        <img 
-                          src={formData.photoUrl} 
-                          alt="Preview" 
-                          className="w-full h-full object-cover object-top" 
-                        />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white space-y-1">
-                          <Camera size={22} />
-                          <span className="text-[11px] font-bold">Change Photo</span>
-                        </div>
-                        <div className="absolute bottom-2 left-2 right-2 py-1 px-2 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-white text-[10px] font-bold flex items-center justify-center gap-1">
-                          <CheckCircle2 size={11} className="text-emerald-400" />
-                          <span>Photo Added</span>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center p-4 space-y-2 text-slate-500">
-                        <div className="w-12 h-12 rounded-full bg-rose-100 text-[#e21e5b] flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
-                          <Camera size={22} />
-                        </div>
-                        <div>
-                          <span className="text-xs font-bold text-[#e21e5b] block">Tap to Upload Photo</span>
-                          <span className="text-[10px] text-slate-400 block">Optional &bull; JPEG, PNG, WEBP</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Remove photo option if uploaded */}
-                  {formData.photoUrl && (
-                    <div className="flex justify-center">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setFormData(p => ({ ...p, photo: null, photoUrl: '', photoPrivacy: 'All Members' }));
-                        }}
-                        className="text-[11px] font-bold text-rose-600 hover:text-rose-700 underline cursor-pointer"
-                      >
-                        Remove photo (Continue without photo)
-                      </button>
+                  {/* Verified Selfie Status Pill if already verified */}
+                  {verifiedSelfieUrl && (
+                    <div className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-extrabold">
+                      <CheckCircle2 size={14} className="text-emerald-600" />
+                      <span>Live Face Selfie Verified &bull; Saved to R2</span>
                     </div>
                   )}
 
+                  {/* 3-Column Muzz-Inspired Grid: 4 Photo Slots + 1 Photo Guidelines Tile */}
+                  <div className="grid grid-cols-3 gap-2.5">
+                    {[0, 1, 2, 3].map((slotIdx) => {
+                      const slotItem = photoSlots[slotIdx];
+                      const isValidating = validatingSlotIndex === slotIdx;
+                      return (
+                        <div
+                          key={slotIdx}
+                          onClick={() => !isValidating && triggerSlotPicker(slotIdx)}
+                          className={`relative aspect-[3/4] rounded-2xl overflow-hidden cursor-pointer transition-all group flex flex-col items-center justify-center ${
+                            slotItem
+                              ? 'border-2 border-[#e21e5b] bg-slate-900 shadow-md'
+                              : 'border-2 border-dashed border-slate-300 hover:border-[#e21e5b] bg-slate-50/60 hover:bg-rose-50/40'
+                          }`}
+                        >
+                          {isValidating ? (
+                            <div className="flex flex-col items-center justify-center p-2 text-center space-y-1.5">
+                              <Loader2 size={22} className="animate-spin text-[#e21e5b]" />
+                              <span className="text-[10px] font-extrabold text-[#e21e5b]">Scanning Face...</span>
+                            </div>
+                          ) : slotItem ? (
+                            <>
+                              <img
+                                src={slotItem.previewUrl}
+                                alt={`Slot ${slotIdx + 1}`}
+                                className="w-full h-full object-cover object-top"
+                              />
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveSlotPhoto(slotIdx);
+                                }}
+                                className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 text-white hover:bg-rose-600 flex items-center justify-center shadow cursor-pointer"
+                                title="Remove photo"
+                              >
+                                <X size={13} />
+                              </button>
+                              {slotIdx === 0 ? (
+                                <div className="absolute bottom-1.5 left-1.5 px-2.5 py-0.5 rounded-lg bg-black/80 text-white text-[10px] font-extrabold tracking-wide">
+                                  Main
+                                </div>
+                              ) : (
+                                <div className="absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded-lg bg-emerald-600/90 text-white text-[9px] font-bold flex items-center gap-0.5">
+                                  <Check size={10} strokeWidth={3} /> #{slotIdx + 1}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div className="flex flex-col items-center justify-center text-slate-500 group-hover:text-[#e21e5b] transition-colors">
+                              <Plus size={24} strokeWidth={2.2} />
+                              {slotIdx === 0 && (
+                                <span className="text-[10px] font-extrabold mt-1 text-[#e21e5b]">Main Photo</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {/* Tile 5: Photo Guidelines Button (Matching Muzz Screenshot 1) */}
+                    <button
+                      type="button"
+                      onClick={() => setGuidelinesOpen(true)}
+                      className="aspect-[3/4] rounded-2xl border border-slate-200 bg-slate-50/70 hover:bg-rose-50/50 hover:border-rose-200 transition-all flex flex-col items-center justify-center p-2 text-center cursor-pointer group"
+                    >
+                      <div className="w-8 h-8 rounded-full border-2 border-slate-700 group-hover:border-[#e21e5b] flex items-center justify-center mb-1.5 text-slate-800 group-hover:text-[#e21e5b]">
+                        <Info size={16} strokeWidth={2.5} />
+                      </div>
+                      <span className="text-[11px] font-extrabold text-slate-800 group-hover:text-[#e21e5b] leading-tight">
+                        Photo<br />guidelines
+                      </span>
+                    </button>
+                  </div>
+
                   {/* 🔒 SLEEK PHOTO PRIVACY TRIGGER DROPDOWN (ONLY VISIBLE WHEN PHOTO IS PRESENT) */}
-                  {formData.photoUrl ? (
+                  {activePhotosList.length > 0 ? (
                     <div className="text-left space-y-1">
                       <label className="text-[10px] font-bold uppercase text-slate-500 block">Photo Privacy Setting</label>
                       <div 
@@ -1550,13 +1759,13 @@ export default function CompleteProfilePage() {
                         <ChevronDown size={14} className="text-slate-400" />
                       </div>
                       <p className="text-[10px] text-slate-400">
-                        Control who can view your photo across matches.
+                        Control who can view your photos across matches.
                       </p>
                     </div>
                   ) : (
                     <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-left">
                       <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                        Photo is optional. You can also upload photos and set privacy controls later from your dashboard gallery.
+                        Photos are optional right now. You can upload up to 4 verified photos now or anytime later from your Dashboard Gallery.
                       </p>
                     </div>
                   )}
@@ -1587,14 +1796,24 @@ export default function CompleteProfilePage() {
                       </>
                     ) : (
                       <>
-                        <Sparkles size={15} className="text-amber-300" />
-                        <span>{formData.photoUrl ? "Complete Profile" : "Skip Photo & Complete Profile"}</span>
+                        {activePhotosList.length > 0 && !verifiedSelfieUrl ? (
+                          <ScanFace size={16} className="text-white" />
+                        ) : (
+                          <Sparkles size={15} className="text-amber-300" />
+                        )}
+                        <span>
+                          {activePhotosList.length > 0
+                            ? verifiedSelfieUrl
+                              ? "Complete Verified Profile"
+                              : `Verify Face & Save ${activePhotosList.length} Photo${activePhotosList.length > 1 ? 's' : ''}`
+                            : "Skip Photo & Complete Profile"}
+                        </span>
                       </>
                     )}
                   </button>
 
                   <span className="text-[10px] text-slate-400 font-medium block">
-                    🔒 100% Secure & Verified Muslim Matrimony Network
+                    🔒 100% Secure & AI Face-Verified Matrimony Network
                   </span>
 
                 </div>
@@ -1677,6 +1896,46 @@ export default function CompleteProfilePage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* 🌟 AI FACE & SELFIE VERIFICATION MODALS */}
+      <PhotoGuidelinesModal
+        open={guidelinesOpen}
+        onClose={() => setGuidelinesOpen(false)}
+      />
+
+      <PhotoRejectedModal
+        open={rejectedModal.open}
+        photoPreviewUrl={rejectedModal.previewUrl}
+        errorCode={rejectedModal.errorCode}
+        message={rejectedModal.message}
+        onClose={() => setRejectedModal((p) => ({ ...p, open: false }))}
+        onChangePhoto={() => {
+          const slotToPick = rejectedModal.slotIndex;
+          setRejectedModal((p) => ({ ...p, open: false }));
+          setTimeout(() => triggerSlotPicker(slotToPick), 150);
+        }}
+      />
+
+      <VerifyIdentityIntroModal
+        open={introModalOpen}
+        mainPhotoUrl={activePhotosList[0]?.previewUrl || ''}
+        onStartVerification={() => {
+          setIntroModalOpen(false);
+          setScannerModalOpen(true);
+        }}
+        onChangePhoto={() => {
+          setIntroModalOpen(false);
+          setTimeout(() => triggerSlotPicker(0), 150);
+        }}
+      />
+
+      <LiveOvalSelfieScannerModal
+        open={scannerModalOpen}
+        verifying={selfieVerifying}
+        statusText={selfieStatusText}
+        onCaptureSelfie={handleCaptureAndVerifySelfie}
+        onClose={() => setScannerModalOpen(false)}
+      />
 
       <footer className="h-4" />
     </div>
