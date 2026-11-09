@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
-import { fetchProfileDetailsApi, viewContactDetailsApi, handleInteractionApiCall, blockUserApiCall, reportUserApiCall, formatLastSeen } from '@/lib/api';
+import { fetchProfileDetailsApi, viewContactDetailsApi, handleInteractionApiCall, blockUserApiCall, reportUserApiCall, formatLastSeen, fetchPlatformSettingsApi } from '@/lib/api';
 import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
 import { useSignalR } from '@/context/SignalRContext';
 import IslamicBiodataModal from '@/components/dashboard/IslamicBiodataModal';
@@ -67,6 +67,7 @@ export default function ProfileDetailPage() {
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [showBiodataModal, setShowBiodataModal] = useState(false);
   const [showCompatibilityModal, setShowCompatibilityModal] = useState(false);
+  const [platformSettings, setPlatformSettings] = useState<any>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionLoadingType, setActionLoadingType] = useState<string | null>(null);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
@@ -233,6 +234,12 @@ export default function ProfileDetailPage() {
     }
   }, [loadProfileDetails]);
 
+  useEffect(() => {
+    fetchPlatformSettingsApi().then(st => {
+      if (st) setPlatformSettings(st);
+    });
+  }, []);
+
   const handleUnlockContact = async (e?: React.MouseEvent) => {
     if (e) { e.preventDefault(); e.stopPropagation(); }
     
@@ -288,7 +295,8 @@ export default function ProfileDetailPage() {
   const handleInitiateChat = (e?: React.MouseEvent) => {
     if (e) { e.preventDefault(); e.stopPropagation(); }
     const isUserPaid = checkIsUserPaid(profileData);
-    if (isUserPaid) {
+    const isChatFree = Boolean(platformSettings?.isChatFreeNow ?? platformSettings?.IsChatFreeNow ?? true);
+    if (isUserPaid || isChatFree) {
       sessionStorage.setItem('active_chat_target', JSON.stringify({
         userId: profileData.userId || profileData.UserId,
         fullName: profileData.fullName || profileData.FullName,

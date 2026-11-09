@@ -238,6 +238,20 @@ export const checkEmailAvailabilityApi = async (email: string, userId?: number |
   }
 };
 
+// 🌟 Fetch Dynamic Platform Settings (Free Launch Mode / Paid Mode)
+export const fetchPlatformSettingsApi = async () => {
+  try {
+    const res = await fetch(`${API_BASE_URL}/master/platform-settings`, {
+      headers: { "Cache-Control": "no-cache" }
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json?.data ?? null;
+  } catch {
+    return null;
+  }
+};
+
 // 🔒 Protected: Update Profile API (Token MANDATORY)
 export const updateProfileApi = async (formDataPayload: FormData, token: string | null | undefined) => {
   if (!token || token.trim() === "") {
