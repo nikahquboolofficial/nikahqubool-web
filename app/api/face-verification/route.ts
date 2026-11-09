@@ -167,66 +167,46 @@ async function validateSingleFaceBase64(base64Clean: string) {
   const height = Number(face?.BoundingBox?.Height || 0);
   const area = width * height;
 
-  if (confidence < 88) {
+  // 1. Only reject if extremely low confidence (not even a face)
+  if (confidence < 60) {
     return {
       isValid: false,
-      errorCode: "LOW_QUALITY",
-      message: "Your face is not clear enough in this photo. Please choose a well-lit, high-quality portrait.",
+      errorCode: "NO_FACE",
+      message: "We were unable to detect a clear face in your photo. Please upload a clear photo that shows your face.",
     };
   }
 
-  if (area < 0.022) {
+  // 2. Reject only if face is super tiny dot in background (area < 0.005)
+  if (area < 0.005) {
     return {
       isValid: false,
       errorCode: "FACE_TOO_FAR",
-      message: "Your face appears too far away in this photo. Please upload a closer portrait where your face is clearly visible.",
+      message: "Your face appears too far away in this photo. Please upload a closer portrait where your face is visible.",
     };
   }
 
-  if (face?.Sunglasses?.Value === true && Number(face?.Sunglasses?.Confidence || 0) >= 80) {
+  // 3. Sunglasses check - only if dark sunglasses are detected with high confidence
+  if (face?.Sunglasses?.Value === true && Number(face?.Sunglasses?.Confidence || 0) >= 90) {
     return {
       isValid: false,
       errorCode: "FACE_COVERED",
-      message: "Sunglasses detected! Please upload a clear photo where your eyes and face are not covered by sunglasses.",
+      message: "Sunglasses detected! Please upload a photo where your eyes and face are clearly visible.",
     };
   }
 
-  if (face?.FaceOccluded?.Value === true && Number(face?.FaceOccluded?.Confidence || 0) >= 88) {
-    return {
-      isValid: false,
-      errorCode: "FACE_COVERED",
-      message: "Your face appears covered or obstructed. Please upload a clear portrait showing your full face.",
-    };
-  }
-
-  // Celebrity check
-  const celebRes = await callRekognition("RecognizeCelebrities", {
-    Image: { Bytes: base64Clean },
-  });
-
-  if (celebRes.status === 200 && Array.isArray(celebRes.data?.CelebrityFaces)) {
-    for (const celeb of celebRes.data.CelebrityFaces) {
-      if (Number(celeb?.MatchConfidence || 0) >= 85) {
-        const celebName = celeb?.Name || "Public Figure";
-        return {
-          isValid: false,
-          errorCode: "CELEBRITY_DETECTED",
-          message: `Celebrity or public figure photo detected (${celebName}). Please upload your own genuine photo.`,
-        };
-      }
-    }
-  }
+  // Note: We deliberately do NOT reject normal occlusions (e.g. beard, hijab, side hair, or dupatta)
+  // to ensure genuine Muslim matrimony photos are seamlessly accepted!
 
   return {
     isValid: true,
     errorCode: "OK",
-    message: "Clear solo face verified.",
+    message: "Clear human face verified.",
     confidence,
     area,
   };
 }
 
-async function compareTwoFacesBase64(sourceB64: string, targetB64: string, threshold = 84) {
+async function compareTwoFacesBase64(sourceB64: string, targetB64: string, threshold = 70) {
   const cmpRes = await callRekognition("CompareFaces", {
     SourceImage: { Bytes: sourceB64 },
     TargetImage: { Bytes: targetB64 },
@@ -303,7 +283,7 @@ export async function POST(req: NextRequest) {
       }
 
       if (refB64) {
-        const cmp = await compareTwoFacesBase64(refB64, photoBase64, 84);
+        const cmp = await compareTwoFacesBase64(refB64, photoBase64, 70);
         if (!cmp.isMatch) {
           return NextResponse.json({
             success: false,
@@ -393,7 +373,7 @@ export async function POST(req: NextRequest) {
       }
 
       for (let i = 0; i < targetB64List.length; i++) {
-        const cmp = await compareTwoFacesBase64(selfieBase64, targetB64List[i], 84);
+        const cmp = await compareTwoFacesBase64(selfieBase64, targetB64List[i], 70);
         if (!cmp.isMatch) {
           const label = i === 0 ? "Main Photo" : `Photo #${i + 1}`;
           return NextResponse.json({
