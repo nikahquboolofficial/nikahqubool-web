@@ -1949,21 +1949,23 @@ export default function CompleteProfilePage() {
                     </button>
                   </div>
 
-                  {/* Photo Privacy Trigger */}
-                  <div className="pt-1">
-                    <button
-                      type="button"
-                      onClick={() => setPrivacySheetOpen(true)}
-                      className="w-full py-2 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left flex items-center justify-between text-xs font-semibold text-slate-700 transition-colors cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Lock size={13} className="text-[#e21e5b]" />
-                        <span>Photo Privacy:</span>
-                        <span className="font-bold text-slate-900">{formData.photoPrivacy}</span>
-                      </div>
-                      <ChevronDown size={14} className="text-slate-400" />
-                    </button>
-                  </div>
+                  {/* Photo Privacy Trigger - Only visible when at least 1 photo is uploaded */}
+                  {photoSlots.some(p => p !== null) && (
+                    <div className="pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setPrivacySheetOpen(true)}
+                        className="w-full py-2 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left flex items-center justify-between text-xs font-semibold text-slate-700 transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Lock size={13} className="text-[#e21e5b]" />
+                          <span>Control who sees your photo:</span>
+                          <span className="font-bold text-[#e21e5b]">{formData.photoPrivacy}</span>
+                        </div>
+                        <ChevronDown size={14} className="text-slate-400" />
+                      </button>
+                    </div>
+                  )}
 
                   {/* About Me Bio */}
                   <div className="pt-1 text-left space-y-1">
@@ -2023,21 +2025,21 @@ export default function CompleteProfilePage() {
               className="w-full max-w-sm bg-white rounded-t-3xl sm:rounded-2xl p-5 space-y-3.5 shadow-2xl text-left"
             >
               <div className="flex items-center justify-between pb-1 border-b border-slate-100">
-                <h3 className="text-sm font-black text-slate-800">Who can see your photos?</h3>
+                <h3 className="text-base font-bold text-slate-900">Who can see my photo</h3>
                 <button
                   type="button"
                   onClick={() => setPrivacySheetOpen(false)}
-                  className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 cursor-pointer"
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 cursor-pointer"
                 >
-                  <X size={14} />
+                  <X size={16} />
                 </button>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 {[
-                  { value: 'All Members', title: 'All Members', desc: 'Visible to all registered profiles' },
-                  { value: 'Protected', title: 'Photo Blur / Protected', desc: 'Photos blurred; visible only upon your request approval' },
-                  { value: 'Premium Only', title: 'Premium Only', desc: 'Visible only to verified paid VIP subscribers' }
+                  { value: 'All Members', title: 'All Members', desc: 'Visible to everyone' },
+                  { value: 'Premium Members', title: 'Premium Members', desc: 'Blurred for free users' },
+                  { value: 'Members I Approve', title: 'Members I Approve', desc: 'Blurred until you approve' }
                 ].map((opt) => {
                   const isSel = formData.photoPrivacy === opt.value;
                   return (
@@ -2046,29 +2048,40 @@ export default function CompleteProfilePage() {
                       type="button"
                       onClick={() => {
                         setFormData(p => ({ ...p, photoPrivacy: opt.value }));
-                        setPrivacySheetOpen(false);
                       }}
-                      className={`w-full p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start justify-between ${
-                        isSel ? 'border-[#e21e5b] bg-rose-50/60' : 'border-slate-200 hover:bg-slate-50'
+                      className={`w-full p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                        isSel ? 'border-[#e21e5b] bg-rose-50/50 shadow-sm' : 'border-slate-200 hover:bg-slate-50'
                       }`}
                     >
                       <div className="space-y-0.5">
-                        <div className={`text-xs font-bold ${isSel ? 'text-[#e21e5b]' : 'text-slate-800'}`}>
+                        <div className={`text-sm font-bold ${isSel ? 'text-[#e21e5b]' : 'text-slate-800'}`}>
                           {opt.title}
                         </div>
-                        <div className="text-[11px] text-slate-500 leading-snug">
+                        <div className="text-xs text-slate-500">
                           {opt.desc}
                         </div>
                       </div>
-                      <div className={`w-4 h-4 rounded-full border mt-0.5 flex items-center justify-center ${
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
                         isSel ? 'border-[#e21e5b] bg-[#e21e5b]' : 'border-slate-300'
                       }`}>
-                        {isSel && <Check size={10} className="text-white stroke-[3]" />}
+                        {isSel && <div className="w-2 h-2 rounded-full bg-white" />}
                       </div>
                     </button>
                   );
                 })}
               </div>
+
+              <p className="text-[11px] text-slate-400 text-center pt-1">
+                You can change this later in your privacy settings
+              </p>
+
+              <button
+                type="button"
+                onClick={() => setPrivacySheetOpen(false)}
+                className="w-full py-3 rounded-full bg-[#e21e5b] hover:bg-[#c9184e] text-white font-bold text-sm shadow-md transition-all cursor-pointer active:scale-98"
+              >
+                Save
+              </button>
             </motion.div>
           </div>
         )}

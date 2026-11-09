@@ -1,1281 +1,1696 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  ArrowLeft, Eye, Edit3, User, GraduationCap, Users, 
-  Moon, Heart, Save, Loader2, MapPin, ChevronRight, RotateCcw, Plus
+  X, Eye, Shield, CheckCircle2, ChevronRight, Search, 
+  Camera, Plus, Trash2, Lock, Sparkles, AlertCircle, 
+  ArrowLeft, Upload, FileText, Check, Loader2, Star
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import { 
   fetchProfileDetailsApi, 
   updateProfileApi, 
-  savePartnerPreferencesApi, 
   fetchMasterDataApi, 
-  fetchCitiesApi, 
+  fetchCitiesApi,
+  deleteGalleryPhotoApi,
+  uploadGalleryPhotoApi,
+  updatePhotoPrivacyApi,
+  uploadGovtDocumentApi,
   MasterOption 
 } from '@/lib/api';
-import { CompactSelect, MultiSelectDropdown } from '@/components/profile/CompactSelect';
-import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
-import { getAuthToken, clearAuthCookies, getStoredUserPhoto } from '@/lib/auth';
+import { getAuthToken } from '@/lib/auth';
+import { clientValidateSingleFace } from '@/lib/faceDetectionClient';
 
-type SectionKey = 'intro' | 'basic' | 'personal' | 'education' | 'religious' | 'address' | 'family' | 'partner';
+// Helper for Height conversions
+function cmToFtIn(cm: number): string {
+  const totalInches = Math.round(cm / 2.54);
+  const ft = Math.floor(totalInches / 12);
+  const inch = totalInches % 12;
+  return `${ft}ft ${inch}in (${cm} cm)`;
+}
+
+function parseHeightToCm(hStr: string): number {
+  if (!hStr) return 170;
+  const cmMatch = hStr.match(/(\d{3})\s*cm/i);
+  if (cmMatch) return Number(cmMatch[1]);
+  const ftMatch = hStr.match(/(\d+)\s*(?:ft|')(?:\s*(\d+)\s*(?:in|"))?/i);
+  if (ftMatch) {
+    const ft = Number(ftMatch[1]);
+    const inch = Number(ftMatch[2] || 0);
+    return Math.round((ft * 12 + inch) * 2.54);
+  }
+  return 170;
+}
 
 export default function EditMyProfilePage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(() => {
-    if (typeof window !== "undefined") {
-      return !(localStorage.getItem("cached_profile_details") || localStorage.getItem("user_details"));
-    }
-    return false;
-  });
-  const [saving, setSaving] = useState(false);
-  const [currentSection, setCurrentSection] = useState<SectionKey>('intro');
-  const [mobileSubScreenOpen, setMobileSubScreenOpen] = useState(false);
 
-  // Master Data Cache
-  const [masterData, setMasterData] = useState<{ [key: string]: MasterOption[] }>({});
+  // Loading & Saving States
+  const [loading, setLoading] = useState(true);
+  const [savingField, setSavingField] = useState<string | null>(null);
 
-  // ⚡ 0ms INSTANT HYDRATION FROM LOCAL CACHE (Zero Spinner Delays)
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const cached = localStorage.getItem("cached_profile_details") || localStorage.getItem("user_details");
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          const p = parsed.profile || parsed.Profile || parsed;
-          if (p && (p.fullName || p.FullName || p.userId || p.UserId)) {
-            const rawPhoto = p.mainPhotoUrl || p.photoUrl || p.PhotoUrl || p.mainPhoto || p.photo;
-            setFormData((prev: any) => ({
-              ...prev,
-              UserId: p.userId || p.UserId || prev.UserId,
-              FullName: p.fullName || p.FullName || prev.FullName,
-              MobileNumber: p.mobileNumber || p.MobileNumber || prev.MobileNumber,
-              Email: p.email || p.Email || prev.Email,
-              Age: p.age || prev.Age,
-              Gender: p.gender || p.Gender || prev.Gender,
-              PhotoUrl: rawPhoto ? getOptimizedImageUrl(rawPhoto, p.userId || p.UserId, p.gender) : prev.PhotoUrl,
-              AboutMe: p.aboutMe || p.AboutMe || prev.AboutMe,
-              Height: p.height || p.Height || prev.Height,
-              Weight: p.weight || p.Weight || prev.Weight,
-              StateName: p.stateName || p.StateName || prev.StateName,
-              CityName: p.cityName || p.CityName || prev.CityName,
-              HighestDegreeText: p.highestDegree || p.HighestDegree || prev.HighestDegreeText,
-              DesignationText: p.profession || p.Profession || p.designation || prev.DesignationText,
-              AnnualIncome: p.annualIncome || p.AnnualIncome || prev.AnnualIncome,
-            }));
-            setLoading(false);
-          }
-        } catch (e) {}
-      }
-    }
-  }, []);
-
-  // 🔄 Real-time reactive photo synchronization
-  useEffect(() => {
-    const handlePhotoUpdated = (e: any) => {
-      const newPhoto = e?.detail?.photoUrl || getStoredUserPhoto();
-      if (newPhoto) {
-        setFormData((prev: any) => ({
-          ...prev,
-          PhotoUrl: getOptimizedImageUrl(newPhoto, prev.UserId, prev.Gender)
-        }));
-      }
-    };
-    if (typeof window !== "undefined") {
-      window.addEventListener("user_photo_updated", handlePhotoUpdated);
-      return () => window.removeEventListener("user_photo_updated", handlePhotoUpdated);
-    }
-  }, []);
-
-  // Form State
+  // Profile Data State
   const [formData, setFormData] = useState<any>({
     UserId: 0,
     FullName: '',
-    MobileNumber: '',
-    Email: '',
-    ProfileCreatedFor: 1,
-    ProfileCreatedForText: '',
+    ProfileCreatedFor: 'Self',
     Age: 25,
     Gender: 'Female',
     DateOfBirth: '',
-    PhotoUrl: getStoredUserPhoto(),
-
-    // Section 1: Intro / Bio
-    AboutMe: '',
-    FamilyAbout: '',
-
-    // Section 3: Personal Details
-    Height: '5 ft 6 in',
+    MaritalStatus: 'Never Married',
+    Sect: 'Sunni',
+    Height: '5ft 7in (170 cm)',
     Weight: '60 kg',
-    Complexion: 1,
-    MaritalStatus: 1,
-    MaritalStatusText: '',
-    Sect: 1,
-    SectText: '',
-    Caste: 1,
-    CasteText: '',
-    Maslak: 1,
-    MaslakText: '',
-    MotherTongue: 1,
-    MotherTongueText: '',
+    Caste: 'Sheikh or Shaikh',
+    CasteId: 1,
+    Maslak: 'Sunni Hanfi',
+    MaslakId: 1,
+    MotherTongue: 'Urdu',
+    MotherTongueId: 1,
+    Location: 'Bareilly, Uttar Pradesh, India',
+    CurrentStateId: 2,
+    CurrentCityId: 1,
+    StateName: 'Uttar Pradesh',
+    CityName: 'Bareilly',
     Disability: 'No',
 
-    // Section 4: Education & Career
-    HighestDegree: 1,
-    HighestDegreeText: '',
-    CollegeName: '',
-    EmploymentSector: 1,
-    EmploymentSectorText: '',
-    Designation: 1,
-    DesignationText: '',
-    OccupationDetails: '', // ✅ Job / Profession Details Textbox
-    AnnualIncome: '5 - 10 LPA',
+    // Education & Career
+    Education: 'B.Com.',
+    EducationId: 1,
+    CollegeName: 'Regional college Of Professional Studies & Research Bareilly',
+    EmployedIn: 'Not Working',
+    EmployedInId: 1,
+    Occupation: 'Not working',
+    OccupationId: 1,
+    AnnualIncome: 'No Income',
 
-    // Section 5: Religious & Lifestyle
+    // Family
+    FamilyLocation: 'Bareilly, Uttar Pradesh, India',
+    FamilyType: 'Joint Family',
+    FamilyTypeId: 1,
+    FamilyValues: 'Moderate',
+    FamilyValuesId: 1,
+    FatherOccupation: 'Businessman',
+    MotherOccupation: 'Homemaker',
+    TotalBrothers: 1,
+    MarriedBrothers: 0,
+    TotalSisters: 1,
+    MarriedSisters: 1,
+
+    // Religious & Lifestyle
+    NamazHabit: 'Regular 5 Times',
+    HijabOrBeard: 'Hijab',
     DietType: 'Halal Only',
     SmokeHabit: 'No',
     DrinkHabit: 'No',
-    Hobbies: '',
-    Interests: '',
 
-    // Section 6: Address
-    CurrentStateId: 0,
-    StateName: '',
-    CurrentCityId: 0,
-    CityName: '',
-    NativePlaceStateId: 0,
-    NativeStateName: '',
-    NativePlaceCityId: 0,
-    NativeCityName: '',
+    // Bio
+    AboutMe: 'Alhamdulillah, we are a well-established and educated family rooted in strong moral values. We prefer a simple, meaningful, and dignified Nikah ceremony built on mutual understanding and respect, rather than customary demands.',
 
-    // Section 7: Family Details
-    FamilyType: 1,
-    FamilyStatus: 1,
-    FatherName: '',
-    MotherName: '',
-    FatherOccupationId: 1,
-    FatherOccupation: '',
-    MotherOccupationId: 1,
-    MotherOccupation: '',
-    TotalBrothers: 0,
-    MarriedBrothers: 0,
-    TotalSisters: 0,
-    MarriedSisters: 0,
-
-    // Partner Expectations
-    PartnerExpectations: ''
+    // Privacy & Verification
+    PhotoPrivacy: 'Premium Members',
+    GovtIdDocUrl: '',
+    IsGovtIdVerified: false,
   });
 
-  // Partner Preferences State (Multi-select State & City)
-  const [partnerPref, setPartnerPref] = useState<any>({
-    maritalStatusList: [1],
-    annualIncome: 'Any Income',
-    minAge: 20,
-    maxAge: 35,
-    minHeight: '5.0',
-    maxHeight: '6.2',
-    sectId: 1,
-    casteIds: [1],
-    educationIds: [1],
-    occupationIds: [1],
-    languageIds: [1],
-    stateIds: [], // ✅ Multi-select States
-    cityIds: []   // ✅ Multi-select Cities
-  });
+  // Photos List (Max 4 slots)
+  const [photos, setPhotos] = useState<Array<{ photoId: number; photoUrl: string; isMain: boolean; privacy?: string }>>([]);
+  const [uploadingPhotoSlot, setUploadingPhotoSlot] = useState<number | null>(null);
 
-  const getToken = useCallback(() => getAuthToken(), []);
+  // Master Data Cache
+  const [masterData, setMasterData] = useState<{ [key: string]: MasterOption[] }>({});
+  const [cities, setCities] = useState<MasterOption[]>([]);
 
-  const handleLogout = useCallback(() => {
-    clearAuthCookies();
-    router.push('/');
-  }, [router]);
+  // Active Bottom Sheet / Subscreen
+  // 'bio' | 'height' | 'option' | 'location' | 'text' | 'counters' | 'photoPrivacy' | 'trustBadge' | null
+  const [activeSheet, setActiveSheet] = useState<string | null>(null);
+  const [sheetTitle, setSheetTitle] = useState('');
+  const [sheetSearch, setSheetSearch] = useState('');
+  const [sheetOptions, setSheetOptions] = useState<Array<{ id: any; value: string; desc?: string }>>([]);
+  const [selectedSheetValue, setSelectedSheetValue] = useState<any>('');
+  const [sheetFieldKey, setSheetFieldKey] = useState<string>('');
 
+  // Height Slider Substate
+  const [heightCm, setHeightCm] = useState(170);
+
+  // Bio Substate
+  const [bioDraft, setBioDraft] = useState('');
+
+  // Location Substate
+  const [selectedStateId, setSelectedStateId] = useState<number>(2);
+  const [selectedCityId, setSelectedCityId] = useState<number>(1);
+  const [stateCities, setStateCities] = useState<MasterOption[]>([]);
+  const [locationSearch, setLocationSearch] = useState('');
+
+  // Trust Badge Substate
+  const [govtDocFile, setGovtDocFile] = useState<File | null>(null);
+  const [govtDocPreview, setGovtDocPreview] = useState<string>('');
+  const [uploadingGovtDoc, setUploadingGovtDoc] = useState(false);
+
+  // Initial Load & Hydration
   useEffect(() => {
-    router.prefetch('/dashboard/my-profile');
-    router.prefetch('/dashboard/gallery');
-  }, [router]);
-
-  // Master Data Ref to keep loadUserData stable without infinite loops
-  const masterDataRef = React.useRef(masterData);
-  useEffect(() => {
-    masterDataRef.current = masterData;
-  }, [masterData]);
-
-  // Helper to convert Master Text values to Numeric IDs
-  const resolveMasterId = useCallback((options: MasterOption[] | undefined, value: any, defaultId = 1): number => {
-    if (value === null || value === undefined || value === '') return defaultId;
-    if (typeof value === 'number' && value > 0) return value;
-    const num = Number(value);
-    if (!isNaN(num) && num > 0) return num;
-    
-    if (options && options.length > 0) {
-      const match = options.find(o => String(o.value).toLowerCase().trim() === String(value).toLowerCase().trim());
-      if (match) return Number(match.id);
-    }
-    return defaultId;
-  }, []);
-
-  // Load Master Tables (Parallel Concurrent Fetch)
-  useEffect(() => {
-    const loadAllMasters = async () => {
-      const types = [
-        'MARITAL_STATUS', 'RELIGIONS', 'SECTS', 'MASLAKS', 
-        'CASTES', 'MOTHER_TONGUES', 'EDUCATIONS', 'EMPLOYMENT_SECTORS', 
-        'OCCUPATIONS', 'STATES', 'FAMILY_TYPES', 'FAMILY_STATUS', 'Complexion',
-        'HOBBIES', 'INTERESTS', 'PROFILE_CREATED_FOR'
-      ];
-      const results = await Promise.all(
-        types.map(async (t) => {
-          const data = await fetchMasterDataApi(t);
-          return { key: t === 'Complexion' ? 'COMPLEXIONS' : t, data };
-        })
-      );
-      const masterObj: { [key: string]: MasterOption[] } = {};
-      results.forEach(item => {
-        masterObj[item.key] = item.data;
-      });
-      setMasterData(prev => ({ ...prev, ...masterObj }));
-      // Re-trigger loadUserData once master options are available
-      setTimeout(() => {
-        loadUserData();
-      }, 50);
-    };
-    loadAllMasters();
-  }, []);
-
-  // Cities for Address Section (Current State)
-  useEffect(() => {
-    if (formData.CurrentStateId > 0) {
-      fetchCitiesApi(formData.CurrentStateId).then(cities => setMasterData(prev => ({ ...prev, CITIES: cities })));
-    } else {
-      setMasterData(prev => ({ ...prev, CITIES: [] }));
-    }
-  }, [formData.CurrentStateId]);
-
-  // Cities for Native Place Section
-  useEffect(() => {
-    if (formData.NativePlaceStateId > 0) {
-      fetchCitiesApi(formData.NativePlaceStateId).then(cities => setMasterData(prev => ({ ...prev, NATIVE_CITIES: cities })));
-    } else {
-      setMasterData(prev => ({ ...prev, NATIVE_CITIES: [] }));
-    }
-  }, [formData.NativePlaceStateId]);
-
-  // Cities for Partner Preferences (Fetches based on first selected state)
-  useEffect(() => {
-    const firstStateId = partnerPref.stateIds && partnerPref.stateIds.length > 0 ? Number(partnerPref.stateIds[0]) : 0;
-    if (firstStateId > 0) {
-      fetchCitiesApi(firstStateId).then(cities => setMasterData(prev => ({ ...prev, PREF_CITIES: cities })));
-    } else {
-      setMasterData(prev => ({ ...prev, PREF_CITIES: [] }));
-    }
-  }, [partnerPref.stateIds]);
-
-  // Load Existing Profile Data
-  const loadUserData = useCallback(async () => {
-    const token = getToken();
+    const token = getAuthToken();
     if (!token) {
-      handleLogout();
+      router.push('/login');
       return;
     }
 
-    if (!formData.FullName && typeof window !== "undefined" && !localStorage.getItem("cached_profile_details") && !localStorage.getItem("user_details")) {
-      setLoading(true);
-    }
-    let userId = 0;
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("user_details") || localStorage.getItem("user_session");
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          userId = parsed.userId || parsed.UserId || parsed.id || parsed.user?.userId || parsed.user?.id || 0;
-        } catch (e) {}
+    const loadData = async () => {
+      try {
+        const [profileRes, mastersRes] = await Promise.all([
+          fetchProfileDetailsApi(0, token),
+          fetchMasterDataApi()
+        ]);
+
+        if (mastersRes) {
+          setMasterData(mastersRes);
+        }
+
+        if (profileRes?.success && profileRes?.data) {
+          const p = profileRes.data.profile || profileRes.data.Profile || profileRes.data;
+          const g = profileRes.data.gallery || profileRes.data.Gallery || [];
+
+          setFormData((prev: any) => ({
+            ...prev,
+            UserId: p.userId || p.UserId || 0,
+            FullName: p.fullName || p.FullName || prev.FullName,
+            ProfileCreatedFor: p.profileCreatedForName || p.profileCreatedFor || prev.ProfileCreatedFor,
+            Age: p.age || prev.Age,
+            Gender: p.gender || p.Gender || prev.Gender,
+            DateOfBirth: p.dateOfBirth || prev.DateOfBirth,
+            MaritalStatus: p.maritalStatusName || p.maritalStatus || prev.MaritalStatus,
+            Sect: p.sectName || p.sect || prev.Sect,
+            Height: p.height || p.Height || prev.Height,
+            Weight: p.weight || p.Weight || prev.Weight,
+            Caste: p.casteName || p.caste || prev.Caste,
+            CasteId: p.casteId || prev.CasteId,
+            Maslak: p.maslakName || p.maslak || prev.Maslak,
+            MaslakId: p.maslakId || prev.MaslakId,
+            MotherTongue: p.motherTongueName || p.motherTongue || prev.MotherTongue,
+            MotherTongueId: p.motherTongueId || prev.MotherTongueId,
+            Location: `${p.currentCityName || p.cityName || 'Bareilly'}, ${p.currentStateName || p.stateName || 'Uttar Pradesh'}, India`,
+            CurrentStateId: p.currentStateId || prev.CurrentStateId,
+            CurrentCityId: p.currentCityId || prev.CurrentCityId,
+            StateName: p.currentStateName || p.stateName || prev.StateName,
+            CityName: p.currentCityName || p.cityName || prev.CityName,
+            Disability: p.disability || prev.Disability,
+
+            // Education & Career
+            Education: p.highestDegreeName || p.highestDegree || prev.Education,
+            EducationId: p.highestDegreeId || prev.EducationId,
+            CollegeName: p.collegeName || p.CollegeName || prev.CollegeName,
+            EmployedIn: p.employmentSectorName || p.employmentSector || prev.EmployedIn,
+            EmployedInId: p.employmentSectorId || prev.EmployedInId,
+            Occupation: p.designationName || p.designation || prev.Occupation,
+            OccupationId: p.designationId || prev.OccupationId,
+            AnnualIncome: p.annualIncome || p.AnnualIncome || prev.AnnualIncome,
+
+            // Family
+            FamilyLocation: `${p.nativeCityName || p.currentCityName || 'Bareilly'}, ${p.nativeStateName || p.currentStateName || 'Uttar Pradesh'}, India`,
+            FamilyType: p.familyTypeName || (p.familyType === 1 ? 'Joint Family' : 'Nuclear Family') || prev.FamilyType,
+            FamilyTypeId: p.familyType || prev.FamilyTypeId,
+            FamilyValues: p.familyValuesName || (p.familyValues === 1 ? 'Traditional' : 'Moderate') || prev.FamilyValues,
+            FamilyValuesId: p.familyValues || prev.FamilyValuesId,
+            FatherOccupation: p.fatherOccupation || prev.FatherOccupation,
+            MotherOccupation: p.motherOccupation || prev.MotherOccupation,
+            TotalBrothers: p.totalBrothers ?? prev.TotalBrothers,
+            MarriedBrothers: p.marriedBrothers ?? prev.MarriedBrothers,
+            TotalSisters: p.totalSisters ?? prev.TotalSisters,
+            MarriedSisters: p.marriedSisters ?? prev.MarriedSisters,
+
+            // Religious & Lifestyle
+            NamazHabit: p.namazHabit || prev.NamazHabit,
+            HijabOrBeard: p.hijabOrBeard || prev.HijabOrBeard,
+            DietType: p.dietType || prev.DietType,
+            SmokeHabit: p.smokeHabit || prev.SmokeHabit,
+            DrinkHabit: p.drinkHabit || prev.DrinkHabit,
+
+            // Bio
+            AboutMe: p.aboutMe || prev.AboutMe,
+
+            // Privacy & Doc
+            PhotoPrivacy: p.photoPrivacy || p.PhotoPrivacy || 'Premium Members',
+            GovtIdDocUrl: p.govtIdDocUrl || p.GovtIdDocUrl || '',
+            IsGovtIdVerified: Boolean(p.isGovtIdVerified || p.IsGovtIdVerified),
+          }));
+
+          // Set photos
+          const rawPhotos: any[] = [];
+          if (p.photoUrl || p.PhotoUrl) {
+            rawPhotos.push({
+              photoId: 1,
+              photoUrl: p.photoUrl || p.PhotoUrl,
+              isMain: true,
+              privacy: p.photoPrivacy || 'Premium Members'
+            });
+          }
+          if (Array.isArray(g)) {
+            g.forEach((gp: any) => {
+              const url = gp.photoUrl || gp.PhotoUrl;
+              if (url && !rawPhotos.some(rp => rp.photoUrl === url)) {
+                rawPhotos.push({
+                  photoId: gp.photoId || gp.PhotoId || Date.now(),
+                  photoUrl: url,
+                  isMain: Boolean(gp.isMain || gp.IsMain),
+                  privacy: gp.visibilityPermission || 'Premium Members'
+                });
+              }
+            });
+          }
+          setPhotos(rawPhotos);
+        }
+      } catch (err) {
+        console.error("Error loading profile:", err);
+      } finally {
+        setLoading(false);
       }
-    }
+    };
 
-    const res = await fetchProfileDetailsApi(userId > 0 ? userId : 0, token);
-    if (res.isUnauthorized || (!res.success && res.message?.toLowerCase().includes("unauthorized"))) {
-      toast.error("Session expired. Please login again.");
-      handleLogout();
-      return;
-    }
-    if (res.success && res.data) {
-      const p = res.data.profile || res.data.Profile || res.data;
-      const pref = res.data.preferences || res.data.Preferences || {};
-      const currentMasters = masterDataRef.current;
+    loadData();
+  }, [router]);
 
-      const getValidId = (idVal: any, textVal: any, masterOptions?: MasterOption[], fallback = 1) => {
-        const num = Number(idVal);
-        if (!isNaN(num) && num > 0) return num;
-        return resolveMasterId(masterOptions, textVal, fallback);
-      };
-
-      const getValidText = (val: any, fallback: string) => {
-        if (val !== null && val !== undefined && String(val).trim() !== '') return String(val).trim();
-        return fallback;
-      };
-
-      let parsedDob = '';
-      if (p.dateOfBirth) {
-        try {
-          const d = new Date(p.dateOfBirth);
-          if (!isNaN(d.getTime())) parsedDob = d.toISOString().split('T')[0];
-        } catch (e) {}
-      }
-
-      setFormData((prev: any) => ({
-        ...prev,
-        UserId: p.userId || p.UserId || userId,
-        FullName: getValidText(p.fullName || p.FullName, 'Member'),
-        MobileNumber: getValidText(p.mobileNumber || p.MobileNumber, ''),
-        Email: getValidText(p.email || p.Email, ''),
-        ProfileCreatedFor: getValidId(p.profileCreatedForId ?? p.ProfileCreatedForId, p.profileCreatedFor, currentMasters.PROFILE_CREATED_FOR, 1),
-        ProfileCreatedForText: getValidText(p.profileCreatedForName || p.profileCreatedFor || p.ProfileCreatedFor, 'Self'),
-        Age: p.age || 24,
-        Gender: getValidText(p.gender || p.Gender, 'Female'),
-        DateOfBirth: parsedDob,
-        DateOfBirthFormatted: p.dateOfBirth ? new Date(p.dateOfBirth).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'N/A',
-        PhotoUrl: getOptimizedImageUrl(p.mainPhotoUrl || p.photoUrl || p.PhotoUrl || p.mainPhoto || p.photo, p.userId || p.UserId, p.gender),
-
-        AboutMe: p.aboutMe || p.AboutMe || '',
-        FamilyAbout: p.familyAbout || p.aboutFamily || '',
-        Height: getValidText(p.height || p.Height, '5 ft 6 in'),
-        Weight: getValidText(p.weight || p.Weight, '60 kg'),
-        Complexion: getValidId(p.complexionId ?? p.ComplexionId, p.complexion, currentMasters.COMPLEXIONS, 1),
-        MaritalStatus: getValidId(p.maritalStatusId ?? p.MaritalStatusId, p.maritalStatus, currentMasters.MARITAL_STATUS, 1),
-        MaritalStatusText: getValidText(p.maritalStatusName || p.maritalStatus || p.MaritalStatus, 'Never Married'),
-        Sect: getValidId(p.sectId ?? p.SectId, p.sect, currentMasters.SECTS, 1),
-        SectText: getValidText(p.sectName || p.sect || p.Sect, 'Sunni'),
-        Caste: getValidId(p.casteId ?? p.CasteId, p.caste, currentMasters.CASTES, 1),
-        CasteText: getValidText(p.casteName || p.caste || p.Caste, 'General'),
-        Maslak: getValidId(p.maslakId ?? p.MaslakId, p.maslak, currentMasters.MASLAKS, 1),
-        MaslakText: getValidText(p.maslakName || p.maslak || p.Maslak, ''),
-        MotherTongue: getValidId(p.motherTongueId ?? p.MotherTongueId, p.motherTongue, currentMasters.MOTHER_TONGUES, 1),
-        MotherTongueText: getValidText(p.motherTongueName || p.motherTongue || p.MotherTongue, 'Hindi'),
-
-        HighestDegree: getValidId(p.highestDegreeId ?? p.HighestDegreeId, p.highestDegree, currentMasters.EDUCATIONS, 1),
-        HighestDegreeText: getValidText(p.highestDegreeName || p.highestDegree || p.HighestDegree, 'Graduate'),
-        CollegeName: p.collegeName || p.CollegeName || '',
-        EmploymentSector: getValidId(p.employmentSectorId ?? p.EmploymentSectorId, p.employmentSector, currentMasters.EMPLOYMENT_SECTORS, 1),
-        Designation: getValidId(p.designationId ?? p.DesignationId, p.designation, currentMasters.OCCUPATIONS, 1),
-        DesignationText: getValidText(p.designationName || p.designation || p.Designation, 'Professional'),
-        OccupationDetails: p.occupationDetails || p.OccupationDetails || '',
-        AnnualIncome: getValidText(p.annualIncome || p.AnnualIncome, '5 - 10 LPA'),
-
-        DietType: getValidText(p.dietType || p.DietType, 'Halal Only'),
-        SmokeHabit: getValidText(p.smokeHabit || p.SmokeHabit, 'No'),
-        DrinkHabit: getValidText(p.drinkHabit || p.DrinkHabit, 'No'),
-        Hobbies: p.hobbies || p.Hobbies || '',
-        Interests: p.interests || p.Interests || '',
-
-        CurrentStateId: Number(p.currentStateId ?? p.CurrentStateId ?? 0),
-        StateName: getValidText(p.currentStateName || p.stateName, 'State N/A'),
-        CurrentCityId: Number(p.currentCityId ?? p.CurrentCityId ?? 0),
-        CityName: getValidText(p.currentCityName || p.cityName, 'City N/A'),
-        NativePlaceStateId: Number(p.nativePlaceStateId ?? p.NativePlaceStateId ?? 0),
-        NativeStateName: getValidText(p.nativeStateName || p.NativeStateName, ''),
-        NativePlaceCityId: Number(p.nativePlaceCityId ?? p.NativePlaceCityId ?? 0),
-        NativeCityName: getValidText(p.nativeCityName || p.NativeCityName, ''),
-
-        FamilyType: getValidId(p.familyTypeId ?? p.FamilyTypeId, p.familyType, currentMasters.FAMILY_TYPES, 1),
-        FamilyStatus: getValidId(p.familyStatusId ?? p.FamilyStatusId, p.familyStatus, currentMasters.FAMILY_STATUS, 1),
-        FatherName: p.fatherName || p.FatherName || '',
-        MotherName: p.motherName || p.MotherName || '',
-        FatherOccupationId: getValidId(p.fatherOccupationId ?? p.FatherOccupationId, p.fatherOccupationName || p.fatherOccupation || p.FatherOccupation, currentMasters.OCCUPATIONS, 1),
-        MotherOccupationId: getValidId(p.motherOccupationId ?? p.MotherOccupationId, p.motherOccupationName || p.motherOccupation || p.MotherOccupation, currentMasters.OCCUPATIONS, 1),
-        FatherOccupation: getValidText(p.fatherOccupationName || p.fatherOccupation || p.FatherOccupation, ''),
-        MotherOccupation: getValidText(p.motherOccupationName || p.motherOccupation || p.MotherOccupation, ''),
-        TotalBrothers: Number(p.totalBrothers || 0),
-        MarriedBrothers: Number(p.marriedBrothers || 0),
-        TotalSisters: Number(p.totalSisters || 0),
-        MarriedSisters: Number(p.marriedSisters || 0),
-
-        PartnerExpectations: p.partnerExpectations || p.PartnerExpectations || ''
-      }));
-
-      if (pref && Object.keys(pref).length > 0) {
-        const parseArray = (val: any) => {
-          if (!val) return [];
-          if (Array.isArray(val)) return val;
-          return String(val).split(',').map(s => s.trim()).filter(Boolean);
-        };
-
-        setPartnerPref((prev: any) => ({
-          ...prev,
-          minAge: pref.minAge || 20,
-          maxAge: pref.maxAge || 35,
-          minHeight: pref.minHeight || '5.0',
-          maxHeight: pref.maxHeight || '6.2',
-          sectId: pref.preferredSect || 1,
-          stateIds: parseArray(pref.preferredStateID || pref.preferredState),
-          cityIds: parseArray(pref.preferredCityID || pref.preferredCity),
-          maritalStatusList: parseArray(pref.preferredMaritalStatus),
-          educationIds: parseArray(pref.preferredEducation),
-          occupationIds: parseArray(pref.preferredOccupation),
-          casteIds: parseArray(pref.preferredCaste),
-          languageIds: parseArray(pref.preferredMotherTongue)
-        }));
-      }
-
-      if (typeof window !== "undefined") {
-        try { localStorage.setItem("cached_profile_details", JSON.stringify(res.data)); } catch (e) {}
-      }
-    }
-
-    setLoading(false);
-  }, [getToken, router, resolveMasterId, handleLogout]);
-
+  // Load cities whenever state changes
   useEffect(() => {
-    loadUserData();
-  }, [loadUserData]);
+    if (selectedStateId > 0) {
+      fetchCitiesApi(selectedStateId).then(res => {
+        if (Array.isArray(res)) setStateCities(res);
+      });
+    }
+  }, [selectedStateId]);
 
-  // Save Profile Handler
-  const handleSaveProfileSection = async () => {
-    const token = getToken();
+  // Update Field Handler (Universal & Instant)
+  const saveFieldValue = async (field: string, value: any, extraFields: Record<string, any> = {}) => {
+    const token = getAuthToken();
     if (!token) return;
 
-    setSaving(true);
+    setSavingField(field);
+    try {
+      const fd = new FormData();
+      fd.append("UserId", String(formData.UserId || 0));
+      fd.append(field, String(value));
+      Object.entries(extraFields).forEach(([k, v]) => fd.append(k, String(v)));
 
-    // Save Partner Preferences Section
-    if (currentSection === 'partner') {
-      const currentMasters = masterDataRef.current;
-
-      const cleanIds = (val: any, masterOptions?: MasterOption[], fallback = '1') => {
-        if (!val) return fallback;
-        const arr = Array.isArray(val) ? val : String(val).split(',');
-        const cleaned = arr.map(item => {
-          const trimmed = String(item).trim();
-          if (!trimmed) return null;
-          if (!isNaN(Number(trimmed)) && Number(trimmed) > 0) return String(trimmed);
-          if (masterOptions && masterOptions.length > 0) {
-            const match = masterOptions.find(o => String(o.value).toLowerCase().trim() === trimmed.toLowerCase());
-            if (match) return String(match.id);
-          }
-          return null;
-        }).filter(Boolean);
-
-        return cleaned.length > 0 ? cleaned.join(',') : fallback;
-      };
-
-      const prefPayload = {
-        userId: formData.UserId,
-        minAge: Number(partnerPref.minAge || 18),
-        maxAge: Number(partnerPref.maxAge || 70),
-        minHeight: parseFloat(partnerPref.minHeight || '4.0'),
-        maxHeight: parseFloat(partnerPref.maxHeight || '7.0'),
-        preferredSect: cleanIds(partnerPref.sectId, currentMasters.SECTS, '1'),
-        preferredStateID: cleanIds(partnerPref.stateIds, currentMasters.STATES, '0'),
-        preferredCityID: cleanIds(partnerPref.cityIds, currentMasters.PREF_CITIES, '0'),
-        preferredEducation: cleanIds(partnerPref.educationIds, currentMasters.EDUCATIONS, '1'),
-        preferredOccupation: cleanIds(partnerPref.occupationIds, currentMasters.OCCUPATIONS, '1'),
-        minAnnualIncome: 0,
-        preferredMaritalStatus: cleanIds(partnerPref.maritalStatusList, currentMasters.MARITAL_STATUS, '1'),
-        preferredMotherTongue: cleanIds(partnerPref.languageIds, currentMasters.MOTHER_TONGUES, '1'),
-        preferredCaste: cleanIds(partnerPref.casteIds, currentMasters.CASTES, '1')
-      };
-
-      const res = await savePartnerPreferencesApi(prefPayload, token);
-
-      if (formData.PartnerExpectations) {
-        const prefFd = new FormData();
-        prefFd.append("UserId", String(formData.UserId));
-        prefFd.append("PartnerExpectations", formData.PartnerExpectations);
-        await updateProfileApi(prefFd, token);
-      }
-
+      const res = await updateProfileApi(fd, token);
       if (res.success) {
-        toast.success("Partner preferences saved successfully!");
-        await loadUserData();
+        setFormData((prev: any) => ({
+          ...prev,
+          [field]: value,
+          ...extraFields
+        }));
+        toast.success("Updated successfully!");
+        setActiveSheet(null);
       } else {
-        toast.error(res.message || "Failed to update partner preferences.");
+        toast.error(res.message || "Failed to update.");
       }
-      setSaving(false);
+    } catch {
+      toast.error("Network error. Please try again.");
+    } finally {
+      setSavingField(null);
+    }
+  };
+
+  // Open Standard Option Bottom Sheet
+  const openOptionSheet = (
+    title: string, 
+    fieldKey: string, 
+    currentValue: any, 
+    options: Array<{ id: any; value: string; desc?: string }>
+  ) => {
+    setSheetTitle(title);
+    setSheetFieldKey(fieldKey);
+    setSelectedSheetValue(currentValue);
+    setSheetOptions(options);
+    setSheetSearch('');
+    setActiveSheet('option');
+  };
+
+  // Open Height Slider Sheet
+  const openHeightSheet = () => {
+    setHeightCm(parseHeightToCm(formData.Height));
+    setActiveSheet('height');
+  };
+
+  // Open Bio Edit Sheet
+  const openBioSheet = () => {
+    setBioDraft(formData.AboutMe || '');
+    setActiveSheet('bio');
+  };
+
+  // Open Location Sheet
+  const openLocationSheet = () => {
+    setSelectedStateId(formData.CurrentStateId || 2);
+    setSelectedCityId(formData.CurrentCityId || 1);
+    setLocationSearch('');
+    setActiveSheet('location');
+  };
+
+  // Save Height
+  const handleSaveHeight = () => {
+    const formatted = cmToFtIn(heightCm);
+    saveFieldValue('Height', formatted);
+  };
+
+  // Save Bio
+  const handleSaveBio = () => {
+    saveFieldValue('AboutMe', bioDraft.trim());
+  };
+
+  // Save Location
+  const handleSaveLocation = () => {
+    const stateObj = (masterData.STATES || []).find(s => s.id === selectedStateId);
+    const cityObj = stateCities.find(c => c.id === selectedCityId);
+    const sName = stateObj?.value || formData.StateName;
+    const cName = cityObj?.value || formData.CityName;
+    const locText = `${cName}, ${sName}, India`;
+
+    saveFieldValue('CurrentStateId', selectedStateId, {
+      CurrentCityId: selectedCityId,
+      Location: locText,
+      StateName: sName,
+      CityName: cName
+    });
+  };
+
+  // Save Option Selection
+  const handleSaveOption = () => {
+    const selectedObj = sheetOptions.find(o => o.id === selectedSheetValue || o.value === selectedSheetValue);
+    if (!selectedObj) {
+      setActiveSheet(null);
       return;
     }
 
-    // Save Standard Profile Section
-    const fd = new FormData();
-    
-    const numericMasterKeys: { [key: string]: MasterOption[] } = {
-      MaritalStatus: masterData.MARITAL_STATUS,
-      MotherTongue: masterData.MOTHER_TONGUES,
-      Sect: masterData.SECTS,
-      Caste: masterData.CASTES,
-      Maslak: masterData.MASLAKS,
-      HighestDegree: masterData.EDUCATIONS,
-      EmploymentSector: masterData.EMPLOYMENT_SECTORS,
-      Designation: masterData.OCCUPATIONS,
-      CurrentStateId: masterData.STATES,
-      CurrentCityId: masterData.CITIES,
-      NativePlaceStateId: masterData.STATES,
-      NativePlaceCityId: masterData.NATIVE_CITIES,
-      FamilyType: masterData.FAMILY_TYPES,
-      FamilyStatus: masterData.FAMILY_STATUS,
-      FatherOccupationId: masterData.OCCUPATIONS,
-      MotherOccupationId: masterData.OCCUPATIONS,
-      Complexion: masterData.COMPLEXIONS,
-      ProfileCreatedFor: masterData.PROFILE_CREATED_FOR
-    };
-
-    const uiOnlyKeys = [
-      'DateOfBirthFormatted', 'MaritalStatusText', 'SectText', 'CasteText', 'MaslakText',
-      'MotherTongueText', 'HighestDegreeText', 'DesignationText', 'StateName', 
-      'CityName', 'NativeStateName', 'NativeCityName', 'FatherOccupation', 'MotherOccupation',
-      'NamazHabit', 'HijabOrBeard', 'Age', 'MobileNumber', 'ProfileCreatedForText', 'PhotoUrl'
-    ];
-
-    Object.keys(formData).forEach((key) => {
-      if (uiOnlyKeys.includes(key)) return;
-      if (key === 'DateOfBirth' && !formData[key]) return;
-
-      let val = formData[key];
-
-      if (numericMasterKeys[key]) {
-        val = resolveMasterId(numericMasterKeys[key], val, 0);
-        if (val <= 0) return;
-      }
-
-      if (val !== null && val !== undefined && val !== '') {
-        fd.append(key, String(val));
-      }
-    });
-
-    const res = await updateProfileApi(fd, token);
-    
-    if (res.success) {
-      toast.success("Profile section saved successfully!");
-      await loadUserData();
+    if (sheetFieldKey === 'Education') {
+      saveFieldValue('HighestDegree', selectedObj.id, { Education: selectedObj.value, EducationId: selectedObj.id });
+    } else if (sheetFieldKey === 'EmployedIn') {
+      saveFieldValue('EmploymentSector', selectedObj.id, { EmployedIn: selectedObj.value, EmployedInId: selectedObj.id });
+    } else if (sheetFieldKey === 'Occupation') {
+      saveFieldValue('Designation', selectedObj.id, { Occupation: selectedObj.value, OccupationId: selectedObj.id });
+    } else if (sheetFieldKey === 'AnnualIncome') {
+      saveFieldValue('AnnualIncome', selectedObj.value);
+    } else if (sheetFieldKey === 'Caste') {
+      saveFieldValue('Caste', selectedObj.id, { CasteText: selectedObj.value });
+    } else if (sheetFieldKey === 'Maslak') {
+      saveFieldValue('Maslak', selectedObj.id, { MaslakText: selectedObj.value });
+    } else if (sheetFieldKey === 'MotherTongue') {
+      saveFieldValue('MotherTongue', selectedObj.id, { MotherTongueText: selectedObj.value });
+    } else if (sheetFieldKey === 'Disability') {
+      saveFieldValue('Disability', selectedObj.value);
+    } else if (sheetFieldKey === 'FamilyType') {
+      saveFieldValue('FamilyType', selectedObj.id, { FamilyType: selectedObj.value });
+    } else if (sheetFieldKey === 'FamilyValues') {
+      saveFieldValue('FamilyValues', selectedObj.id, { FamilyValues: selectedObj.value });
+    } else if (sheetFieldKey === 'NamazHabit') {
+      saveFieldValue('NamazHabit', selectedObj.value);
+    } else if (sheetFieldKey === 'HijabOrBeard') {
+      saveFieldValue('HijabOrBeard', selectedObj.value);
+    } else if (sheetFieldKey === 'DietType') {
+      saveFieldValue('DietType', selectedObj.value);
+    } else if (sheetFieldKey === 'SmokeHabit') {
+      saveFieldValue('SmokeHabit', selectedObj.value);
+    } else if (sheetFieldKey === 'DrinkHabit') {
+      saveFieldValue('DrinkHabit', selectedObj.value);
     } else {
-      toast.error(res.message || "Failed to update profile.");
+      saveFieldValue(sheetFieldKey, selectedObj.value);
     }
-    setSaving(false);
   };
 
-  const sectionMenuItems = [
-    { id: 'intro', label: 'Introduction', icon: User, desc: 'Family Details & Background' },
-    { id: 'basic', label: 'Basic Details', icon: User, desc: 'Read-only profile identity summary' },
-    { id: 'personal', label: 'Personal Details', icon: User, desc: 'Height, Weight, Caste & Sect' },
-    { id: 'education', label: 'Education And Career', icon: GraduationCap, desc: 'Degree, Profession & Job Details' },
-    { id: 'religious', label: 'Religious And Lifestyle', icon: Moon, desc: 'Diet & Lifestyle Habits' },
-    { id: 'address', label: 'Address', icon: MapPin, desc: 'State & City location' },
-    { id: 'family', label: 'Family Details', icon: Users, desc: 'Family Type, Status & Parents' },
-    { id: 'partner', label: 'Partner Preferences', icon: Heart, desc: 'Multi-select ideal match criteria' },
+  // Save Photo Privacy
+  const handleSavePhotoPrivacy = async (privacyValue: string) => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+      const res = await updatePhotoPrivacyApi(privacyValue, token);
+      if (res.success) {
+        setFormData((prev: any) => ({ ...prev, PhotoPrivacy: privacyValue }));
+        toast.success(`Photo privacy set to ${privacyValue}`);
+        setActiveSheet(null);
+      } else {
+        toast.error("Failed to update photo privacy.");
+      }
+    } catch {
+      toast.error("Network error.");
+    }
+  };
+
+  // Upload Photo to Slot (1-4)
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>, slotIdx: number) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check non-image extensions
+    const invalidExts = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.iso', '.zip', '.rar', '.exe', '.tar', '.gz'];
+    const nameLower = file.name.toLowerCase();
+    if (invalidExts.some(ext => nameLower.endsWith(ext))) {
+      toast.error("Invalid file format. Please select an image (JPG, PNG, WEBP, AVIF, HEIC, etc.). Documents or ISO files cannot be uploaded as photos.");
+      return;
+    }
+
+    setUploadingPhotoSlot(slotIdx);
+    const token = getAuthToken();
+
+    try {
+      // 1. Convert to dataUrl and validate client-side face
+      const dataUrl: string = await new Promise((resolve) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result || ''));
+        r.readAsDataURL(file);
+      });
+
+      const faceCheck = await clientValidateSingleFace(dataUrl);
+      if (!faceCheck.isValid) {
+        toast.error(faceCheck.errorMessage || "Please select a clear photo showing a human face.");
+        return;
+      }
+
+      // 2. Upload to Cloudflare R2
+      const ext = file.name.split('.').pop() || 'jpg';
+      const upRes = await fetch("/api/face-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "upload-photo-r2",
+          photoBase64: dataUrl,
+          userId: formData.UserId || 0,
+          ext,
+          mimeType: file.type || "image/jpeg"
+        })
+      });
+      const upJson = await upRes.json();
+
+      if (!upJson?.success || !upJson?.photoUrl) {
+        toast.error("Failed to upload photo to storage. Please try again.");
+        return;
+      }
+
+      const uploadedCdnUrl = upJson.photoUrl;
+
+      // 3. Save to backend
+      if (slotIdx === 0) {
+        const fd = new FormData();
+        fd.append("UserId", String(formData.UserId || 0));
+        fd.append("PhotoUrl", uploadedCdnUrl);
+        fd.append("PhotoPrivacy", formData.PhotoPrivacy || 'All Members');
+        const res = await updateProfileApi(fd, token);
+
+        if (res.success) {
+          setPhotos(prev => {
+            const next = [...prev];
+            const mainObj = { photoId: 1, photoUrl: uploadedCdnUrl, isMain: true, privacy: formData.PhotoPrivacy };
+            if (next.length > 0) next[0] = mainObj;
+            else next.push(mainObj);
+            return next;
+          });
+          toast.success("Profile photo updated successfully!");
+        } else {
+          toast.error(res.message || "Failed to update profile photo.");
+        }
+      } else {
+        const gfd = new FormData();
+        gfd.append("Photo", file);
+        gfd.append("Privacy", formData.PhotoPrivacy || 'All Members');
+        const res = await uploadGalleryPhotoApi(gfd, token);
+
+        if (res.success) {
+          setPhotos(prev => [
+            ...prev,
+            { photoId: res.data?.photoId || Date.now(), photoUrl: uploadedCdnUrl, isMain: false, privacy: formData.PhotoPrivacy }
+          ]);
+          toast.success("Gallery photo uploaded successfully!");
+        } else {
+          toast.error(res.message || "Failed to upload gallery photo.");
+        }
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to process photo.");
+    } finally {
+      setUploadingPhotoSlot(null);
+      e.target.value = '';
+    }
+  };
+
+  // Delete Photo
+  const handleDeletePhoto = async (photoId: number, index: number) => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+      if (index === 0) {
+        // If main photo deleted, clear PhotoUrl in profile
+        const fd = new FormData();
+        fd.append("UserId", String(formData.UserId || 0));
+        fd.append("PhotoUrl", "");
+        await updateProfileApi(fd, token);
+      } else {
+        await deleteGalleryPhotoApi(photoId, token);
+      }
+
+      setPhotos(prev => prev.filter((_, i) => i !== index));
+      toast.success("Photo removed successfully.");
+    } catch {
+      toast.error("Failed to remove photo.");
+    }
+  };
+
+  // Submit Govt ID Document for Admin Approval
+  const handleSubmitGovtDoc = async () => {
+    if (!govtDocFile) {
+      toast.error("Please choose a document image or PDF first.");
+      return;
+    }
+    const token = getAuthToken();
+    if (!token) return;
+
+    setUploadingGovtDoc(true);
+    try {
+      const fd = new FormData();
+      fd.append("document", govtDocFile);
+      const res = await uploadGovtDocumentApi(fd, token);
+      if (res.success) {
+        setFormData((prev: any) => ({
+          ...prev,
+          GovtIdDocUrl: govtDocPreview,
+          IsGovtIdVerified: false // sent for approval
+        }));
+        toast.success("Govt ID uploaded! Sent to Admin for Trust Badge verification.");
+        setActiveSheet(null);
+      } else {
+        toast.error(res.message || "Failed to upload document.");
+      }
+    } catch {
+      toast.error("Network error while uploading document.");
+    } finally {
+      setUploadingGovtDoc(false);
+    }
+  };
+
+  // Filtered options for standard option sheet
+  const filteredSheetOptions = useMemo(() => {
+    if (!sheetSearch.trim()) return sheetOptions;
+    const q = sheetSearch.toLowerCase().trim();
+    return sheetOptions.filter(o => o.value.toLowerCase().includes(q));
+  }, [sheetOptions, sheetSearch]);
+
+  // Master options map
+  const educationOpts = useMemo(() => (masterData.EDUCATIONS || []).map(e => ({ id: e.id, value: e.value })), [masterData]);
+  const occupationOpts = useMemo(() => (masterData.OCCUPATIONS || []).map(o => ({ id: o.id, value: o.value })), [masterData]);
+  const casteOpts = useMemo(() => (masterData.CASTES || []).map(c => ({ id: c.id, value: c.value })), [masterData]);
+  const maslakOpts = useMemo(() => (masterData.MASLAKS || []).map(m => ({ id: m.id, value: m.value })), [masterData]);
+  const languageOpts = useMemo(() => (masterData.MOTHER_TONGUES || []).map(l => ({ id: l.id, value: l.value })), [masterData]);
+
+  const employedInOpts = [
+    { id: 1, value: 'Private Company' },
+    { id: 2, value: 'Government / Public Sector' },
+    { id: 3, value: 'Business / Self Employed' },
+    { id: 4, value: 'Not Working' },
+    { id: 5, value: 'Student' }
   ];
 
-  const heightOptions = [
-    "4 ft 6 in", "4 ft 7 in", "4 ft 8 in", "4 ft 9 in", "4 ft 10 in", "4 ft 11 in",
-    "5 ft 0 in", "5 ft 1 in", "5 ft 2 in", "5 ft 3 in", "5 ft 4 in", "5 ft 5 in", 
-    "5 ft 6 in", "5 ft 7 in", "5 ft 8 in", "5 ft 9 in", "5 ft 10 in", "5 ft 11 in", 
-    "6 ft 0 in", "6 ft 1 in", "6 ft 2 in", "6 ft 3 in", "6 ft 4 in", "6 ft 5 in"
-  ].map(h => ({ id: h, value: h }));
-
-  const weightOptions = Array.from({ length: 81 }, (_, i) => ({ id: `${40 + i} kg`, value: `${40 + i} kg` }));
-
-  const incomeOptions = [
-    { id: 'Below 3 LPA', value: 'Below 3 LPA' },
-    { id: '3 - 5 LPA', value: '3 - 5 LPA' },
-    { id: '5 - 10 LPA', value: '5 - 10 LPA' },
-    { id: '10 - 15 LPA', value: '10 - 15 LPA' },
-    { id: '15 - 20 LPA', value: '15 - 20 LPA' },
-    { id: '20 - 35 LPA', value: '20 - 35 LPA' },
-    { id: '35 - 50 LPA', value: '35 - 50 LPA' },
-    { id: '50 LPA+', value: '50 LPA+' }
+  const incomeOpts = [
+    { id: 'No Income', value: 'No Income' },
+    { id: 'Below ₹3 Lakhs', value: 'Below ₹3 Lakhs' },
+    { id: '₹3 - 5 Lakhs', value: '₹3 - 5 Lakhs' },
+    { id: '₹5 - 7 Lakhs', value: '₹5 - 7 Lakhs' },
+    { id: '₹7 - 10 Lakhs', value: '₹7 - 10 Lakhs' },
+    { id: '₹10 - 15 Lakhs', value: '₹10 - 15 Lakhs' },
+    { id: '₹15 - 25 Lakhs', value: '₹15 - 25 Lakhs' },
+    { id: '₹25 - 50 Lakhs', value: '₹25 - 50 Lakhs' },
+    { id: '₹50 Lakhs & Above', value: '₹50 Lakhs & Above' }
   ];
 
-  const countOptions = Array.from({ length: 11 }, (_, i) => ({ id: i, value: String(i) }));
+  const familyTypeOpts = [
+    { id: 1, value: 'Joint Family' },
+    { id: 2, value: 'Nuclear Family' }
+  ];
 
-  const hijabOptions = [
+  const familyValuesOpts = [
+    { id: 1, value: 'Traditional' },
+    { id: 2, value: 'Moderate' },
+    { id: 3, value: 'Liberal' },
+    { id: 4, value: 'Religious' }
+  ];
+
+  const disabilityOpts = [
+    { id: 'No', value: 'No' },
+    { id: 'Physical Disability', value: 'Physical Disability' },
+    { id: 'Other', value: 'Other' }
+  ];
+
+  const namazOpts = [
+    { id: 'Regular 5 Times', value: 'Regular 5 Times' },
+    { id: 'Only Jummah', value: 'Only Jummah' },
+    { id: 'Occasionally', value: 'Occasionally' },
+    { id: 'Only in Ramadan', value: 'Only in Ramadan' }
+  ];
+
+  const hijabOpts = [
     { id: 'Hijab', value: 'Hijab' },
     { id: 'Niqab', value: 'Niqab' },
     { id: 'Beard', value: 'Beard' },
-    { id: 'No Hijab/Beard', value: 'No Hijab/Beard' }
+    { id: 'No Hijab / Clean Shaved', value: 'No Hijab / Clean Shaved' }
   ];
 
-  const namazOptions = [
-    { id: 'Regular 5 Times', value: 'Regular 5 Times' },
-    { id: 'Jummah Only', value: 'Jummah Only' },
-    { id: 'Occasionally', value: 'Occasionally' },
-    { id: 'Only During Ramadan', value: 'Only During Ramadan' }
-  ];
-
-  const dietOptions = [
+  const dietOpts = [
     { id: 'Halal Only', value: 'Halal Only' },
-    { id: 'Vegetarian', value: 'Vegetarian' },
     { id: 'Non-Vegetarian', value: 'Non-Vegetarian' },
+    { id: 'Vegetarian', value: 'Vegetarian' },
     { id: 'Eggetarian', value: 'Eggetarian' }
   ];
 
-  const smokeOptions = [
+  const habitOpts = [
     { id: 'No', value: 'No' },
-    { id: 'Occasional', value: 'Occasional' },
-    { id: 'Regularly', value: 'Regularly' },
-    { id: 'Trying to Quit', value: 'Trying to Quit' }
+    { id: 'Occasionally', value: 'Occasionally' },
+    { id: 'Yes', value: 'Yes' }
   ];
 
-  const drinkOptions = [
-    { id: 'No', value: 'No' },
-    { id: 'Socially', value: 'Socially' },
-    { id: 'Never', value: 'Never' }
-  ];
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#FAF8F5] flex flex-col items-center justify-center space-y-3">
+        <Loader2 size={32} className="text-[#e21e5b] animate-spin" />
+        <p className="text-sm font-semibold text-slate-600">Loading your profile details...</p>
+      </div>
+    );
+  }
+
+  // Count active uploaded photos
+  const activePhotosCount = photos.filter(p => p && p.photoUrl).length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#FAF8F5] via-white to-[#FAF8F5] font-sans text-slate-900 selection:bg-[#d91b5c] selection:text-white">
-      <Toaster position="top-center" richColors duration={2000} />
+    <div className="min-h-screen bg-[#F8F9FA] text-slate-900 pb-16 font-sans">
+      <Toaster position="top-center" richColors />
 
-      <div className="max-w-7xl mx-auto px-0 sm:px-6 lg:px-8 space-y-0 md:space-y-6 md:pt-4">
-        
-        {/* RESPONSIVE CONTAINER */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-0 md:gap-6 items-start">
-          
-          {/* SIDEBAR OVERVIEW */}
-          <div className={`md:col-span-4 lg:col-span-4 bg-white md:rounded-3xl p-0 md:p-5 border-0 md:border-2 md:border-rose-100 shadow-none md:shadow-xl space-y-0 md:space-y-4 ${mobileSubScreenOpen ? 'hidden md:block' : 'block'}`}>
-            
-            <div className="bg-white border-b border-slate-200 p-4 text-slate-900 flex items-center justify-between shadow-xs md:hidden sticky top-0 z-30">
-              <div className="flex items-center gap-3">
-                <button type="button" onClick={() => router.push('/dashboard/my-profile')} className="p-1.5 hover:bg-rose-50 rounded-full cursor-pointer text-[#d91b5c]">
-                  <ArrowLeft size={20} />
-                </button>
-                <h1 className="font-serif font-extrabold text-base uppercase tracking-wider text-slate-900">Edit My Profile</h1>
-              </div>
-              <button type="button" onClick={() => router.push('/dashboard/my-profile')} className="p-1.5 hover:bg-rose-50 rounded-full cursor-pointer text-[#d91b5c]">
-                <Eye size={18} />
-              </button>
+      {/* 🌟 TOP APP BAR */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 py-3.5">
+        <div className="max-w-md mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button 
+              type="button" 
+              onClick={() => router.push('/dashboard/my-profile')}
+              className="p-1 rounded-full hover:bg-slate-100 text-slate-800 transition-colors cursor-pointer"
+              aria-label="Back to profile"
+            >
+              <X size={22} className="stroke-[2.2]" />
+            </button>
+            <h1 className="text-lg font-black tracking-tight text-slate-900">Edit Profile</h1>
+          </div>
+          <button 
+            type="button"
+            onClick={() => router.push('/dashboard/my-profile')}
+            className="flex items-center gap-1.5 text-xs font-bold text-[#e21e5b] hover:text-[#c9184e] bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-full transition-all cursor-pointer"
+          >
+            <Eye size={15} />
+            <span>Preview</span>
+          </button>
+        </div>
+      </header>
+
+      {/* 🌟 MAIN CONTENT CONTAINER */}
+      <main className="max-w-md mx-auto px-4 pt-3.5 space-y-3.5">
+
+        {/* 🌟 1. 100% COMPLETE INCENTIVE CARD */}
+        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50/80 border border-amber-200/80 flex items-center gap-3 shadow-xs">
+          <div className="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+            <Star size={16} className="fill-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-amber-950">
+              Earn the badge on 100% complete profile.
+            </p>
+            <div className="w-full bg-amber-200/60 rounded-full h-1.5 mt-1.5 overflow-hidden">
+              <div className="bg-amber-500 h-full rounded-full" style={{ width: '85%' }} />
             </div>
+          </div>
+        </div>
 
-            {/* AVATAR CARD (CLEAN & SOBRE WHITE THEME - NO YELLOW BADGE OVER IMAGE) */}
-            <div className="p-4 sm:p-5 bg-white text-slate-900 flex items-center justify-between gap-4 shadow-xs border border-slate-200 md:rounded-2xl">
-              <div className="flex items-center gap-3.5 min-w-0">
-                <div className="shrink-0">
-                  <img 
-                    src={formData.PhotoUrl} 
-                    alt="Avatar" 
-                    className="w-16 h-16 sm:w-18 sm:h-18 rounded-none object-cover object-top border-2 border-rose-100 shadow-xs"
-                    onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_FEMALE_AVATAR; }}
-                  />
-                </div>
+        {/* 🌟 2. LIFESTYLE & INTEREST CARD */}
+        <div 
+          onClick={() => openOptionSheet('Select Namaz Habit', 'NamazHabit', formData.NamazHabit, namazOpts)}
+          className="p-4 rounded-2xl bg-white border border-slate-200/90 flex items-center justify-between shadow-xs hover:border-slate-300 transition-all cursor-pointer"
+        >
+          <div>
+            <h2 className="text-sm font-bold text-slate-900">Lifestyle & Interest</h2>
+            <span className="text-xs font-semibold text-[#e21e5b] mt-0.5 inline-block">Add Details</span>
+          </div>
+          <span className="px-2.5 py-1 rounded-full bg-amber-100/90 text-amber-900 text-[11px] font-bold">
+            +10% Score
+          </span>
+        </div>
 
-                <div className="space-y-0.5 min-w-0">
-                  <h3 className="font-serif font-extrabold text-base truncate uppercase tracking-tight text-slate-900">{formData.FullName}</h3>
-                  <p className="text-[11px] font-bold text-slate-500 truncate">{formData.Age} yrs | {formData.MaritalStatusText} | {formData.StateName}</p>
-                </div>
+        {/* 🌟 3. TRUST BADGE / VERIFY YOUR PROFILE CARD */}
+        <div 
+          onClick={() => setActiveSheet('trustBadge')}
+          className="p-4 rounded-2xl bg-white border border-slate-200/90 flex items-center justify-between shadow-xs hover:border-slate-300 transition-all cursor-pointer"
+        >
+          <div className="flex items-center gap-2.5">
+            <div>
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-sm font-bold text-slate-900">Verify Your Profile</h2>
+                <CheckCircle2 size={16} className="text-sky-500 fill-sky-500 text-white" />
               </div>
-
-              <button 
-                type="button" 
-                onClick={() => router.push('/dashboard/gallery')} 
-                className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-[#d91b5c] font-black text-[11px] uppercase tracking-wider shadow-xs transition-colors cursor-pointer flex items-center gap-1 shrink-0 border border-rose-200"
-              >
-                <Plus size={13} className="stroke-[2.5]" />
-                <span>Photos</span>
-              </button>
+              <span className="text-xs font-semibold text-[#e21e5b] mt-0.5 inline-block">
+                {formData.IsGovtIdVerified ? "Verified with Trust Badge" : (formData.GovtIdDocUrl ? "Under Admin Review ⏳" : "Verify Profile")}
+              </span>
             </div>
+          </div>
+          <ChevronRight size={18} className="text-slate-400" />
+        </div>
 
-            {/* SECTIONS LIST */}
-            <div className="p-4 md:p-0 space-y-2.5">
-              {sectionMenuItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = currentSection === item.id;
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() => {
-                      setCurrentSection(item.id as SectionKey);
-                      setMobileSubScreenOpen(true);
-                    }}
-                    className={`p-3.5 rounded-2xl border-2 transition-all flex items-center justify-between cursor-pointer group ${
-                      isActive
-                        ? 'bg-rose-50/80 border-[#d91b5c] text-[#d91b5c] shadow-xs'
-                        : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-800'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3.5">
-                      <div className={`p-2.5 rounded-xl border ${isActive ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-rose-50 text-[#d91b5c] border-rose-100'}`}>
-                        <Icon size={18} />
-                      </div>
-                      <div>
-                        <span className="font-black text-xs block uppercase tracking-tight">{item.label}</span>
-                        <span className="text-[10px] font-semibold text-slate-500 block truncate">{item.desc}</span>
-                      </div>
+        {/* 🌟 4. PHOTOS SECTION */}
+        <section className="space-y-2">
+          <div className="flex items-center gap-2 px-1">
+            <Camera size={18} className="text-slate-700" />
+            <h2 className="text-sm font-black text-slate-900">Photos</h2>
+          </div>
+
+          <div className="bg-white rounded-3xl border border-slate-200/90 p-4 shadow-xs space-y-4">
+            {/* 4-Slots Grid */}
+            <div className="grid grid-cols-3 gap-3">
+              {[0, 1, 2, 3].map((slotIdx) => {
+                const photo = photos[slotIdx];
+                const isUploading = uploadingPhotoSlot === slotIdx;
+
+                if (photo && photo.photoUrl) {
+                  return (
+                    <div 
+                      key={slotIdx} 
+                      className="relative aspect-3/4 rounded-2xl overflow-hidden border border-slate-200 shadow-xs group bg-slate-100"
+                    >
+                      <img 
+                        src={photo.photoUrl} 
+                        alt={`Photo ${slotIdx + 1}`}
+                        className="w-full h-full object-cover" 
+                      />
+                      {slotIdx === 0 && (
+                        <div className="absolute bottom-0 inset-x-0 bg-black/75 backdrop-blur-xs py-1 text-center">
+                          <span className="text-[9px] font-black tracking-wider text-white uppercase">
+                            PROFILE PHOTO
+                          </span>
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePhoto(photo.photoId, slotIdx)}
+                        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center transition-all cursor-pointer"
+                        title="Delete photo"
+                      >
+                        <Trash2 size={12} />
+                      </button>
                     </div>
-                    <ChevronRight size={16} className={`transition-transform ${isActive ? 'translate-x-1 text-[#d91b5c]' : 'text-slate-400 group-hover:translate-x-1'}`} />
-                  </div>
+                  );
+                }
+
+                return (
+                  <label 
+                    key={slotIdx} 
+                    className="aspect-3/4 rounded-2xl border-2 border-dashed border-rose-300 hover:border-[#e21e5b] bg-rose-50/20 hover:bg-rose-50/50 flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-all relative group"
+                  >
+                    <input 
+                      type="file"
+                      accept="image/*,.jpg,.jpeg,.png,.webp,.avif,.heic,.heif,.jfif,.bmp,.gif,.tiff"
+                      className="hidden"
+                      disabled={isUploading}
+                      onChange={(e) => handlePhotoSelect(e, slotIdx)}
+                    />
+                    {isUploading ? (
+                      <Loader2 size={20} className="text-[#e21e5b] animate-spin" />
+                    ) : (
+                      <>
+                        <div className="w-8 h-8 rounded-full bg-[#e21e5b] text-white flex items-center justify-center shadow-xs group-hover:scale-110 transition-transform">
+                          <Plus size={18} className="stroke-[2.5]" />
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-500">Add Photo</span>
+                      </>
+                    )}
+                  </label>
                 );
               })}
             </div>
 
-          </div>
-
-          {/* FORM CONTAINER WITH EXTRA BOTTOM PADDING (pb-48 TO PREVENT DROPDOWN CLIPPING) */}
-          <div className={`fixed inset-0 z-[500] bg-white flex flex-col md:relative md:inset-auto md:z-auto md:col-span-8 lg:col-span-8 md:bg-white md:rounded-3xl md:border-2 md:border-rose-100 md:shadow-xl md:overflow-hidden md:max-h-[85vh] ${!mobileSubScreenOpen ? 'hidden md:flex' : 'flex'}`}>
-            
-            {/* FIXED TOP HEADER (SOBER WHITE THEME) */}
-            <div className="sticky top-0 z-30 p-4 bg-white text-slate-900 border-b border-slate-200 flex items-center justify-between shadow-xs flex-shrink-0">
-              <div className="flex items-center gap-3">
-                <button 
-                  type="button" 
-                  onClick={() => setMobileSubScreenOpen(false)} 
-                  className="p-1.5 hover:bg-rose-50 rounded-full cursor-pointer md:hidden text-[#d91b5c]"
+            {/* 🌟 PHOTO PRIVACY ROW:
+                CRITICAL USER RULE:
+                If 0 photos are uploaded, this row is COMPLETELY HIDDEN!
+                If >= 1 photo is uploaded, this row appears!
+                If photo removed to 0, it disappears!
+            */}
+            {activePhotosCount > 0 && (
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-700">Control who sees your photo</span>
+                <button
+                  type="button"
+                  onClick={() => setActiveSheet('photoPrivacy')}
+                  className="flex items-center gap-1 text-xs font-bold text-[#e21e5b] hover:text-[#c9184e] cursor-pointer"
                 >
-                  <ArrowLeft size={20} />
-                </button>
-                <h2 className="font-serif font-extrabold text-base uppercase tracking-wider text-slate-900">
-                  {sectionMenuItems.find(s => s.id === currentSection)?.label}
-                </h2>
-              </div>
-
-              {currentSection === 'partner' && (
-                <button 
-                  type="button" 
-                  onClick={() => setPartnerPref({
-                    maritalStatusList: [1], annualIncome: 'Any Income', minAge: 20, maxAge: 35,
-                    minHeight: '5.0', maxHeight: '6.2', sectId: 1, casteIds: [1],
-                    educationIds: [1], occupationIds: [1], languageIds: [1], stateIds: [], cityIds: []
-                  })}
-                  className="px-3 py-1 bg-rose-50 hover:bg-rose-100 text-[#d91b5c] font-black text-xs rounded-xl cursor-pointer shadow-xs flex items-center gap-1 uppercase border border-rose-200"
-                >
-                  <RotateCcw size={12} /> Reset
-                </button>
-              )}
-            </div>
-
-            {/* MIDDLE SCROLLABLE CONTENT */}
-            <div className="flex-1 overflow-y-auto p-5 sm:p-7 pb-48 space-y-6">
-              
-              {loading ? (
-                <div className="space-y-6 animate-pulse py-4">
-                  <div className="w-14 h-14 bg-slate-200 rounded-full mx-auto" />
-                  <div className="space-y-4 pt-2">
-                    <div className="w-32 h-4 bg-slate-300 rounded-md" />
-                    <div className="w-full h-11 bg-slate-200 rounded-2xl" />
-                  </div>
-                  <div className="space-y-4 pt-2">
-                    <div className="w-40 h-4 bg-slate-300 rounded-md" />
-                    <div className="w-full h-11 bg-slate-200 rounded-2xl" />
-                  </div>
-                  <div className="space-y-4 pt-2">
-                    <div className="w-36 h-4 bg-slate-300 rounded-md" />
-                    <div className="w-full h-24 bg-slate-200 rounded-2xl" />
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="w-14 h-14 bg-rose-50 border-2 border-rose-200 text-[#d91b5c] rounded-full flex items-center justify-center mx-auto shadow-md">
-                    <Edit3 size={24} />
-                  </div>
-
-                  {/* 1. INTRODUCTION SECTION */}
-                  {currentSection === 'intro' && (
-                    <div className="space-y-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[11px] font-extrabold uppercase text-slate-700">About Me / Bio</label>
-                        <textarea 
-                          rows={4} 
-                          value={formData.AboutMe || ''} 
-                          onChange={(e) => setFormData({ ...formData, AboutMe: e.target.value })} 
-                          placeholder="Write a brief introduction about yourself, personality, interests..." 
-                          className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
-                        />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-[11px] font-extrabold uppercase text-slate-700">About My Family</label>
-                        <textarea 
-                          rows={4} 
-                          value={formData.FamilyAbout || ''} 
-                          onChange={(e) => setFormData({ ...formData, FamilyAbout: e.target.value })} 
-                          placeholder="Share background about your family values, culture..." 
-                          className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 2. BASIC DETAILS SECTION */}
-                  {currentSection === 'basic' && (
-                    <div className="space-y-5">
-                      <div className="bg-slate-50 rounded-3xl p-6 border-2 border-slate-200 shadow-xs space-y-4 text-xs font-extrabold text-slate-800">
-                        <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#d91b5c]" />
-                          <span className="text-slate-500 font-bold">Full Name :</span>
-                          <span className="text-slate-900">{formData.FullName}</span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#d91b5c]" />
-                          <span className="text-slate-500 font-bold">Mobile Number :</span>
-                          <span className="text-slate-900">{formData.MobileNumber}</span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#d91b5c]" />
-                          <span className="text-slate-500 font-bold">Email Address :</span>
-                          <span className="text-slate-900">{formData.Email}</span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#d91b5c]" />
-                          <span className="text-slate-500 font-bold">Profile Created For :</span>
-                          <span className="text-slate-900">{formData.ProfileCreatedForText}</span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#d91b5c]" />
-                          <span className="text-slate-500 font-bold">Age :</span>
-                          <span className="text-slate-900">{formData.Age} Years</span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#d91b5c]" />
-                          <span className="text-slate-500 font-bold">Gender :</span>
-                          <span className="text-slate-900">{formData.Gender}</span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#d91b5c]" />
-                          <span className="text-slate-500 font-bold">Marital Status :</span>
-                          <span className="text-slate-900">{formData.MaritalStatusText}</span>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full bg-[#d91b5c]" />
-                          <span className="text-slate-500 font-bold">Date of Birth :</span>
-                          <span className="text-slate-900">{formData.DateOfBirthFormatted || 'N/A'}</span>
-                        </div>
-                      </div>
-
-                      <div className="p-4 bg-rose-50 rounded-2xl border border-rose-200 text-center">
-                        <p className="text-xs font-black text-rose-700 leading-relaxed">
-                          This section can not be edited! If you want to update basic details please contact support@nikahqubool.com
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 3. PERSONAL DETAILS SECTION */}
-                  {currentSection === 'personal' && (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <CompactSelect 
-                          label="Height" 
-                          options={heightOptions} 
-                          value={formData.Height} 
-                          onChange={(val) => setFormData({ ...formData, Height: String(val) })} 
-                        />
-
-                        <CompactSelect 
-                          label="Weight" 
-                          options={weightOptions} 
-                          value={formData.Weight} 
-                          onChange={(val) => setFormData({ ...formData, Weight: String(val) })} 
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <CompactSelect 
-                          label="Sect" 
-                          options={masterData.SECTS || []} 
-                          value={formData.Sect} 
-                          onChange={(val) => setFormData({ ...formData, Sect: val })} 
-                        />
-
-                        <CompactSelect 
-                          label="Maslak" 
-                          options={masterData.MASLAKS || []} 
-                          value={formData.Maslak} 
-                          onChange={(val) => setFormData({ ...formData, Maslak: val })} 
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <CompactSelect 
-                          label="Caste" 
-                          options={masterData.CASTES || []} 
-                          value={formData.Caste} 
-                          onChange={(val) => setFormData({ ...formData, Caste: val })} 
-                        />
-
-                        <CompactSelect 
-                          label="Complexion" 
-                          options={masterData.COMPLEXIONS || []} 
-                          value={formData.Complexion} 
-                          onChange={(val) => setFormData({ ...formData, Complexion: val })} 
-                        />
-                      </div>
-
-                      <CompactSelect 
-                        label="Mother Tongue" 
-                        options={masterData.MOTHER_TONGUES || []} 
-                        value={formData.MotherTongue} 
-                        onChange={(val) => setFormData({ ...formData, MotherTongue: val })} 
-                        openUpward={true}
-                      />
-                    </div>
-                  )}
-
-                  {/* 4. EDUCATION AND CAREER SECTION (WITH JOB DETAILS TEXTAREA) */}
-                  {currentSection === 'education' && (
-                    <div className="space-y-4">
-                      <CompactSelect 
-                        label="Highest Qualification" 
-                        options={masterData.EDUCATIONS || []} 
-                        value={formData.HighestDegree} 
-                        onChange={(val) => setFormData({ ...formData, HighestDegree: val })} 
-                      />
-
-                      {/* ✅ College / University Name Input Field (Max 150 chars) */}
-                      <div className="space-y-1.5">
-                        <label className="text-[11px] font-extrabold uppercase text-slate-700">College / University Name</label>
-                        <input 
-                          type="text"
-                          maxLength={150}
-                          value={formData.CollegeName || ''} 
-                          onChange={(e) => setFormData({ ...formData, CollegeName: e.target.value })} 
-                          placeholder="e.g. Delhi University / AMU / Jamia Millia (Max 150 chars)..." 
-                          className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-3.5 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
-                        />
-                      </div>
-
-                      <CompactSelect 
-                        label="Employment Sector" 
-                        options={masterData.EMPLOYMENT_SECTORS || []} 
-                        value={formData.EmploymentSector} 
-                        onChange={(val) => setFormData({ ...formData, EmploymentSector: val })} 
-                      />
-
-                      <CompactSelect 
-                        label="Profession / Designation" 
-                        options={masterData.OCCUPATIONS || []} 
-                        value={formData.Designation} 
-                        onChange={(val) => setFormData({ ...formData, Designation: val })} 
-                      />
-
-                      {/* ✅ Job / Occupation Details Text Area */}
-                      <div className="space-y-1.5">
-                        <label className="text-[11px] font-extrabold uppercase text-slate-700">Job / Occupation Details</label>
-                        <textarea 
-                          rows={2} 
-                          value={formData.OccupationDetails || ''} 
-                          onChange={(e) => setFormData({ ...formData, OccupationDetails: e.target.value })} 
-                          placeholder="e.g. Working as Senior Software Engineer at MNC in Delhi..." 
-                          className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
-                        />
-                      </div>
-
-                      <CompactSelect 
-                        label="Annual Income" 
-                        options={incomeOptions} 
-                        value={formData.AnnualIncome} 
-                        onChange={(val) => setFormData({ ...formData, AnnualIncome: String(val) })} 
-                        openUpward={true}
-                      />
-                    </div>
-                  )}
-
-                  {/* 5. RELIGIOUS AND LIFESTYLE SECTION */}
-                  {currentSection === 'religious' && (
-                    <div className="space-y-4">
-                      <CompactSelect 
-                        label="Diet Type" 
-                        options={dietOptions} 
-                        value={formData.DietType} 
-                        onChange={(val) => setFormData({ ...formData, DietType: String(val) })} 
-                      />
-
-                      <CompactSelect 
-                        label="Smoke Habit" 
-                        options={smokeOptions} 
-                        value={formData.SmokeHabit} 
-                        onChange={(val) => setFormData({ ...formData, SmokeHabit: String(val) })} 
-                      />
-
-                      <CompactSelect 
-                        label="Drink Habit" 
-                        options={drinkOptions} 
-                        value={formData.DrinkHabit} 
-                        onChange={(val) => setFormData({ ...formData, DrinkHabit: String(val) })} 
-                      />
-
-                      {/* ✅ HOBBIES & INTERESTS */}
-                      {masterData.HOBBIES && masterData.HOBBIES.length > 0 ? (
-                        <MultiSelectDropdown 
-                          label="Hobbies (Multi-Select)"
-                          options={masterData.HOBBIES}
-                          selectedIds={formData.Hobbies ? formData.Hobbies.split(',').map((s: string) => s.trim()).filter(Boolean) : []}
-                          onChange={(ids) => setFormData({ ...formData, Hobbies: ids.join(',') })}
-                        />
-                      ) : (
-                        <div className="space-y-1.5">
-                          <label className="text-[11px] font-extrabold uppercase text-slate-700">Hobbies</label>
-                          <input 
-                            type="text"
-                            value={formData.Hobbies || ''} 
-                            onChange={(e) => setFormData({ ...formData, Hobbies: e.target.value })} 
-                            placeholder="e.g. Reading, Cooking, Traveling, Photography..." 
-                            className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-3.5 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
-                          />
-                        </div>
-                      )}
-
-                      {masterData.INTERESTS && masterData.INTERESTS.length > 0 ? (
-                        <MultiSelectDropdown 
-                          label="Interests (Multi-Select)"
-                          options={masterData.INTERESTS}
-                          selectedIds={formData.Interests ? formData.Interests.split(',').map((s: string) => s.trim()).filter(Boolean) : []}
-                          onChange={(ids) => setFormData({ ...formData, Interests: ids.join(',') })}
-                          openUpward={true}
-                        />
-                      ) : (
-                        <div className="space-y-1.5">
-                          <label className="text-[11px] font-extrabold uppercase text-slate-700">Interests</label>
-                          <input 
-                            type="text"
-                            value={formData.Interests || ''} 
-                            onChange={(e) => setFormData({ ...formData, Interests: e.target.value })} 
-                            placeholder="e.g. Technology, Art, Sports, Nature..." 
-                            className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-3.5 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* 6. ADDRESS SECTION (CURRENT & NATIVE LOCATION) */}
-                  {currentSection === 'address' && (
-                    <div className="space-y-5">
-                      <div className="p-4 bg-[#d91b5c]/5 rounded-2xl border border-[#d91b5c]/20 font-bold text-xs text-[#d91b5c] uppercase tracking-wider">
-                        Current Location
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <CompactSelect 
-                          label="Current State" 
-                          options={masterData.STATES || []} 
-                          value={formData.CurrentStateId} 
-                          onChange={(val) => {
-                            const newStateId = Number(val);
-                            setFormData((prev: any) => ({ ...prev, CurrentStateId: newStateId, CurrentCityId: 0, CityName: '' }));
-                          }} 
-                        />
-
-                        <CompactSelect 
-                          label="Current City" 
-                          options={masterData.CITIES || []} 
-                          value={formData.CurrentCityId} 
-                          onChange={(val) => setFormData({ ...formData, CurrentCityId: Number(val) })} 
-                        />
-                      </div>
-
-                      <div className="p-4 bg-slate-100 rounded-2xl border border-slate-200 font-bold text-xs text-slate-700 uppercase tracking-wider">
-                        Native Place / Hometown Location
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <CompactSelect 
-                          label="Native State" 
-                          options={masterData.STATES || []} 
-                          value={formData.NativePlaceStateId} 
-                          onChange={(val) => {
-                            const newStateId = Number(val);
-                            setFormData((prev: any) => ({ ...prev, NativePlaceStateId: newStateId, NativePlaceCityId: 0, NativeCityName: '' }));
-                          }} 
-                          openUpward={true}
-                        />
-
-                        <CompactSelect 
-                          label="Native City" 
-                          options={masterData.NATIVE_CITIES || []} 
-                          value={formData.NativePlaceCityId} 
-                          onChange={(val) => setFormData({ ...formData, NativePlaceCityId: Number(val) })} 
-                          openUpward={true}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 7. FAMILY DETAILS SECTION */}
-                  {currentSection === 'family' && (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <CompactSelect 
-                          label="Family Type" 
-                          options={masterData.FAMILY_TYPES || []} 
-                          value={formData.FamilyType} 
-                          onChange={(val) => setFormData({ ...formData, FamilyType: val })} 
-                        />
-
-                        <CompactSelect 
-                          label="Family Status" 
-                          options={masterData.FAMILY_STATUS || []} 
-                          value={formData.FamilyStatus} 
-                          onChange={(val) => setFormData({ ...formData, FamilyStatus: val })} 
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold text-slate-700 uppercase tracking-tight mb-1">Father's Name</label>
-                          <input
-                            type="text"
-                            placeholder="Enter Father's Name"
-                            value={formData.FatherName || ''}
-                            onChange={(e) => setFormData({ ...formData, FatherName: e.target.value })}
-                            className="w-full px-3 py-2 text-sm border-2 border-slate-200 rounded-xl focus:border-[#d91b5c] focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-slate-700 uppercase tracking-tight mb-1">Mother's Name</label>
-                          <input
-                            type="text"
-                            placeholder="Enter Mother's Name"
-                            value={formData.MotherName || ''}
-                            onChange={(e) => setFormData({ ...formData, MotherName: e.target.value })}
-                            className="w-full px-3 py-2 text-sm border-2 border-slate-200 rounded-xl focus:border-[#d91b5c] focus:outline-none"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <CompactSelect 
-                          label="Father's Occupation" 
-                          options={masterData.OCCUPATIONS || []} 
-                          value={formData.FatherOccupationId || formData.FatherOccupation} 
-                          onChange={(val) => setFormData({ ...formData, FatherOccupationId: Number(val), FatherOccupation: String(val) })} 
-                        />
-
-                        <CompactSelect 
-                          label="Mother's Occupation" 
-                          options={masterData.OCCUPATIONS || []} 
-                          value={formData.MotherOccupationId || formData.MotherOccupation} 
-                          onChange={(val) => setFormData({ ...formData, MotherOccupationId: Number(val), MotherOccupation: String(val) })} 
-                          openUpward={true}
-                        />
-                      </div>
-
-                      {/* BROTHER / SISTER COUNT DROPDOWNS WITH AUTO-UPWARD POSITIONING */}
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <CompactSelect 
-                          label="Total Brothers" 
-                          options={countOptions} 
-                          value={formData.TotalBrothers} 
-                          onChange={(val) => setFormData({ ...formData, TotalBrothers: Number(val) })} 
-                          openUpward={true}
-                        />
-                        <CompactSelect 
-                          label="Married Brothers" 
-                          options={countOptions} 
-                          value={formData.MarriedBrothers} 
-                          onChange={(val) => setFormData({ ...formData, MarriedBrothers: Number(val) })} 
-                          openUpward={true}
-                        />
-                        <CompactSelect 
-                          label="Total Sisters" 
-                          options={countOptions} 
-                          value={formData.TotalSisters} 
-                          onChange={(val) => setFormData({ ...formData, TotalSisters: Number(val) })} 
-                          openUpward={true}
-                        />
-                        <CompactSelect 
-                          label="Married Sisters" 
-                          options={countOptions} 
-                          value={formData.MarriedSisters} 
-                          onChange={(val) => setFormData({ ...formData, MarriedSisters: Number(val) })} 
-                          openUpward={true}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 8. PARTNER PREFERENCES SECTION */}
-                  {currentSection === 'partner' && (
-                    <div className="space-y-5">
-                      <MultiSelectDropdown 
-                        label="Preferred Marital Status (Multi-Select)" 
-                        options={masterData.MARITAL_STATUS || []} 
-                        selectedIds={partnerPref.maritalStatusList} 
-                        onChange={(ids) => setPartnerPref({ ...partnerPref, maritalStatusList: ids })} 
-                      />
-
-                      <MultiSelectDropdown 
-                        label="Preferred Education (Multi-Select)" 
-                        options={masterData.EDUCATIONS || []} 
-                        selectedIds={partnerPref.educationIds} 
-                        onChange={(ids) => setPartnerPref({ ...partnerPref, educationIds: ids })} 
-                      />
-
-                      <MultiSelectDropdown 
-                        label="Preferred Occupation (Multi-Select)" 
-                        options={masterData.OCCUPATIONS || []} 
-                        selectedIds={partnerPref.occupationIds} 
-                        onChange={(ids) => setPartnerPref({ ...partnerPref, occupationIds: ids })} 
-                      />
-
-                      <MultiSelectDropdown 
-                        label="Preferred Caste (Multi-Select)" 
-                        options={masterData.CASTES || []} 
-                        selectedIds={partnerPref.casteIds} 
-                        onChange={(ids) => setPartnerPref({ ...partnerPref, casteIds: ids })} 
-                      />
-
-                      <MultiSelectDropdown 
-                        label="Preferred Mother Tongue (Multi-Select)" 
-                        options={masterData.MOTHER_TONGUES || []} 
-                        selectedIds={partnerPref.languageIds} 
-                        onChange={(ids) => setPartnerPref({ ...partnerPref, languageIds: ids })} 
-                      />
-
-                      {/* ✅ MULTI-SELECT STATE AND CITY */}
-                      <MultiSelectDropdown 
-                        label="Preferred States (Multi-Select)" 
-                        options={masterData.STATES || []} 
-                        selectedIds={partnerPref.stateIds || []} 
-                        onChange={(ids) => setPartnerPref({ ...partnerPref, stateIds: ids, cityIds: [] })} 
-                      />
-
-                      <MultiSelectDropdown 
-                        label="Preferred Cities (Multi-Select)" 
-                        options={masterData.PREF_CITIES || []} 
-                        selectedIds={partnerPref.cityIds || []} 
-                        onChange={(ids) => setPartnerPref({ ...partnerPref, cityIds: ids })} 
-                      />
-
-                      <div className="space-y-1.5">
-                        <label className="text-[11px] font-extrabold uppercase text-slate-700">Partner Expectations & Requirements</label>
-                        <textarea 
-                          rows={4} 
-                          value={formData.PartnerExpectations || ''} 
-                          onChange={(e) => setFormData({ ...formData, PartnerExpectations: e.target.value })} 
-                          placeholder="Describe specific qualities, values, or family expectations you are looking for in a partner..." 
-                          className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-
-            </div>
-
-            {/* FIXED BOTTOM SAVE BUTTON */}
-            {currentSection !== 'basic' && (
-              <div className="sticky bottom-0 z-30 p-4 bg-white border-t border-rose-100 flex-shrink-0 shadow-lg">
-                <button 
-                  type="button" 
-                  onClick={handleSaveProfileSection} 
-                  disabled={saving} 
-                  className="w-full py-4 rounded-2xl bg-[#d91b5c] hover:bg-[#e11d48] text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 flex items-center justify-center gap-2 cursor-pointer transition-all border border-rose-300/30 active:scale-98"
-                >
-                  {saving ? <Loader2 size={16} className="animate-spin text-amber-300" /> : <Save size={16} className="text-amber-300" />}
-                  <span>Save</span>
+                  <span>{formData.PhotoPrivacy}</span>
+                  <ChevronRight size={14} />
                 </button>
               </div>
             )}
+          </div>
+        </section>
 
+        {/* 🌟 5. BIO SECTION */}
+        <section className="space-y-2">
+          <div className="flex items-center gap-2 px-1">
+            <span className="text-base">👤</span>
+            <h2 className="text-sm font-black text-slate-900">Bio</h2>
           </div>
 
-        </div>
+          <div className="bg-white rounded-3xl border border-slate-200/90 p-4 shadow-xs text-left relative">
+            <p className="text-xs text-slate-700 leading-relaxed pr-12 line-clamp-3">
+              {formData.AboutMe || "Tell them more about your principles, partner expectations, family and hobbies."}
+            </p>
+            <button
+              type="button"
+              onClick={openBioSheet}
+              className="absolute right-4 bottom-4 text-xs font-bold text-[#e21e5b] hover:text-[#c9184e] cursor-pointer"
+            >
+              Edit
+            </button>
+          </div>
+        </section>
 
-      </div>
+        {/* 🌟 6. PERSONAL DETAILS SECTION */}
+        <section className="space-y-2">
+          <div className="flex items-center gap-2 px-1">
+            <FileText size={18} className="text-slate-700" />
+            <h2 className="text-sm font-black text-slate-900">Personal Details</h2>
+          </div>
+
+          <div className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs divide-y divide-slate-100">
+            {/* Name */}
+            <div 
+              onClick={() => {
+                const newName = prompt("Edit your full name:", formData.FullName);
+                if (newName && newName.trim()) saveFieldValue('FullName', newName.trim());
+              }}
+              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div>
+                <div className="text-xs font-bold text-slate-900">Name</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.FullName}</div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Profile Created for - Locked */}
+            <div className="p-4 flex items-center justify-between bg-slate-50/50">
+              <div>
+                <div className="text-xs font-bold text-slate-900">Profile Created for</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.ProfileCreatedFor}</div>
+              </div>
+              <span className="px-2.5 py-1 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center gap-1">
+                <AlertCircle size={11} /> You can not edit this
+              </span>
+            </div>
+
+            {/* Age and Gender - Locked */}
+            <div className="p-4 flex items-center justify-between bg-slate-50/50">
+              <div>
+                <div className="text-xs font-bold text-slate-900">Age and Gender</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.Age} Yrs, {formData.Gender}</div>
+              </div>
+              <span className="px-2.5 py-1 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center gap-1">
+                <AlertCircle size={11} /> You can not edit this
+              </span>
+            </div>
+
+            {/* Marital Status - Locked */}
+            <div className="p-4 flex items-center justify-between bg-slate-50/50">
+              <div>
+                <div className="text-xs font-bold text-slate-900">Marital Status</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.MaritalStatus}</div>
+              </div>
+              <span className="px-2.5 py-1 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center gap-1">
+                <AlertCircle size={11} /> You can not edit this
+              </span>
+            </div>
+
+            {/* Sect - Locked */}
+            <div className="p-4 flex items-center justify-between bg-slate-50/50">
+              <div>
+                <div className="text-xs font-bold text-slate-900">Sect</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.Sect}</div>
+              </div>
+              <span className="px-2.5 py-1 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center gap-1">
+                <AlertCircle size={11} /> You can not edit this
+              </span>
+            </div>
+
+            {/* Height - Slider Bottom Sheet */}
+            <div 
+              onClick={openHeightSheet}
+              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div>
+                <div className="text-xs font-bold text-slate-900">Height</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.Height}</div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Caste */}
+            <div 
+              onClick={() => openOptionSheet('Select caste', 'Caste', formData.Caste, casteOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div>
+                <div className="text-xs font-bold text-slate-900">Caste</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.Caste}</div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Maslak */}
+            <div 
+              onClick={() => openOptionSheet('Select maslak', 'Maslak', formData.Maslak, maslakOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div>
+                <div className="text-xs font-bold text-slate-900">Maslak</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.Maslak}</div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Mother Tongue */}
+            <div 
+              onClick={() => openOptionSheet('Select mother tongue', 'MotherTongue', formData.MotherTongue, languageOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div>
+                <div className="text-xs font-bold text-slate-900">Mother Tongue</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.MotherTongue}</div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Location (City & State) */}
+            <div 
+              onClick={openLocationSheet}
+              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div>
+                <div className="text-xs font-bold text-slate-900">Location</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.Location}</div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Disability */}
+            <div 
+              onClick={() => openOptionSheet('Physical Disability?', 'Disability', formData.Disability, disabilityOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div>
+                <div className="text-xs font-bold text-slate-900">Disability</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.Disability}</div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+          </div>
+        </section>
+
+        {/* 🌟 7. EDUCATION & CAREER SECTION */}
+        <section className="space-y-2">
+          <div className="flex items-center gap-2 px-1">
+            <span className="text-base">🎓</span>
+            <h2 className="text-sm font-black text-slate-900">Education & Career</h2>
+          </div>
+
+          <div className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs divide-y divide-slate-100">
+            {/* Education */}
+            <div 
+              onClick={() => openOptionSheet('Select education', 'Education', formData.Education, educationOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div>
+                <div className="text-xs font-bold text-slate-900">Education</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.Education}</div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* College Name */}
+            <div 
+              onClick={() => {
+                const c = prompt("Enter your College / University name:", formData.CollegeName);
+                if (c !== null) saveFieldValue('CollegeName', c.trim());
+              }}
+              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div>
+                <div className="text-xs font-bold text-slate-900">College Name</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.CollegeName || "Add College Name"}</div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Employed In */}
+            <div 
+              onClick={() => openOptionSheet('Select employment sector', 'EmployedIn', formData.EmployedIn, employedInOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div>
+                <div className="text-xs font-bold text-slate-900">Employed In</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.EmployedIn}</div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Occupation */}
+            <div 
+              onClick={() => openOptionSheet('Select occupation', 'Occupation', formData.Occupation, occupationOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div>
+                <div className="text-xs font-bold text-slate-900">Occupation</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.Occupation}</div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Annual Income */}
+            <div 
+              onClick={() => openOptionSheet('Select annual income', 'AnnualIncome', formData.AnnualIncome, incomeOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div>
+                <div className="text-xs font-bold text-slate-900">Annual Income</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.AnnualIncome}</div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+          </div>
+        </section>
+
+        {/* 🌟 8. FAMILY DETAILS SECTION */}
+        <section className="space-y-2">
+          <div className="flex items-center gap-2 px-1">
+            <span className="text-base">👥</span>
+            <h2 className="text-sm font-black text-slate-900">Family Details</h2>
+          </div>
+
+          <div className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs divide-y divide-slate-100">
+            {/* Family Location */}
+            <div 
+              onClick={openLocationSheet}
+              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div>
+                <div className="text-xs font-bold text-slate-900">Family Location</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.FamilyLocation}</div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Family Type */}
+            <div 
+              onClick={() => openOptionSheet('Select family type', 'FamilyType', formData.FamilyType, familyTypeOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div>
+                <div className="text-xs font-bold text-slate-900">Family Type</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.FamilyType}</div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Family Values */}
+            <div 
+              onClick={() => openOptionSheet('Select family values', 'FamilyValues', formData.FamilyValues, familyValuesOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div>
+                <div className="text-xs font-bold text-slate-900">Family Values</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.FamilyValues}</div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Father Occupation */}
+            <div 
+              onClick={() => {
+                const f = prompt("Enter Father's occupation:", formData.FatherOccupation);
+                if (f !== null) saveFieldValue('FatherOccupation', f.trim());
+              }}
+              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div>
+                <div className="text-xs font-bold text-slate-900">Father Occupation</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.FatherOccupation}</div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Mother Occupation */}
+            <div 
+              onClick={() => {
+                const m = prompt("Enter Mother's occupation:", formData.MotherOccupation);
+                if (m !== null) saveFieldValue('MotherOccupation', m.trim());
+              }}
+              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div>
+                <div className="text-xs font-bold text-slate-900">Mother Occupation</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.MotherOccupation}</div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Brothers Count */}
+            <div 
+              onClick={() => {
+                const tot = prompt("Total Brothers count:", String(formData.TotalBrothers));
+                const mar = prompt("Married Brothers count:", String(formData.MarriedBrothers));
+                if (tot !== null && mar !== null) {
+                  saveFieldValue('TotalBrothers', Number(tot) || 0, { MarriedBrothers: Number(mar) || 0 });
+                }
+              }}
+              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div>
+                <div className="text-xs font-bold text-slate-900">Brothers</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.TotalBrothers} Brother ({formData.MarriedBrothers} Married)</div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Sisters Count */}
+            <div 
+              onClick={() => {
+                const tot = prompt("Total Sisters count:", String(formData.TotalSisters));
+                const mar = prompt("Married Sisters count:", String(formData.MarriedSisters));
+                if (tot !== null && mar !== null) {
+                  saveFieldValue('TotalSisters', Number(tot) || 0, { MarriedSisters: Number(mar) || 0 });
+                }
+              }}
+              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div>
+                <div className="text-xs font-bold text-slate-900">Sisters</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.TotalSisters} Sister ({formData.MarriedSisters} Married)</div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+          </div>
+        </section>
+
+        {/* 🌟 9. RELIGIOUS & LIFESTYLE DETAILS */}
+        <section className="space-y-2">
+          <div className="flex items-center gap-2 px-1">
+            <span className="text-base">🌙</span>
+            <h2 className="text-sm font-black text-slate-900">Religious & Lifestyle</h2>
+          </div>
+
+          <div className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs divide-y divide-slate-100">
+            {/* Namaz Habit */}
+            <div 
+              onClick={() => openOptionSheet('Select namaz habit', 'NamazHabit', formData.NamazHabit, namazOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div>
+                <div className="text-xs font-bold text-slate-900">Namaz Habit</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.NamazHabit}</div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Hijab / Beard */}
+            <div 
+              onClick={() => openOptionSheet('Select Hijab / Beard', 'HijabOrBeard', formData.HijabOrBeard, hijabOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div>
+                <div className="text-xs font-bold text-slate-900">Hijab / Beard</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.HijabOrBeard}</div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Diet Type */}
+            <div 
+              onClick={() => openOptionSheet('Select diet type', 'DietType', formData.DietType, dietOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div>
+                <div className="text-xs font-bold text-slate-900">Diet Type</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.DietType}</div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Smoke Habit */}
+            <div 
+              onClick={() => openOptionSheet('Do you smoke?', 'SmokeHabit', formData.SmokeHabit, habitOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div>
+                <div className="text-xs font-bold text-slate-900">Smoke Habit</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.SmokeHabit}</div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Drink Habit */}
+            <div 
+              onClick={() => openOptionSheet('Do you drink?', 'DrinkHabit', formData.DrinkHabit, habitOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div>
+                <div className="text-xs font-bold text-slate-900">Drink Habit</div>
+                <div className="text-xs text-slate-600 mt-0.5">{formData.DrinkHabit}</div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+          </div>
+        </section>
+      </main>
+
+      {/* 🌟 10. MODALS & BOTTOM SHEETS (MATCHING USER SCREENSHOTS) */}
+      <AnimatePresence>
+        {activeSheet && (
+          <div className="fixed inset-0 z-50 flex flex-col justify-end">
+            {/* Backdrop */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setActiveSheet(null)}
+              className="fixed inset-0 bg-black/50 backdrop-blur-xs"
+            />
+
+            {/* 🌟 SHEET A: HEIGHT SLIDER BOTTOM SHEET */}
+            {activeSheet === 'height' && (
+              <motion.div 
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 260 }}
+                className="relative z-10 w-full max-w-md mx-auto bg-white rounded-t-3xl p-5 pt-4 space-y-5 shadow-2xl text-left"
+              >
+                {/* Floating circular close button */}
+                <div className="flex justify-center -mt-9 mb-1">
+                  <button
+                    type="button"
+                    onClick={() => setActiveSheet(null)}
+                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-lg hover:bg-black transition-colors cursor-pointer"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <h3 className="text-lg font-black text-slate-900 text-center">Add Height</h3>
+
+                {/* Selected Height Pill */}
+                <div className="flex justify-center">
+                  <div className="px-5 py-2 rounded-full border-2 border-[#e21e5b] text-[#e21e5b] font-bold text-sm bg-rose-50/40">
+                    {cmToFtIn(heightCm)}
+                  </div>
+                </div>
+
+                {/* Height Slider */}
+                <div className="px-2 pt-2">
+                  <input 
+                    type="range"
+                    min={135}
+                    max={213}
+                    step={1}
+                    value={heightCm}
+                    onChange={(e) => setHeightCm(Number(e.target.value))}
+                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#e21e5b]"
+                  />
+                  <div className="flex justify-between text-[11px] text-slate-400 font-semibold mt-2">
+                    <span>4ft 5in (135 cm)</span>
+                    <span>7ft 0in (213 cm)</span>
+                  </div>
+                </div>
+
+                {/* Pink Update Button */}
+                <button
+                  type="button"
+                  onClick={handleSaveHeight}
+                  disabled={savingField === 'Height'}
+                  className="w-full py-3.5 rounded-full bg-[#e21e5b] hover:bg-[#c9184e] text-white font-bold text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
+                >
+                  {savingField === 'Height' ? <Loader2 size={18} className="animate-spin" /> : "Update"}
+                </button>
+              </motion.div>
+            )}
+
+            {/* 🌟 SHEET B: SEARCHABLE OPTIONS BOTTOM SHEET */}
+            {activeSheet === 'option' && (
+              <motion.div 
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 260 }}
+                className="relative z-10 w-full max-w-md mx-auto bg-white rounded-t-3xl p-5 pt-4 space-y-4 shadow-2xl text-left max-h-[82vh] flex flex-col"
+              >
+                {/* Floating circular close button */}
+                <div className="flex justify-center -mt-9 mb-1">
+                  <button
+                    type="button"
+                    onClick={() => setActiveSheet(null)}
+                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-lg hover:bg-black transition-colors cursor-pointer"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <h3 className="text-lg font-black text-slate-900 capitalize">{sheetTitle}</h3>
+
+                {/* Search Bar */}
+                {sheetOptions.length > 5 && (
+                  <div className="relative">
+                    <Search size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
+                    <input 
+                      type="text"
+                      placeholder={`Search...`}
+                      value={sheetSearch}
+                      onChange={(e) => setSheetSearch(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2.5 bg-slate-100 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#e21e5b]/20"
+                    />
+                  </div>
+                )}
+
+                {/* Scrollable Radio List */}
+                <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 divide-y divide-slate-100">
+                  {filteredSheetOptions.map((opt) => {
+                    const isSelected = selectedSheetValue === opt.id || selectedSheetValue === opt.value;
+                    return (
+                      <div 
+                        key={String(opt.id || opt.value)}
+                        onClick={() => setSelectedSheetValue(opt.id !== undefined ? opt.id : opt.value)}
+                        className="py-3 px-1 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
+                      >
+                        <span className={`text-xs font-semibold ${isSelected ? 'text-[#e21e5b] font-bold' : 'text-slate-800'}`}>
+                          {opt.value}
+                        </span>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                          isSelected ? 'border-[#e21e5b] bg-[#e21e5b]' : 'border-slate-300'
+                        }`}>
+                          {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {filteredSheetOptions.length === 0 && (
+                    <div className="py-8 text-center text-xs text-slate-400">
+                      No matching options found.
+                    </div>
+                  )}
+                </div>
+
+                {/* Pink Update Button */}
+                <button
+                  type="button"
+                  onClick={handleSaveOption}
+                  disabled={Boolean(savingField)}
+                  className="w-full py-3.5 rounded-full bg-[#e21e5b] hover:bg-[#c9184e] text-white font-bold text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
+                >
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Update"}
+                </button>
+              </motion.div>
+            )}
+
+            {/* 🌟 SHEET C: BIO FULL SCREEN SLIDE */}
+            {activeSheet === 'bio' && (
+              <motion.div 
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 260 }}
+                className="relative z-10 w-full max-w-md mx-auto bg-white rounded-t-3xl p-5 pt-4 space-y-4 shadow-2xl text-left"
+              >
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveSheet(null)}
+                      className="p-1 rounded-full hover:bg-slate-100 text-slate-700 cursor-pointer"
+                    >
+                      <X size={20} />
+                    </button>
+                    <span className="text-sm font-bold text-slate-900">Bio</span>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-black text-slate-900">Tell us about yourself</h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Tell them more about your principles, partner expectations, family and hobbies.
+                  </p>
+                </div>
+
+                <div className="relative">
+                  <textarea 
+                    rows={6}
+                    maxLength={1000}
+                    value={bioDraft}
+                    onChange={(e) => setBioDraft(e.target.value)}
+                    placeholder="Write a few lines about your values, personality, and partner expectations..."
+                    className="w-full p-3.5 rounded-2xl border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-[#e21e5b] focus:ring-1 focus:ring-[#e21e5b] leading-relaxed resize-none"
+                  />
+                  <div className="text-right text-[11px] text-slate-400 mt-1">
+                    {bioDraft.length}/1000
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSaveBio}
+                  disabled={savingField === 'AboutMe'}
+                  className="w-full py-3.5 rounded-full bg-[#e21e5b] hover:bg-[#c9184e] text-white font-bold text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
+                >
+                  {savingField === 'AboutMe' ? <Loader2 size={18} className="animate-spin" /> : "Save"}
+                </button>
+              </motion.div>
+            )}
+
+            {/* 🌟 SHEET D: LOCATION SELECTOR (STATE & CITY) */}
+            {activeSheet === 'location' && (
+              <motion.div 
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 260 }}
+                className="relative z-10 w-full max-w-md mx-auto bg-white rounded-t-3xl p-5 pt-4 space-y-4 shadow-2xl text-left max-h-[82vh] flex flex-col"
+              >
+                <div className="flex justify-center -mt-9 mb-1">
+                  <button
+                    type="button"
+                    onClick={() => setActiveSheet(null)}
+                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-lg hover:bg-black transition-colors cursor-pointer"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <h3 className="text-lg font-black text-slate-900">Select Location</h3>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                      Select State
+                    </label>
+                    <select
+                      value={selectedStateId}
+                      onChange={(e) => setSelectedStateId(Number(e.target.value))}
+                      className="w-full p-3 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 bg-white"
+                    >
+                      {(masterData.STATES || []).map(s => (
+                        <option key={s.id} value={s.id}>{s.value}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                      Select City
+                    </label>
+                    <select
+                      value={selectedCityId}
+                      onChange={(e) => setSelectedCityId(Number(e.target.value))}
+                      className="w-full p-3 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 bg-white"
+                    >
+                      {stateCities.map(c => (
+                        <option key={c.id} value={c.id}>{c.value}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSaveLocation}
+                  disabled={Boolean(savingField)}
+                  className="w-full py-3.5 rounded-full bg-[#e21e5b] hover:bg-[#c9184e] text-white font-bold text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center mt-2"
+                >
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Update"}
+                </button>
+              </motion.div>
+            )}
+
+            {/* 🌟 SHEET E: PHOTO PRIVACY BOTTOM SHEET */}
+            {activeSheet === 'photoPrivacy' && (
+              <motion.div 
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 260 }}
+                className="relative z-10 w-full max-w-md mx-auto bg-white rounded-t-3xl p-5 pt-4 space-y-4 shadow-2xl text-left"
+              >
+                <div className="flex justify-center -mt-9 mb-1">
+                  <button
+                    type="button"
+                    onClick={() => setActiveSheet(null)}
+                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-lg hover:bg-black transition-colors cursor-pointer"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <h3 className="text-lg font-black text-slate-900">Who can see my photo</h3>
+
+                <div className="space-y-2.5">
+                  {[
+                    { value: 'All Members', title: 'All Members', desc: 'Visible to everyone' },
+                    { value: 'Premium Members', title: 'Premium Members', desc: 'Blurred for free users' },
+                    { value: 'Members I Approve', title: 'Members I Approve', desc: 'Blurred until you approve' }
+                  ].map((opt) => {
+                    const isSel = formData.PhotoPrivacy === opt.value;
+                    return (
+                      <div
+                        key={opt.value}
+                        onClick={() => handleSavePhotoPrivacy(opt.value)}
+                        className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                          isSel ? 'border-[#e21e5b] bg-rose-50/50 shadow-sm' : 'border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div>
+                          <div className={`text-xs font-bold ${isSel ? 'text-[#e21e5b]' : 'text-slate-800'}`}>
+                            {opt.title}
+                          </div>
+                          <div className="text-[11px] text-slate-500 mt-0.5">
+                            {opt.desc}
+                          </div>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                          isSel ? 'border-[#e21e5b] bg-[#e21e5b]' : 'border-slate-300'
+                        }`}>
+                          {isSel && <div className="w-2 h-2 rounded-full bg-white" />}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <p className="text-[11px] text-slate-400 text-center">
+                  You can change this later in your privacy settings
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveSheet(null)}
+                  className="w-full py-3.5 rounded-full bg-[#e21e5b] hover:bg-[#c9184e] text-white font-bold text-sm shadow-md transition-all cursor-pointer active:scale-98"
+                >
+                  Save
+                </button>
+              </motion.div>
+            )}
+
+            {/* 🌟 SHEET F: ADD TRUST BADGE (GOVT ID VERIFICATION) */}
+            {activeSheet === 'trustBadge' && (
+              <motion.div 
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 260 }}
+                className="relative z-10 w-full max-w-md mx-auto bg-white rounded-t-3xl p-5 pt-4 space-y-4 shadow-2xl text-left max-h-[85vh] flex flex-col overflow-y-auto"
+              >
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setActiveSheet(null)}
+                    className="p-1 rounded-full hover:bg-slate-100 text-slate-700 cursor-pointer"
+                  >
+                    <ArrowLeft size={20} />
+                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="text-base font-black text-slate-900">Add Trust Badge</h3>
+                    <CheckCircle2 size={16} className="text-sky-500 fill-sky-500 text-white" />
+                  </div>
+                </div>
+
+                {/* Upload Box */}
+                <label className="aspect-4/3 rounded-3xl border-2 border-dashed border-rose-300 hover:border-[#e21e5b] bg-rose-50/20 hover:bg-rose-50/50 flex flex-col items-center justify-center p-6 text-center cursor-pointer transition-all relative overflow-hidden group">
+                  <input 
+                    type="file"
+                    accept="image/*,.pdf"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) {
+                        setGovtDocFile(f);
+                        if (f.type.startsWith("image/")) {
+                          setGovtDocPreview(URL.createObjectURL(f));
+                        } else {
+                          setGovtDocPreview("");
+                        }
+                      }
+                    }}
+                  />
+                  {govtDocPreview ? (
+                    <img src={govtDocPreview} alt="Doc preview" className="w-full h-full object-contain" />
+                  ) : formData.GovtIdDocUrl ? (
+                    <div className="space-y-1">
+                      <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center">
+                        <Check size={24} />
+                      </div>
+                      <p className="text-xs font-bold text-slate-900">Document Submitted</p>
+                      <p className="text-[11px] text-slate-500">Sent for Admin Approval</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="w-14 h-14 rounded-2xl bg-slate-100 border border-slate-200 text-slate-400 mx-auto flex items-center justify-center relative">
+                        <Camera size={24} />
+                        <div className="w-5 h-5 rounded-full bg-[#e21e5b] text-white flex items-center justify-center absolute -top-1 -right-1">
+                          <Plus size={14} className="stroke-[3]" />
+                        </div>
+                      </div>
+                      <div className="text-sm font-black text-slate-900">Upload Govt ID</div>
+                      <div className="text-xs text-slate-400 font-medium">
+                        (Aadhaar, PAN, Passport etc)
+                      </div>
+                    </div>
+                  )}
+                </label>
+
+                {/* Benefits Card */}
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-2">
+                  <h4 className="text-xs font-black text-slate-900">Benefits</h4>
+                  <ul className="text-xs text-slate-600 space-y-1.5 list-disc pl-4">
+                    <li>Upload a Valid Government ID to get the Trust badge.</li>
+                    <li>Verified member get a Trust Badge for more visibility and trust.</li>
+                  </ul>
+                </div>
+
+                {/* Continue Button */}
+                <button
+                  type="button"
+                  onClick={handleSubmitGovtDoc}
+                  disabled={uploadingGovtDoc || (!govtDocFile && !formData.GovtIdDocUrl)}
+                  className="w-full py-3.5 rounded-full bg-[#e21e5b] hover:bg-[#c9184e] text-white font-bold text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center disabled:opacity-50"
+                >
+                  {uploadingGovtDoc ? <Loader2 size={18} className="animate-spin" /> : "Continue"}
+                </button>
+              </motion.div>
+            )}
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
