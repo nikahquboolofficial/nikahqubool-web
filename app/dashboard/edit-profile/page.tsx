@@ -213,6 +213,40 @@ const FALLBACK_MASTERS: { [key: string]: MasterOption[] } = {
     { id: 3, value: "Wheatish" },
     { id: 4, value: "Wheatish Medium" },
     { id: 5, value: "Dark / Olive" }
+  ],
+  HOBBIES: [
+    { id: 1, value: "Reading" },
+    { id: 2, value: "Photography" },
+    { id: 3, value: "Travelling" },
+    { id: 4, value: "Cooking & Baking" },
+    { id: 5, value: "Music" },
+    { id: 6, value: "Gaming" },
+    { id: 7, value: "Fitness & Gym" },
+    { id: 8, value: "Gardening" },
+    { id: 9, value: "Sports" },
+    { id: 10, value: "Painting & Sketching" },
+    { id: 11, value: "Writing" },
+    { id: 12, value: "Watching Movies" },
+    { id: 13, value: "Trekking & Hiking" },
+    { id: 14, value: "Cycling" },
+    { id: 15, value: "Swimming" }
+  ],
+  INTERESTS: [
+    { id: 1, value: "Sufi & Islamic Nasheeds" },
+    { id: 2, value: "Classic Ghazals" },
+    { id: 3, value: "Instrumental & Acoustic" },
+    { id: 4, value: "Bollywood Classics" },
+    { id: 5, value: "Poetry & Shayari" },
+    { id: 6, value: "Coding & Tech" },
+    { id: 7, value: "Entrepreneurship" },
+    { id: 8, value: "Social Work & Charity" },
+    { id: 9, value: "Fashion & Styling" },
+    { id: 10, value: "Interior Design" },
+    { id: 11, value: "Nature & Wildlife" },
+    { id: 12, value: "Astronomy & Science" },
+    { id: 13, value: "History & Culture" },
+    { id: 14, value: "Content Creation" },
+    { id: 15, value: "Finance & Investing" }
   ]
 };
 
@@ -284,8 +318,10 @@ export default function EditMyProfilePage() {
     FamilyType: 'Joint Family',
     FamilyValues: 'Traditional & Religious',
     FamilyStatus: 'Upper Middle Class',
+    FatherName: '',
     FatherOccupation: 'Business Owner / Entrepreneur',
     FatherOccupationId: 4,
+    MotherName: '',
     MotherOccupation: 'Homemaker / Housewife',
     MotherOccupationId: 18,
     TotalBrothers: 1,
@@ -372,6 +408,14 @@ export default function EditMyProfilePage() {
   const [govtDocPreview, setGovtDocPreview] = useState<string>('');
   const [uploadingGovtDoc, setUploadingGovtDoc] = useState(false);
 
+  // Lifestyle Hub & Multi-Select Substate
+  const [multiSelectKey, setMultiSelectKey] = useState<'Hobbies' | 'Interests'>('Hobbies');
+  const [multiSelectTitle, setMultiSelectTitle] = useState('');
+  const [multiSelectSubtitle, setMultiSelectSubtitle] = useState('');
+  const [multiSelectItems, setMultiSelectItems] = useState<string[]>([]);
+  const [multiSelectAvailable, setMultiSelectAvailable] = useState<MasterOption[]>([]);
+  const [multiSelectSearch, setMultiSelectSearch] = useState('');
+
   // 🌟 PARALLEL DYNAMIC MASTER & PROFILE INITIALIZATION
   useEffect(() => {
     const token = getAuthToken();
@@ -396,7 +440,9 @@ export default function EditMyProfilePage() {
           'STATES',
           'FAMILY_TYPES',
           'FAMILY_STATUS',
-          'COMPLEXION'
+          'COMPLEXION',
+          'HOBBIES',
+          'INTERESTS'
         ];
 
         // Fetch all master data in parallel with profile details
@@ -479,8 +525,10 @@ export default function EditMyProfilePage() {
             FamilyType: p.familyTypeName || p.familyType || prev.FamilyType,
             FamilyValues: p.familyValuesName || p.familyValues || prev.FamilyValues,
             FamilyStatus: p.familyStatusName || p.familyStatus || prev.FamilyStatus,
+            FatherName: p.fatherName || p.FatherName || prev.FatherName,
             FatherOccupation: p.fatherOccupationName || p.fatherOccupation || prev.FatherOccupation,
             FatherOccupationId: p.fatherOccupationId || prev.FatherOccupationId,
+            MotherName: p.motherName || p.MotherName || prev.MotherName,
             MotherOccupation: p.motherOccupationName || p.motherOccupation || prev.MotherOccupation,
             MotherOccupationId: p.motherOccupationId || prev.MotherOccupationId,
             TotalBrothers: p.totalBrothers !== undefined ? Number(p.totalBrothers) : prev.TotalBrothers,
@@ -688,6 +736,35 @@ export default function EditMyProfilePage() {
   const handleSaveHeight = () => {
     const formatted = cmToFtIn(heightCm);
     saveFieldValue('Height', formatted);
+  };
+
+  // Open Multi-Select Sheet for Hobbies or Music/Interests
+  const openMultiSelectSheet = (key: 'Hobbies' | 'Interests') => {
+    const isHobbies = key === 'Hobbies';
+    setMultiSelectKey(key);
+    setMultiSelectTitle(isHobbies ? "Select Hobbies & Activities" : "Select Music & Personal Interests");
+    setMultiSelectSubtitle(isHobbies ? "Pick the hobbies and leisure activities you enjoy" : "Choose your favorite music genres & personal interests");
+    const currentStr = isHobbies ? (formData.Hobbies || '') : (formData.Interests || '');
+    const currentList = currentStr ? currentStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+    setMultiSelectItems(currentList);
+    setMultiSelectAvailable(isHobbies ? (masterData.HOBBIES || FALLBACK_MASTERS.HOBBIES) : (masterData.INTERESTS || FALLBACK_MASTERS.INTERESTS));
+    setMultiSelectSearch('');
+    setActiveSheet('multiSelect');
+  };
+
+  const toggleMultiSelectItem = (val: string) => {
+    setMultiSelectItems(prev => {
+      if (prev.includes(val)) {
+        return prev.filter(item => item !== val);
+      } else {
+        return [...prev, val];
+      }
+    });
+  };
+
+  const handleSaveMultiSelect = () => {
+    const joined = multiSelectItems.join(', ');
+    saveFieldValue(multiSelectKey, joined);
   };
 
   // Save Bio
@@ -946,6 +1023,12 @@ export default function EditMyProfilePage() {
     return sheetOptions.filter(o => o.value.toLowerCase().includes(sheetSearch.toLowerCase()));
   }, [sheetOptions, sheetSearch]);
 
+  // Search Filter for Multi-Select Sheet
+  const filteredMultiSelectOptions = useMemo(() => {
+    if (!multiSelectSearch.trim()) return multiSelectAvailable;
+    return multiSelectAvailable.filter(o => o.value.toLowerCase().includes(multiSelectSearch.toLowerCase()));
+  }, [multiSelectAvailable, multiSelectSearch]);
+
   // Master Options Mappers (Live Dynamic from DB + 0ms Fallback)
   const educationOpts = masterData.EDUCATIONS || FALLBACK_MASTERS.EDUCATIONS;
   const casteOpts = masterData.CASTES || FALLBACK_MASTERS.CASTES;
@@ -1032,6 +1115,9 @@ export default function EditMyProfilePage() {
   }
 
   const activePhotosCount = photos.filter(p => p && p.photoUrl).length;
+  const hasHobbies = Boolean(formData.Hobbies && formData.Hobbies.trim().length > 0);
+  const hasMusicInterests = Boolean(formData.Interests && formData.Interests.trim().length > 0);
+  const hasLifestyleSelected = hasHobbies && hasMusicInterests;
 
   return (
     <div className="min-h-screen bg-[#FBF9F7] text-slate-900 pb-24 font-sans selection:bg-[#d91b5c] selection:text-white">
@@ -1099,32 +1185,45 @@ export default function EditMyProfilePage() {
           </div>
         </div>
 
-        {/* 🌟 QUICK ACTION CARDS (LIFESTYLE SCORE + TRUST BADGE) */}
-        <div className="grid grid-cols-2 gap-3">
-          {/* Card 1: Lifestyle & Faith Boost */}
-          <div 
-            onClick={() => openOptionSheet('Daily Salah (Namaz) Routine', 'NamazHabit', formData.NamazHabit, namazOpts)}
-            className="p-3.5 rounded-2xl bg-white border border-rose-100 shadow-xs hover:shadow-md hover:border-rose-300 transition-all cursor-pointer flex flex-col justify-between group"
-          >
-            <div className="flex items-center justify-between">
-              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
-                <Sparkles size={16} />
-              </div>
-              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">
-                +15% Score
-              </span>
-            </div>
-            <div className="mt-3">
-              <h2 className="text-xs font-black text-slate-900 group-hover:text-[#d91b5c] transition-colors">
-                Islamic Lifestyle
-              </h2>
-              <span className="text-[11px] font-bold text-[#d91b5c] inline-block mt-0.5">
-                Update Values &rarr;
-              </span>
-            </div>
+        {/* 🌟 100% COMPLETE PROFILE BADGE PROMPT */}
+        <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-[#FFF9F2] border border-amber-200/80 shadow-xs">
+          <div className="w-7 h-7 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center shrink-0 shadow-xs">
+            <Star size={14} className="fill-amber-400" />
           </div>
+          <span className="text-xs font-black text-slate-800">
+            Earn the badge on 100% complete profile.
+          </span>
+        </div>
 
-          {/* Card 2: Official Trust Verification */}
+        {/* 🌟 TOP QUICK ACTION CARDS */}
+        <div className={`grid ${!hasLifestyleSelected ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
+          {/* Card 1: Lifestyle & Interest Prompt Card */}
+          {/* Strict Rule: Disappears as soon as user selects Hobbies & Music! Reappears if either is empty! */}
+          {!hasLifestyleSelected && (
+            <div 
+              onClick={() => setActiveSheet('lifestyleHub')}
+              className="p-3.5 rounded-2xl bg-white border border-rose-100 shadow-xs hover:shadow-md hover:border-rose-300 transition-all cursor-pointer flex flex-col justify-between group"
+            >
+              <div className="flex items-center justify-between">
+                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
+                  <Sparkles size={16} />
+                </div>
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">
+                  +10% Score
+                </span>
+              </div>
+              <div className="mt-3">
+                <h2 className="text-xs font-black text-slate-900 group-hover:text-[#d91b5c] transition-colors">
+                  Lifestyle & Interest
+                </h2>
+                <span className="text-[11px] font-bold text-[#d91b5c] inline-block mt-0.5">
+                  Add Details &rarr;
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Card 2: Official Govt ID Trust Verification */}
           <div 
             onClick={() => setActiveSheet('trustBadge')}
             className="p-3.5 rounded-2xl bg-white border border-rose-100 shadow-xs hover:shadow-md hover:border-rose-300 transition-all cursor-pointer flex flex-col justify-between group"
@@ -1138,11 +1237,14 @@ export default function EditMyProfilePage() {
               </span>
             </div>
             <div className="mt-3">
-              <h2 className="text-xs font-black text-slate-900 group-hover:text-sky-600 transition-colors">
-                Govt ID Verification
-              </h2>
+              <div className="flex items-center gap-1">
+                <h2 className="text-xs font-black text-slate-900 group-hover:text-sky-600 transition-colors">
+                  Verify Your Profile
+                </h2>
+                <CheckCircle2 size={13} className="text-sky-500 fill-sky-100 shrink-0" />
+              </div>
               <span className="text-[11px] font-bold text-sky-600 inline-block mt-0.5">
-                {formData.IsGovtIdVerified ? "Verified ✓" : (formData.GovtIdDocUrl ? "Under Review ⏳" : "Upload ID &rarr;")}
+                {formData.IsGovtIdVerified ? "Verified ✓" : (formData.GovtIdDocUrl ? "Under Review ⏳" : "Verify Profile &rarr;")}
               </span>
             </div>
           </div>
@@ -1385,6 +1487,19 @@ export default function EditMyProfilePage() {
               <div>
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Islamic Sect</span>
                 <span className="text-xs font-bold text-slate-800 mt-0.5 block">{formData.Sect}</span>
+              </div>
+              <span className="px-2.5 py-1 rounded-full bg-slate-200/80 text-slate-700 text-[10px] font-black flex items-center gap-1">
+                <Lock size={10} /> Verified & Locked
+              </span>
+            </div>
+
+            {/* Date of Birth - Verified */}
+            <div className="p-4 flex items-center justify-between bg-slate-50/40">
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Date of Birth</span>
+                <span className="text-xs font-bold text-slate-800 mt-0.5 block">
+                  {formData.DateOfBirth ? new Date(formData.DateOfBirth).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : `${formData.Age} Years`}
+                </span>
               </div>
               <span className="px-2.5 py-1 rounded-full bg-slate-200/80 text-slate-700 text-[10px] font-black flex items-center gap-1">
                 <Lock size={10} /> Verified & Locked
@@ -1655,6 +1770,25 @@ export default function EditMyProfilePage() {
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
+            {/* Father's Name */}
+            <div 
+              onClick={() => openTextInputSheet(
+                "Father's Name",
+                "Enter father's full name",
+                "FatherName",
+                formData.FatherName,
+                "e.g. Mohammad Shaikh...",
+                80
+              )}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Father's Full Name</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.FatherName || "Add Father's Name"}</span>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
             {/* 🌟 Father's Occupation: 100% Dynamic Master Occupations List */}
             <div 
               onClick={() => openOptionSheet("Select Father's Profession", "FatherOccupation", formData.FatherOccupation, occupationOpts)}
@@ -1663,6 +1797,25 @@ export default function EditMyProfilePage() {
               <div>
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Father's Profession</span>
                 <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.FatherOccupation || "Select Occupation"}</span>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Mother's Name */}
+            <div 
+              onClick={() => openTextInputSheet(
+                "Mother's Name",
+                "Enter mother's full name",
+                "MotherName",
+                formData.MotherName,
+                "e.g. Parveen Begum...",
+                80
+              )}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Mother's Full Name</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.MotherName || "Add Mother's Name"}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -1804,25 +1957,76 @@ export default function EditMyProfilePage() {
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
-            {/* Hobbies & Interests */}
+            {/* Hobbies & Pastimes */}
             <div 
-              onClick={() => openTextInputSheet(
-                "Hobbies & Interests",
-                "Share activities and passions you enjoy in your leisure time",
-                "Hobbies",
-                formData.Hobbies,
-                "e.g. Reading Islamic literature, Traveling, Cooking, Gardening...",
-                250
-              )}
+              onClick={() => openMultiSelectSheet('Hobbies')}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
-              <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Hobbies & Pastimes</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block truncate max-w-[280px]">
-                  {formData.Hobbies || "Add hobbies..."}
-                </span>
+              <div className="min-w-0 pr-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Hobbies & Pastimes</span>
+                  {hasHobbies && (
+                    <span className="text-[10px] font-black px-2 py-0.2 rounded-full bg-rose-100 text-[#d91b5c]">
+                      {formData.Hobbies.split(',').filter(Boolean).length} Added
+                    </span>
+                  )}
+                </div>
+                {hasHobbies ? (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {formData.Hobbies.split(',').map((h: string) => h.trim()).filter(Boolean).map((h: string) => (
+                      <span key={h} className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-rose-50 text-[#d91b5c] border border-rose-200/80 text-[11px] font-black">
+                        {h}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-xs font-bold text-slate-400 mt-0.5 block italic">
+                    Tap to add hobbies (Reading, Travelling, Cooking...)
+                  </span>
+                )}
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <button 
+                type="button" 
+                className="text-xs font-bold text-[#d91b5c] shrink-0 bg-rose-50 px-2.5 py-1 rounded-full hover:bg-rose-100 transition-colors"
+              >
+                {hasHobbies ? "Edit" : "Add"}
+              </button>
+            </div>
+
+            {/* Music & Personal Interests */}
+            <div 
+              onClick={() => openMultiSelectSheet('Interests')}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
+              <div className="min-w-0 pr-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Music & Personal Interests</span>
+                  {hasMusicInterests && (
+                    <span className="text-[10px] font-black px-2 py-0.2 rounded-full bg-violet-100 text-violet-800">
+                      {formData.Interests.split(',').filter(Boolean).length} Added
+                    </span>
+                  )}
+                </div>
+                {hasMusicInterests ? (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {formData.Interests.split(',').map((item: string) => item.trim()).filter(Boolean).map((item: string) => (
+                      <span key={item} className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200/80 text-[11px] font-black">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-xs font-bold text-slate-400 mt-0.5 block italic">
+                    Tap to add music tastes & interests (Sufi, Classical, Tech...)
+                  </span>
+                )}
+              </div>
+              <button 
+                type="button" 
+                className="text-xs font-bold text-violet-700 shrink-0 bg-violet-50 px-2.5 py-1 rounded-full hover:bg-violet-100 transition-colors"
+              >
+                {hasMusicInterests ? "Edit" : "Add"}
+              </button>
             </div>
           </div>
         </section>
@@ -2465,6 +2669,157 @@ export default function EditMyProfilePage() {
                   className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#9B1138] to-[#D91B5C] disabled:opacity-50 hover:opacity-95 text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
                 >
                   {uploadingGovtDoc ? <Loader2 size={18} className="animate-spin" /> : "Submit for Admin Verification"}
+                </button>
+              </motion.div>
+            )}
+
+            {/* 🌟 SHEET I: LIFESTYLE & INTEREST PROMPT HUB */}
+            {activeSheet === 'lifestyleHub' && (
+              <motion.div 
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 260 }}
+                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pt-5 space-y-4 shadow-2xl text-left"
+              >
+                <div className="flex justify-center -mt-10 mb-1">
+                  <button
+                    type="button"
+                    onClick={() => setActiveSheet(null)}
+                    className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">Lifestyle & Interests</h3>
+                  <p className="text-xs text-slate-500 font-medium">Add your hobbies and music tastes to complete your profile</p>
+                </div>
+
+                <div className="space-y-3 pt-1">
+                  {/* Option 1: Hobbies */}
+                  <div
+                    onClick={() => openMultiSelectSheet('Hobbies')}
+                    className="p-4 rounded-2xl border-2 border-rose-100 hover:border-[#d91b5c] bg-rose-50/20 hover:bg-rose-50/50 transition-all cursor-pointer flex items-center justify-between group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-rose-100 text-[#d91b5c] flex items-center justify-center shrink-0">
+                        <Smile size={20} />
+                      </div>
+                      <div>
+                        <div className="text-xs font-black text-slate-900 group-hover:text-[#d91b5c] transition-colors">
+                          Hobbies & Pastimes
+                        </div>
+                        <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                          {formData.Hobbies ? `${formData.Hobbies.split(',').filter(Boolean).length} Selected: ${formData.Hobbies}` : "Reading, Travelling, Cooking..."}
+                        </div>
+                      </div>
+                    </div>
+                    <ChevronRight size={18} className="text-[#d91b5c] shrink-0" />
+                  </div>
+
+                  {/* Option 2: Music / Interests */}
+                  <div
+                    onClick={() => openMultiSelectSheet('Interests')}
+                    className="p-4 rounded-2xl border-2 border-violet-100 hover:border-violet-600 bg-violet-50/20 hover:bg-violet-50/50 transition-all cursor-pointer flex items-center justify-between group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-violet-100 text-violet-700 flex items-center justify-center shrink-0">
+                        <Sparkles size={20} />
+                      </div>
+                      <div>
+                        <div className="text-xs font-black text-slate-900 group-hover:text-violet-700 transition-colors">
+                          Music & Personal Interests
+                        </div>
+                        <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                          {formData.Interests ? `${formData.Interests.split(',').filter(Boolean).length} Selected: ${formData.Interests}` : "Sufi, Classical Ghazals, Poetry..."}
+                        </div>
+                      </div>
+                    </div>
+                    <ChevronRight size={18} className="text-violet-700 shrink-0" />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* 🌟 SHEET J: MULTI-SELECT CHIPS BOTTOM SHEET */}
+            {activeSheet === 'multiSelect' && (
+              <motion.div 
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 260 }}
+                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-5 pt-4 space-y-4 shadow-2xl text-left max-h-[85vh] flex flex-col"
+              >
+                <div className="flex justify-center -mt-9 mb-1">
+                  <button
+                    type="button"
+                    onClick={() => setActiveSheet(null)}
+                    className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900">{multiSelectTitle}</h3>
+                    <p className="text-xs text-slate-500 font-medium">{multiSelectSubtitle}</p>
+                  </div>
+                  <span className="text-xs font-black text-[#d91b5c] bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200">
+                    {multiSelectItems.length} Selected
+                  </span>
+                </div>
+
+                {/* Search */}
+                <div className="relative">
+                  <Search size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
+                  <input 
+                    type="text"
+                    placeholder="Search options..."
+                    value={multiSelectSearch}
+                    onChange={(e) => setMultiSelectSearch(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 bg-slate-100 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#d91b5c]/20"
+                  />
+                </div>
+
+                {/* Multi-Select Chips Container */}
+                <div className="flex-1 overflow-y-auto pr-1 py-1">
+                  <div className="flex flex-wrap gap-2">
+                    {filteredMultiSelectOptions.map((opt) => {
+                      const isSelected = multiSelectItems.includes(opt.value);
+                      return (
+                        <button
+                          key={String(opt.id || opt.value)}
+                          type="button"
+                          onClick={() => toggleMultiSelectItem(opt.value)}
+                          className={`px-3.5 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+                            isSelected 
+                              ? 'bg-gradient-to-r from-[#9B1138] to-[#D91B5C] text-white shadow-xs' 
+                              : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/60'
+                          }`}
+                        >
+                          {isSelected && <Check size={14} className="stroke-[3]" />}
+                          <span>{opt.value}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {filteredMultiSelectOptions.length === 0 && (
+                    <div className="py-8 text-center text-xs text-slate-400 font-semibold">
+                      No matching tags found.
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSaveMultiSelect}
+                  disabled={Boolean(savingField)}
+                  className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#9B1138] to-[#D91B5C] hover:opacity-95 text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
+                >
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : `Save Selection (${multiSelectItems.length})`}
                 </button>
               </motion.div>
             )}
