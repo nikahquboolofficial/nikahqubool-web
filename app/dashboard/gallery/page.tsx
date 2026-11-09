@@ -24,6 +24,11 @@ import {
   VerifyIdentityIntroModal,
   LiveOvalSelfieScannerModal,
 } from '@/components/profile/PhotoVerificationModals';
+import {
+  clientValidateSingleFace,
+  compareFaceDescriptors,
+  loadFaceApiModels,
+} from '@/lib/faceDetectionClient';
 
 export default function GalleryManagementPage() {
   const router = useRouter();
@@ -251,39 +256,48 @@ export default function GalleryManagementPage() {
     }
 
     setUploading(true);
-    toast.loading("Scanning photo for clear face & identity match...", { id: "face-scan" });
+    toast.loading("AI scanning face...", { id: "face-scan" });
 
     try {
       const previewUrl = URL.createObjectURL(file);
       const dataUrl = await fileToDataUrl(file);
 
-      // Reference URL: saved VerifiedSelfieUrl OR existing Main Photo URL (so every new/replaced photo matches the user!)
-      const existingMainPhoto = photos.find((p: any) => Boolean(p.isMain ?? p.IsMain)) || photos[0];
-      const existingMainUrl = existingMainPhoto ? getOptimizedImageUrl(existingMainPhoto.photoUrl || existingMainPhoto.PhotoUrl) : '';
-      const referenceUrlToCompare = verifiedSelfieUrl || (photos.length > 0 ? existingMainUrl : '');
-
-      const checkRes = await fetch('/api/face-verification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'validate-photo',
-          photoBase64: dataUrl,
-          referencePhotoUrl: referenceUrlToCompare || undefined,
-        }),
-      });
-      const checkData = await checkRes.json();
+      // 1. Run In-Browser Client Face Check (0.1s)
+      const faceResult = await clientValidateSingleFace(dataUrl);
       toast.dismiss("face-scan");
 
-      if (!checkData.success) {
+      if (!faceResult.isValid || !faceResult.descriptor) {
         setUploading(false);
         setSelectedPhoto(null);
         setRejectedModal({
           open: true,
           previewUrl,
-          errorCode: checkData.errorCode || 'NO_FACE',
-          message: checkData.message || 'Face verification failed. Your existing photo was kept safe.',
+          errorCode: faceResult.errorCode || 'NO_FACE',
+          message: faceResult.message || 'We were unable to detect a human face in your photo.',
         });
         return;
+      }
+
+      // 2. If user already has photos and is adding/replacing, match against verified selfie / main photo!
+      const referencePhoto = photos.find((p: any) => Boolean(p.isMain ?? p.IsMain)) || photos[0];
+      if (referencePhoto?.photoUrl) {
+        try {
+          const refScan = await clientValidateSingleFace(getOptimizedImageUrl(referencePhoto.photoUrl || referencePhoto.PhotoUrl));
+          if (refScan.descriptor) {
+            const cmp = compareFaceDescriptors(refScan.descriptor, faceResult.descriptor, 0.58);
+            if (!cmp.isMatch) {
+              setUploading(false);
+              setSelectedPhoto(null);
+              setRejectedModal({
+                open: true,
+                previewUrl,
+                errorCode: 'FACE_MISMATCH',
+                message: 'Face mismatch! This photo does not match your verified profile face. Your existing photo was kept safe.',
+              });
+              return;
+            }
+          }
+        } catch (_) {}
       }
 
       // If user has NOT completed 1-time Live Selfie Verification yet, require it now!
@@ -317,40 +331,56 @@ export default function GalleryManagementPage() {
     const token = getToken();
 
     setSelfieVerifying(true);
-    setSelfieStatusText("Matching your live selfie with your photo...");
+    setSelfieStatusText("Scanning live selfie with AI...");
 
     try {
-      const existingUrls = photos
-        .map((p: any) => getOptimizedImageUrl(p.photoUrl || p.PhotoUrl))
-        .filter(Boolean);
-
-      const res = await fetch('/api/face-verification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'verify-selfie',
-          userId,
-          selfieBase64: selfieDataUrl,
-          photosBase64: [pendingUpload.dataUrl],
-          photoUrls: existingUrls,
-        }),
-      });
-      const data = await res.json();
-
-      if (!data.success) {
+      // Step A: Client AI Face scan on live selfie
+      const selfieScan = await clientValidateSingleFace(selfieDataUrl);
+      if (!selfieScan.isValid || !selfieScan.descriptor) {
         setSelfieVerifying(false);
         setScannerModalOpen(false);
         setRejectedModal({
           open: true,
           previewUrl: selfieDataUrl,
-          errorCode: data.errorCode || 'SELFIE_MISMATCH',
-          message: data.message || 'Live selfie did not match your selected photo.',
+          errorCode: selfieScan.errorCode || 'NO_FACE',
+          message: `Live selfie check: ${selfieScan.message}`,
         });
         return;
       }
 
-      const r2SelfieUrl = data.selfieUrl || '';
-      const r2SelfieKey = data.selfieRelativeKey || '';
+      // Step B: Compare selfie with pending photo
+      setSelfieStatusText("Matching live selfie with your uploaded photo...");
+      const pendingScan = await clientValidateSingleFace(pendingUpload.dataUrl);
+      if (pendingScan.descriptor) {
+        const cmp = compareFaceDescriptors(selfieScan.descriptor, pendingScan.descriptor, 0.58);
+        if (!cmp.isMatch) {
+          setSelfieVerifying(false);
+          setScannerModalOpen(false);
+          setRejectedModal({
+            open: true,
+            previewUrl: selfieDataUrl,
+            errorCode: 'SELFIE_MISMATCH',
+            message: 'Face verification failed! Your live selfie did not match your uploaded photo. Please ensure both show only yourself.',
+          });
+          return;
+        }
+      }
+
+      // Step C: Upload selfie to R2 `user-selfies`
+      setSelfieStatusText("Biometrics verified! Uploading secure selfie...");
+      const uploadRes = await fetch('/api/face-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'upload-selfie-r2',
+          userId,
+          selfieBase64: selfieDataUrl,
+        }),
+      });
+      const uploadData = await uploadRes.json();
+
+      const r2SelfieUrl = uploadData.selfieUrl || '';
+      const r2SelfieKey = uploadData.selfieRelativeKey || '';
       setVerifiedSelfieUrl(r2SelfieUrl);
       if (typeof window !== "undefined" && userId > 0) {
         localStorage.setItem(`verified_selfie_url_${userId}`, r2SelfieUrl);

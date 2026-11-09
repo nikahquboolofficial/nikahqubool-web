@@ -428,6 +428,28 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // 3. UPLOAD VERIFIED SELFIE DIRECTLY TO CLOUDFLARE R2 `user-selfies` FOLDER
+    if (action === "upload-selfie-r2") {
+      const userId = Number(body?.userId || 0);
+      const selfieBase64 = stripBase64Prefix(String(body?.selfieBase64 || ""));
+
+      if (!selfieBase64) {
+        return NextResponse.json({ success: false, message: "No selfie data provided." }, { status: 400 });
+      }
+
+      const selfieBuffer = Buffer.from(selfieBase64, "base64");
+      const fileName = `selfie_${userId || "user"}_${crypto.randomUUID()}.jpg`;
+      const selfieRelativeKey = await uploadBufferToR2(selfieBuffer, "user-selfies", fileName, "image/jpeg");
+      const fullSelfieCdnUrl = `${R2_CDN_URL}/${selfieRelativeKey}`;
+
+      return NextResponse.json({
+        success: true,
+        selfieRelativeKey,
+        selfieUrl: fullSelfieCdnUrl,
+        message: "Selfie uploaded to secure Cloudflare R2 user-selfies folder successfully.",
+      });
+    }
+
     return NextResponse.json({ success: false, message: "Unsupported action" }, { status: 400 });
   } catch (err: any) {
     console.error("Face verification route error:", err);

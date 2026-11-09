@@ -18,6 +18,11 @@ import {
   VerifyIdentityIntroModal,
   LiveOvalSelfieScannerModal,
 } from '@/components/profile/PhotoVerificationModals';
+import {
+  clientValidateSingleFace,
+  compareFaceDescriptors,
+  loadFaceApiModels,
+} from '@/lib/faceDetectionClient';
 
 // MASTER FALLBACK DATA
 const PROFILE_CREATED_FOR_OPTIONS = [
@@ -489,7 +494,7 @@ export default function CompleteProfilePage() {
   }, [formData.stateId]);
 
   // Multi-Photo (Max 4) + Muzz-style AI Face & Selfie Verification State
-  const [photoSlots, setPhotoSlots] = useState<Array<{ file: File; previewUrl: string; dataUrl: string } | null>>([null, null, null, null]);
+  const [photoSlots, setPhotoSlots] = useState<Array<{ file: File; previewUrl: string; dataUrl: string; descriptor?: number[] } | null>>([null, null, null, null]);
   const [activeSlotIndex, setActiveSlotIndex] = useState<number>(0);
   const [validatingSlotIndex, setValidatingSlotIndex] = useState<number | null>(null);
   const [guidelinesOpen, setGuidelinesOpen] = useState(false);
@@ -506,8 +511,13 @@ export default function CompleteProfilePage() {
   const [selfieStatusText, setSelfieStatusText] = useState('');
   const [verifiedSelfieUrl, setVerifiedSelfieUrl] = useState<string>('');
 
+  // Pre-load face-api models on component mount for instant scanning
+  useEffect(() => {
+    loadFaceApiModels().catch(() => {});
+  }, []);
+
   const activePhotosList = React.useMemo(
-    () => photoSlots.filter((p): p is { file: File; previewUrl: string; dataUrl: string } => p !== null),
+    () => photoSlots.filter((p): p is { file: File; previewUrl: string; dataUrl: string; descriptor?: number[] } => p !== null),
     [photoSlots]
   );
 
@@ -537,7 +547,7 @@ export default function CompleteProfilePage() {
     });
   };
 
-  // Handle Photo Selection with instant compression + AWS Rekognition Face Detection & Cross-Photo Match
+  // Handle Photo Selection with instant Client-Side AI Face Landmark & Biometric Check
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -549,44 +559,52 @@ export default function CompleteProfilePage() {
 
     const slotIdx = activeSlotIndex;
     setValidatingSlotIndex(slotIdx);
-    toast.loading('Scanning photo for clear face...', { id: 'compress-toast' });
+    toast.loading('AI scanning face...', { id: 'compress-toast' });
 
     try {
       const compressed = await compressPhoto(file);
       const previewUrl = URL.createObjectURL(compressed);
       const dataUrl = await fileToDataUrl(compressed);
 
-      // If Slot 0 already has a Main Photo and user is uploading to Slot 1/2/3, compare against Slot 0!
-      const mainSlot = slotIdx > 0 ? photoSlots[0] : null;
+      // 1. Run In-Browser Client AI Face Verification (0.1s - Zero Cloud Error)
+      const faceResult = await clientValidateSingleFace(dataUrl);
 
-      const verifyRes = await fetch('/api/face-verification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'validate-photo',
-          photoBase64: dataUrl,
-          referencePhotoBase64: mainSlot ? mainSlot.dataUrl : undefined,
-          referencePhotoUrl: verifiedSelfieUrl || undefined,
-        }),
-      });
-      const verifyData = await verifyRes.json();
-      toast.dismiss('compress-toast');
-      setValidatingSlotIndex(null);
-
-      if (!verifyData.success) {
+      if (!faceResult.isValid) {
+        toast.dismiss('compress-toast');
+        setValidatingSlotIndex(null);
         setRejectedModal({
           open: true,
           previewUrl,
-          errorCode: verifyData.errorCode || 'NO_FACE',
-          message: verifyData.message || 'We were unable to detect a clear face in your photo.',
+          errorCode: faceResult.errorCode || 'NO_FACE',
+          message: faceResult.message || 'We were unable to detect a human face in your photo.',
           slotIndex: slotIdx,
         });
         return;
       }
 
+      // 2. Cross-Photo Match: If Slot 0 (Main Photo) exists and user uploads Slot 1/2/3, compare faces!
+      if (slotIdx > 0 && photoSlots[0]?.descriptor && faceResult.descriptor) {
+        const matchResult = compareFaceDescriptors(photoSlots[0].descriptor, faceResult.descriptor, 0.58);
+        if (!matchResult.isMatch) {
+          toast.dismiss('compress-toast');
+          setValidatingSlotIndex(null);
+          setRejectedModal({
+            open: true,
+            previewUrl,
+            errorCode: 'FACE_MISMATCH',
+            message: 'Face mismatch! This photo does not show the same person as your Main photo. All photos must be of yourself.',
+            slotIndex: slotIdx,
+          });
+          return;
+        }
+      }
+
+      toast.dismiss('compress-toast');
+      setValidatingSlotIndex(null);
+
       setPhotoSlots((prev) => {
         const next = [...prev];
-        next[slotIdx] = { file: compressed, previewUrl, dataUrl };
+        next[slotIdx] = { file: compressed, previewUrl, dataUrl, descriptor: faceResult.descriptor };
         // Ensure compact ordering so Slot 0 is always Main
         const compacted = next.filter((p) => p !== null);
         while (compacted.length < 4) compacted.push(null);
@@ -607,9 +625,9 @@ export default function CompleteProfilePage() {
     }
   };
 
-  // Handle Live Oval Selfie Capture & AWS Rekognition Verification + R2 `user-selfies` upload
+  // Handle Live Oval Selfie Capture & Client Biometric Match + Cloudflare R2 Upload
   const handleCaptureAndVerifySelfie = async (selfieDataUrl: string) => {
-    const photosToVerify = photoSlots.filter((p): p is { file: File; previewUrl: string; dataUrl: string } => p !== null);
+    const photosToVerify = photoSlots.filter((p): p is { file: File; previewUrl: string; dataUrl: string; descriptor?: number[] } => p !== null);
     if (photosToVerify.length === 0) return;
 
     let userData: any = null;
@@ -620,42 +638,72 @@ export default function CompleteProfilePage() {
     const currentUserId = Number(userData?.userId || userData?.UserId || 0);
 
     setSelfieVerifying(true);
-    setSelfieStatusText('Scanning live selfie & matching with your photos...');
+    setSelfieStatusText('Scanning live selfie with AI...');
 
     try {
-      const res = await fetch('/api/face-verification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'verify-selfie',
-          userId: currentUserId,
-          selfieBase64: selfieDataUrl,
-          photosBase64: photosToVerify.map((p) => p.dataUrl),
-        }),
-      });
-      const data = await res.json();
-
-      if (!data.success) {
+      // Step A: Validate live selfie has a clear solo human face
+      const selfieCheck = await clientValidateSingleFace(selfieDataUrl);
+      if (!selfieCheck.isValid || !selfieCheck.descriptor) {
         setSelfieVerifying(false);
         setScannerModalOpen(false);
         setRejectedModal({
           open: true,
           previewUrl: selfieDataUrl,
-          errorCode: data.errorCode || 'SELFIE_MISMATCH',
-          message: data.message || 'Face verification failed. Please ensure your face is clearly visible and matches your photos.',
-          slotIndex: data.failedPhotoIndex || 0,
+          errorCode: selfieCheck.errorCode || 'NO_FACE',
+          message: `Live selfie check: ${selfieCheck.message}`,
+          slotIndex: 0,
         });
         return;
       }
 
-      const r2SelfieUrl = data.selfieUrl || '';
-      const r2SelfieKey = data.selfieRelativeKey || '';
+      // Step B: Compare selfie biometric descriptor with every uploaded photo
+      setSelfieStatusText('Matching selfie with your uploaded photos...');
+      for (let i = 0; i < photosToVerify.length; i++) {
+        let photoDesc = photosToVerify[i].descriptor;
+        if (!photoDesc) {
+          const scanP = await clientValidateSingleFace(photosToVerify[i].dataUrl);
+          photoDesc = scanP.descriptor;
+        }
+
+        if (photoDesc) {
+          const cmp = compareFaceDescriptors(selfieCheck.descriptor, photoDesc, 0.58);
+          if (!cmp.isMatch) {
+            setSelfieVerifying(false);
+            setScannerModalOpen(false);
+            const label = i === 0 ? 'Main Photo' : `Photo #${i + 1}`;
+            setRejectedModal({
+              open: true,
+              previewUrl: selfieDataUrl,
+              errorCode: 'SELFIE_MISMATCH',
+              message: `Face verification failed! Your live selfie did not match your ${label}. Please make sure all uploaded photos are of yourself.`,
+              slotIndex: i,
+            });
+            return;
+          }
+        }
+      }
+
+      // Step C: Upload verified selfie to Cloudflare R2 `user-selfies`
+      setSelfieStatusText('Biometrics verified! Uploading secure selfie...');
+      const uploadRes = await fetch('/api/face-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'upload-selfie-r2',
+          userId: currentUserId,
+          selfieBase64: selfieDataUrl,
+        }),
+      });
+      const uploadData = await uploadRes.json();
+
+      const r2SelfieUrl = uploadData.selfieUrl || '';
+      const r2SelfieKey = uploadData.selfieRelativeKey || '';
       setVerifiedSelfieUrl(r2SelfieUrl);
       if (typeof window !== 'undefined' && currentUserId > 0) {
         localStorage.setItem(`verified_selfie_url_${currentUserId}`, r2SelfieUrl);
       }
 
-      setSelfieStatusText('Identity verified! Saving your profile & photos...');
+      setSelfieStatusText('Identity verified! Saving your profile...');
       setScannerModalOpen(false);
       setSelfieVerifying(false);
       toast.success('Identity verified! Saving your profile...');
