@@ -6,7 +6,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, Eye, Shield, CheckCircle2, ChevronRight, Search, 
   Camera, Plus, Trash2, Lock, Sparkles, AlertCircle, 
-  ArrowLeft, Upload, FileText, Check, Loader2, Star
+  ArrowLeft, Upload, FileText, Check, Loader2, Star,
+  GraduationCap, Briefcase, Heart, Home, Moon, User,
+  Minus, Award, ShieldCheck, MapPin
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import { 
@@ -62,14 +64,14 @@ export default function EditMyProfilePage() {
     DateOfBirth: '',
     MaritalStatus: 'Never Married',
     Sect: 'Sunni',
-    Height: '5ft 7in (170 cm)',
+    Height: `5ft 7in (170 cm)`,
     Weight: '60 kg',
     Caste: 'Sheikh or Shaikh',
-    CasteId: 1,
-    Maslak: 'Sunni Hanfi',
-    MaslakId: 1,
+    CasteId: 0,
+    Maslak: 'Sunni (Hanafi)',
+    MaslakId: 0,
     MotherTongue: 'Urdu',
-    MotherTongueId: 1,
+    MotherTongueId: 0,
     Location: 'Bareilly, Uttar Pradesh, India',
     CurrentStateId: 2,
     CurrentCityId: 1,
@@ -79,44 +81,40 @@ export default function EditMyProfilePage() {
 
     // Education & Career
     Education: 'B.Com.',
-    EducationId: 1,
-    CollegeName: 'Regional college Of Professional Studies & Research Bareilly',
-    EmployedIn: 'Not Working',
-    EmployedInId: 1,
-    Occupation: 'Not working',
-    OccupationId: 1,
-    AnnualIncome: 'No Income',
+    EducationId: 0,
+    CollegeName: 'Regional College Of Professional Studies & Research',
+    EmployedIn: 'Private Company',
+    EmployedInId: 0,
+    Occupation: 'Software Professional',
+    OccupationId: 0,
+    AnnualIncome: '5 - 7 Lakh',
 
-    // Family
+    // Family Details
     FamilyLocation: 'Bareilly, Uttar Pradesh, India',
     FamilyType: 'Joint Family',
-    FamilyTypeId: 1,
-    FamilyValues: 'Moderate',
-    FamilyValuesId: 1,
-    FatherOccupation: 'Businessman',
-    MotherOccupation: 'Homemaker',
+    FamilyValues: 'Traditional & Religious',
+    FatherOccupation: 'Business',
+    MotherOccupation: 'Home Maker',
     TotalBrothers: 1,
     MarriedBrothers: 0,
-    TotalSisters: 1,
+    TotalSisters: 2,
     MarriedSisters: 1,
 
     // Religious & Lifestyle
-    NamazHabit: 'Regular 5 Times',
+    NamazHabit: 'Always (5 Times Daily)',
     HijabOrBeard: 'Hijab',
     DietType: 'Halal Only',
-    SmokeHabit: 'No',
-    DrinkHabit: 'No',
+    SmokeHabit: 'Never',
+    DrinkHabit: 'Never',
 
-    // Bio
-    AboutMe: 'Alhamdulillah, we are a well-established and educated family rooted in strong moral values. We prefer a simple, meaningful, and dignified Nikah ceremony built on mutual understanding and respect, rather than customary demands.',
-
-    // Privacy & Verification
-    PhotoPrivacy: 'Premium Members',
-    GovtIdDocUrl: '',
+    // Bio & Trust
+    AboutMe: '',
     IsGovtIdVerified: false,
+    GovtIdDocUrl: '',
+    PhotoPrivacy: 'All Members',
   });
 
-  // Photos List (Max 4 slots)
+  // Photos State: 4 slots max
   const [photos, setPhotos] = useState<Array<{ photoId: number; photoUrl: string; isMain: boolean; privacy?: string }>>([]);
   const [uploadingPhotoSlot, setUploadingPhotoSlot] = useState<number | null>(null);
 
@@ -125,13 +123,38 @@ export default function EditMyProfilePage() {
   const [cities, setCities] = useState<MasterOption[]>([]);
 
   // Active Bottom Sheet / Subscreen
-  // 'bio' | 'height' | 'option' | 'location' | 'text' | 'counters' | 'photoPrivacy' | 'trustBadge' | null
+  // 'bio' | 'height' | 'option' | 'location' | 'textInput' | 'counters' | 'photoPrivacy' | 'trustBadge' | null
   const [activeSheet, setActiveSheet] = useState<string | null>(null);
   const [sheetTitle, setSheetTitle] = useState('');
   const [sheetSearch, setSheetSearch] = useState('');
   const [sheetOptions, setSheetOptions] = useState<Array<{ id: any; value: string; desc?: string }>>([]);
   const [selectedSheetValue, setSelectedSheetValue] = useState<any>('');
   const [sheetFieldKey, setSheetFieldKey] = useState<string>('');
+
+  // Text Input Sheet Substate
+  const [textInputData, setTextInputData] = useState<{
+    title: string;
+    subtitle: string;
+    fieldKey: string;
+    value: string;
+    placeholder: string;
+    maxLength?: number;
+  }>({
+    title: '',
+    subtitle: '',
+    fieldKey: '',
+    value: '',
+    placeholder: '',
+    maxLength: 120,
+  });
+
+  // Counters Sheet Substate
+  const [countersState, setCountersState] = useState({
+    totalBrothers: 1,
+    marriedBrothers: 0,
+    totalSisters: 1,
+    marriedSisters: 0,
+  });
 
   // Height Slider Substate
   const [heightCm, setHeightCm] = useState(170);
@@ -143,7 +166,7 @@ export default function EditMyProfilePage() {
   const [selectedStateId, setSelectedStateId] = useState<number>(2);
   const [selectedCityId, setSelectedCityId] = useState<number>(1);
   const [stateCities, setStateCities] = useState<MasterOption[]>([]);
-  const [locationSearch, setLocationSearch] = useState('');
+  const [locationTargetField, setLocationTargetField] = useState<'Location' | 'FamilyLocation'>('Location');
 
   // Trust Badge Substate
   const [govtDocFile, setGovtDocFile] = useState<File | null>(null);
@@ -199,27 +222,25 @@ export default function EditMyProfilePage() {
             Disability: p.disability || prev.Disability,
 
             // Education & Career
-            Education: p.highestDegreeName || p.highestDegree || prev.Education,
-            EducationId: p.highestDegreeId || prev.EducationId,
-            CollegeName: p.collegeName || p.CollegeName || prev.CollegeName,
-            EmployedIn: p.employmentSectorName || p.employmentSector || prev.EmployedIn,
-            EmployedInId: p.employmentSectorId || prev.EmployedInId,
-            Occupation: p.designationName || p.designation || prev.Occupation,
-            OccupationId: p.designationId || prev.OccupationId,
-            AnnualIncome: p.annualIncome || p.AnnualIncome || prev.AnnualIncome,
+            Education: p.highestDegreeName || p.highestDegree || p.education || prev.Education,
+            EducationId: p.highestDegree || prev.EducationId,
+            CollegeName: p.collegeName || prev.CollegeName,
+            EmployedIn: p.employmentSectorName || p.employmentSector || p.employedIn || prev.EmployedIn,
+            EmployedInId: p.employmentSector || prev.EmployedInId,
+            Occupation: p.designationName || p.designation || p.occupation || prev.Occupation,
+            OccupationId: p.designation || prev.OccupationId,
+            AnnualIncome: p.annualIncome || prev.AnnualIncome,
 
             // Family
-            FamilyLocation: `${p.nativeCityName || p.currentCityName || 'Bareilly'}, ${p.nativeStateName || p.currentStateName || 'Uttar Pradesh'}, India`,
-            FamilyType: p.familyTypeName || (p.familyType === 1 ? 'Joint Family' : 'Nuclear Family') || prev.FamilyType,
-            FamilyTypeId: p.familyType || prev.FamilyTypeId,
-            FamilyValues: p.familyValuesName || (p.familyValues === 1 ? 'Traditional' : 'Moderate') || prev.FamilyValues,
-            FamilyValuesId: p.familyValues || prev.FamilyValuesId,
+            FamilyLocation: p.familyCityName ? `${p.familyCityName}, ${p.familyStateName || ''}, India` : prev.FamilyLocation,
+            FamilyType: p.familyTypeName || p.familyType || prev.FamilyType,
+            FamilyValues: p.familyValuesName || p.familyValues || prev.FamilyValues,
             FatherOccupation: p.fatherOccupation || prev.FatherOccupation,
             MotherOccupation: p.motherOccupation || prev.MotherOccupation,
-            TotalBrothers: p.totalBrothers ?? prev.TotalBrothers,
-            MarriedBrothers: p.marriedBrothers ?? prev.MarriedBrothers,
-            TotalSisters: p.totalSisters ?? prev.TotalSisters,
-            MarriedSisters: p.marriedSisters ?? prev.MarriedSisters,
+            TotalBrothers: p.totalBrothers !== undefined ? Number(p.totalBrothers) : prev.TotalBrothers,
+            MarriedBrothers: p.marriedBrothers !== undefined ? Number(p.marriedBrothers) : prev.MarriedBrothers,
+            TotalSisters: p.totalSisters !== undefined ? Number(p.totalSisters) : prev.TotalSisters,
+            MarriedSisters: p.marriedSisters !== undefined ? Number(p.marriedSisters) : prev.MarriedSisters,
 
             // Religious & Lifestyle
             NamazHabit: p.namazHabit || prev.NamazHabit,
@@ -228,42 +249,33 @@ export default function EditMyProfilePage() {
             SmokeHabit: p.smokeHabit || prev.SmokeHabit,
             DrinkHabit: p.drinkHabit || prev.DrinkHabit,
 
-            // Bio
-            AboutMe: p.aboutMe || prev.AboutMe,
-
-            // Privacy & Doc
-            PhotoPrivacy: p.photoPrivacy || p.PhotoPrivacy || 'Premium Members',
-            GovtIdDocUrl: p.govtIdDocUrl || p.GovtIdDocUrl || '',
-            IsGovtIdVerified: Boolean(p.isGovtIdVerified || p.IsGovtIdVerified),
+            // Bio & Trust
+            AboutMe: p.aboutMe || p.bio || '',
+            IsGovtIdVerified: Boolean(p.isGovtIdVerified || p.isVerified),
+            GovtIdDocUrl: p.govtIdDocUrl || '',
+            PhotoPrivacy: p.photoPrivacy || 'All Members',
           }));
 
           // Set photos
-          const rawPhotos: any[] = [];
-          if (p.photoUrl || p.PhotoUrl) {
-            rawPhotos.push({
+          if (Array.isArray(g) && g.length > 0) {
+            setPhotos(g.map((item: any, idx: number) => ({
+              photoId: item.photoId || item.PhotoId || idx + 1,
+              photoUrl: item.photoUrl || item.PhotoUrl,
+              isMain: Boolean(item.isMain ?? item.IsMain ?? (idx === 0)),
+              privacy: item.privacy || item.Privacy || 'All Members',
+            })));
+          } else if (p.photoUrl || p.mainPhotoUrl) {
+            setPhotos([{
               photoId: 1,
-              photoUrl: p.photoUrl || p.PhotoUrl,
+              photoUrl: p.photoUrl || p.mainPhotoUrl,
               isMain: true,
-              privacy: p.photoPrivacy || 'Premium Members'
-            });
+              privacy: 'All Members',
+            }]);
           }
-          if (Array.isArray(g)) {
-            g.forEach((gp: any) => {
-              const url = gp.photoUrl || gp.PhotoUrl;
-              if (url && !rawPhotos.some(rp => rp.photoUrl === url)) {
-                rawPhotos.push({
-                  photoId: gp.photoId || gp.PhotoId || Date.now(),
-                  photoUrl: url,
-                  isMain: Boolean(gp.isMain || gp.IsMain),
-                  privacy: gp.visibilityPermission || 'Premium Members'
-                });
-              }
-            });
-          }
-          setPhotos(rawPhotos);
         }
       } catch (err) {
-        console.error("Error loading profile:", err);
+        console.error("Error loading edit profile data:", err);
+        toast.error("Could not load full profile data. Please refresh.");
       } finally {
         setLoading(false);
       }
@@ -272,59 +284,116 @@ export default function EditMyProfilePage() {
     loadData();
   }, [router]);
 
-  // Load cities whenever state changes
+  // Load cities when state changes
   useEffect(() => {
-    if (selectedStateId > 0) {
-      fetchCitiesApi(selectedStateId).then(res => {
-        if (Array.isArray(res)) setStateCities(res);
+    if (selectedStateId) {
+      fetchCitiesApi(selectedStateId).then(list => {
+        setStateCities(list);
+        if (list.length > 0 && !list.some(c => c.id === selectedCityId)) {
+          setSelectedCityId(list[0].id);
+        }
       });
     }
   }, [selectedStateId]);
 
-  // Update Field Handler (Universal & Instant)
-  const saveFieldValue = async (field: string, value: any, extraFields: Record<string, any> = {}) => {
+  // Save specific field via API
+  const saveFieldValue = async (field: string, value: any, extraData: any = {}) => {
     const token = getAuthToken();
     if (!token) return;
 
     setSavingField(field);
+
     try {
       const fd = new FormData();
       fd.append("UserId", String(formData.UserId || 0));
       fd.append(field, String(value));
-      Object.entries(extraFields).forEach(([k, v]) => fd.append(k, String(v)));
+
+      Object.entries(extraData).forEach(([k, v]) => {
+        fd.append(k, String(v));
+      });
 
       const res = await updateProfileApi(fd, token);
-      if (res.success) {
+      if (res.success || res.Success === 1) {
         setFormData((prev: any) => ({
           ...prev,
           [field]: value,
-          ...extraFields
+          ...extraData,
         }));
         toast.success("Updated successfully!");
         setActiveSheet(null);
       } else {
-        toast.error(res.message || "Failed to update.");
+        toast.error(res.message || "Failed to update detail.");
       }
     } catch {
-      toast.error("Network error. Please try again.");
+      toast.error("Failed to connect to server.");
     } finally {
       setSavingField(null);
     }
   };
 
-  // Open Standard Option Bottom Sheet
+  // Open Options Sheet
   const openOptionSheet = (
     title: string, 
     fieldKey: string, 
-    currentValue: any, 
+    currentVal: any, 
     options: Array<{ id: any; value: string; desc?: string }>
   ) => {
     setSheetTitle(title);
     setSheetFieldKey(fieldKey);
-    setSelectedSheetValue(currentValue);
+    setSelectedSheetValue(currentVal);
     setSheetOptions(options);
     setSheetSearch('');
     setActiveSheet('option');
+  };
+
+  // Open In-App Text Input Sheet
+  const openTextInputSheet = (
+    title: string,
+    subtitle: string,
+    fieldKey: string,
+    currentVal: string,
+    placeholder: string,
+    maxLength: number = 120
+  ) => {
+    setTextInputData({
+      title,
+      subtitle,
+      fieldKey,
+      value: currentVal || '',
+      placeholder,
+      maxLength,
+    });
+    setActiveSheet('textInput');
+  };
+
+  // Save Text Input Sheet
+  const handleSaveTextInput = () => {
+    const trimmed = textInputData.value.trim();
+    if (textInputData.fieldKey === 'FullName' && !trimmed) {
+      toast.error("Full Name cannot be empty.");
+      return;
+    }
+    saveFieldValue(textInputData.fieldKey, trimmed);
+  };
+
+  // Open Sibling Counters Sheet
+  const openCountersSheet = () => {
+    setCountersState({
+      totalBrothers: Number(formData.TotalBrothers) || 0,
+      marriedBrothers: Number(formData.MarriedBrothers) || 0,
+      totalSisters: Number(formData.TotalSisters) || 0,
+      marriedSisters: Number(formData.MarriedSisters) || 0,
+    });
+    setActiveSheet('counters');
+  };
+
+  // Save Sibling Counters
+  const handleSaveCounters = () => {
+    saveFieldValue('TotalBrothers', countersState.totalBrothers, {
+      MarriedBrothers: countersState.marriedBrothers,
+      TotalSisters: countersState.totalSisters,
+      MarriedSisters: countersState.marriedSisters,
+    });
   };
 
   // Open Height Slider Sheet
@@ -340,10 +409,10 @@ export default function EditMyProfilePage() {
   };
 
   // Open Location Sheet
-  const openLocationSheet = () => {
+  const openLocationSheet = (target: 'Location' | 'FamilyLocation' = 'Location') => {
+    setLocationTargetField(target);
     setSelectedStateId(formData.CurrentStateId || 2);
     setSelectedCityId(formData.CurrentCityId || 1);
-    setLocationSearch('');
     setActiveSheet('location');
   };
 
@@ -366,12 +435,19 @@ export default function EditMyProfilePage() {
     const cName = cityObj?.value || formData.CityName;
     const locText = `${cName}, ${sName}, India`;
 
-    saveFieldValue('CurrentStateId', selectedStateId, {
-      CurrentCityId: selectedCityId,
-      Location: locText,
-      StateName: sName,
-      CityName: cName
-    });
+    if (locationTargetField === 'FamilyLocation') {
+      saveFieldValue('FamilyLocation', locText, {
+        FamilyStateId: selectedStateId,
+        FamilyCityId: selectedCityId,
+      });
+    } else {
+      saveFieldValue('CurrentStateId', selectedStateId, {
+        CurrentCityId: selectedCityId,
+        Location: locText,
+        StateName: sName,
+        CityName: cName,
+      });
+    }
   };
 
   // Save Option Selection
@@ -424,7 +500,7 @@ export default function EditMyProfilePage() {
 
     try {
       const res = await updatePhotoPrivacyApi(privacyValue, token);
-      if (res.success) {
+      if (res.success || res.Success === 1) {
         setFormData((prev: any) => ({ ...prev, PhotoPrivacy: privacyValue }));
         toast.success(`Photo privacy set to ${privacyValue}`);
         setActiveSheet(null);
@@ -441,91 +517,66 @@ export default function EditMyProfilePage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Check non-image extensions
     const invalidExts = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.iso', '.zip', '.rar', '.exe', '.tar', '.gz'];
     const nameLower = file.name.toLowerCase();
     if (invalidExts.some(ext => nameLower.endsWith(ext))) {
-      toast.error("Invalid file format. Please select an image (JPG, PNG, WEBP, AVIF, HEIC, etc.). Documents or ISO files cannot be uploaded as photos.");
+      toast.error("Please choose a valid photo file (JPG, PNG, WEBP, etc.)");
       return;
     }
 
-    setUploadingPhotoSlot(slotIdx);
     const token = getAuthToken();
+    if (!token) return;
+
+    setUploadingPhotoSlot(slotIdx);
+    toast.loading("Verifying human face...", { id: "face-scan" });
 
     try {
-      // 1. Convert to dataUrl and validate client-side face
-      const dataUrl: string = await new Promise((resolve) => {
-        const r = new FileReader();
-        r.onload = () => resolve(String(r.result || ''));
-        r.readAsDataURL(file);
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
       });
 
-      const faceCheck = await clientValidateSingleFace(dataUrl);
-      if (!faceCheck.isValid) {
-        toast.error(faceCheck.errorMessage || "Please select a clear photo showing a human face.");
+      // Solo Human Face Check
+      const faceResult = await clientValidateSingleFace(dataUrl);
+      toast.dismiss("face-scan");
+
+      if (!faceResult.isValid) {
+        toast.error(faceResult.message || "Please upload a clear solo photo of yourself. Screenshots and scenery are not allowed.");
         return;
       }
 
-      // 2. Upload to Cloudflare R2
-      const ext = file.name.split('.').pop() || 'jpg';
-      const upRes = await fetch("/api/face-verification", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "upload-photo-r2",
-          photoBase64: dataUrl,
-          userId: formData.UserId || 0,
-          ext,
-          mimeType: file.type || "image/jpeg"
-        })
-      });
-      const upJson = await upRes.json();
+      // Slot 0 is Main Profile Photo
+      const isMainSlot = slotIdx === 0;
+      const res = await uploadGalleryPhotoApi(file, isMainSlot, token);
 
-      if (!upJson?.success || !upJson?.photoUrl) {
-        toast.error("Failed to upload photo to storage. Please try again.");
-        return;
-      }
+      if (res.success) {
+        const newPhotoUrl = res.data?.photoUrl || res.data?.url || dataUrl;
+        const newPhotoId = res.data?.photoId || Date.now();
 
-      const uploadedCdnUrl = upJson.photoUrl;
+        setPhotos(prev => {
+          const next = [...prev];
+          next[slotIdx] = {
+            photoId: newPhotoId,
+            photoUrl: newPhotoUrl,
+            isMain: isMainSlot,
+          };
+          return next;
+        });
 
-      // 3. Save to backend
-      if (slotIdx === 0) {
-        const fd = new FormData();
-        fd.append("UserId", String(formData.UserId || 0));
-        fd.append("PhotoUrl", uploadedCdnUrl);
-        fd.append("PhotoPrivacy", formData.PhotoPrivacy || 'All Members');
-        const res = await updateProfileApi(fd, token);
-
-        if (res.success) {
-          setPhotos(prev => {
-            const next = [...prev];
-            const mainObj = { photoId: 1, photoUrl: uploadedCdnUrl, isMain: true, privacy: formData.PhotoPrivacy };
-            if (next.length > 0) next[0] = mainObj;
-            else next.push(mainObj);
-            return next;
-          });
-          toast.success("Profile photo updated successfully!");
-        } else {
-          toast.error(res.message || "Failed to update profile photo.");
+        if (isMainSlot) {
+          syncUserProfilePhoto(newPhotoUrl);
+          setFormData((prev: any) => ({ ...prev, PhotoUrl: newPhotoUrl }));
         }
+
+        toast.success(isMainSlot ? "Main profile avatar updated!" : "Photo added to portfolio!");
       } else {
-        const gfd = new FormData();
-        gfd.append("Photo", file);
-        gfd.append("Privacy", formData.PhotoPrivacy || 'All Members');
-        const res = await uploadGalleryPhotoApi(gfd, token);
-
-        if (res.success) {
-          setPhotos(prev => [
-            ...prev,
-            { photoId: res.data?.photoId || Date.now(), photoUrl: uploadedCdnUrl, isMain: false, privacy: formData.PhotoPrivacy }
-          ]);
-          toast.success("Gallery photo uploaded successfully!");
-        } else {
-          toast.error(res.message || "Failed to upload gallery photo.");
-        }
+        toast.error(res.message || "Failed to upload photo.");
       }
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to process photo.");
+    } catch {
+      toast.dismiss("face-scan");
+      toast.error("Photo verification failed. Please try another image.");
     } finally {
       setUploadingPhotoSlot(null);
       e.target.value = '';
@@ -540,10 +591,8 @@ export default function EditMyProfilePage() {
     try {
       const remaining = photos.filter((_, i) => i !== index);
 
-      // If photo has photoId in DB, delete it
       if (photoId > 0) {
         if (index === 0 && remaining.length > 0) {
-          // Promote new first photo (slot 1) to main
           const nextPhotoId = Number(remaining[0].photoId || remaining[0].PhotoId || 0);
           if (nextPhotoId > 0) {
             await setMainPhotoApi(nextPhotoId, token);
@@ -551,7 +600,6 @@ export default function EditMyProfilePage() {
         }
         const delRes = await deleteGalleryPhotoApi(photoId, token);
         if (!delRes.success && remaining.length === 0) {
-          // Fallback if backend SP blocks deleting only main photo
           const fd = new FormData();
           fd.append("UserId", String(formData.UserId || 0));
           fd.append("PhotoUrl", "");
@@ -573,11 +621,11 @@ export default function EditMyProfilePage() {
         const firstPhotoUrl = remaining[0].photoUrl || remaining[0].PhotoUrl || '';
         if (firstPhotoUrl) {
           syncUserProfilePhoto(firstPhotoUrl);
-          setFormData(prev => ({ ...prev, PhotoUrl: firstPhotoUrl }));
+          setFormData((prev: any) => ({ ...prev, PhotoUrl: firstPhotoUrl }));
         }
       } else {
         syncUserProfilePhoto('');
-        setFormData(prev => ({ ...prev, PhotoUrl: '' }));
+        setFormData((prev: any) => ({ ...prev, PhotoUrl: '' }));
       }
 
       toast.success("Photo removed successfully.");
@@ -597,91 +645,67 @@ export default function EditMyProfilePage() {
 
     setUploadingGovtDoc(true);
     try {
-      const fd = new FormData();
-      fd.append("document", govtDocFile);
-      const res = await uploadGovtDocumentApi(fd, token);
-      if (res.success) {
-        setFormData((prev: any) => ({
-          ...prev,
-          GovtIdDocUrl: govtDocPreview,
-          IsGovtIdVerified: false // sent for approval
-        }));
-        toast.success("Govt ID uploaded! Sent to Admin for Trust Badge verification.");
+      const res = await uploadGovtDocumentApi(govtDocFile, token);
+      if (res.success || res.Success === 1) {
+        toast.success("Identity document submitted! Our trust team will verify it within 24 hours.");
+        setFormData((prev: any) => ({ ...prev, GovtIdDocUrl: govtDocPreview, IsGovtIdVerified: false }));
         setActiveSheet(null);
       } else {
         toast.error(res.message || "Failed to upload document.");
       }
     } catch {
-      toast.error("Network error while uploading document.");
+      toast.error("Upload failed. Please try again.");
     } finally {
       setUploadingGovtDoc(false);
     }
   };
 
-  // Filtered options for standard option sheet
+  // Search Filter for Options Sheet
   const filteredSheetOptions = useMemo(() => {
     if (!sheetSearch.trim()) return sheetOptions;
-    const q = sheetSearch.toLowerCase().trim();
-    return sheetOptions.filter(o => o.value.toLowerCase().includes(q));
+    return sheetOptions.filter(o => o.value.toLowerCase().includes(sheetSearch.toLowerCase()));
   }, [sheetOptions, sheetSearch]);
 
-  // Master options map
-  const educationOpts = useMemo(() => (masterData.EDUCATIONS || []).map(e => ({ id: e.id, value: e.value })), [masterData]);
-  const occupationOpts = useMemo(() => (masterData.OCCUPATIONS || []).map(o => ({ id: o.id, value: o.value })), [masterData]);
-  const casteOpts = useMemo(() => (masterData.CASTES || []).map(c => ({ id: c.id, value: c.value })), [masterData]);
-  const maslakOpts = useMemo(() => (masterData.MASLAKS || []).map(m => ({ id: m.id, value: m.value })), [masterData]);
-  const languageOpts = useMemo(() => (masterData.MOTHER_TONGUES || []).map(l => ({ id: l.id, value: l.value })), [masterData]);
-
-  const employedInOpts = [
-    { id: 1, value: 'Private Company' },
-    { id: 2, value: 'Government / Public Sector' },
-    { id: 3, value: 'Business / Self Employed' },
-    { id: 4, value: 'Not Working' },
-    { id: 5, value: 'Student' }
-  ];
-
+  // Master Options Mappers
+  const educationOpts = (masterData.QUALIFICATIONS || []).map(m => ({ id: m.id, value: m.value }));
+  const casteOpts = (masterData.CASTES || []).map(m => ({ id: m.id, value: m.value }));
+  const maslakOpts = (masterData.MASLAKS || []).map(m => ({ id: m.id, value: m.value }));
+  const languageOpts = (masterData.LANGUAGES || []).map(m => ({ id: m.id, value: m.value }));
+  const occupationOpts = (masterData.DESIGNATIONS || []).map(m => ({ id: m.id, value: m.value }));
+  const employedInOpts = (masterData.EMPLOYMENT_SECTOR || []).map(m => ({ id: m.id, value: m.value }));
+  const familyTypeOpts = (masterData.FAMILY_TYPE || []).map(m => ({ id: m.id, value: m.value }));
+  const familyValuesOpts = (masterData.FAMILY_VALUES || []).map(m => ({ id: m.id, value: m.value }));
+  
   const incomeOpts = [
     { id: 'No Income', value: 'No Income' },
-    { id: 'Below ₹3 Lakhs', value: 'Below ₹3 Lakhs' },
-    { id: '₹3 - 5 Lakhs', value: '₹3 - 5 Lakhs' },
-    { id: '₹5 - 7 Lakhs', value: '₹5 - 7 Lakhs' },
-    { id: '₹7 - 10 Lakhs', value: '₹7 - 10 Lakhs' },
-    { id: '₹10 - 15 Lakhs', value: '₹10 - 15 Lakhs' },
-    { id: '₹15 - 25 Lakhs', value: '₹15 - 25 Lakhs' },
-    { id: '₹25 - 50 Lakhs', value: '₹25 - 50 Lakhs' },
-    { id: '₹50 Lakhs & Above', value: '₹50 Lakhs & Above' }
-  ];
-
-  const familyTypeOpts = [
-    { id: 1, value: 'Joint Family' },
-    { id: 2, value: 'Nuclear Family' }
-  ];
-
-  const familyValuesOpts = [
-    { id: 1, value: 'Traditional' },
-    { id: 2, value: 'Moderate' },
-    { id: 3, value: 'Liberal' },
-    { id: 4, value: 'Religious' }
+    { id: '1 - 3 Lakh', value: '1 - 3 Lakh' },
+    { id: '3 - 5 Lakh', value: '3 - 5 Lakh' },
+    { id: '5 - 7 Lakh', value: '5 - 7 Lakh' },
+    { id: '7 - 10 Lakh', value: '7 - 10 Lakh' },
+    { id: '10 - 15 Lakh', value: '10 - 15 Lakh' },
+    { id: '15 - 25 Lakh', value: '15 - 25 Lakh' },
+    { id: '25 - 50 Lakh', value: '25 - 50 Lakh' },
+    { id: '50 Lakh+', value: '50 Lakh+' }
   ];
 
   const disabilityOpts = [
     { id: 'No', value: 'No' },
-    { id: 'Physical Disability', value: 'Physical Disability' },
-    { id: 'Other', value: 'Other' }
+    { id: 'Yes', value: 'Yes' },
+    { id: 'Physically Challenged', value: 'Physically Challenged' }
   ];
 
   const namazOpts = [
-    { id: 'Regular 5 Times', value: 'Regular 5 Times' },
-    { id: 'Only Jummah', value: 'Only Jummah' },
-    { id: 'Occasionally', value: 'Occasionally' },
-    { id: 'Only in Ramadan', value: 'Only in Ramadan' }
+    { id: 'Always (5 Times Daily)', value: 'Always (5 Times Daily)' },
+    { id: 'During Ramadan / Friday Only', value: 'During Ramadan / Friday Only' },
+    { id: 'Sometimes', value: 'Sometimes' },
+    { id: 'Trying to be Regular', value: 'Trying to be Regular' }
   ];
 
   const hijabOpts = [
     { id: 'Hijab', value: 'Hijab' },
     { id: 'Niqab', value: 'Niqab' },
-    { id: 'Beard', value: 'Beard' },
-    { id: 'No Hijab / Clean Shaved', value: 'No Hijab / Clean Shaved' }
+    { id: 'Beard', value: 'Sunnah Beard' },
+    { id: 'Modest Dress / Clean Shaved', value: 'Modest Dress / Clean Shaved' }
   ];
 
   const dietOpts = [
@@ -692,615 +716,703 @@ export default function EditMyProfilePage() {
   ];
 
   const habitOpts = [
-    { id: 'No', value: 'No' },
+    { id: 'Never', value: 'Never' },
     { id: 'Occasionally', value: 'Occasionally' },
-    { id: 'Yes', value: 'Yes' }
+    { id: 'No', value: 'No' }
   ];
 
   if (loading) {
     return (
       <div className="min-h-screen bg-[#FAF8F5] flex flex-col items-center justify-center space-y-3">
-        <Loader2 size={32} className="text-[#e21e5b] animate-spin" />
-        <p className="text-sm font-semibold text-slate-600">Loading your profile details...</p>
+        <Loader2 size={32} className="text-[#d91b5c] animate-spin" />
+        <p className="text-sm font-semibold text-slate-600">Loading your profile portfolio...</p>
       </div>
     );
   }
 
-  // Count active uploaded photos
   const activePhotosCount = photos.filter(p => p && p.photoUrl).length;
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] text-slate-900 pb-16 font-sans">
+    <div className="min-h-screen bg-[#FBF9F7] text-slate-900 pb-24 font-sans selection:bg-[#d91b5c] selection:text-white">
       <Toaster position="top-center" richColors />
 
-      {/* 🌟 TOP APP BAR */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 py-3.5">
-        <div className="max-w-md mx-auto flex items-center justify-between">
+      {/* 🌟 1. ELEVATED FLOATING APP BAR */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-rose-100/80 px-4 py-3 shadow-xs">
+        <div className="max-w-lg mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button 
               type="button" 
               onClick={() => router.push('/dashboard/my-profile')}
-              className="p-1 rounded-full hover:bg-slate-100 text-slate-800 transition-colors cursor-pointer"
+              className="w-9 h-9 rounded-full bg-slate-100 hover:bg-rose-50 text-slate-800 hover:text-[#d91b5c] flex items-center justify-center transition-colors cursor-pointer"
               aria-label="Back to profile"
+              title="Close and return"
             >
-              <X size={22} className="stroke-[2.2]" />
+              <X size={20} className="stroke-[2.2]" />
             </button>
-            <h1 className="text-lg font-black tracking-tight text-slate-900">Edit Profile</h1>
+            <div>
+              <h1 className="text-base font-black tracking-tight text-slate-900 flex items-center gap-1.5">
+                Edit Matrimonial Profile
+              </h1>
+              <p className="text-[11px] font-semibold text-slate-500">Nikah Qubool Identity</p>
+            </div>
           </div>
+
           <button 
             type="button"
             onClick={() => router.push('/dashboard/my-profile')}
-            className="flex items-center gap-1.5 text-xs font-bold text-[#e21e5b] hover:text-[#c9184e] bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-full transition-all cursor-pointer"
+            className="flex items-center gap-1.5 text-xs font-black text-[#d91b5c] hover:text-[#b8144b] bg-rose-50 hover:bg-rose-100/80 px-3.5 py-1.5 rounded-full border border-rose-200/60 transition-all cursor-pointer shadow-xs active:scale-96"
           >
-            <Eye size={15} />
+            <Eye size={14} className="stroke-[2.5]" />
             <span>Preview</span>
           </button>
         </div>
       </header>
 
-      {/* 🌟 MAIN CONTENT CONTAINER */}
-      <main className="max-w-md mx-auto px-4 pt-3.5 space-y-3.5">
+      {/* 🌟 MAIN CONTAINER */}
+      <main className="max-w-lg mx-auto px-4 pt-4 space-y-4">
 
-        {/* 🌟 1. 100% COMPLETE INCENTIVE CARD */}
-        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50/80 border border-amber-200/80 flex items-center gap-3 shadow-xs">
-          <div className="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
-            <Star size={16} className="fill-white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-amber-950">
-              Earn the badge on 100% complete profile.
-            </p>
-            <div className="w-full bg-amber-200/60 rounded-full h-1.5 mt-1.5 overflow-hidden">
-              <div className="bg-amber-500 h-full rounded-full" style={{ width: '85%' }} />
+        {/* 🌟 TOP HERO BANNER: NIKAH PROFILE STRENGTH */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#800020] via-[#9B1138] to-[#D91B5C] p-4 text-white shadow-lg">
+          <div className="absolute -right-4 -bottom-4 w-28 h-28 bg-white/10 rounded-full blur-xl pointer-events-none" />
+          
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-xs flex items-center justify-center text-amber-300">
+                <Star size={15} className="fill-amber-300" />
+              </span>
+              <span className="text-xs font-black tracking-wider uppercase text-rose-100">
+                Match Readiness
+              </span>
             </div>
+            <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-xs text-white">
+              85% Completed
+            </span>
+          </div>
+
+          <p className="text-xs font-medium text-rose-100/90 leading-snug">
+            Profiles with complete information and verified photos receive up to 5x more proposal responses from serious families.
+          </p>
+
+          <div className="w-full bg-black/25 rounded-full h-1.5 mt-3 overflow-hidden">
+            <div className="bg-gradient-to-r from-amber-300 to-amber-400 h-full rounded-full transition-all duration-700" style={{ width: '85%' }} />
           </div>
         </div>
 
-        {/* 🌟 2. LIFESTYLE & INTEREST CARD */}
-        <div 
-          onClick={() => openOptionSheet('Select Namaz Habit', 'NamazHabit', formData.NamazHabit, namazOpts)}
-          className="p-4 rounded-2xl bg-white border border-slate-200/90 flex items-center justify-between shadow-xs hover:border-slate-300 transition-all cursor-pointer"
-        >
-          <div>
-            <h2 className="text-sm font-bold text-slate-900">Lifestyle & Interest</h2>
-            <span className="text-xs font-semibold text-[#e21e5b] mt-0.5 inline-block">Add Details</span>
-          </div>
-          <span className="px-2.5 py-1 rounded-full bg-amber-100/90 text-amber-900 text-[11px] font-bold">
-            +10% Score
-          </span>
-        </div>
-
-        {/* 🌟 3. TRUST BADGE / VERIFY YOUR PROFILE CARD */}
-        <div 
-          onClick={() => setActiveSheet('trustBadge')}
-          className="p-4 rounded-2xl bg-white border border-slate-200/90 flex items-center justify-between shadow-xs hover:border-slate-300 transition-all cursor-pointer"
-        >
-          <div className="flex items-center gap-2.5">
-            <div>
-              <div className="flex items-center gap-1.5">
-                <h2 className="text-sm font-bold text-slate-900">Verify Your Profile</h2>
-                <CheckCircle2 size={16} className="text-sky-500 fill-sky-500 text-white" />
+        {/* 🌟 QUICK ACTION CARDS (LIFESTYLE SCORE + TRUST BADGE) */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Card 1: Lifestyle & Faith Boost */}
+          <div 
+            onClick={() => openOptionSheet('Daily Salah (Namaz) Routine', 'NamazHabit', formData.NamazHabit, namazOpts)}
+            className="p-3.5 rounded-2xl bg-white border border-rose-100 shadow-xs hover:shadow-md hover:border-rose-300 transition-all cursor-pointer flex flex-col justify-between group"
+          >
+            <div className="flex items-center justify-between">
+              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
+                <Sparkles size={16} />
               </div>
-              <span className="text-xs font-semibold text-[#e21e5b] mt-0.5 inline-block">
-                {formData.IsGovtIdVerified ? "Verified with Trust Badge" : (formData.GovtIdDocUrl ? "Under Admin Review ⏳" : "Verify Profile")}
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">
+                +15% Score
+              </span>
+            </div>
+            <div className="mt-3">
+              <h2 className="text-xs font-black text-slate-900 group-hover:text-[#d91b5c] transition-colors">
+                Islamic Lifestyle
+              </h2>
+              <span className="text-[11px] font-bold text-[#d91b5c] inline-block mt-0.5">
+                Update Values &rarr;
               </span>
             </div>
           </div>
-          <ChevronRight size={18} className="text-slate-400" />
+
+          {/* Card 2: Official Trust Verification */}
+          <div 
+            onClick={() => setActiveSheet('trustBadge')}
+            className="p-3.5 rounded-2xl bg-white border border-rose-100 shadow-xs hover:shadow-md hover:border-rose-300 transition-all cursor-pointer flex flex-col justify-between group"
+          >
+            <div className="flex items-center justify-between">
+              <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
+                <ShieldCheck size={17} />
+              </div>
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-sky-100 text-sky-800">
+                Trust Badge
+              </span>
+            </div>
+            <div className="mt-3">
+              <h2 className="text-xs font-black text-slate-900 group-hover:text-sky-600 transition-colors">
+                Govt ID Verification
+              </h2>
+              <span className="text-[11px] font-bold text-sky-600 inline-block mt-0.5">
+                {formData.IsGovtIdVerified ? "Verified ✓" : (formData.GovtIdDocUrl ? "Under Review ⏳" : "Upload ID &rarr;")}
+              </span>
+            </div>
+          </div>
         </div>
 
-        {/* 🌟 4. PHOTOS SECTION */}
-        <section className="space-y-2">
-          <div className="flex items-center gap-2 px-1">
-            <Camera size={18} className="text-slate-700" />
-            <h2 className="text-sm font-black text-slate-900">Photos</h2>
-          </div>
-
-          <div className="bg-white rounded-3xl border border-slate-200/90 p-4 shadow-xs space-y-4">
-            {/* 4-Slots Grid */}
-            <div className="grid grid-cols-3 gap-3">
-              {[0, 1, 2, 3].map((slotIdx) => {
-                const photo = photos[slotIdx];
-                const isUploading = uploadingPhotoSlot === slotIdx;
-
-                if (photo && photo.photoUrl) {
-                  return (
-                    <div 
-                      key={slotIdx} 
-                      className="relative aspect-3/4 rounded-2xl overflow-hidden border border-slate-200 shadow-xs group bg-slate-100"
-                    >
-                      <img 
-                        src={photo.photoUrl} 
-                        alt={`Photo ${slotIdx + 1}`}
-                        className="w-full h-full object-cover" 
-                      />
-                      {slotIdx === 0 && (
-                        <div className="absolute bottom-0 inset-x-0 bg-black/75 backdrop-blur-xs py-1 text-center">
-                          <span className="text-[9px] font-black tracking-wider text-white uppercase">
-                            PROFILE PHOTO
-                          </span>
-                        </div>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => handleDeletePhoto(photo.photoId, slotIdx)}
-                        className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center transition-all cursor-pointer"
-                        title="Delete photo"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  );
-                }
-
-                return (
-                  <label 
-                    key={slotIdx} 
-                    className="aspect-3/4 rounded-2xl border-2 border-dashed border-rose-300 hover:border-[#e21e5b] bg-rose-50/20 hover:bg-rose-50/50 flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-all relative group"
-                  >
-                    <input 
-                      type="file"
-                      accept="image/*,.jpg,.jpeg,.png,.webp,.avif,.heic,.heif,.jfif,.bmp,.gif,.tiff"
-                      className="hidden"
-                      disabled={isUploading}
-                      onChange={(e) => handlePhotoSelect(e, slotIdx)}
-                    />
-                    {isUploading ? (
-                      <Loader2 size={20} className="text-[#e21e5b] animate-spin" />
-                    ) : (
-                      <>
-                        <div className="w-8 h-8 rounded-full bg-[#e21e5b] text-white flex items-center justify-center shadow-xs group-hover:scale-110 transition-transform">
-                          <Plus size={18} className="stroke-[2.5]" />
-                        </div>
-                        <span className="text-[10px] font-bold text-slate-500">Add Photo</span>
-                      </>
-                    )}
-                  </label>
-                );
-              })}
-            </div>
-
-            {/* 🌟 PHOTO PRIVACY ROW:
-                CRITICAL USER RULE:
-                If 0 photos are uploaded, this row is COMPLETELY HIDDEN!
-                If >= 1 photo is uploaded, this row appears!
-                If photo removed to 0, it disappears!
-            */}
-            {activePhotosCount > 0 && (
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-700">Control who sees your photo</span>
-                <button
-                  type="button"
-                  onClick={() => setActiveSheet('photoPrivacy')}
-                  className="flex items-center gap-1 text-xs font-bold text-[#e21e5b] hover:text-[#c9184e] cursor-pointer"
-                >
-                  <span>{formData.PhotoPrivacy}</span>
-                  <ChevronRight size={14} />
-                </button>
+        {/* ============================================================== */}
+        {/* 🌟 SECTION 1: PHOTO GALLERY & VISIBILITY PRIVACY              */}
+        {/* ============================================================== */}
+        <section className="bg-white rounded-3xl border border-slate-200/90 p-4 sm:p-5 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-rose-50 text-[#d91b5c] flex items-center justify-center">
+                <Camera size={18} />
               </div>
-            )}
+              <div>
+                <h2 className="text-sm font-black text-slate-900">Visual Portfolio & Privacy</h2>
+                <p className="text-[11px] text-slate-500 font-medium">Slot #1 is your primary display photo</p>
+              </div>
+            </div>
+            <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+              {activePhotosCount}/4 Uploaded
+            </span>
           </div>
+
+          {/* 4-Slots Photo Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[0, 1, 2, 3].map((slotIdx) => {
+              const photo = photos[slotIdx];
+              const isUploading = uploadingPhotoSlot === slotIdx;
+
+              if (photo && photo.photoUrl) {
+                return (
+                  <div 
+                    key={slotIdx} 
+                    className="relative aspect-3/4 rounded-2xl overflow-hidden border-2 border-rose-200/80 shadow-xs group bg-slate-100"
+                  >
+                    <img 
+                      src={photo.photoUrl} 
+                      alt={`Photo ${slotIdx + 1}`}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                    />
+                    
+                    {slotIdx === 0 && (
+                      <div className="absolute top-2 left-2 bg-black/75 backdrop-blur-xs px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs">
+                        <Award size={10} className="text-amber-400" />
+                        <span className="text-[9px] font-black tracking-wider text-white uppercase">
+                          PRIMARY
+                        </span>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeletePhoto(photo.photoId, slotIdx)}
+                      className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 hover:bg-rose-600 text-white flex items-center justify-center transition-all cursor-pointer shadow-sm hover:scale-110 active:scale-95"
+                      title="Delete this photo"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                );
+              }
+
+              return (
+                <label 
+                  key={slotIdx} 
+                  className="aspect-3/4 rounded-2xl border-2 border-dashed border-rose-200 hover:border-[#d91b5c] bg-rose-50/20 hover:bg-rose-50/60 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all relative group"
+                >
+                  <input 
+                    type="file"
+                    accept="image/*,.jpg,.jpeg,.png,.webp,.avif,.heic,.heif,.jfif,.bmp,.gif,.tiff"
+                    className="hidden"
+                    disabled={isUploading}
+                    onChange={(e) => handlePhotoSelect(e, slotIdx)}
+                  />
+                  {isUploading ? (
+                    <Loader2 size={22} className="text-[#d91b5c] animate-spin" />
+                  ) : (
+                    <>
+                      <div className="w-9 h-9 rounded-full bg-rose-100 text-[#d91b5c] flex items-center justify-center shadow-xs group-hover:scale-110 transition-transform">
+                        <Plus size={18} className="stroke-[3]" />
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-600">
+                        {slotIdx === 0 ? "Main Avatar" : `Add Photo ${slotIdx + 1}`}
+                      </span>
+                    </>
+                  )}
+                </label>
+              );
+            })}
+          </div>
+
+          {/* Strict Rule: Photo privacy option ONLY appears when at least 1 photo is uploaded */}
+          {activePhotosCount > 0 && (
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between bg-rose-50/40 p-3 rounded-2xl">
+              <div>
+                <span className="text-xs font-bold text-slate-800 block">Who Can View Photos</span>
+                <span className="text-[11px] text-slate-500 font-medium">Configure visibility for your pictures</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveSheet('photoPrivacy')}
+                className="flex items-center gap-1.5 text-xs font-black text-[#d91b5c] hover:text-[#b8144b] bg-white px-3 py-1.5 rounded-full border border-rose-200 shadow-2xs transition-all cursor-pointer"
+              >
+                <span>{formData.PhotoPrivacy}</span>
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
         </section>
 
-        {/* 🌟 5. BIO SECTION */}
-        <section className="space-y-2">
-          <div className="flex items-center gap-2 px-1">
-            <span className="text-base">👤</span>
-            <h2 className="text-sm font-black text-slate-900">Bio</h2>
-          </div>
-
-          <div className="bg-white rounded-3xl border border-slate-200/90 p-4 shadow-xs text-left relative">
-            <p className="text-xs text-slate-700 leading-relaxed pr-12 line-clamp-3">
-              {formData.AboutMe || "Tell them more about your principles, partner expectations, family and hobbies."}
-            </p>
+        {/* ============================================================== */}
+        {/* 🌟 SECTION 2: PERSONAL STORY & PARTNER OUTLOOK                */}
+        {/* ============================================================== */}
+        <section className="bg-white rounded-3xl border border-slate-200/90 p-4 sm:p-5 shadow-xs space-y-3">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-violet-50 text-violet-700 flex items-center justify-center">
+                <Heart size={18} />
+              </div>
+              <div>
+                <h2 className="text-sm font-black text-slate-900">Personal Story & Partner Outlook</h2>
+                <p className="text-[11px] text-slate-500 font-medium">In your own words: temperament & aspirations</p>
+              </div>
+            </div>
             <button
               type="button"
               onClick={openBioSheet}
-              className="absolute right-4 bottom-4 text-xs font-bold text-[#e21e5b] hover:text-[#c9184e] cursor-pointer"
+              className="text-xs font-black text-[#d91b5c] hover:text-[#b8144b] bg-rose-50 px-3 py-1 rounded-full cursor-pointer transition-colors"
             >
-              Edit
+              Edit Story
             </button>
+          </div>
+
+          <div 
+            onClick={openBioSheet}
+            className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200/60 hover:border-rose-200 hover:bg-rose-50/20 transition-all cursor-pointer relative group"
+          >
+            <p className="text-xs text-slate-700 leading-relaxed font-normal line-clamp-3 italic">
+              &ldquo;{formData.AboutMe || "Alhamdulillah, we seek a pious, respectful, and understanding partner with strong moral character and family values. Click here to describe yourself..."}&rdquo;
+            </p>
+            <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-200/50 text-[10px] font-bold text-slate-400">
+              <span>{formData.AboutMe ? `${formData.AboutMe.length}/1000 characters` : "Write up to 1000 characters"}</span>
+              <span className="text-[#d91b5c] font-black group-hover:underline">Tap to update &rarr;</span>
+            </div>
           </div>
         </section>
 
-        {/* 🌟 6. PERSONAL DETAILS SECTION */}
-        <section className="space-y-2">
-          <div className="flex items-center gap-2 px-1">
-            <FileText size={18} className="text-slate-700" />
-            <h2 className="text-sm font-black text-slate-900">Personal Details</h2>
+        {/* ============================================================== */}
+        {/* 🌟 SECTION 3: CORE IDENTITY & RESIDENTIAL BACKGROUND          */}
+        {/* ============================================================== */}
+        <section className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs">
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
+              <User size={18} />
+            </div>
+            <div>
+              <h2 className="text-sm font-black text-slate-900">Core Identity & Residential Roots</h2>
+              <p className="text-[11px] text-slate-500 font-medium">Personal attributes, community heritage & living</p>
+            </div>
           </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs divide-y divide-slate-100">
-            {/* Name */}
+          <div className="divide-y divide-slate-100 text-left">
+            {/* Full Name */}
             <div 
-              onClick={() => {
-                const newName = prompt("Edit your full name:", formData.FullName);
-                if (newName && newName.trim()) saveFieldValue('FullName', newName.trim());
-              }}
-              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+              onClick={() => openTextInputSheet(
+                "Full Name", 
+                "Update your official display name", 
+                "FullName", 
+                formData.FullName, 
+                "Enter your full name",
+                80
+              )}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <div className="text-xs font-bold text-slate-900">Name</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.FullName}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Candidate Name</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.FullName || "Add Name"}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
-            {/* Profile Created for - Locked */}
-            <div className="p-4 flex items-center justify-between bg-slate-50/50">
+            {/* Profile Created For - Locked */}
+            <div className="p-4 flex items-center justify-between bg-slate-50/40">
               <div>
-                <div className="text-xs font-bold text-slate-900">Profile Created for</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.ProfileCreatedFor}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Profile Managed By</span>
+                <span className="text-xs font-bold text-slate-800 mt-0.5 block">{formData.ProfileCreatedFor}</span>
               </div>
-              <span className="px-2.5 py-1 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center gap-1">
-                <AlertCircle size={11} /> You can not edit this
+              <span className="px-2.5 py-1 rounded-full bg-slate-200/80 text-slate-700 text-[10px] font-black flex items-center gap-1">
+                <Lock size={10} /> Verified & Locked
               </span>
             </div>
 
-            {/* Age and Gender - Locked */}
-            <div className="p-4 flex items-center justify-between bg-slate-50/50">
+            {/* Age & Gender - Locked */}
+            <div className="p-4 flex items-center justify-between bg-slate-50/40">
               <div>
-                <div className="text-xs font-bold text-slate-900">Age and Gender</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.Age} Yrs, {formData.Gender}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Age & Gender</span>
+                <span className="text-xs font-bold text-slate-800 mt-0.5 block">{formData.Age} Years, {formData.Gender}</span>
               </div>
-              <span className="px-2.5 py-1 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center gap-1">
-                <AlertCircle size={11} /> You can not edit this
+              <span className="px-2.5 py-1 rounded-full bg-slate-200/80 text-slate-700 text-[10px] font-black flex items-center gap-1">
+                <Lock size={10} /> Verified & Locked
               </span>
             </div>
 
             {/* Marital Status - Locked */}
-            <div className="p-4 flex items-center justify-between bg-slate-50/50">
+            <div className="p-4 flex items-center justify-between bg-slate-50/40">
               <div>
-                <div className="text-xs font-bold text-slate-900">Marital Status</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.MaritalStatus}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Marital Status</span>
+                <span className="text-xs font-bold text-slate-800 mt-0.5 block">{formData.MaritalStatus}</span>
               </div>
-              <span className="px-2.5 py-1 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center gap-1">
-                <AlertCircle size={11} /> You can not edit this
+              <span className="px-2.5 py-1 rounded-full bg-slate-200/80 text-slate-700 text-[10px] font-black flex items-center gap-1">
+                <Lock size={10} /> Verified & Locked
               </span>
             </div>
 
             {/* Sect - Locked */}
-            <div className="p-4 flex items-center justify-between bg-slate-50/50">
+            <div className="p-4 flex items-center justify-between bg-slate-50/40">
               <div>
-                <div className="text-xs font-bold text-slate-900">Sect</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.Sect}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Islamic Sect</span>
+                <span className="text-xs font-bold text-slate-800 mt-0.5 block">{formData.Sect}</span>
               </div>
-              <span className="px-2.5 py-1 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold flex items-center gap-1">
-                <AlertCircle size={11} /> You can not edit this
+              <span className="px-2.5 py-1 rounded-full bg-slate-200/80 text-slate-700 text-[10px] font-black flex items-center gap-1">
+                <Lock size={10} /> Verified & Locked
               </span>
             </div>
 
-            {/* Height - Slider Bottom Sheet */}
+            {/* Height - Slider Sheet */}
             <div 
               onClick={openHeightSheet}
-              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <div className="text-xs font-bold text-slate-900">Height</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.Height}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Physical Height</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.Height}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
-            {/* Caste */}
+            {/* Caste / Community */}
             <div 
-              onClick={() => openOptionSheet('Select caste', 'Caste', formData.Caste, casteOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Select Caste / Biradari', 'Caste', formData.Caste, casteOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <div className="text-xs font-bold text-slate-900">Caste</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.Caste}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Caste / Community</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.Caste}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* Maslak */}
             <div 
-              onClick={() => openOptionSheet('Select maslak', 'Maslak', formData.Maslak, maslakOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Select Maslak / School of Thought', 'Maslak', formData.Maslak, maslakOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <div className="text-xs font-bold text-slate-900">Maslak</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.Maslak}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Maslak / School of Thought</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.Maslak}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* Mother Tongue */}
             <div 
-              onClick={() => openOptionSheet('Select mother tongue', 'MotherTongue', formData.MotherTongue, languageOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Select Mother Tongue', 'MotherTongue', formData.MotherTongue, languageOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <div className="text-xs font-bold text-slate-900">Mother Tongue</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.MotherTongue}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Mother Tongue</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.MotherTongue}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
-            {/* Location (City & State) */}
+            {/* Location (Current Living In) */}
             <div 
-              onClick={openLocationSheet}
-              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+              onClick={() => openLocationSheet('Location')}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <div className="text-xs font-bold text-slate-900">Location</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.Location}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Current Residence Location</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.Location}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
-            {/* Disability */}
+            {/* Physical Disability */}
             <div 
-              onClick={() => openOptionSheet('Physical Disability?', 'Disability', formData.Disability, disabilityOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Physical Disability Assessment', 'Disability', formData.Disability, disabilityOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <div className="text-xs font-bold text-slate-900">Disability</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.Disability}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Physical Disability</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.Disability}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
           </div>
         </section>
 
-        {/* 🌟 7. EDUCATION & CAREER SECTION */}
-        <section className="space-y-2">
-          <div className="flex items-center gap-2 px-1">
-            <span className="text-base">🎓</span>
-            <h2 className="text-sm font-black text-slate-900">Education & Career</h2>
+        {/* ============================================================== */}
+        {/* 🌟 SECTION 4: ACADEMICS & PROFESSIONAL CREDENTIALS           */}
+        {/* ============================================================== */}
+        <section className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs">
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+              <GraduationCap size={18} />
+            </div>
+            <div>
+              <h2 className="text-sm font-black text-slate-900">Academics & Professional Career</h2>
+              <p className="text-[11px] text-slate-500 font-medium">Educational degrees, employment sector & annual remuneration</p>
+            </div>
           </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs divide-y divide-slate-100">
-            {/* Education */}
+          <div className="divide-y divide-slate-100 text-left">
+            {/* Highest Degree */}
             <div 
-              onClick={() => openOptionSheet('Select education', 'Education', formData.Education, educationOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Select Highest Education Qualification', 'Education', formData.Education, educationOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <div className="text-xs font-bold text-slate-900">Education</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.Education}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Highest Qualification</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.Education}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* College Name */}
             <div 
-              onClick={() => {
-                const c = prompt("Enter your College / University name:", formData.CollegeName);
-                if (c !== null) saveFieldValue('CollegeName', c.trim());
-              }}
-              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+              onClick={() => openTextInputSheet(
+                "College / University Name",
+                "Specify your educational institute",
+                "CollegeName",
+                formData.CollegeName,
+                "e.g. Aligarh Muslim University, Delhi University...",
+                140
+              )}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <div className="text-xs font-bold text-slate-900">College Name</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.CollegeName || "Add College Name"}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">College / University Attended</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.CollegeName || "Add College Name"}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* Employed In */}
             <div 
-              onClick={() => openOptionSheet('Select employment sector', 'EmployedIn', formData.EmployedIn, employedInOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Employment Working Sector', 'EmployedIn', formData.EmployedIn, employedInOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <div className="text-xs font-bold text-slate-900">Employed In</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.EmployedIn}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Working With / Sector</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.EmployedIn}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* Occupation */}
             <div 
-              onClick={() => openOptionSheet('Select occupation', 'Occupation', formData.Occupation, occupationOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Professional Role / Occupation', 'Occupation', formData.Occupation, occupationOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <div className="text-xs font-bold text-slate-900">Occupation</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.Occupation}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Job Title / Profession</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.Occupation}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* Annual Income */}
             <div 
-              onClick={() => openOptionSheet('Select annual income', 'AnnualIncome', formData.AnnualIncome, incomeOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Annual Income Bracket', 'AnnualIncome', formData.AnnualIncome, incomeOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <div className="text-xs font-bold text-slate-900">Annual Income</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.AnnualIncome}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Annual Income Bracket</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.AnnualIncome}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
           </div>
         </section>
 
-        {/* 🌟 8. FAMILY DETAILS SECTION */}
-        <section className="space-y-2">
-          <div className="flex items-center gap-2 px-1">
-            <span className="text-base">👥</span>
-            <h2 className="text-sm font-black text-slate-900">Family Details</h2>
+        {/* ============================================================== */}
+        {/* 🌟 SECTION 5: FAMILY ROOTS & SIBLINGS                         */}
+        {/* ============================================================== */}
+        <section className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs">
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
+              <Home size={18} />
+            </div>
+            <div>
+              <h2 className="text-sm font-black text-slate-900">Family Roots & Household Details</h2>
+              <p className="text-[11px] text-slate-500 font-medium">Ancestral native origins, household values & siblings</p>
+            </div>
           </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs divide-y divide-slate-100">
+          <div className="divide-y divide-slate-100 text-left">
             {/* Family Location */}
             <div 
-              onClick={openLocationSheet}
-              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+              onClick={() => openLocationSheet('FamilyLocation')}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <div className="text-xs font-bold text-slate-900">Family Location</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.FamilyLocation}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Family Native Location</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.FamilyLocation}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* Family Type */}
             <div 
-              onClick={() => openOptionSheet('Select family type', 'FamilyType', formData.FamilyType, familyTypeOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Family Structure', 'FamilyType', formData.FamilyType, familyTypeOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <div className="text-xs font-bold text-slate-900">Family Type</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.FamilyType}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Family Structure</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.FamilyType}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* Family Values */}
             <div 
-              onClick={() => openOptionSheet('Select family values', 'FamilyValues', formData.FamilyValues, familyValuesOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Cultural & Family Ethics', 'FamilyValues', formData.FamilyValues, familyValuesOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <div className="text-xs font-bold text-slate-900">Family Values</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.FamilyValues}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Family Culture & Values</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.FamilyValues}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
-            {/* Father Occupation */}
+            {/* Father's Occupation */}
             <div 
-              onClick={() => {
-                const f = prompt("Enter Father's occupation:", formData.FatherOccupation);
-                if (f !== null) saveFieldValue('FatherOccupation', f.trim());
-              }}
-              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+              onClick={() => openTextInputSheet(
+                "Father's Profession", 
+                "Occupation or business details of father", 
+                "FatherOccupation", 
+                formData.FatherOccupation, 
+                "e.g. Businessman, Retired Govt Officer, Teacher...",
+                100
+              )}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <div className="text-xs font-bold text-slate-900">Father Occupation</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.FatherOccupation}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Father's Profession</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.FatherOccupation || "Add Occupation"}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
-            {/* Mother Occupation */}
+            {/* Mother's Occupation */}
             <div 
-              onClick={() => {
-                const m = prompt("Enter Mother's occupation:", formData.MotherOccupation);
-                if (m !== null) saveFieldValue('MotherOccupation', m.trim());
-              }}
-              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+              onClick={() => openTextInputSheet(
+                "Mother's Profession", 
+                "Occupation or background of mother", 
+                "MotherOccupation", 
+                formData.MotherOccupation, 
+                "e.g. Homemaker, Teacher, Doctor...",
+                100
+              )}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <div className="text-xs font-bold text-slate-900">Mother Occupation</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.MotherOccupation}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Mother's Profession</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.MotherOccupation || "Add Occupation"}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
-            {/* Brothers Count */}
+            {/* Siblings (Brothers & Sisters) */}
             <div 
-              onClick={() => {
-                const tot = prompt("Total Brothers count:", String(formData.TotalBrothers));
-                const mar = prompt("Married Brothers count:", String(formData.MarriedBrothers));
-                if (tot !== null && mar !== null) {
-                  saveFieldValue('TotalBrothers', Number(tot) || 0, { MarriedBrothers: Number(mar) || 0 });
-                }
-              }}
-              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+              onClick={openCountersSheet}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <div className="text-xs font-bold text-slate-900">Brothers</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.TotalBrothers} Brother ({formData.MarriedBrothers} Married)</div>
-              </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
-
-            {/* Sisters Count */}
-            <div 
-              onClick={() => {
-                const tot = prompt("Total Sisters count:", String(formData.TotalSisters));
-                const mar = prompt("Married Sisters count:", String(formData.MarriedSisters));
-                if (tot !== null && mar !== null) {
-                  saveFieldValue('TotalSisters', Number(tot) || 0, { MarriedSisters: Number(mar) || 0 });
-                }
-              }}
-              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
-            >
-              <div>
-                <div className="text-xs font-bold text-slate-900">Sisters</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.TotalSisters} Sister ({formData.MarriedSisters} Married)</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Siblings Overview</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">
+                  {formData.TotalBrothers} Brother ({formData.MarriedBrothers} Married) &bull; {formData.TotalSisters} Sister ({formData.MarriedSisters} Married)
+                </span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
           </div>
         </section>
 
-        {/* 🌟 9. RELIGIOUS & LIFESTYLE DETAILS */}
-        <section className="space-y-2">
-          <div className="flex items-center gap-2 px-1">
-            <span className="text-base">🌙</span>
-            <h2 className="text-sm font-black text-slate-900">Religious & Lifestyle</h2>
+        {/* ============================================================== */}
+        {/* 🌟 SECTION 6: DEEN, SUNNAH & DAILY LIFESTYLE HABITS           */}
+        {/* ============================================================== */}
+        <section className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs">
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center">
+              <Moon size={18} />
+            </div>
+            <div>
+              <h2 className="text-sm font-black text-slate-900">Deen, Sunnah & Lifestyle Habits</h2>
+              <p className="text-[11px] text-slate-500 font-medium">Daily Salah adherence, Islamic appearance & personal discipline</p>
+            </div>
           </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs divide-y divide-slate-100">
+          <div className="divide-y divide-slate-100 text-left">
             {/* Namaz Habit */}
             <div 
-              onClick={() => openOptionSheet('Select namaz habit', 'NamazHabit', formData.NamazHabit, namazOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Daily Salah (Namaz) Routine', 'NamazHabit', formData.NamazHabit, namazOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <div className="text-xs font-bold text-slate-900">Namaz Habit</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.NamazHabit}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Daily Salah Observance</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.NamazHabit}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
-            {/* Hijab / Beard */}
+            {/* Hijab or Beard */}
             <div 
-              onClick={() => openOptionSheet('Select Hijab / Beard', 'HijabOrBeard', formData.HijabOrBeard, hijabOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Islamic Appearance / Attire', 'HijabOrBeard', formData.HijabOrBeard, hijabOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <div className="text-xs font-bold text-slate-900">Hijab / Beard</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.HijabOrBeard}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Islamic Attire & Appearance</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.HijabOrBeard}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* Diet Type */}
             <div 
-              onClick={() => openOptionSheet('Select diet type', 'DietType', formData.DietType, dietOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Dietary & Food Habits', 'DietType', formData.DietType, dietOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <div className="text-xs font-bold text-slate-900">Diet Type</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.DietType}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Dietary Preferences</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.DietType}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
-            {/* Smoke Habit */}
+            {/* Smoking */}
             <div 
-              onClick={() => openOptionSheet('Do you smoke?', 'SmokeHabit', formData.SmokeHabit, habitOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Smoking Habits', 'SmokeHabit', formData.SmokeHabit, habitOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <div className="text-xs font-bold text-slate-900">Smoke Habit</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.SmokeHabit}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Smoking Habits</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.SmokeHabit}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
-            {/* Drink Habit */}
+            {/* Drinking */}
             <div 
-              onClick={() => openOptionSheet('Do you drink?', 'DrinkHabit', formData.DrinkHabit, habitOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Alcohol / Drinking Habits', 'DrinkHabit', formData.DrinkHabit, habitOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <div className="text-xs font-bold text-slate-900">Drink Habit</div>
-                <div className="text-xs text-slate-600 mt-0.5">{formData.DrinkHabit}</div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Alcohol / Drinking</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.DrinkHabit}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
           </div>
         </section>
+
       </main>
 
-      {/* 🌟 10. MODALS & BOTTOM SHEETS (MATCHING USER SCREENSHOTS) */}
+      {/* ============================================================== */}
+      {/* 🌟 10. ULTRA-LUXURY BOTTOM SHEETS & DRAWERS                   */}
+      {/* ============================================================== */}
       <AnimatePresence>
         {activeSheet && (
           <div className="fixed inset-0 z-50 flex flex-col justify-end">
@@ -1310,7 +1422,7 @@ export default function EditMyProfilePage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setActiveSheet(null)}
-              className="fixed inset-0 bg-black/50 backdrop-blur-xs"
+              className="fixed inset-0 bg-black/60 backdrop-blur-xs"
             />
 
             {/* 🌟 SHEET A: HEIGHT SLIDER BOTTOM SHEET */}
@@ -1320,30 +1432,33 @@ export default function EditMyProfilePage() {
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 25, stiffness: 260 }}
-                className="relative z-10 w-full max-w-md mx-auto bg-white rounded-t-3xl p-5 pt-4 space-y-5 shadow-2xl text-left"
+                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pt-5 space-y-5 shadow-2xl text-left"
               >
                 {/* Floating circular close button */}
-                <div className="flex justify-center -mt-9 mb-1">
+                <div className="flex justify-center -mt-10 mb-1">
                   <button
                     type="button"
                     onClick={() => setActiveSheet(null)}
-                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-lg hover:bg-black transition-colors cursor-pointer"
+                    className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
                   >
                     <X size={18} />
                   </button>
                 </div>
 
-                <h3 className="text-lg font-black text-slate-900 text-center">Add Height</h3>
+                <div className="text-center">
+                  <h3 className="text-lg font-black text-slate-900">Physical Height</h3>
+                  <p className="text-xs text-slate-500 font-medium">Slide to accurately set your height</p>
+                </div>
 
                 {/* Selected Height Pill */}
                 <div className="flex justify-center">
-                  <div className="px-5 py-2 rounded-full border-2 border-[#e21e5b] text-[#e21e5b] font-bold text-sm bg-rose-50/40">
+                  <div className="px-6 py-2.5 rounded-full border-2 border-[#d91b5c] text-[#d91b5c] font-black text-base bg-rose-50/50 shadow-2xs">
                     {cmToFtIn(heightCm)}
                   </div>
                 </div>
 
-                {/* Height Slider */}
-                <div className="px-2 pt-2">
+                {/* Slider */}
+                <div className="px-3 pt-2">
                   <input 
                     type="range"
                     min={135}
@@ -1351,22 +1466,21 @@ export default function EditMyProfilePage() {
                     step={1}
                     value={heightCm}
                     onChange={(e) => setHeightCm(Number(e.target.value))}
-                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#e21e5b]"
+                    className="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#d91b5c]"
                   />
-                  <div className="flex justify-between text-[11px] text-slate-400 font-semibold mt-2">
+                  <div className="flex justify-between text-[11px] text-slate-400 font-bold mt-2">
                     <span>4ft 5in (135 cm)</span>
                     <span>7ft 0in (213 cm)</span>
                   </div>
                 </div>
 
-                {/* Pink Update Button */}
                 <button
                   type="button"
                   onClick={handleSaveHeight}
                   disabled={savingField === 'Height'}
-                  className="w-full py-3.5 rounded-full bg-[#e21e5b] hover:bg-[#c9184e] text-white font-bold text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
+                  className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#9B1138] to-[#D91B5C] hover:opacity-95 text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
                 >
-                  {savingField === 'Height' ? <Loader2 size={18} className="animate-spin" /> : "Update"}
+                  {savingField === 'Height' ? <Loader2 size={18} className="animate-spin" /> : "Confirm Height"}
                 </button>
               </motion.div>
             )}
@@ -1378,20 +1492,22 @@ export default function EditMyProfilePage() {
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 25, stiffness: 260 }}
-                className="relative z-10 w-full max-w-md mx-auto bg-white rounded-t-3xl p-5 pt-4 space-y-4 shadow-2xl text-left max-h-[82vh] flex flex-col"
+                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-5 pt-4 space-y-4 shadow-2xl text-left max-h-[85vh] flex flex-col"
               >
-                {/* Floating circular close button */}
                 <div className="flex justify-center -mt-9 mb-1">
                   <button
                     type="button"
                     onClick={() => setActiveSheet(null)}
-                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-lg hover:bg-black transition-colors cursor-pointer"
+                    className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
                   >
                     <X size={18} />
                   </button>
                 </div>
 
-                <h3 className="text-lg font-black text-slate-900 capitalize">{sheetTitle}</h3>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">{sheetTitle}</h3>
+                  <p className="text-xs text-slate-500 font-medium">Choose the most accurate match</p>
+                </div>
 
                 {/* Search Bar */}
                 {sheetOptions.length > 5 && (
@@ -1399,15 +1515,15 @@ export default function EditMyProfilePage() {
                     <Search size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
                     <input 
                       type="text"
-                      placeholder={`Search...`}
+                      placeholder={`Search options...`}
                       value={sheetSearch}
                       onChange={(e) => setSheetSearch(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2.5 bg-slate-100 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#e21e5b]/20"
+                      className="w-full pl-9 pr-4 py-2.5 bg-slate-100 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#d91b5c]/20"
                     />
                   </div>
                 )}
 
-                {/* Scrollable Radio List */}
+                {/* Radio List */}
                 <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 divide-y divide-slate-100">
                   {filteredSheetOptions.map((opt) => {
                     const isSelected = selectedSheetValue === opt.id || selectedSheetValue === opt.value;
@@ -1415,13 +1531,13 @@ export default function EditMyProfilePage() {
                       <div 
                         key={String(opt.id || opt.value)}
                         onClick={() => setSelectedSheetValue(opt.id !== undefined ? opt.id : opt.value)}
-                        className="py-3 px-1 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
+                        className="py-3 px-1.5 flex items-center justify-between cursor-pointer hover:bg-slate-50 rounded-xl transition-colors"
                       >
-                        <span className={`text-xs font-semibold ${isSelected ? 'text-[#e21e5b] font-bold' : 'text-slate-800'}`}>
+                        <span className={`text-xs font-semibold ${isSelected ? 'text-[#d91b5c] font-black' : 'text-slate-800'}`}>
                           {opt.value}
                         </span>
                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                          isSelected ? 'border-[#e21e5b] bg-[#e21e5b]' : 'border-slate-300'
+                          isSelected ? 'border-[#d91b5c] bg-[#d91b5c]' : 'border-slate-300'
                         }`}>
                           {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
                         </div>
@@ -1429,32 +1545,228 @@ export default function EditMyProfilePage() {
                     );
                   })}
                   {filteredSheetOptions.length === 0 && (
-                    <div className="py-8 text-center text-xs text-slate-400">
+                    <div className="py-8 text-center text-xs text-slate-400 font-semibold">
                       No matching options found.
                     </div>
                   )}
                 </div>
 
-                {/* Pink Update Button */}
                 <button
                   type="button"
                   onClick={handleSaveOption}
                   disabled={Boolean(savingField)}
-                  className="w-full py-3.5 rounded-full bg-[#e21e5b] hover:bg-[#c9184e] text-white font-bold text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
+                  className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#9B1138] to-[#D91B5C] hover:opacity-95 text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
                 >
-                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Update"}
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Save Choice"}
                 </button>
               </motion.div>
             )}
 
-            {/* 🌟 SHEET C: BIO FULL SCREEN SLIDE */}
+            {/* 🌟 SHEET C: IN-APP TEXT INPUT SHEET (REPLACES PROMPT) */}
+            {activeSheet === 'textInput' && (
+              <motion.div 
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 260 }}
+                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pt-5 space-y-4 shadow-2xl text-left"
+              >
+                <div className="flex justify-center -mt-10 mb-1">
+                  <button
+                    type="button"
+                    onClick={() => setActiveSheet(null)}
+                    className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">{textInputData.title}</h3>
+                  <p className="text-xs text-slate-500 font-medium">{textInputData.subtitle}</p>
+                </div>
+
+                <div className="space-y-1">
+                  <input
+                    type="text"
+                    maxLength={textInputData.maxLength || 120}
+                    value={textInputData.value}
+                    onChange={(e) => setTextInputData(prev => ({ ...prev, value: e.target.value }))}
+                    placeholder={textInputData.placeholder}
+                    className="w-full p-3.5 rounded-2xl border border-slate-300 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#d91b5c] focus:ring-2 focus:ring-[#d91b5c]/20"
+                    autoFocus
+                  />
+                  <div className="text-right text-[11px] text-slate-400 font-bold">
+                    {textInputData.value.length}/{textInputData.maxLength || 120}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSaveTextInput}
+                  disabled={Boolean(savingField)}
+                  className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#9B1138] to-[#D91B5C] hover:opacity-95 text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
+                >
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Save Detail"}
+                </button>
+              </motion.div>
+            )}
+
+            {/* 🌟 SHEET D: SIBLING COUNTERS SHEET (REPLACES PROMPT) */}
+            {activeSheet === 'counters' && (
+              <motion.div 
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 260 }}
+                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pt-5 space-y-5 shadow-2xl text-left"
+              >
+                <div className="flex justify-center -mt-10 mb-1">
+                  <button
+                    type="button"
+                    onClick={() => setActiveSheet(null)}
+                    className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">Siblings Details</h3>
+                  <p className="text-xs text-slate-500 font-medium">Specify your brothers and sisters overview</p>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Brothers */}
+                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
+                    <span className="text-xs font-black text-slate-800 block">Brothers</span>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Total Brothers</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setCountersState(prev => ({ 
+                              ...prev, 
+                              totalBrothers: Math.max(0, prev.totalBrothers - 1),
+                              marriedBrothers: Math.min(prev.marriedBrothers, Math.max(0, prev.totalBrothers - 1))
+                            }))}
+                            className="w-8 h-8 rounded-full bg-white border border-slate-300 flex items-center justify-center text-slate-700 font-bold active:scale-95"
+                          >
+                            <Minus size={14} />
+                          </button>
+                          <span className="text-sm font-black text-slate-900 w-6 text-center">{countersState.totalBrothers}</span>
+                          <button
+                            type="button"
+                            onClick={() => setCountersState(prev => ({ ...prev, totalBrothers: prev.totalBrothers + 1 }))}
+                            className="w-8 h-8 rounded-full bg-white border border-slate-300 flex items-center justify-center text-slate-700 font-bold active:scale-95"
+                          >
+                            <Plus size={14} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Married Brothers</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setCountersState(prev => ({ ...prev, marriedBrothers: Math.max(0, prev.marriedBrothers - 1) }))}
+                            className="w-8 h-8 rounded-full bg-white border border-slate-300 flex items-center justify-center text-slate-700 font-bold active:scale-95"
+                          >
+                            <Minus size={14} />
+                          </button>
+                          <span className="text-sm font-black text-slate-900 w-6 text-center">{countersState.marriedBrothers}</span>
+                          <button
+                            type="button"
+                            onClick={() => setCountersState(prev => ({ 
+                              ...prev, 
+                              marriedBrothers: Math.min(prev.totalBrothers, prev.marriedBrothers + 1) 
+                            }))}
+                            className="w-8 h-8 rounded-full bg-white border border-slate-300 flex items-center justify-center text-slate-700 font-bold active:scale-95"
+                          >
+                            <Plus size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sisters */}
+                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
+                    <span className="text-xs font-black text-slate-800 block">Sisters</span>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Total Sisters</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setCountersState(prev => ({ 
+                              ...prev, 
+                              totalSisters: Math.max(0, prev.totalSisters - 1),
+                              marriedSisters: Math.min(prev.marriedSisters, Math.max(0, prev.totalSisters - 1))
+                            }))}
+                            className="w-8 h-8 rounded-full bg-white border border-slate-300 flex items-center justify-center text-slate-700 font-bold active:scale-95"
+                          >
+                            <Minus size={14} />
+                          </button>
+                          <span className="text-sm font-black text-slate-900 w-6 text-center">{countersState.totalSisters}</span>
+                          <button
+                            type="button"
+                            onClick={() => setCountersState(prev => ({ ...prev, totalSisters: prev.totalSisters + 1 }))}
+                            className="w-8 h-8 rounded-full bg-white border border-slate-300 flex items-center justify-center text-slate-700 font-bold active:scale-95"
+                          >
+                            <Plus size={14} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Married Sisters</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setCountersState(prev => ({ ...prev, marriedSisters: Math.max(0, prev.marriedSisters - 1) }))}
+                            className="w-8 h-8 rounded-full bg-white border border-slate-300 flex items-center justify-center text-slate-700 font-bold active:scale-95"
+                          >
+                            <Minus size={14} />
+                          </button>
+                          <span className="text-sm font-black text-slate-900 w-6 text-center">{countersState.marriedSisters}</span>
+                          <button
+                            type="button"
+                            onClick={() => setCountersState(prev => ({ 
+                              ...prev, 
+                              marriedSisters: Math.min(prev.totalSisters, prev.marriedSisters + 1) 
+                            }))}
+                            className="w-8 h-8 rounded-full bg-white border border-slate-300 flex items-center justify-center text-slate-700 font-bold active:scale-95"
+                          >
+                            <Plus size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSaveCounters}
+                  disabled={Boolean(savingField)}
+                  className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#9B1138] to-[#D91B5C] hover:opacity-95 text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
+                >
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Save Siblings Overview"}
+                </button>
+              </motion.div>
+            )}
+
+            {/* 🌟 SHEET E: BIO FULL SLIDE SHEET */}
             {activeSheet === 'bio' && (
               <motion.div 
                 initial={{ y: "100%" }}
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 25, stiffness: 260 }}
-                className="relative z-10 w-full max-w-md mx-auto bg-white rounded-t-3xl p-5 pt-4 space-y-4 shadow-2xl text-left"
+                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pt-5 space-y-4 shadow-2xl text-left"
               >
                 <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                   <div className="flex items-center gap-2">
@@ -1465,27 +1777,27 @@ export default function EditMyProfilePage() {
                     >
                       <X size={20} />
                     </button>
-                    <span className="text-sm font-bold text-slate-900">Bio</span>
+                    <span className="text-sm font-black text-slate-900">Personal Story & Partner Outlook</span>
                   </div>
                 </div>
 
                 <div>
-                  <h3 className="text-xl font-black text-slate-900">Tell us about yourself</h3>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Tell them more about your principles, partner expectations, family and hobbies.
+                  <h3 className="text-lg font-black text-slate-900">Tell Us About Yourself</h3>
+                  <p className="text-xs text-slate-500 font-medium mt-1">
+                    Share your deen, daily interests, household background, and what qualities you look for in a spouse.
                   </p>
                 </div>
 
                 <div className="relative">
                   <textarea 
-                    rows={6}
+                    rows={7}
                     maxLength={1000}
                     value={bioDraft}
                     onChange={(e) => setBioDraft(e.target.value)}
-                    placeholder="Write a few lines about your values, personality, and partner expectations..."
-                    className="w-full p-3.5 rounded-2xl border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-[#e21e5b] focus:ring-1 focus:ring-[#e21e5b] leading-relaxed resize-none"
+                    placeholder="Write a few paragraphs about your personality, principles, and partner expectations..."
+                    className="w-full p-4 rounded-2xl border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:border-[#d91b5c] focus:ring-2 focus:ring-[#d91b5c]/20 leading-relaxed resize-none shadow-2xs"
                   />
-                  <div className="text-right text-[11px] text-slate-400 mt-1">
+                  <div className="text-right text-[11px] text-slate-400 font-bold mt-1">
                     {bioDraft.length}/1000
                   </div>
                 </div>
@@ -1494,43 +1806,48 @@ export default function EditMyProfilePage() {
                   type="button"
                   onClick={handleSaveBio}
                   disabled={savingField === 'AboutMe'}
-                  className="w-full py-3.5 rounded-full bg-[#e21e5b] hover:bg-[#c9184e] text-white font-bold text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
+                  className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#9B1138] to-[#D91B5C] hover:opacity-95 text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
                 >
-                  {savingField === 'AboutMe' ? <Loader2 size={18} className="animate-spin" /> : "Save"}
+                  {savingField === 'AboutMe' ? <Loader2 size={18} className="animate-spin" /> : "Save Story"}
                 </button>
               </motion.div>
             )}
 
-            {/* 🌟 SHEET D: LOCATION SELECTOR (STATE & CITY) */}
+            {/* 🌟 SHEET F: LOCATION SELECTOR (STATE & CITY) */}
             {activeSheet === 'location' && (
               <motion.div 
                 initial={{ y: "100%" }}
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 25, stiffness: 260 }}
-                className="relative z-10 w-full max-w-md mx-auto bg-white rounded-t-3xl p-5 pt-4 space-y-4 shadow-2xl text-left max-h-[82vh] flex flex-col"
+                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pt-5 space-y-4 shadow-2xl text-left max-h-[85vh] flex flex-col"
               >
-                <div className="flex justify-center -mt-9 mb-1">
+                <div className="flex justify-center -mt-10 mb-1">
                   <button
                     type="button"
                     onClick={() => setActiveSheet(null)}
-                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-lg hover:bg-black transition-colors cursor-pointer"
+                    className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
                   >
                     <X size={18} />
                   </button>
                 </div>
 
-                <h3 className="text-lg font-black text-slate-900">Select Location</h3>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">
+                    {locationTargetField === 'FamilyLocation' ? "Family Native Origin" : "Current Residence"}
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">Select state and city in India</p>
+                </div>
 
-                <div className="space-y-3">
+                <div className="space-y-3 flex-1 overflow-y-auto pr-1">
                   <div>
                     <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                      Select State
+                      State / Province
                     </label>
                     <select
                       value={selectedStateId}
                       onChange={(e) => setSelectedStateId(Number(e.target.value))}
-                      className="w-full p-3 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 bg-white"
+                      className="w-full p-3.5 rounded-2xl border border-slate-200 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-[#d91b5c]"
                     >
                       {(masterData.STATES || []).map(s => (
                         <option key={s.id} value={s.id}>{s.value}</option>
@@ -1540,12 +1857,12 @@ export default function EditMyProfilePage() {
 
                   <div>
                     <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                      Select City
+                      City / District
                     </label>
                     <select
                       value={selectedCityId}
                       onChange={(e) => setSelectedCityId(Number(e.target.value))}
-                      className="w-full p-3 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 bg-white"
+                      className="w-full p-3.5 rounded-2xl border border-slate-200 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-[#d91b5c]"
                     >
                       {stateCities.map(c => (
                         <option key={c.id} value={c.id}>{c.value}</option>
@@ -1558,168 +1875,170 @@ export default function EditMyProfilePage() {
                   type="button"
                   onClick={handleSaveLocation}
                   disabled={Boolean(savingField)}
-                  className="w-full py-3.5 rounded-full bg-[#e21e5b] hover:bg-[#c9184e] text-white font-bold text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center mt-2"
+                  className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#9B1138] to-[#D91B5C] hover:opacity-95 text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
                 >
-                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Update"}
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Confirm Location"}
                 </button>
               </motion.div>
             )}
 
-            {/* 🌟 SHEET E: PHOTO PRIVACY BOTTOM SHEET */}
+            {/* 🌟 SHEET G: PHOTO PRIVACY BOTTOM SHEET */}
             {activeSheet === 'photoPrivacy' && (
               <motion.div 
                 initial={{ y: "100%" }}
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 25, stiffness: 260 }}
-                className="relative z-10 w-full max-w-md mx-auto bg-white rounded-t-3xl p-5 pt-4 space-y-4 shadow-2xl text-left"
+                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pt-5 space-y-4 shadow-2xl text-left"
               >
-                <div className="flex justify-center -mt-9 mb-1">
+                <div className="flex justify-center -mt-10 mb-1">
                   <button
                     type="button"
                     onClick={() => setActiveSheet(null)}
-                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-lg hover:bg-black transition-colors cursor-pointer"
+                    className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
                   >
                     <X size={18} />
                   </button>
                 </div>
 
-                <h3 className="text-lg font-black text-slate-900">Who can see my photo</h3>
+                <div className="text-center">
+                  <h3 className="text-lg font-black text-slate-900">Photo Visibility Privacy</h3>
+                  <p className="text-xs text-slate-500 font-medium">Control who can view your photo portfolio</p>
+                </div>
 
-                <div className="space-y-2.5">
+                <div className="space-y-2.5 pt-2">
                   {[
-                    { value: 'All Members', title: 'All Members', desc: 'Visible to everyone' },
-                    { value: 'Premium Members', title: 'Premium Members', desc: 'Blurred for free users' },
-                    { value: 'Members I Approve', title: 'Members I Approve', desc: 'Blurred until you approve' }
-                  ].map((opt) => {
-                    const isSel = formData.PhotoPrivacy === opt.value;
+                    { id: 'All Members', title: 'All Registered Members', desc: 'Visible to all authenticated rishta seekers' },
+                    { id: 'Premium Members', title: 'Premium Verified Members', desc: 'Blurred for free users until upgraded' },
+                    { id: 'Members I Approve', title: 'Members I Explicitly Approve', desc: 'Blurred until you accept their photo request' },
+                  ].map((item) => {
+                    const isSelected = formData.PhotoPrivacy === item.id;
                     return (
                       <div
-                        key={opt.value}
-                        onClick={() => handleSavePhotoPrivacy(opt.value)}
-                        className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
-                          isSel ? 'border-[#e21e5b] bg-rose-50/50 shadow-sm' : 'border-slate-200 hover:bg-slate-50'
+                        key={item.id}
+                        onClick={() => handleSavePhotoPrivacy(item.id)}
+                        className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between ${
+                          isSelected ? 'border-[#d91b5c] bg-rose-50/40 shadow-xs' : 'border-slate-200 hover:border-slate-300'
                         }`}
                       >
                         <div>
-                          <div className={`text-xs font-bold ${isSel ? 'text-[#e21e5b]' : 'text-slate-800'}`}>
-                            {opt.title}
+                          <div className={`text-xs font-black ${isSelected ? 'text-[#d91b5c]' : 'text-slate-900'}`}>
+                            {item.title}
                           </div>
-                          <div className="text-[11px] text-slate-500 mt-0.5">
-                            {opt.desc}
-                          </div>
+                          <div className="text-[11px] text-slate-500 mt-0.5">{item.desc}</div>
                         </div>
                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                          isSel ? 'border-[#e21e5b] bg-[#e21e5b]' : 'border-slate-300'
+                          isSelected ? 'border-[#d91b5c] bg-[#d91b5c]' : 'border-slate-300'
                         }`}>
-                          {isSel && <div className="w-2 h-2 rounded-full bg-white" />}
+                          {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
                         </div>
                       </div>
                     );
                   })}
                 </div>
-
-                <p className="text-[11px] text-slate-400 text-center">
-                  You can change this later in your privacy settings
-                </p>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveSheet(null)}
-                  className="w-full py-3.5 rounded-full bg-[#e21e5b] hover:bg-[#c9184e] text-white font-bold text-sm shadow-md transition-all cursor-pointer active:scale-98"
-                >
-                  Save
-                </button>
               </motion.div>
             )}
 
-            {/* 🌟 SHEET F: ADD TRUST BADGE (GOVT ID VERIFICATION) */}
+            {/* 🌟 SHEET H: TRUST BADGE (GOVT ID VERIFICATION) */}
             {activeSheet === 'trustBadge' && (
               <motion.div 
                 initial={{ y: "100%" }}
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
                 transition={{ type: "spring", damping: 25, stiffness: 260 }}
-                className="relative z-10 w-full max-w-md mx-auto bg-white rounded-t-3xl p-5 pt-4 space-y-4 shadow-2xl text-left max-h-[85vh] flex flex-col overflow-y-auto"
+                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pt-5 space-y-4 shadow-2xl text-left max-h-[90vh] flex flex-col"
               >
-                <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-                  <button
-                    type="button"
-                    onClick={() => setActiveSheet(null)}
-                    className="p-1 rounded-full hover:bg-slate-100 text-slate-700 cursor-pointer"
-                  >
-                    <ArrowLeft size={20} />
-                  </button>
-                  <div className="flex items-center gap-1.5">
-                    <h3 className="text-base font-black text-slate-900">Add Trust Badge</h3>
-                    <CheckCircle2 size={16} className="text-sky-500 fill-sky-500 text-white" />
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveSheet(null)}
+                      className="p-1 rounded-full hover:bg-slate-100 text-slate-700 cursor-pointer"
+                    >
+                      <ArrowLeft size={20} />
+                    </button>
+                    <span className="text-sm font-black text-slate-900 flex items-center gap-1.5">
+                      Add Trust Badge <ShieldCheck size={16} className="text-sky-500" />
+                    </span>
                   </div>
                 </div>
 
-                {/* Upload Box */}
-                <label className="aspect-4/3 rounded-3xl border-2 border-dashed border-rose-300 hover:border-[#e21e5b] bg-rose-50/20 hover:bg-rose-50/50 flex flex-col items-center justify-center p-6 text-center cursor-pointer transition-all relative overflow-hidden group">
-                  <input 
-                    type="file"
-                    accept="image/*,.pdf"
-                    className="hidden"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) {
-                        setGovtDocFile(f);
-                        if (f.type.startsWith("image/")) {
-                          setGovtDocPreview(URL.createObjectURL(f));
-                        } else {
-                          setGovtDocPreview("");
+                <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+                  {/* Upload Box */}
+                  <label className="border-2 border-dashed border-rose-300 rounded-3xl p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-rose-50/30 transition-all bg-rose-50/10">
+                    <input 
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) {
+                          setGovtDocFile(f);
+                          if (f.type.startsWith('image/')) {
+                            setGovtDocPreview(URL.createObjectURL(f));
+                          } else {
+                            setGovtDocPreview('');
+                          }
                         }
-                      }
-                    }}
-                  />
-                  {govtDocPreview ? (
-                    <img src={govtDocPreview} alt="Doc preview" className="w-full h-full object-contain" />
-                  ) : formData.GovtIdDocUrl ? (
-                    <div className="space-y-1">
-                      <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center">
-                        <Check size={24} />
-                      </div>
-                      <p className="text-xs font-bold text-slate-900">Document Submitted</p>
-                      <p className="text-[11px] text-slate-500">Sent for Admin Approval</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="w-14 h-14 rounded-2xl bg-slate-100 border border-slate-200 text-slate-400 mx-auto flex items-center justify-center relative">
-                        <Camera size={24} />
-                        <div className="w-5 h-5 rounded-full bg-[#e21e5b] text-white flex items-center justify-center absolute -top-1 -right-1">
-                          <Plus size={14} className="stroke-[3]" />
-                        </div>
-                      </div>
-                      <div className="text-sm font-black text-slate-900">Upload Govt ID</div>
-                      <div className="text-xs text-slate-400 font-medium">
-                        (Aadhaar, PAN, Passport etc)
-                      </div>
-                    </div>
-                  )}
-                </label>
+                      }}
+                    />
 
-                {/* Benefits Card */}
-                <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-2">
-                  <h4 className="text-xs font-black text-slate-900">Benefits</h4>
-                  <ul className="text-xs text-slate-600 space-y-1.5 list-disc pl-4">
-                    <li>Upload a Valid Government ID to get the Trust badge.</li>
-                    <li>Verified member get a Trust Badge for more visibility and trust.</li>
-                  </ul>
+                    {govtDocPreview ? (
+                      <div className="space-y-2">
+                        <img 
+                          src={govtDocPreview} 
+                          alt="ID Preview" 
+                          className="max-h-36 rounded-xl object-contain border border-slate-200 mx-auto"
+                        />
+                        <span className="text-xs font-bold text-[#d91b5c] block">Tap to choose another file</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="w-12 h-12 rounded-2xl bg-rose-100 text-[#d91b5c] flex items-center justify-center mb-2 shadow-xs">
+                          <Upload size={22} />
+                        </div>
+                        <span className="text-sm font-black text-slate-900 block">Upload Official Govt ID</span>
+                        <span className="text-xs text-slate-500 font-medium block mt-0.5">
+                          Aadhaar Card, Passport, Driving License or PAN Card
+                        </span>
+                        <span className="text-[10px] text-slate-400 mt-2 block font-semibold">
+                          Supported: JPG, PNG, PDF (Max 10MB)
+                        </span>
+                      </>
+                    )}
+                  </label>
+
+                  {/* Benefits Card */}
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2.5">
+                    <span className="text-xs font-black text-slate-900 block">Trust & Privacy Guarantee</span>
+                    <ul className="text-[11px] text-slate-600 space-y-1.5 font-medium">
+                      <li className="flex items-start gap-1.5">
+                        <Check size={14} className="text-emerald-600 shrink-0 mt-0.5" />
+                        <span>Your identity document is 100% confidential and never visible to other users.</span>
+                      </li>
+                      <li className="flex items-start gap-1.5">
+                        <Check size={14} className="text-emerald-600 shrink-0 mt-0.5" />
+                        <span>Earns the blue <strong>Verified Trust Badge</strong> on your profile card.</span>
+                      </li>
+                      <li className="flex items-start gap-1.5">
+                        <Check size={14} className="text-emerald-600 shrink-0 mt-0.5" />
+                        <span>Builds immediate trust with respectable parents and proposal seekers.</span>
+                      </li>
+                    </ul>
+                  </div>
                 </div>
 
-                {/* Continue Button */}
                 <button
                   type="button"
                   onClick={handleSubmitGovtDoc}
-                  disabled={uploadingGovtDoc || (!govtDocFile && !formData.GovtIdDocUrl)}
-                  className="w-full py-3.5 rounded-full bg-[#e21e5b] hover:bg-[#c9184e] text-white font-bold text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center disabled:opacity-50"
+                  disabled={uploadingGovtDoc || !govtDocFile}
+                  className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#9B1138] to-[#D91B5C] disabled:opacity-50 hover:opacity-95 text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
                 >
-                  {uploadingGovtDoc ? <Loader2 size={18} className="animate-spin" /> : "Continue"}
+                  {uploadingGovtDoc ? <Loader2 size={18} className="animate-spin" /> : "Submit for Admin Verification"}
                 </button>
               </motion.div>
             )}
+
           </div>
         )}
       </AnimatePresence>
