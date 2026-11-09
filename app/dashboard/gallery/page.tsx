@@ -220,15 +220,30 @@ export default function GalleryManagementPage() {
 
     const file = files[0];
     e.target.value = '';
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
-    if (!file.type || !allowedTypes.includes(file.type.toLowerCase())) {
-      toast.error("Invalid file format. Please upload JPG, PNG, or WEBP image files only.");
+    // Block non-image documents, archives, and executables
+    const fileName = (file.name || '').toLowerCase();
+    const forbiddenExts = [
+      '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt',
+      '.zip', '.rar', '.7z', '.tar', '.gz', '.iso', '.exe', '.apk', '.bat',
+      '.cmd', '.bin', '.msi', '.dmg'
+    ];
+    if (forbiddenExts.some(ext => fileName.endsWith(ext))) {
+      toast.error("Documents (PDF, Word, etc.) and archive files are not allowed. Please upload a photo.");
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("File size is too large. Maximum allowed photo size is 5MB.");
+    const isImageMime = file.type ? file.type.startsWith('image/') : false;
+    const allowedExts = ['.jpg', '.jpeg', '.png', '.webp', '.avif', '.heic', '.heif', '.jfif', '.bmp', '.gif', '.tiff'];
+    const isImageExt = allowedExts.some(ext => fileName.endsWith(ext));
+
+    if (!isImageMime && !isImageExt) {
+      toast.error("Please choose a valid photo file (JPG, PNG, WEBP, etc.)");
+      return;
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+      toast.error("File size is too large. Maximum allowed photo size is 15MB.");
       return;
     }
 
@@ -248,42 +263,20 @@ export default function GalleryManagementPage() {
       const previewUrl = URL.createObjectURL(file);
       const dataUrl = await fileToDataUrl(file);
 
-      // 1. Run In-Browser Client Face Check (0.1s)
+      // 1. Run In-Browser Client Face Check (supports blur, zoom, far away, side pose)
       const faceResult = await clientValidateSingleFace(dataUrl);
       toast.dismiss("face-scan");
 
-      if (!faceResult.isValid || !faceResult.descriptor) {
+      if (!faceResult.isValid) {
         setUploading(false);
         setSelectedPhoto(null);
         setRejectedModal({
           open: true,
           previewUrl,
           errorCode: faceResult.errorCode || 'NO_FACE',
-          message: faceResult.message || 'We were unable to detect a human face in your photo.',
+          message: faceResult.message || 'No human face detected! Screenshots, animals, objects, and scenery photos are strictly not allowed.',
         });
         return;
-      }
-
-      // 2. If user already has photos and is adding/replacing, match against verified selfie / main photo!
-      const referencePhoto = photos.find((p: any) => Boolean(p.isMain ?? p.IsMain)) || photos[0];
-      if (referencePhoto?.photoUrl) {
-        try {
-          const refScan = await clientValidateSingleFace(getOptimizedImageUrl(referencePhoto.photoUrl || referencePhoto.PhotoUrl));
-          if (refScan.descriptor) {
-            const cmp = compareFaceDescriptors(refScan.descriptor, faceResult.descriptor, 0.58);
-            if (!cmp.isMatch) {
-              setUploading(false);
-              setSelectedPhoto(null);
-              setRejectedModal({
-                open: true,
-                previewUrl,
-                errorCode: 'FACE_MISMATCH',
-                message: 'Face mismatch! This photo does not match your verified profile face. Your existing photo was kept safe.',
-              });
-              return;
-            }
-          }
-        } catch (_) {}
       }
 
       // Valid solo face confirmed! Upload immediately.
@@ -481,7 +474,7 @@ export default function GalleryManagementPage() {
               >
                 <input 
                   type="file" 
-                  accept="image/jpeg,image/png,image/webp" 
+                  accept="image/*,.jpg,.jpeg,.png,.webp,.avif,.heic,.heif,.jfif,.bmp,.gif,.tiff" 
                   onChange={handleFileUpload} 
                   disabled={uploading} 
                   className="hidden" 
@@ -578,7 +571,7 @@ export default function GalleryManagementPage() {
                   )}
 
                   <label className="p-3 bg-[#d91b5c] hover:bg-[#b01449] text-white font-black text-xs rounded-2xl flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-sm">
-                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleFileUpload} disabled={uploading} className="hidden" />
+                    <input type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.avif,.heic,.heif,.jfif,.bmp,.gif,.tiff" onChange={handleFileUpload} disabled={uploading} className="hidden" />
                     {uploading ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />} 
                     Replace Photo
                   </label>

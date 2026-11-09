@@ -195,57 +195,69 @@ const MONTHS = [
 
 const YEARS = Array.from({ length: 45 }, (_, i) => String(2006 - i));
 
-// Client-side image compression
+// Client-side image compression supporting all image types safely
 const compressPhoto = async (file: File): Promise<File> => {
   return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const MAX_WIDTH = 1200;
-        const MAX_HEIGHT = 1200;
-        let width = img.width;
-        let height = img.height;
+    try {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const img = new Image();
+          img.onload = () => {
+            try {
+              const canvas = document.createElement("canvas");
+              const MAX_WIDTH = 1400;
+              const MAX_HEIGHT = 1400;
+              let width = img.width;
+              let height = img.height;
 
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height = Math.round((height * MAX_WIDTH) / width);
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width = Math.round((width * MAX_HEIGHT) / height);
-            height = MAX_HEIGHT;
-          }
-        }
+              if (width > height) {
+                if (width > MAX_WIDTH) {
+                  height = Math.round((height * MAX_WIDTH) / width);
+                  width = MAX_WIDTH;
+                }
+              } else {
+                if (height > MAX_HEIGHT) {
+                  width = Math.round((width * MAX_HEIGHT) / height);
+                  height = MAX_HEIGHT;
+                }
+              }
 
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        ctx?.drawImage(img, 0, 0, width, height);
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext("2d");
+              ctx?.drawImage(img, 0, 0, width, height);
 
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
-                type: "image/jpeg",
-                lastModified: Date.now(),
-              });
-              resolve(compressedFile);
-            } else {
+              canvas.toBlob(
+                (blob) => {
+                  if (blob) {
+                    const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
+                      type: "image/jpeg",
+                      lastModified: Date.now(),
+                    });
+                    resolve(compressedFile);
+                  } else {
+                    resolve(file);
+                  }
+                },
+                "image/jpeg",
+                0.88
+              );
+            } catch (_) {
               resolve(file);
             }
-          },
-          "image/jpeg",
-          0.85
-        );
+          };
+          img.onerror = () => resolve(file);
+          img.src = event.target?.result as string;
+        } catch (_) {
+          resolve(file);
+        }
       };
-      img.onerror = () => resolve(file);
-    };
-    reader.onerror = () => resolve(file);
+      reader.onerror = () => resolve(file);
+      reader.readAsDataURL(file);
+    } catch (_) {
+      resolve(file);
+    }
   });
 };
 
@@ -718,13 +730,29 @@ export default function CompleteProfilePage() {
   };
 
   // Handle Photo Selection with instant Client-Side AI Face Check
-  // Blocks screenshots, scenery, animals, fruits, cars, group photos
+  // Blocks non-images, screenshots, scenery, animals, fruits, cars, group photos
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please choose a valid image file (JPEG, PNG, WEBP)');
+    // Block non-image documents, archives, and executables
+    const fileName = (file.name || '').toLowerCase();
+    const forbiddenExts = [
+      '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt',
+      '.zip', '.rar', '.7z', '.tar', '.gz', '.iso', '.exe', '.apk', '.bat',
+      '.cmd', '.bin', '.msi', '.dmg'
+    ];
+    if (forbiddenExts.some(ext => fileName.endsWith(ext))) {
+      toast.error('Documents (PDF, Word, etc.) and archive files are not allowed. Please choose a photo.');
+      return;
+    }
+
+    const isImageMime = file.type ? file.type.startsWith('image/') : false;
+    const allowedExts = ['.jpg', '.jpeg', '.png', '.webp', '.avif', '.heic', '.heif', '.jfif', '.bmp', '.gif', '.tiff'];
+    const isImageExt = allowedExts.some(ext => fileName.endsWith(ext));
+
+    if (!isImageMime && !isImageExt) {
+      toast.error('Please choose a valid photo file (JPG, PNG, WEBP, etc.)');
       return;
     }
 
@@ -737,7 +765,7 @@ export default function CompleteProfilePage() {
       const previewUrl = URL.createObjectURL(compressed);
       const dataUrl = await fileToDataUrl(compressed);
 
-      // 1. Run Client-Side Face Verification (Zero Cloud Error)
+      // 1. Run Client-Side Face Verification (supports blur, zoom, far away, side pose)
       const faceResult = await clientValidateSingleFace(dataUrl);
 
       if (!faceResult.isValid) {
@@ -747,27 +775,10 @@ export default function CompleteProfilePage() {
           open: true,
           previewUrl,
           errorCode: faceResult.errorCode || 'NO_FACE',
-          message: faceResult.message || 'We were unable to detect a human face in your photo. Screenshots, animals, objects, and scenery photos are not allowed.',
+          message: faceResult.message || 'No human face detected! Screenshots, animals, objects, and scenery photos are strictly not allowed.',
           slotIndex: slotIdx,
         });
         return;
-      }
-
-      // 2. Cross-Photo Match: If Slot 0 (Main Photo) exists and user uploads Slot 1/2/3, compare faces!
-      if (slotIdx > 0 && photoSlots[0]?.descriptor && faceResult.descriptor) {
-        const matchResult = compareFaceDescriptors(photoSlots[0].descriptor, faceResult.descriptor, 0.65);
-        if (!matchResult.isMatch) {
-          toast.dismiss('compress-toast');
-          setValidatingSlotIndex(null);
-          setRejectedModal({
-            open: true,
-            previewUrl,
-            errorCode: 'FACE_MISMATCH',
-            message: 'Face mismatch! This photo does not show the same person as your Main photo. All photos must be of yourself.',
-            slotIndex: slotIdx,
-          });
-          return;
-        }
       }
 
       toast.dismiss('compress-toast');
@@ -775,7 +786,7 @@ export default function CompleteProfilePage() {
 
       setPhotoSlots((prev) => {
         const next = [...prev];
-        next[slotIdx] = { file: compressed, previewUrl, dataUrl, descriptor: faceResult.descriptor };
+        next[slotIdx] = { file: compressed, previewUrl, dataUrl };
         // Ensure compact ordering so Slot 0 is always Main
         const compacted = next.filter((p) => p !== null);
         while (compacted.length < 4) compacted.push(null);
@@ -1820,7 +1831,7 @@ export default function CompleteProfilePage() {
                   type="file" 
                   id="final-photo-picker" 
                   hidden 
-                  accept="image/jpeg,image/png,image/webp" 
+                  accept="image/*,.jpg,.jpeg,.png,.webp,.avif,.heic,.heif,.jfif,.bmp,.gif,.tiff" 
                   onChange={handlePhotoSelect} 
                 />
 
