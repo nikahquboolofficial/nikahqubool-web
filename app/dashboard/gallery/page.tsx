@@ -9,7 +9,6 @@ import {
   fetchProfileDetailsApi,
   uploadGalleryPhotoApi,
   updateProfileApi,
-  verifySelfieFaceMatchApi,
   setMainPhotoApi,
   deleteGalleryPhotoApi,
   updatePhotoPrivacyApi,
@@ -21,8 +20,6 @@ import {
   fileToDataUrl,
   PhotoGuidelinesModal,
   PhotoRejectedModal,
-  VerifyIdentityIntroModal,
-  LiveOvalSelfieScannerModal,
 } from '@/components/profile/PhotoVerificationModals';
 import {
   clientValidateSingleFace,
@@ -56,11 +53,8 @@ export default function GalleryManagementPage() {
   });
   const [uploading, setUploading] = useState(false);
 
-  // Modal State for Photo Action
+  // Photo action & validation state
   const [selectedPhoto, setSelectedPhoto] = useState<any | null>(null);
-
-  // Muzz-style AI Face & Selfie Verification State
-  const [verifiedSelfieUrl, setVerifiedSelfieUrl] = useState<string>('');
   const [guidelinesOpen, setGuidelinesOpen] = useState(false);
   const [rejectedModal, setRejectedModal] = useState<{ open: boolean; previewUrl: string; errorCode: string; message: string }>({
     open: false,
@@ -68,11 +62,6 @@ export default function GalleryManagementPage() {
     errorCode: '',
     message: '',
   });
-  const [pendingUpload, setPendingUpload] = useState<{ file: File; dataUrl: string; previewUrl: string; replacePhotoId: number | null; isMainReplace: boolean } | null>(null);
-  const [introModalOpen, setIntroModalOpen] = useState(false);
-  const [scannerModalOpen, setScannerModalOpen] = useState(false);
-  const [selfieVerifying, setSelfieVerifying] = useState(false);
-  const [selfieStatusText, setSelfieStatusText] = useState('');
 
   // ⚡ 0ms INSTANT HYDRATION FROM LOCAL CACHE
   useEffect(() => {
@@ -90,9 +79,6 @@ export default function GalleryManagementPage() {
             setPhotos([{ photoId: 1, photoUrl: p.mainPhotoUrl || p.photoUrl, isMain: true }]);
             setLoading(false);
           }
-          const uid = p.userId || p.UserId || 0;
-          const savedSelfie = p.verifiedSelfieUrl || p.VerifiedSelfieUrl || (uid ? localStorage.getItem(`verified_selfie_url_${uid}`) : '') || '';
-          if (savedSelfie) setVerifiedSelfieUrl(savedSelfie);
         } catch (e) {}
       }
     }
@@ -300,108 +286,12 @@ export default function GalleryManagementPage() {
         } catch (_) {}
       }
 
-      // If user has NOT completed 1-time Live Selfie Verification yet, require it now!
-      if (!verifiedSelfieUrl) {
-        setUploading(false);
-        setSelectedPhoto(null);
-        setPendingUpload({
-          file,
-          dataUrl,
-          previewUrl,
-          replacePhotoId: isReplacing ? oldPhotoId : null,
-          isMainReplace,
-        });
-        setIntroModalOpen(true);
-        return;
-      }
-
-      // Otherwise user already has a verified selfie and the new photo matched it — upload immediately!
+      // Valid solo face confirmed! Upload immediately.
       await executeGalleryUpload(file, isReplacing ? oldPhotoId : null, isMainReplace);
     } catch (err) {
       toast.dismiss("face-scan");
       setUploading(false);
       toast.error("Unable to verify photo. Please try again.");
-    }
-  };
-
-  // Handle 1-Time Live Oval Selfie Capture in Gallery
-  const handleCaptureAndVerifySelfie = async (selfieDataUrl: string) => {
-    if (!pendingUpload) return;
-    const userId = getCurrentUserId();
-    const token = getToken();
-
-    setSelfieVerifying(true);
-    setSelfieStatusText("Scanning live selfie with AI...");
-
-    try {
-      // Step A: Client AI Face scan on live selfie
-      const selfieScan = await clientValidateSingleFace(selfieDataUrl);
-      if (!selfieScan.isValid || !selfieScan.descriptor) {
-        setSelfieVerifying(false);
-        setScannerModalOpen(false);
-        setRejectedModal({
-          open: true,
-          previewUrl: selfieDataUrl,
-          errorCode: selfieScan.errorCode || 'NO_FACE',
-          message: `Live selfie check: ${selfieScan.message}`,
-        });
-        return;
-      }
-
-      // Step B: Compare selfie with pending photo
-      setSelfieStatusText("Matching live selfie with your uploaded photo...");
-      const pendingScan = await clientValidateSingleFace(pendingUpload.dataUrl);
-      if (pendingScan.descriptor) {
-        const cmp = compareFaceDescriptors(selfieScan.descriptor, pendingScan.descriptor, 0.58);
-        if (!cmp.isMatch) {
-          setSelfieVerifying(false);
-          setScannerModalOpen(false);
-          setRejectedModal({
-            open: true,
-            previewUrl: selfieDataUrl,
-            errorCode: 'SELFIE_MISMATCH',
-            message: 'Face verification failed! Your live selfie did not match your uploaded photo. Please ensure both show only yourself.',
-          });
-          return;
-        }
-      }
-
-      // Step C: Upload selfie to R2 `user-selfies`
-      setSelfieStatusText("Biometrics verified! Uploading secure selfie...");
-      const uploadRes = await fetch('/api/face-verification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'upload-selfie-r2',
-          userId,
-          selfieBase64: selfieDataUrl,
-        }),
-      });
-      const uploadData = await uploadRes.json();
-
-      const r2SelfieUrl = uploadData.selfieUrl || '';
-      const r2SelfieKey = uploadData.selfieRelativeKey || '';
-      setVerifiedSelfieUrl(r2SelfieUrl);
-      if (typeof window !== "undefined" && userId > 0) {
-        localStorage.setItem(`verified_selfie_url_${userId}`, r2SelfieUrl);
-      }
-
-      if (token && (r2SelfieKey || r2SelfieUrl)) {
-        await verifySelfieFaceMatchApi(`R2_VERIFIED:${r2SelfieKey || r2SelfieUrl}`, token);
-      }
-
-      setSelfieVerifying(false);
-      setScannerModalOpen(false);
-      toast.success("Identity verified! Uploading your photo...");
-
-      await executeGalleryUpload(
-        pendingUpload.file,
-        pendingUpload.replacePhotoId,
-        pendingUpload.isMainReplace
-      );
-    } catch (err: any) {
-      setSelfieVerifying(false);
-      toast.error(err?.message || "Verification failed. Please try again.");
     }
   };
 
@@ -522,12 +412,6 @@ export default function GalleryManagementPage() {
                 <Sparkles size={12} />
                 <span>AI Biometric Face Lock</span>
               </div>
-              {verifiedSelfieUrl && (
-                <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-black uppercase tracking-wider">
-                  <CheckCircle2 size={11} />
-                  <span>Selfie Verified</span>
-                </div>
-              )}
             </div>
             <h2 className="text-lg sm:text-xl font-serif font-black text-slate-900">
               Manage Profile Photos
@@ -716,7 +600,7 @@ export default function GalleryManagementPage() {
         )}
       </AnimatePresence>
 
-      {/* 🌟 AI FACE & SELFIE VERIFICATION MODALS */}
+      {/* 🌟 AI PHOTO GUIDELINES & REJECTION MODALS */}
       <PhotoGuidelinesModal
         open={guidelinesOpen}
         onClose={() => setGuidelinesOpen(false)}
@@ -729,27 +613,6 @@ export default function GalleryManagementPage() {
         message={rejectedModal.message}
         onClose={() => setRejectedModal((p) => ({ ...p, open: false }))}
         onChangePhoto={() => setRejectedModal((p) => ({ ...p, open: false }))}
-      />
-
-      <VerifyIdentityIntroModal
-        open={introModalOpen}
-        mainPhotoUrl={pendingUpload?.previewUrl || ''}
-        onStartVerification={() => {
-          setIntroModalOpen(false);
-          setScannerModalOpen(true);
-        }}
-        onChangePhoto={() => {
-          setIntroModalOpen(false);
-          setPendingUpload(null);
-        }}
-      />
-
-      <LiveOvalSelfieScannerModal
-        open={scannerModalOpen}
-        verifying={selfieVerifying}
-        statusText={selfieStatusText}
-        onCaptureSelfie={handleCaptureAndVerifySelfie}
-        onClose={() => setScannerModalOpen(false)}
       />
 
     </div>

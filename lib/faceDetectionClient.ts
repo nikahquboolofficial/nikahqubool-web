@@ -190,7 +190,7 @@ export async function clientValidateSingleFace(
         isValid: false,
         errorCode: "NO_FACE",
         message:
-          "We were unable to detect a human face in your photo. Please upload a clear solo photo that clearly shows your face.",
+          "No human face detected! Screenshots, scenery, animals, fruits, objects, or blurred images are strictly not allowed. Please upload a clear solo photo of yourself.",
       };
     }
 

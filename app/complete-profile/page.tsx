@@ -5,18 +5,16 @@ import { useRouter } from 'next/navigation';
 import { 
   Sparkles, ChevronRight, Loader2, ArrowLeft, Check, Search, 
   Camera, Lock, CheckCircle2, Calendar, Shield, ChevronDown,
-  User, Mail, Users, Plus, Info, X, ScanFace
+  User, Mail, Users, Plus, Info, X, MapPin
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
-import { fetchMasterDataApi, fetchCitiesApi, updateProfileApi, uploadGalleryPhotoApi, verifySelfieFaceMatchApi, fetchProfileDetailsApi, checkEmailAvailabilityApi, MasterOption } from '@/lib/api';
+import { fetchMasterDataApi, fetchCitiesApi, updateProfileApi, uploadGalleryPhotoApi, fetchProfileDetailsApi, checkEmailAvailabilityApi, MasterOption } from '@/lib/api';
 import { getAuthToken, syncUserProfilePhoto } from '@/lib/auth';
 import {
   fileToDataUrl,
   PhotoGuidelinesModal,
   PhotoRejectedModal,
-  VerifyIdentityIntroModal,
-  LiveOvalSelfieScannerModal,
 } from '@/components/profile/PhotoVerificationModals';
 import {
   clientValidateSingleFace,
@@ -48,212 +46,220 @@ const FALLBACK_MASTERS: { [key: string]: MasterOption[] } = {
   SECTS: [
     { id: 1, value: "Sunni" },
     { id: 2, value: "Shia" },
-    { id: 3, value: "Other" }
+    { id: 3, value: "Ahl-e-Hadith" },
+    { id: 4, value: "Other" }
   ],
   MASLAKS: [
     { id: 1, value: "Deobandi" },
     { id: 2, value: "Barelvi" },
-    { id: 3, value: "Ahle Hadith" },
-    { id: 4, value: "Salafi" },
-    { id: 5, value: "Jamaat-e-Islami" },
-    { id: 6, value: "Other" }
+    { id: 3, value: "Salafi / Ahle Hadith" },
+    { id: 4, value: "Jamaat-e-Islami" },
+    { id: 5, value: "Just Muslim / Non-sectarian" },
+    { id: 6, value: "Tablighi Jamaat" },
+    { id: 7, value: "Other" }
   ],
   CASTES: [
-    { id: 1, value: "Ansari / Momin" },
-    { id: 2, value: "Shaikh / Sheikh" },
+    { id: 1, value: "Ansari" },
+    { id: 2, value: "Qureshi" },
     { id: 3, value: "Syed" },
-    { id: 4, value: "Pathan / Khan" },
-    { id: 5, value: "Qureshi / Baig" },
-    { id: 6, value: "Rayeen / Kunjra" },
+    { id: 4, value: "Shaikh" },
+    { id: 5, value: "Khan / Pathan" },
+    { id: 6, value: "Siddiqui" },
     { id: 7, value: "Malik" },
-    { id: 8, value: "Siddiqui" },
-    { id: 9, value: "Farooqui" },
-    { id: 10, value: "Chaudhary" },
-    { id: 11, value: "Mughal" },
-    { id: 12, value: "Mansoori / Dhunia" },
-    { id: 13, value: "Idrisi / Darzi" },
-    { id: 14, value: "Saifi / Lohar" },
-    { id: 15, value: "Other" }
+    { id: 8, value: "Choudhary" },
+    { id: 9, value: "Mansoori" },
+    { id: 10, value: "Saifi" },
+    { id: 11, value: "Abbasi" },
+    { id: 12, value: "Farooqui" },
+    { id: 13, value: "Usmani" },
+    { id: 14, value: "Alvi" },
+    { id: 15, value: "Memon" },
+    { id: 16, value: "Bohra" },
+    { id: 17, value: "Khoja" },
+    { id: 18, value: "Rayeen" },
+    { id: 19, value: "Idrisi" },
+    { id: 20, value: "Shah" },
+    { id: 21, value: "Mirza / Mughal" },
+    { id: 22, value: "Other" }
   ],
-  MOTHER_TONGUES: [
-    { id: 1, value: "Urdu" },
-    { id: 2, value: "Hindi" },
-    { id: 3, value: "English" },
-    { id: 4, value: "Bengali" },
-    { id: 5, value: "Punjabi" },
-    { id: 6, value: "Gujarati" },
-    { id: 7, value: "Marathi" },
-    { id: 8, value: "Tamil" },
-    { id: 9, value: "Telugu" },
-    { id: 10, value: "Malayalam" }
+  STATES: [
+    { id: 1, value: "Andhra Pradesh" },
+    { id: 2, value: "Bihar" },
+    { id: 3, value: "Delhi" },
+    { id: 4, value: "Gujarat" },
+    { id: 5, value: "Haryana" },
+    { id: 6, value: "Karnataka" },
+    { id: 7, value: "Kerala" },
+    { id: 8, value: "Madhya Pradesh" },
+    { id: 9, value: "Maharashtra" },
+    { id: 10, value: "Punjab" },
+    { id: 11, value: "Rajasthan" },
+    { id: 12, value: "Tamil Nadu" },
+    { id: 13, value: "Telangana" },
+    { id: 14, value: "Uttar Pradesh" },
+    { id: 15, value: "West Bengal" }
   ],
   EDUCATIONS: [
-    { id: 1, value: "B.Tech / B.E." },
-    { id: 2, value: "B.Sc" },
-    { id: 3, value: "B.Com" },
-    { id: 4, value: "B.A." },
-    { id: 5, value: "BCA" },
-    { id: 6, value: "M.Tech / M.E." },
-    { id: 7, value: "M.Sc" },
-    { id: 8, value: "M.Com" },
-    { id: 9, value: "M.A." },
-    { id: 10, value: "MCA" },
-    { id: 11, value: "MBA" },
-    { id: 12, value: "MBBS / MD" },
-    { id: 13, value: "BDS" },
-    { id: 14, value: "LL.B / LL.M" },
-    { id: 15, value: "High School / Diploma" }
+    { id: 1, value: "High School" },
+    { id: 2, value: "Intermediate / 12th" },
+    { id: 3, value: "Diploma" },
+    { id: 4, value: "Bachelor of Arts (B.A.)" },
+    { id: 5, value: "Bachelor of Commerce (B.Com)" },
+    { id: 6, value: "Bachelor of Science (B.Sc)" },
+    { id: 7, value: "B.Tech / B.E." },
+    { id: 8, value: "BBA / BBM" },
+    { id: 9, value: "BCA" },
+    { id: 10, value: "MBBS / BDS / Medical" },
+    { id: 11, value: "LLB / Law" },
+    { id: 12, value: "Master of Arts (M.A.)" },
+    { id: 13, value: "Master of Commerce (M.Com)" },
+    { id: 14, value: "Master of Science (M.Sc)" },
+    { id: 15, value: "M.Tech / M.E." },
+    { id: 16, value: "MBA / PGDM" },
+    { id: 17, value: "MCA" },
+    { id: 18, value: "MD / MS / Super Specialty" },
+    { id: 19, value: "LLM" },
+    { id: 20, value: "CA / CS / ICWA" },
+    { id: 21, value: "Ph.D / Doctorate" },
+    { id: 22, value: "Islamic Education (Aalim / Mufti / Hafiz)" },
+    { id: 23, value: "Other" }
   ],
   EMPLOYMENT_SECTORS: [
     { id: 1, value: "Private Sector" },
     { id: 2, value: "Government / Public Sector" },
     { id: 3, value: "Business / Self Employed" },
-    { id: 4, value: "Defense / Civil Services" },
-    { id: 5, value: "Not Working" }
+    { id: 4, value: "Civil Services (IAS / IPS / State PSC)" },
+    { id: 5, value: "Defense / Police" },
+    { id: 6, value: "Not Working / Homemaker" }
   ],
   OCCUPATIONS: [
     { id: 1, value: "Software Engineer / IT Professional" },
-    { id: 2, value: "Doctor / Healthcare Professional" },
-    { id: 3, value: "Teacher / Professor" },
-    { id: 4, value: "Chartered Accountant / Finance" },
-    { id: 5, value: "Businessperson / Entrepreneur" },
-    { id: 6, value: "Civil / Mechanical Engineer" },
-    { id: 7, value: "Government Employee" },
-    { id: 8, value: "Designer / Creative Professional" },
-    { id: 9, value: "Homemaker" },
-    { id: 10, value: "Other Professional" }
-  ],
-  STATES: [
-    { id: 1, value: "Delhi" },
-    { id: 2, value: "Uttar Pradesh" },
-    { id: 3, value: "Maharashtra" },
-    { id: 4, value: "Karnataka" },
-    { id: 5, value: "Telangana" },
-    { id: 6, value: "Bihar" },
-    { id: 7, value: "West Bengal" },
-    { id: 8, value: "Madhya Pradesh" },
-    { id: 9, value: "Rajasthan" },
-    { id: 10, value: "Gujarat" },
-    { id: 11, value: "Haryana" },
-    { id: 12, value: "Punjab" }
-  ],
-  FAMILY_TYPES: [
-    { id: 1, value: "Nuclear Family" },
-    { id: 2, value: "Joint Family" },
-    { id: 3, value: "Extended Family" }
-  ],
-  FAMILY_STATUS: [
-    { id: 1, value: "Middle Class" },
-    { id: 2, value: "Upper Middle Class" },
-    { id: 3, value: "High Class / Affluent" }
-  ],
-  COMPLEXIONS: [
-    { id: 1, value: "Very Fair" },
-    { id: 2, value: "Fair" },
-    { id: 3, value: "Wheatish" },
-    { id: 4, value: "Dark" }
+    { id: 2, value: "Doctor / Surgeon / Healthcare" },
+    { id: 3, value: "Chartered Accountant / Finance" },
+    { id: 4, value: "Business Owner / Entrepreneur" },
+    { id: 5, value: "Government Officer / Employee" },
+    { id: 6, value: "Teacher / Professor / Academic" },
+    { id: 7, value: "Lawyer / Legal Professional" },
+    { id: 8, value: "Architect / Interior Designer" },
+    { id: 9, value: "Mechanical / Civil Engineer" },
+    { id: 10, value: "Banking / Insurance Professional" },
+    { id: 11, value: "Marketing / Sales Executive" },
+    { id: 12, value: "HR Professional" },
+    { id: 13, value: "Graphic / UI-UX Designer" },
+    { id: 14, value: "Islamic Scholar / Teacher" },
+    { id: 15, value: "Consultant" },
+    { id: 16, value: "Pharmacist" },
+    { id: 17, value: "Research Scientist" },
+    { id: 18, value: "Student" },
+    { id: 19, value: "Homemaker" },
+    { id: 20, value: "Other" }
   ],
   INCOME_RANGES: [
-    { id: 1, value: "Below ₹2 Lakh" },
-    { id: 2, value: "₹2 - 4 Lakhs" },
-    { id: 3, value: "₹5 - 7 Lakhs" },
-    { id: 4, value: "₹8 - 10 Lakhs" },
-    { id: 5, value: "₹10 - 15 Lakhs" },
-    { id: 6, value: "₹15 - 25 Lakhs" },
-    { id: 7, value: "₹25 Lakhs+" }
+    { id: 1, value: "No Income / Dependent" },
+    { id: 2, value: "Below ₹2 Lakhs" },
+    { id: 3, value: "₹2 - 3 Lakhs" },
+    { id: 4, value: "₹3 - 5 Lakhs" },
+    { id: 5, value: "₹5 - 7 Lakhs" },
+    { id: 6, value: "₹7 - 10 Lakhs" },
+    { id: 7, value: "₹10 - 15 Lakhs" },
+    { id: 8, value: "₹15 - 20 Lakhs" },
+    { id: 9, value: "₹20 - 30 Lakhs" },
+    { id: 10, value: "₹30 - 50 Lakhs" },
+    { id: 11, value: "₹50 Lakhs - 1 Crore" },
+    { id: 12, value: "Above ₹1 Crore" }
   ]
 };
 
-const HEIGHT_OPTIONS: string[] = [
-  "4'8\"", "4'9\"", "4'10\"", "4'11\"", "5'0\"", "5'1\"", "5'2\"", "5'3\"", "5'4\"", 
-  "5'5\"", "5'6\"", "5'7\"", "5'8\"", "5'9\"", "5'10\"", "5'11\"", "6'0\"", "6'1\"", "6'2\"", "6'3\"", "6'4\""
+const HEIGHT_OPTIONS = [
+  "4'5\" (135 cm)", "4'6\" (137 cm)", "4'7\" (140 cm)", "4'8\" (142 cm)", "4'9\" (145 cm)",
+  "4'10\" (147 cm)", "4'11\" (150 cm)", "5'0\" (152 cm)", "5'1\" (155 cm)", "5'2\" (157 cm)",
+  "5'3\" (160 cm)", "5'4\" (163 cm)", "5'5\" (165 cm)", "5'6\" (168 cm)", "5'7\" (170 cm)",
+  "5'8\" (173 cm)", "5'9\" (175 cm)", "5'10\" (178 cm)", "5'11\" (180 cm)", "6'0\" (183 cm)",
+  "6'1\" (185 cm)", "6'2\" (188 cm)", "6'3\" (191 cm)", "6'4\" (193 cm)", "6'5\" (196 cm)"
 ];
 
-const WEIGHT_OPTIONS: string[] = [
-  "45 kg", "50 kg", "55 kg", "60 kg", "65 kg", "70 kg", "75 kg", "80 kg", "85 kg", "90+ kg"
+const MONTHS = [
+  { id: '01', name: 'Jan' },
+  { id: '02', name: 'Feb' },
+  { id: '03', name: 'Mar' },
+  { id: '04', name: 'Apr' },
+  { id: '05', name: 'May' },
+  { id: '06', name: 'Jun' },
+  { id: '07', name: 'Jul' },
+  { id: '08', name: 'Aug' },
+  { id: '09', name: 'Sep' },
+  { id: '10', name: 'Oct' },
+  { id: '11', name: 'Nov' },
+  { id: '12', name: 'Dec' },
 ];
 
-const PRIVACY_OPTIONS = [
-  { 
-    id: "All Members", 
-    title: "All Members (Public)", 
-    desc: "Visible to all genuine verified members for 3x faster proposals", 
-    icon: "🌐" 
-  },
-  { 
-    id: "Only Approved", 
-    title: "Only Approved Members", 
-    desc: "Photo is protected; visible only after you accept their photo request", 
-    icon: "🔒" 
-  },
-  { 
-    id: "Premium Only", 
-    title: "Premium Members Only", 
-    desc: "Visible only to verified VIP / Paid subscribers", 
-    icon: "👑" 
-  }
-];
+const YEARS = Array.from({ length: 45 }, (_, i) => String(2006 - i));
 
-// ⚡ LIGHTNING-FAST CLIENT-SIDE IMAGE COMPRESSOR (<50ms, reduces 5MB to ~150KB)
+// Client-side image compression
 const compressPhoto = async (file: File): Promise<File> => {
   return new Promise((resolve) => {
-    if (!file || !file.type.startsWith('image/')) {
-      resolve(file);
-      return;
-    }
     const reader = new FileReader();
+    reader.readAsDataURL(file);
     reader.onload = (event) => {
-      const img = new window.Image();
+      const img = new Image();
+      img.src = event.target?.result as string;
       img.onload = () => {
-        const canvas = document.createElement('canvas');
+        const canvas = document.createElement("canvas");
+        const MAX_WIDTH = 1200;
+        const MAX_HEIGHT = 1200;
         let width = img.width;
         let height = img.height;
-        const maxDim = 1200;
-        if (width > maxDim || height > maxDim) {
-          if (width > height) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width = Math.round((width * MAX_HEIGHT) / height);
+            height = MAX_HEIGHT;
           }
         }
+
         canvas.width = width;
         canvas.height = height;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext("2d");
         ctx?.drawImage(img, 0, 0, width, height);
+
         canvas.toBlob(
           (blob) => {
             if (blob) {
-              const compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
-                type: 'image/jpeg',
-                lastModified: Date.now()
+              const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
+                type: "image/jpeg",
+                lastModified: Date.now(),
               });
               resolve(compressedFile);
             } else {
               resolve(file);
             }
           },
-          'image/jpeg',
+          "image/jpeg",
           0.85
         );
       };
       img.onerror = () => resolve(file);
-      img.src = event.target?.result as string;
     };
     reader.onerror = () => resolve(file);
-    reader.readAsDataURL(file);
   });
 };
 
 export default function CompleteProfilePage() {
   const router = useRouter();
 
-  // 🔒 DOUBLE GUARD: Completed Profile users can NEVER access complete-profile page
+  // Guard against already completed profiles
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const isDoneCookie = document.cookie.includes('is_profile_completed=1');
+      const isDoneCookie = document.cookie
+        .split('; ')
+        .some(row => row.startsWith('is_profile_completed=1'));
       const isDoneLocal = localStorage.getItem('is_profile_completed') === '1';
+      
       let isDoneStored = false;
       try {
         const stored = localStorage.getItem('user_details') || localStorage.getItem('user_session');
@@ -270,14 +276,18 @@ export default function CompleteProfilePage() {
     }
   }, [router]);
 
-  // Slide state: 1 to 17 (1 field per slide, except State & City together)
+  // Wizard state: 1 to 14 (1 field per slide!)
   const [step, setStep] = useState<number>(1);
-  const totalSteps = 13;
+  const totalSteps = 14;
   const [slideDirection, setSlideDirection] = useState<'forward' | 'backward'>('forward');
   const [loading, setLoading] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [privacySheetOpen, setPrivacySheetOpen] = useState(false);
+
+  // Transition & Debounce Locks (Prevents skipping slides on rapid clicks)
+  const isAdvancingRef = useRef(false);
+  const autoAdvanceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const [masterData, setMasterData] = useState<{ [key: string]: MasterOption[] }>(FALLBACK_MASTERS);
   const [cities, setCities] = useState<MasterOption[]>([]);
@@ -293,11 +303,11 @@ export default function CompleteProfilePage() {
     maritalStatusId: 0,
     maritalStatusText: '',
     dob: '',
-    height: "5'5\"",
+    height: "5'5\" (165 cm)",
     weight: '60 kg',
     complexionId: 0,
     complexionText: '',
-    religionId: 1, // Default Islam (no user selection needed)
+    religionId: 1,
     religionText: 'Islam',
     sectId: 0,
     sectText: '',
@@ -336,10 +346,24 @@ export default function CompleteProfilePage() {
     photoPrivacy: 'All Members'
   });
 
-  // Modern DOB Picker Sub-states
+  // Modern DOB Picker Sub-states (Matching Mobile App UX)
   const [dobDay, setDobDay] = useState<string>('15');
   const [dobMonth, setDobMonth] = useState<string>('06');
   const [dobYear, setDobYear] = useState<string>('1998');
+
+  // Days count dynamically based on selected Month & Year
+  const daysInMonth = React.useMemo(() => {
+    const yr = Number(dobYear) || 1998;
+    const mo = Number(dobMonth) || 6;
+    return new Date(yr, mo, 0).getDate();
+  }, [dobYear, dobMonth]);
+
+  // Adjust day if selected day exceeds month's total days
+  useEffect(() => {
+    if (Number(dobDay) > daysInMonth) {
+      setDobDay(String(daysInMonth).padStart(2, '0'));
+    }
+  }, [daysInMonth, dobDay]);
 
   // Compute live Age from selected DOB
   const calculatedAge = React.useMemo(() => {
@@ -354,7 +378,6 @@ export default function CompleteProfilePage() {
     return age > 0 ? age : null;
   }, [dobDay, dobMonth, dobYear]);
 
-  
   // Email check & validation state
   const [emailChecking, setEmailChecking] = useState(false);
   const [emailStatus, setEmailStatus] = useState<{ available: boolean | null; message: string }>({ available: null, message: '' });
@@ -391,36 +414,193 @@ export default function CompleteProfilePage() {
     }
   }, [dobYear, dobMonth, dobDay]);
 
+  // 🛡️ STRICT VALIDATION PER STEP: Every field is strictly mandatory!
+  const validateCurrentStep = (s: number): { valid: boolean; error?: string } => {
+    switch (s) {
+      case 1:
+        if (!formData.fullName.trim() || formData.fullName.trim().length < 2) {
+          return { valid: false, error: 'Please enter your Full Name.' };
+        }
+        if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+          return { valid: false, error: 'Please enter a valid Email address.' };
+        }
+        if (emailStatus.available === false) {
+          return { valid: false, error: emailStatus.message || 'This email is already in use.' };
+        }
+        if (!formData.gender) {
+          return { valid: false, error: 'Please select your Gender.' };
+        }
+        return { valid: true };
+
+      case 2:
+        if (!formData.maritalStatusId) {
+          return { valid: false, error: 'Please select your Marital Status.' };
+        }
+        return { valid: true };
+
+      case 3:
+        if (!dobYear || !dobMonth || !dobDay) {
+          return { valid: false, error: 'Please select your Date of Birth.' };
+        }
+        if (calculatedAge === null || calculatedAge < 18) {
+          return { valid: false, error: 'You must be at least 18 years old to create a profile.' };
+        }
+        return { valid: true };
+
+      case 4:
+        if (!formData.height) {
+          return { valid: false, error: 'Please select your Height.' };
+        }
+        return { valid: true };
+
+      case 5:
+        if (!formData.sectId) {
+          return { valid: false, error: 'Please select your Sect.' };
+        }
+        return { valid: true };
+
+      case 6:
+        if (!formData.maslakId) {
+          return { valid: false, error: 'Please select your Maslak.' };
+        }
+        return { valid: true };
+
+      case 7:
+        if (!formData.casteId) {
+          return { valid: false, error: 'Please select your Caste / Biradari.' };
+        }
+        return { valid: true };
+
+      case 8:
+        if (!formData.stateId) {
+          return { valid: false, error: 'Please select your State.' };
+        }
+        return { valid: true };
+
+      case 9:
+        if (!formData.cityId) {
+          return { valid: false, error: 'Please select your City.' };
+        }
+        return { valid: true };
+
+      case 10:
+        if (!formData.educationId) {
+          return { valid: false, error: 'Please select your Highest Qualification.' };
+        }
+        return { valid: true };
+
+      case 11:
+        if (!formData.employmentSectorId) {
+          return { valid: false, error: 'Please select your Employment Sector.' };
+        }
+        return { valid: true };
+
+      case 12:
+        if (!formData.occupationId) {
+          return { valid: false, error: 'Please select your Occupation.' };
+        }
+        return { valid: true };
+
+      case 13:
+        if (!formData.income) {
+          return { valid: false, error: 'Please select your Annual Income.' };
+        }
+        return { valid: true };
+
+      case 14:
+        if (!photoSlots[0]) {
+          return { valid: false, error: 'Please upload at least your Main profile photo.' };
+        }
+        return { valid: true };
+
+      default:
+        return { valid: true };
+    }
+  };
+
+  // 🚀 NEXT STEP (Guarded against rapid clicking & skips)
   const nextStep = () => {
+    const check = validateCurrentStep(step);
+    if (!check.valid) {
+      if (check.error) toast.error(check.error);
+      return;
+    }
+
+    if (isAdvancingRef.current) return;
+    isAdvancingRef.current = true;
+
     setSlideDirection('forward');
     setSearchQuery('');
     setStep(prev => Math.min(totalSteps, prev + 1));
+
+    setTimeout(() => {
+      isAdvancingRef.current = false;
+    }, 350);
   };
 
+  // ⬅️ PREV STEP
   const prevStep = () => {
+    if (isAdvancingRef.current) return;
+    if (autoAdvanceTimerRef.current) {
+      clearTimeout(autoAdvanceTimerRef.current);
+      autoAdvanceTimerRef.current = null;
+    }
+    isAdvancingRef.current = true;
+
     setSlideDirection('backward');
     setSearchQuery('');
     setStep(prev => Math.max(1, prev - 1));
+
+    setTimeout(() => {
+      isAdvancingRef.current = false;
+    }, 350);
   };
 
-  // 🚀 INSTANT AUTO-ADVANCE: Selects, sets state, and moves smoothly to next slide
+  // 🚀 INSTANT AUTO-ADVANCE: Exactly 1 step, locked against multiple clicks!
   const handleAutoAdvance = (fieldIdName: string, id: number | string, fieldTextName: string, text: string) => {
+    if (isAdvancingRef.current) return;
+
+    if (autoAdvanceTimerRef.current) {
+      clearTimeout(autoAdvanceTimerRef.current);
+      autoAdvanceTimerRef.current = null;
+    }
+
     setFormData(prev => ({
       ...prev,
       [fieldIdName]: Number(id),
       [fieldTextName]: text
     }));
 
-    // Quick 180ms visual feedback then advance
-    setTimeout(() => {
-      nextStep();
+    isAdvancingRef.current = true;
+
+    autoAdvanceTimerRef.current = setTimeout(() => {
+      setSlideDirection('forward');
+      setSearchQuery('');
+      setStep(prev => Math.min(totalSteps, prev + 1));
+      setTimeout(() => {
+        isAdvancingRef.current = false;
+      }, 350);
     }, 180);
   };
 
   const handleSimpleAdvance = (fieldName: string, val: any) => {
+    if (isAdvancingRef.current) return;
+
+    if (autoAdvanceTimerRef.current) {
+      clearTimeout(autoAdvanceTimerRef.current);
+      autoAdvanceTimerRef.current = null;
+    }
+
     setFormData(prev => ({ ...prev, [fieldName]: val }));
-    setTimeout(() => {
-      nextStep();
+    isAdvancingRef.current = true;
+
+    autoAdvanceTimerRef.current = setTimeout(() => {
+      setSlideDirection('forward');
+      setSearchQuery('');
+      setStep(prev => Math.min(totalSteps, prev + 1));
+      setTimeout(() => {
+        isAdvancingRef.current = false;
+      }, 350);
     }, 180);
   };
 
@@ -432,7 +612,6 @@ export default function CompleteProfilePage() {
       return;
     }
 
-    
     // Prepopulate name, email, gender from stored user session
     try {
       const sessionRaw = localStorage.getItem('user_session') || localStorage.getItem('user_details');
@@ -452,32 +631,28 @@ export default function CompleteProfilePage() {
       }
     } catch (e) {}
 
-    const loadAllMasters = async () => {
-      const types = ['MARITAL_STATUS', 'SECTS', 'MASLAKS', 'CASTES', 'MOTHER_TONGUES', 'EDUCATIONS', 'EMPLOYMENT_SECTORS', 'OCCUPATIONS', 'STATES', 'FAMILY_TYPES', 'FAMILY_STATUS', 'Complexion'];
-      try {
-        const results = await Promise.all(
-          types.map(async (t) => {
-            const data = await fetchMasterDataApi(t);
-            const masterKey = t === 'Complexion' ? 'COMPLEXIONS' : t;
-            return { 
-              key: masterKey, 
-              data: (data && data.length > 0) ? data : (FALLBACK_MASTERS[masterKey] || []) 
-            };
-          })
-        );
-        const masterObj: { [key: string]: MasterOption[] } = {};
-        results.forEach(item => { masterObj[item.key] = item.data; });
-        setMasterData(prev => ({ ...FALLBACK_MASTERS, ...prev, ...masterObj }));
-      } catch (err) {
-        console.error("Master data load error", err);
-      }
-    };
-    loadAllMasters();
+    // Load master options
+    const masterTypes = [
+      'MARITAL_STATUS', 'RELIGIONS', 'SECTS', 'MASLAKS', 'CASTES',
+      'STATES', 'EDUCATIONS', 'EMPLOYMENT_SECTORS', 'OCCUPATIONS', 'INCOME_RANGES'
+    ];
+
+    Promise.all(masterTypes.map(t => fetchMasterDataApi(t).then(res => ({ type: t, data: res }))))
+      .then(results => {
+        const newMasters: { [key: string]: MasterOption[] } = {};
+        results.forEach(r => {
+          if (r.data && r.data.length > 0) {
+            newMasters[r.type] = r.data;
+          }
+        });
+        setMasterData(prev => ({ ...prev, ...newMasters }));
+      })
+      .catch(() => {});
   }, [router]);
 
-  // Load cities when state changes
+  // Load cities whenever stateId changes
   useEffect(() => {
-    if (formData.stateId !== '' && formData.stateId !== null && formData.stateId !== undefined) {
+    if (formData.stateId !== '' && formData.stateId !== null && formData.stateId !== undefined && Number(formData.stateId) > 0) {
       setLoadingCities(true);
       fetchCitiesApi(formData.stateId)
         .then(res => {
@@ -493,7 +668,7 @@ export default function CompleteProfilePage() {
     }
   }, [formData.stateId]);
 
-  // Multi-Photo (Max 4) + Muzz-style AI Face & Selfie Verification State
+  // Multi-Photo (Max 4) State with Client AI Face Detection (NO SELFIE)
   const [photoSlots, setPhotoSlots] = useState<Array<{ file: File; previewUrl: string; dataUrl: string; descriptor?: number[] } | null>>([null, null, null, null]);
   const [activeSlotIndex, setActiveSlotIndex] = useState<number>(0);
   const [validatingSlotIndex, setValidatingSlotIndex] = useState<number | null>(null);
@@ -505,11 +680,6 @@ export default function CompleteProfilePage() {
     message: '',
     slotIndex: 0,
   });
-  const [introModalOpen, setIntroModalOpen] = useState(false);
-  const [scannerModalOpen, setScannerModalOpen] = useState(false);
-  const [selfieVerifying, setSelfieVerifying] = useState(false);
-  const [selfieStatusText, setSelfieStatusText] = useState('');
-  const [verifiedSelfieUrl, setVerifiedSelfieUrl] = useState<string>('');
 
   // Pre-load face-api models on component mount for instant scanning
   useEffect(() => {
@@ -547,7 +717,8 @@ export default function CompleteProfilePage() {
     });
   };
 
-  // Handle Photo Selection with instant Client-Side AI Face Landmark & Biometric Check
+  // Handle Photo Selection with instant Client-Side AI Face Check
+  // Blocks screenshots, scenery, animals, fruits, cars, group photos
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -566,7 +737,7 @@ export default function CompleteProfilePage() {
       const previewUrl = URL.createObjectURL(compressed);
       const dataUrl = await fileToDataUrl(compressed);
 
-      // 1. Run In-Browser Client AI Face Verification (0.1s - Zero Cloud Error)
+      // 1. Run Client-Side Face Verification (Zero Cloud Error)
       const faceResult = await clientValidateSingleFace(dataUrl);
 
       if (!faceResult.isValid) {
@@ -576,7 +747,7 @@ export default function CompleteProfilePage() {
           open: true,
           previewUrl,
           errorCode: faceResult.errorCode || 'NO_FACE',
-          message: faceResult.message || 'We were unable to detect a human face in your photo.',
+          message: faceResult.message || 'We were unable to detect a human face in your photo. Screenshots, animals, objects, and scenery photos are not allowed.',
           slotIndex: slotIdx,
         });
         return;
@@ -584,7 +755,7 @@ export default function CompleteProfilePage() {
 
       // 2. Cross-Photo Match: If Slot 0 (Main Photo) exists and user uploads Slot 1/2/3, compare faces!
       if (slotIdx > 0 && photoSlots[0]?.descriptor && faceResult.descriptor) {
-        const matchResult = compareFaceDescriptors(photoSlots[0].descriptor, faceResult.descriptor, 0.58);
+        const matchResult = compareFaceDescriptors(photoSlots[0].descriptor, faceResult.descriptor, 0.65);
         if (!matchResult.isMatch) {
           toast.dismiss('compress-toast');
           setValidatingSlotIndex(null);
@@ -617,7 +788,7 @@ export default function CompleteProfilePage() {
         return compacted;
       });
 
-      toast.success(slotIdx === 0 ? 'Main photo face verified!' : `Photo #${slotIdx + 1} verified & matched!`);
+      toast.success(slotIdx === 0 ? 'Main photo face verified!' : `Photo #${slotIdx + 1} verified!`);
     } catch (err) {
       toast.dismiss('compress-toast');
       setValidatingSlotIndex(null);
@@ -625,117 +796,16 @@ export default function CompleteProfilePage() {
     }
   };
 
-  // Handle Live Oval Selfie Capture & Client Biometric Match + Cloudflare R2 Upload
-  const handleCaptureAndVerifySelfie = async (selfieDataUrl: string) => {
-    const photosToVerify = photoSlots.filter((p): p is { file: File; previewUrl: string; dataUrl: string; descriptor?: number[] } => p !== null);
-    if (photosToVerify.length === 0) return;
-
-    let userData: any = null;
-    const session = typeof window !== 'undefined' ? localStorage.getItem('user_session') || localStorage.getItem('user_details') : null;
-    if (session) {
-      try { userData = JSON.parse(session); } catch {}
-    }
-    const currentUserId = Number(userData?.userId || userData?.UserId || 0);
-
-    setSelfieVerifying(true);
-    setSelfieStatusText('Scanning live selfie with AI...');
-
-    try {
-      // Step A: Validate live selfie has a clear solo human face
-      const selfieCheck = await clientValidateSingleFace(selfieDataUrl);
-      if (!selfieCheck.isValid || !selfieCheck.descriptor) {
-        setSelfieVerifying(false);
-        setScannerModalOpen(false);
-        setRejectedModal({
-          open: true,
-          previewUrl: selfieDataUrl,
-          errorCode: selfieCheck.errorCode || 'NO_FACE',
-          message: `Live selfie check: ${selfieCheck.message}`,
-          slotIndex: 0,
-        });
-        return;
-      }
-
-      // Step B: Compare selfie biometric descriptor with uploaded photos (at least 1 photo must match)
-      setSelfieStatusText('Matching selfie with your uploaded photos...');
-      let anyMatch = false;
-      let lastFailedIndex = 0;
-
-      for (let i = 0; i < photosToVerify.length; i++) {
-        let photoDesc = photosToVerify[i].descriptor;
-        if (!photoDesc) {
-          const scanP = await clientValidateSingleFace(photosToVerify[i].dataUrl);
-          photoDesc = scanP.descriptor;
-        }
-
-        if (photoDesc) {
-          const cmp = compareFaceDescriptors(selfieCheck.descriptor, photoDesc, 0.68);
-          if (cmp.isMatch) {
-            anyMatch = true;
-            break;
-          } else {
-            lastFailedIndex = i;
-          }
-        }
-      }
-
-      if (!anyMatch) {
-        setSelfieVerifying(false);
-        setScannerModalOpen(false);
-        const label = lastFailedIndex === 0 ? 'Main Photo' : `Photo #${lastFailedIndex + 1}`;
-        setRejectedModal({
-          open: true,
-          previewUrl: selfieDataUrl,
-          errorCode: 'SELFIE_MISMATCH',
-          message: `Face verification failed! Your live selfie did not match your ${label}. Please ensure your face is well-lit and clearly visible.`,
-          slotIndex: lastFailedIndex,
-        });
-        return;
-      }
-
-      // Step C: Upload verified selfie to Cloudflare R2 `user-selfies`
-      setSelfieStatusText('Biometrics verified! Uploading secure selfie...');
-      const uploadRes = await fetch('/api/face-verification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'upload-selfie-r2',
-          userId: currentUserId,
-          selfieBase64: selfieDataUrl,
-        }),
-      });
-      const uploadData = await uploadRes.json();
-
-      const r2SelfieUrl = uploadData.selfieUrl || '';
-      const r2SelfieKey = uploadData.selfieRelativeKey || '';
-      setVerifiedSelfieUrl(r2SelfieUrl);
-      if (typeof window !== 'undefined' && currentUserId > 0) {
-        localStorage.setItem(`verified_selfie_url_${currentUserId}`, r2SelfieUrl);
-      }
-
-      setSelfieStatusText('Identity verified! Saving your profile...');
-      setScannerModalOpen(false);
-      setSelfieVerifying(false);
-      toast.success('Identity verified! Saving your profile...');
-
-      await executeFinalProfileSave(r2SelfieKey, r2SelfieUrl);
-    } catch (err: any) {
-      setSelfieVerifying(false);
-      toast.error(err?.message || 'Verification failed. Please try again.');
-    }
-  };
-
-  // Final Profile Submit (Triggers Muzz-style Selfie Verification first if photos are uploaded & not yet verified)
+  // Final Profile Submit (Direct Save - NO SELFIE VERIFICATION)
   const handleFinalSubmit = async () => {
-    const selectedPhotos = photoSlots.filter((p): p is { file: File; previewUrl: string; dataUrl: string } => p !== null);
-    if (selectedPhotos.length > 0 && !verifiedSelfieUrl) {
-      setIntroModalOpen(true);
+    if (!photoSlots[0]) {
+      toast.error("Please upload at least your Main profile photo to complete your profile.");
       return;
     }
-    await executeFinalProfileSave('', verifiedSelfieUrl);
+    await executeFinalProfileSave();
   };
 
-  const executeFinalProfileSave = async (selfieR2Key = '', selfieCdnUrl = '') => {
+  const executeFinalProfileSave = async () => {
     const token = getAuthToken();
     if (!token) {
       toast.error("Session expired. Please login again.");
@@ -792,12 +862,12 @@ export default function CompleteProfilePage() {
 
     const selectedPhotos = photoSlots.filter((p): p is { file: File; previewUrl: string; dataUrl: string } => p !== null);
     if (selectedPhotos.length > 0) {
-      setSubmitStatus("Uploading Main photo to Cloudflare R2...");
+      setSubmitStatus("Uploading Main photo...");
       fd.append("Photo", selectedPhotos[0].file);
     }
 
     try {
-      setSubmitStatus("Finalizing verification & saving...");
+      setSubmitStatus("Saving profile details...");
       const res = await updateProfileApi(fd, token);
 
       if (res.success) {
@@ -810,11 +880,6 @@ export default function CompleteProfilePage() {
           await uploadGalleryPhotoApi(gfd, token);
         }
 
-        // If selfie was verified, mark user verified on backend
-        const finalSelfieKey = selfieR2Key || selfieCdnUrl || verifiedSelfieUrl;
-        if (finalSelfieKey) {
-          await verifySelfieFaceMatchApi(`R2_VERIFIED:${finalSelfieKey}`, token);
-        }
         let updatedSessionData: any = session ? JSON.parse(session) : {};
         updatedSessionData.isProfileCompleted = true;
         if (finalFullName) { updatedSessionData.fullName = finalFullName; updatedSessionData.FullName = finalFullName; }
@@ -822,31 +887,21 @@ export default function CompleteProfilePage() {
         if (formData.gender) { updatedSessionData.gender = formData.gender; updatedSessionData.Gender = formData.gender; }
         if (formData.profileCreatedFor) { updatedSessionData.profileCreatedFor = formData.profileCreatedFor; }
 
-        // 1. Fetch fresh profile details from API to get the canonical Cloudflare URL
+        // Fetch fresh profile details from API to get the canonical URL
         try {
-          const freshDetails = await fetchProfileDetailsApi(userData?.userId || 0, token);
-          if (freshDetails.success && freshDetails.data) {
-            const p = freshDetails.data.profile || freshDetails.data.Profile || freshDetails.data;
-            const canonicalPhoto = p.mainPhotoUrl || p.photoUrl || p.PhotoUrl || p.mainPhoto || p.photo;
-            if (canonicalPhoto) {
-              updatedSessionData.mainPhotoUrl = canonicalPhoto;
-              updatedSessionData.photoUrl = canonicalPhoto;
-              updatedSessionData.PhotoUrl = canonicalPhoto;
-              updatedSessionData.photo = canonicalPhoto;
-              updatedSessionData.mainPhoto = canonicalPhoto;
-              syncUserProfilePhoto(canonicalPhoto);
-              if (typeof window !== "undefined") {
-                localStorage.setItem('cached_profile_details', JSON.stringify(p));
-              }
+          const freshProfile = await fetchProfileDetailsApi(token);
+          if (freshProfile?.data) {
+            const freshPhoto = freshProfile.data.photoUrl || freshProfile.data.PhotoUrl;
+            if (freshPhoto) {
+              updatedSessionData.photoUrl = freshPhoto;
+              updatedSessionData.PhotoUrl = freshPhoto;
+              syncUserProfilePhoto(freshPhoto);
             }
           }
-        } catch (fetchErr) {
-          const mainPhoto = (res as any)?.photoUrl || (res as any)?.PhotoUrl || (res as any)?.data?.photoUrl || formData.photoUrl || '';
+        } catch (_) {
+          const mainPhoto = selectedPhotos[0]?.previewUrl;
           if (mainPhoto) {
-            updatedSessionData.mainPhotoUrl = mainPhoto;
             updatedSessionData.photoUrl = mainPhoto;
-            updatedSessionData.photo = mainPhoto;
-            updatedSessionData.mainPhoto = mainPhoto;
             syncUserProfilePhoto(mainPhoto);
           }
         }
@@ -882,6 +937,19 @@ export default function CompleteProfilePage() {
 
   const progressPercent = Math.round((step / totalSteps) * 100);
 
+  // Filtered lists for search slides
+  const filteredStates = (masterData.STATES || []).filter(s =>
+    s.value.toLowerCase().includes(searchQuery.toLowerCase().trim())
+  );
+
+  const filteredCities = (cities || []).filter(c =>
+    c.value.toLowerCase().includes(searchQuery.toLowerCase().trim())
+  );
+
+  const filteredCastes = (masterData.CASTES || []).filter(c =>
+    c.value.toLowerCase().includes(searchQuery.toLowerCase().trim())
+  );
+
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-slate-900 flex flex-col justify-between selection:bg-[#e21e5b] selection:text-white">
       <Toaster position="top-center" richColors />
@@ -911,7 +979,7 @@ export default function CompleteProfilePage() {
           </span>
         </div>
 
-        {/* Spacer to keep center alignment (NO SKIP BUTTON per user rule) */}
+        {/* Spacer */}
         <div className="w-9" />
       </header>
 
@@ -924,7 +992,7 @@ export default function CompleteProfilePage() {
         />
       </div>
 
-      {/* 🌟 MAIN CONTAINER (TOP-ALIGNED, NOT CENTERED) */}
+      {/* 🌟 MAIN CONTAINER (TOP-ALIGNED) */}
       <main className="flex-1 max-w-md w-full mx-auto px-4 pt-3 pb-8 flex flex-col justify-start">
         <AnimatePresence mode="wait">
           <motion.div
@@ -949,157 +1017,118 @@ export default function CompleteProfilePage() {
                   <p className="text-[11px] text-slate-500 font-normal">Select relationship and basic profile details</p>
                 </div>
 
-                {/* 1. Relationship Selector */}
-                <div className="space-y-1.5">
+                {/* 1. Profile Created For Pills */}
+                <div className="grid grid-cols-3 gap-2">
+                  {PROFILE_CREATED_FOR_OPTIONS.map((opt) => {
+                    const isSelected = formData.profileCreatedFor === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({
+                            ...prev,
+                            profileCreatedFor: opt.id,
+                            profileCreatedForText: opt.value,
+                            gender: opt.gender ? opt.gender : prev.gender
+                          }));
+                        }}
+                        className={`py-2 px-1 rounded-xl text-xs font-bold transition-all border text-center cursor-pointer ${
+                          isSelected 
+                            ? 'border-[#e21e5b] bg-[#e21e5b] text-white shadow-2xs' 
+                            : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        {opt.value}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* 2. Full Name Input */}
+                <div className="space-y-1">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                    Profile Created For
+                    Full Name *
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {PROFILE_CREATED_FOR_OPTIONS.map((opt) => {
-                      const isSelected = formData.profileCreatedFor === opt.id;
+                  <div className="relative">
+                    <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="e.g. Mohammad Tariq"
+                      value={formData.fullName}
+                      onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
+                      className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#e21e5b]"
+                    />
+                  </div>
+                </div>
+
+                {/* 3. Email Input */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                    Email Address *
+                  </label>
+                  <div className="relative">
+                    <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="email"
+                      placeholder="e.g. tariq@gmail.com"
+                      value={formData.email}
+                      onChange={(e) => {
+                        setFormData(prev => ({ ...prev, email: e.target.value }));
+                        setEmailStatus({ available: null, message: '' });
+                      }}
+                      onBlur={handleEmailBlur}
+                      className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#e21e5b]"
+                    />
+                    {emailChecking && (
+                      <Loader2 size={13} className="animate-spin text-[#e21e5b] absolute right-3 top-1/2 -translate-y-1/2" />
+                    )}
+                  </div>
+                  {emailStatus.message && (
+                    <p className={`text-[10px] font-bold ${emailStatus.available ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {emailStatus.message}
+                    </p>
+                  )}
+                </div>
+
+                {/* 4. Gender Pills */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                    Gender *
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: 'male', label: 'Male (Groom)' },
+                      { id: 'female', label: 'Female (Bride)' }
+                    ].map((g) => {
+                      const isSelected = formData.gender === g.id;
                       return (
                         <button
-                          key={opt.id}
+                          key={g.id}
                           type="button"
-                          onClick={() => {
-                            const newGender = opt.gender ? opt.gender : formData.gender;
-                            setFormData(prev => ({
-                              ...prev,
-                              profileCreatedFor: opt.id,
-                              profileCreatedForText: opt.value,
-                              gender: newGender
-                            }));
-                          }}
-                          className={`p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center ${
+                          onClick={() => setFormData(prev => ({ ...prev, gender: g.id }))}
+                          className={`py-2.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
                             isSelected
-                              ? 'border-[#e21e5b] bg-rose-50 text-[#e21e5b] shadow-2xs'
-                              : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                              ? 'border-[#e21e5b] bg-[#e21e5b] text-white shadow-2xs'
+                              : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
                           }`}
                         >
-                          {opt.value}
+                          {g.label}
                         </button>
                       );
                     })}
                   </div>
                 </div>
 
-                {/* 2. Gender Selection (Only if Self or Friend / Relative) */}
-                {(formData.profileCreatedFor === 1 || formData.profileCreatedFor === 6) && (
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                      Gender
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        { val: 'male', label: 'Groom (Male)' },
-                        { val: 'female', label: 'Bride (Female)' }
-                      ].map(g => (
-                        <button
-                          key={g.val}
-                          type="button"
-                          onClick={() => setFormData(prev => ({ ...prev, gender: g.val }))}
-                          className={`p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer text-center ${
-                            formData.gender === g.val
-                              ? 'border-[#e21e5b] bg-rose-50 text-[#e21e5b] shadow-2xs'
-                              : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
-                          }`}
-                        >
-                          {g.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* 3. Full Name */}
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                    Full Name <span className="text-[#e21e5b]">*</span>
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input
-                      type="text"
-                      value={formData.fullName}
-                      onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
-                      placeholder="e.g. Farhan Ali / Ayesha Khan"
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-[#e21e5b] focus:ring-2 focus:ring-[#e21e5b]/10 text-xs font-bold text-slate-800 outline-none transition-all placeholder-slate-400"
-                    />
-                  </div>
-                </div>
-
-                {/* 4. Email Address with Duplicate Verification */}
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                    Email Address <span className="text-[#e21e5b]">*</span>
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setFormData(prev => ({ ...prev, email: val }));
-                        if (emailStatus.message) setEmailStatus({ available: null, message: '' });
-                      }}
-                      onBlur={handleEmailBlur}
-                      placeholder="e.g. name@gmail.com"
-                      className={`w-full pl-10 pr-10 py-2.5 rounded-xl border text-xs font-bold text-slate-800 outline-none transition-all placeholder-slate-400 ${
-                        emailStatus.available === false 
-                          ? 'border-rose-400 bg-rose-50/30' 
-                          : emailStatus.available === true 
-                            ? 'border-emerald-400 bg-emerald-50/20' 
-                            : 'border-slate-200 focus:border-[#e21e5b] focus:ring-2 focus:ring-[#e21e5b]/10'
-                      }`}
-                    />
-                    {emailChecking && (
-                      <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 animate-spin" size={15} />
-                    )}
-                    {!emailChecking && emailStatus.available === true && (
-                      <CheckCircle2 className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-500" size={15} />
-                    )}
-                  </div>
-                  {emailStatus.message && (
-                    <p className={`text-[11px] font-bold px-1 ${emailStatus.available === false ? 'text-rose-600' : 'text-emerald-600'}`}>
-                      {emailStatus.message}
-                    </p>
-                  )}
-                </div>
-
-                {/* Continue Button for Step 1 */}
-                <div className="pt-2">
-                  <button
-                    type="button"
-                    disabled={
-                      !formData.fullName.trim() || 
-                      formData.fullName.trim().length < 2 || 
-                      !formData.email.trim() || 
-                      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim()) ||
-                      emailStatus.available === false ||
-                      emailChecking
-                    }
-                    onClick={() => {
-                      if (emailStatus.available === null) {
-                        handleEmailBlur().then(() => nextStep());
-                      } else {
-                        nextStep();
-                      }
-                    }}
-                    className={`w-full py-3 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
-                      formData.fullName.trim().length >= 2 && 
-                      formData.email.trim() && 
-                      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim()) &&
-                      emailStatus.available !== false &&
-                      !emailChecking
-                        ? 'bg-gradient-to-r from-[#e21e5b] to-[#ce1b53] text-white shadow-md cursor-pointer hover:brightness-105 active:scale-[0.99]'
-                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                    }`}
-                  >
-                    <span>Continue</span>
-                    <ChevronRight size={14} />
-                  </button>
-                </div>
+                {/* Continue Button */}
+                <button
+                  type="button"
+                  onClick={nextStep}
+                  className="w-full py-3 bg-[#e21e5b] hover:bg-[#ce1b53] text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-[0.99] cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <span>Continue</span>
+                  <ChevronRight size={15} />
+                </button>
               </div>
             )}
 
@@ -1109,11 +1138,11 @@ export default function CompleteProfilePage() {
             {step === 2 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Basic Details</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Personal Background</span>
                   <h2 className="text-base sm:text-lg font-bold text-slate-800">
                     What is your marital status?
                   </h2>
-                  <p className="text-[11px] text-slate-500 font-normal">Select an option to proceed</p>
+                  <p className="text-[11px] text-slate-500 font-normal">Select your current marital status</p>
                 </div>
 
                 <div className="space-y-2 pt-1">
@@ -1144,10 +1173,10 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 3: MODERN UNIQUE DATE OF BIRTH PICKER (CONTINUE)
+                SLIDE 3: DATE OF BIRTH (APP-STYLE ELEGANT DESIGN)
                 ========================================================= */}
             {step === 3 && (
-              <div className="space-y-4">
+              <div className="space-y-3.5">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Age Verification</span>
                   <h2 className="text-base sm:text-lg font-bold text-slate-800">
@@ -1156,34 +1185,53 @@ export default function CompleteProfilePage() {
                   <p className="text-[11px] text-slate-500 font-normal">Choose your birth year, month & day</p>
                 </div>
 
-                {/* Unique Modern DOB Selector */}
-                <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+                {/* App-Style Modern DOB Card */}
+                <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/90 shadow-sm space-y-4">
                   
-                  {/* Live Age Badge */}
-                  {calculatedAge && (
-                    <div className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-full bg-rose-50 text-[#e21e5b] font-black text-xs border border-rose-200">
-                      <span>🎉</span>
-                      <span>{calculatedAge} Years Old</span>
+                  {/* Live Age & Birthday Banner */}
+                  {calculatedAge !== null && (
+                    <div className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-rose-50 via-pink-50 to-rose-50 border border-rose-200/80">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-lg">🎉</span>
+                        <div>
+                          <span className="text-xs font-black text-[#e21e5b] block">
+                            {calculatedAge} Years Old
+                          </span>
+                          <span className="text-[11px] text-slate-600 font-semibold">
+                            Born {dobDay} {MONTHS.find(m => m.id === dobMonth)?.name} {dobYear}
+                          </span>
+                        </div>
+                      </div>
+                      <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full border shadow-2xs ${
+                        calculatedAge >= 18 
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                          : 'bg-rose-100 text-[#e21e5b] border-rose-300'
+                      }`}>
+                        {calculatedAge >= 18 ? 'Eligible' : 'Must be 18+'}
+                      </span>
                     </div>
                   )}
 
-                  {/* 1. Year Selector (Sleek Horizontal Pills) */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                      Birth Year
-                    </label>
-                    <div className="flex gap-1.5 overflow-x-auto pb-1.5 no-scrollbar scroll-smooth">
-                      {Array.from({ length: 36 }, (_, i) => `${2006 - i}`).map(yr => {
+                  {/* 1. Birth Year (Horizontal Scrollable Pills) */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10.5px] font-black uppercase tracking-wider text-slate-500">
+                        Birth Year
+                      </label>
+                      <span className="text-xs font-black text-[#e21e5b]">{dobYear}</span>
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto pb-1.5 no-scrollbar scroll-smooth">
+                      {YEARS.map(yr => {
                         const isYearActive = dobYear === yr;
                         return (
                           <button
                             key={yr}
                             type="button"
                             onClick={() => setDobYear(yr)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                            className={`px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
                               isYearActive 
-                                ? 'bg-[#e21e5b] text-white shadow-xs' 
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                ? 'bg-[#e21e5b] text-white shadow-sm shadow-rose-500/25 scale-105' 
+                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                             }`}
                           >
                             {yr}
@@ -1193,26 +1241,27 @@ export default function CompleteProfilePage() {
                     </div>
                   </div>
 
-                  {/* 2. Month Selector (12 Compact Pills in 4x3 Grid) */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                      Birth Month
-                    </label>
+                  {/* 2. Birth Month (4x3 Grid) */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10.5px] font-black uppercase tracking-wider text-slate-500">
+                        Birth Month
+                      </label>
+                      <span className="text-xs font-black text-[#e21e5b]">
+                        {MONTHS.find(m => m.id === dobMonth)?.name}
+                      </span>
+                    </div>
                     <div className="grid grid-cols-4 gap-1.5">
-                      {[
-                        { id: '01', name: 'Jan' }, { id: '02', name: 'Feb' }, { id: '03', name: 'Mar' }, { id: '04', name: 'Apr' },
-                        { id: '05', name: 'May' }, { id: '06', name: 'Jun' }, { id: '07', name: 'Jul' }, { id: '08', name: 'Aug' },
-                        { id: '09', name: 'Sep' }, { id: '10', name: 'Oct' }, { id: '11', name: 'Nov' }, { id: '12', name: 'Dec' }
-                      ].map(m => {
+                      {MONTHS.map(m => {
                         const isMonthActive = dobMonth === m.id;
                         return (
                           <button
                             key={m.id}
                             type="button"
                             onClick={() => setDobMonth(m.id)}
-                            className={`py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer text-center ${
                               isMonthActive 
-                                ? 'bg-[#e21e5b] text-white shadow-xs' 
+                                ? 'bg-[#e21e5b] text-white shadow-sm shadow-rose-500/20' 
                                 : 'bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100'
                             }`}
                           >
@@ -1223,24 +1272,27 @@ export default function CompleteProfilePage() {
                     </div>
                   </div>
 
-                  {/* 3. Day Selector (Horizontal / 7-col grid) */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                      Birth Day ({dobDay || 'Select'})
-                    </label>
+                  {/* 3. Birth Day (7-Column Grid, dynamic days in month) */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10.5px] font-black uppercase tracking-wider text-slate-500">
+                        Birth Day ({dobDay})
+                      </label>
+                      <span className="text-xs font-black text-[#e21e5b]">Day {Number(dobDay)}</span>
+                    </div>
                     <div className="grid grid-cols-7 gap-1">
-                      {Array.from({ length: 31 }, (_, i) => {
-                        const dStr = i + 1 < 10 ? `0${i + 1}` : `${i + 1}`;
+                      {Array.from({ length: daysInMonth }, (_, i) => {
+                        const dStr = String(i + 1).padStart(2, '0');
                         const isDayActive = dobDay === dStr;
                         return (
                           <button
                             key={dStr}
                             type="button"
                             onClick={() => setDobDay(dStr)}
-                            className={`py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                            className={`h-9 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center ${
                               isDayActive 
-                                ? 'bg-[#e21e5b] text-white shadow-xs' 
-                                : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+                                ? 'bg-[#e21e5b] text-white shadow-sm shadow-rose-500/25 scale-105' 
+                                : 'bg-slate-50 border border-slate-200/70 text-slate-700 hover:bg-slate-100'
                             }`}
                           >
                             {i + 1}
@@ -1255,7 +1307,8 @@ export default function CompleteProfilePage() {
                 <button
                   type="button"
                   onClick={nextStep}
-                  className="w-full py-3 bg-[#e21e5b] hover:bg-[#ce1b53] text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-[0.99] cursor-pointer flex items-center justify-center gap-1.5"
+                  disabled={calculatedAge === null || calculatedAge < 18}
+                  className="w-full py-3.5 bg-[#e21e5b] hover:bg-[#ce1b53] disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-md transition-all active:scale-[0.99] cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   <span>Continue</span>
                   <ChevronRight size={15} />
@@ -1269,28 +1322,28 @@ export default function CompleteProfilePage() {
             {step === 4 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Physical Profile</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Physical Attributes</span>
                   <h2 className="text-base sm:text-lg font-bold text-slate-800">
                     What is your height?
                   </h2>
-                  <p className="text-[11px] text-slate-500 font-normal">Select your height in feet and inches</p>
+                  <p className="text-[11px] text-slate-500 font-normal">Select your approximate height</p>
                 </div>
 
                 <div className="max-h-[56vh] overflow-y-auto space-y-1.5 pr-1 no-scrollbar pt-1">
-                  {HEIGHT_OPTIONS.map((h) => {
-                    const isSelected = formData.height === h;
+                  {HEIGHT_OPTIONS.map((hStr) => {
+                    const isSelected = formData.height === hStr;
                     return (
                       <button
-                        key={h}
+                        key={hStr}
                         type="button"
-                        onClick={() => handleSimpleAdvance('height', h)}
+                        onClick={() => handleSimpleAdvance('height', hStr)}
                         className={`w-full p-2.5 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
                           isSelected 
                             ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' 
                             : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'
                         }`}
                       >
-                        <span className="text-xs uppercase tracking-wide">{h}</span>
+                        <span className="text-xs font-semibold">{hStr}</span>
                         <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
                           isSelected ? 'bg-[#e21e5b] text-white shadow-2xs' : 'border border-slate-300'
                         }`}>
@@ -1356,7 +1409,7 @@ export default function CompleteProfilePage() {
                   <p className="text-[11px] text-slate-500 font-normal">Select your school of thought</p>
                 </div>
 
-                <div className="space-y-2 pt-1">
+                <div className="max-h-[56vh] overflow-y-auto space-y-1.5 pr-1 no-scrollbar pt-1">
                   {(masterData.MASLAKS || []).map((opt) => {
                     const isSelected = formData.maslakId === opt.id;
                     return (
@@ -1364,7 +1417,7 @@ export default function CompleteProfilePage() {
                         key={opt.id}
                         type="button"
                         onClick={() => handleAutoAdvance('maslakId', opt.id, 'maslakText', opt.value)}
-                        className={`w-full p-3 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
+                        className={`w-full p-2.5 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
                           isSelected 
                             ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' 
                             : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'
@@ -1384,7 +1437,7 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 9: CASTE / BIRADARI (AUTO-ADVANCE WITH SEARCH)
+                SLIDE 7: CASTE / BIRADARI (AUTO-ADVANCE WITH SEARCH)
                 ========================================================= */}
             {step === 7 && (
               <div className="space-y-3">
@@ -1393,38 +1446,187 @@ export default function CompleteProfilePage() {
                   <h2 className="text-base sm:text-lg font-bold text-slate-800">
                     What is your caste / biradari?
                   </h2>
-                  <p className="text-[11px] text-slate-500 font-normal">Select your biradari to match compatible proposals</p>
+                  <p className="text-[11px] text-slate-500 font-normal">Search or select your biradari</p>
                 </div>
 
-                {/* Quick Search */}
+                {/* Search Bar */}
                 <div className="relative">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
                     placeholder="Search caste / biradari..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#e21e5b]"
+                    className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#e21e5b]"
                   />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
 
-                <div className="max-h-[50vh] overflow-y-auto space-y-1.5 pr-1 no-scrollbar">
-                  {(masterData.CASTES || [])
-                    .filter(c => c.value.toLowerCase().includes(searchQuery.toLowerCase()))
-                    .map((opt) => {
-                      const isSelected = formData.casteId === opt.id;
+                <div className="max-h-[50vh] overflow-y-auto space-y-1.5 pr-1 no-scrollbar pt-1">
+                  {filteredCastes.map((opt) => {
+                    const isSelected = formData.casteId === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => handleAutoAdvance('casteId', opt.id, 'casteText', opt.value)}
+                        className={`w-full p-2.5 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
+                          isSelected 
+                            ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' 
+                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'
+                        }`}
+                      >
+                        <span className="text-xs uppercase tracking-wide">{opt.value}</span>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                          isSelected ? 'bg-[#e21e5b] text-white shadow-2xs' : 'border border-slate-300'
+                        }`}>
+                          {isSelected && <Check size={12} strokeWidth={3} />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* =========================================================
+                SLIDE 8: STATE (SEPARATE PAGE WITH SEARCH & AUTO-ADVANCE)
+                ========================================================= */}
+            {step === 8 && (
+              <div className="space-y-3">
+                <div className="text-left space-y-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Location Details</span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                    Which state do you live in?
+                  </h2>
+                  <p className="text-[11px] text-slate-500 font-normal">Search or select your residential state</p>
+                </div>
+
+                {/* State Search Bar */}
+                <div className="relative">
+                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search state..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#e21e5b]"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                <div className="max-h-[52vh] overflow-y-auto space-y-1.5 pr-1 no-scrollbar pt-1">
+                  {filteredStates.map((st) => {
+                    const isSelected = String(formData.stateId) === String(st.id);
+                    return (
+                      <button
+                        key={String(st.id)}
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, cityId: '', cityText: '' }));
+                          handleAutoAdvance('stateId', st.id, 'stateText', st.value);
+                        }}
+                        className={`w-full p-3 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
+                          isSelected 
+                            ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' 
+                            : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <MapPin size={15} className={isSelected ? 'text-[#e21e5b]' : 'text-slate-400'} />
+                          <span className="text-xs uppercase tracking-wide">{st.value}</span>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                          isSelected ? 'bg-[#e21e5b] text-white shadow-2xs' : 'border border-slate-300'
+                        }`}>
+                          {isSelected && <Check size={12} strokeWidth={3} />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* =========================================================
+                SLIDE 9: CITY (SEPARATE PAGE WITH SEARCH & AUTO-ADVANCE)
+                ========================================================= */}
+            {step === 9 && (
+              <div className="space-y-3">
+                <div className="text-left space-y-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Location Details</span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                    Which city in {formData.stateText || 'your state'}?
+                  </h2>
+                  <p className="text-[11px] text-slate-500 font-normal">Select your current residential city</p>
+                </div>
+
+                {/* City Search Bar */}
+                <div className="relative">
+                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search city..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#e21e5b]"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                <div className="max-h-[52vh] overflow-y-auto space-y-1.5 pr-1 no-scrollbar pt-1">
+                  {loadingCities ? (
+                    <div className="py-12 flex flex-col items-center justify-center gap-2 text-slate-400">
+                      <Loader2 size={24} className="animate-spin text-[#e21e5b]" />
+                      <p className="text-xs font-bold">Loading cities...</p>
+                    </div>
+                  ) : filteredCities.length === 0 ? (
+                    <div className="py-12 text-center text-slate-400 space-y-1">
+                      <p className="text-xs font-bold">No cities found.</p>
+                      <p className="text-[11px] text-slate-400">Try searching or go back to re-select state.</p>
+                    </div>
+                  ) : (
+                    filteredCities.map((ct) => {
+                      const isSelected = String(formData.cityId) === String(ct.id);
                       return (
                         <button
-                          key={opt.id}
+                          key={String(ct.id)}
                           type="button"
-                          onClick={() => handleAutoAdvance('casteId', opt.id, 'casteText', opt.value)}
-                          className={`w-full p-2.5 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
+                          onClick={() => handleAutoAdvance('cityId', ct.id, 'cityText', ct.value)}
+                          className={`w-full p-3 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
                             isSelected 
                               ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' 
                               : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'
                           }`}
                         >
-                          <span className="text-xs uppercase tracking-wide">{opt.value}</span>
+                          <div className="flex items-center gap-2.5">
+                            <MapPin size={15} className={isSelected ? 'text-[#e21e5b]' : 'text-slate-400'} />
+                            <span className="text-xs uppercase tracking-wide">{ct.value}</span>
+                          </div>
                           <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
                             isSelected ? 'bg-[#e21e5b] text-white shadow-2xs' : 'border border-slate-300'
                           }`}>
@@ -1432,111 +1634,16 @@ export default function CompleteProfilePage() {
                           </div>
                         </button>
                       );
-                    })}
+                    })
+                  )}
                 </div>
               </div>
             )}
 
             {/* =========================================================
-                SLIDE 8: STATE & CITY TOGETHER
+                SLIDE 10: EDUCATION LEVEL (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 8 && (
-              <div className="space-y-4">
-                <div className="text-left space-y-0.5">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Location</span>
-                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
-                    Where do you live?
-                  </h2>
-                  <p className="text-[11px] text-slate-500 font-normal">Select your current state & city</p>
-                </div>
-
-                <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-                  <div>
-                    <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">State *</label>
-                    <select
-                      value={formData.stateId !== '' ? String(formData.stateId) : ''}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === '') {
-                          setFormData(p => ({ ...p, stateId: '', stateText: '', cityId: '', cityText: '' }));
-                          setCities([]);
-                          return;
-                        }
-                        const sId = Number(val);
-                        const sObj = (masterData.STATES || []).find(s => Number(s.id) === sId);
-                        setFormData(p => ({ ...p, stateId: sId, stateText: sObj?.value || '', cityId: '', cityText: '' }));
-                      }}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#e21e5b] cursor-pointer"
-                    >
-                      <option value="">-- Choose State --</option>
-                      {(masterData.STATES || []).map(s => (
-                        <option key={String(s.id)} value={String(s.id)}>{s.value}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-bold uppercase text-slate-500 block mb-1">City *</label>
-                    <select
-                      disabled={formData.stateId === '' || loadingCities}
-                      value={formData.cityId !== '' ? String(formData.cityId) : ''}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === '') {
-                          setFormData(p => ({ ...p, cityId: '', cityText: '' }));
-                          return;
-                        }
-                        const cId = Number(val);
-                        const cObj = cities.find(c => Number(c.id) === cId);
-                        setFormData(p => ({ ...p, cityId: cId, cityText: cObj?.value || '' }));
-                      }}
-                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#e21e5b] cursor-pointer disabled:opacity-50"
-                    >
-                      <option value="">
-                        {loadingCities 
-                          ? "Loading cities..." 
-                          : formData.stateId === '' 
-                            ? "Please select state first" 
-                            : cities.length === 0 
-                              ? "No cities available" 
-                              : "-- Choose City --"}
-                      </option>
-                      {cities.map(c => (
-                        <option key={String(c.id)} value={String(c.id)}>{c.value}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (formData.stateId === '' || formData.stateId === null || formData.stateId === undefined) {
-                      toast.error("Please select your State.");
-                      return;
-                    }
-                    if (formData.cityId === '' || formData.cityId === null || formData.cityId === undefined) {
-                      toast.error("Please select your City.");
-                      return;
-                    }
-                    nextStep();
-                  }}
-                  className={`w-full py-3 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-[0.99] cursor-pointer flex items-center justify-center gap-1.5 ${
-                    formData.stateId !== '' && formData.cityId !== ''
-                      ? 'bg-[#e21e5b] hover:bg-[#ce1b53]'
-                      : 'bg-slate-400 hover:bg-slate-500'
-                  }`}
-                >
-                  <span>Continue</span>
-                  <ChevronRight size={15} />
-                </button>
-              </div>
-            )}
-
-            {/* =========================================================
-                SLIDE 12: EDUCATION LEVEL (AUTO-ADVANCE)
-                ========================================================= */}
-            {step === 9 && (
+            {step === 10 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Education</span>
@@ -1574,9 +1681,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 13: EMPLOYMENT SECTOR (AUTO-ADVANCE)
+                SLIDE 11: EMPLOYMENT SECTOR (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 10 && (
+            {step === 11 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Career</span>
@@ -1614,9 +1721,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 14: PROFESSION / OCCUPATION (AUTO-ADVANCE)
+                SLIDE 12: PROFESSION / OCCUPATION (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 11 && (
+            {step === 12 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Career</span>
@@ -1654,9 +1761,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 15: ANNUAL INCOME (AUTO-ADVANCE)
+                SLIDE 13: ANNUAL INCOME (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 12 && (
+            {step === 13 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Financials</span>
@@ -1694,17 +1801,17 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 13: 4-SLOT PHOTO GRID, GUIDELINES, PRIVACY & SUBMIT
+                SLIDE 14: 4-SLOT PHOTO GRID, GUIDELINES, PRIVACY & SUBMIT
                 ========================================================= */}
-            {step === 13 && (
+            {step === 14 && (
               <div className="space-y-4">
                 <div className="text-left space-y-0.5">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Final Step • AI Verified</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Final Step • Profile Photos</span>
                   <h2 className="text-base sm:text-lg font-bold text-slate-800">
                     Add your profile photos
                   </h2>
                   <p className="text-[11px] text-slate-500 font-normal">
-                    Upload up to 4 clear solo photos ({activePhotosList.length} / 4 added). You can also add or change them later.
+                    Upload up to 4 clear solo photos ({activePhotosList.length} / 4 added). Only genuine photos of yourself are permitted.
                   </p>
                 </div>
 
@@ -1719,15 +1826,8 @@ export default function CompleteProfilePage() {
 
                 {/* SLEEK 4-SLOT PHOTO UPLOAD CARD */}
                 <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3.5 text-center">
-                  {/* Verified Selfie Status Pill if already verified */}
-                  {verifiedSelfieUrl && (
-                    <div className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-extrabold">
-                      <CheckCircle2 size={14} className="text-emerald-600" />
-                      <span>Live Face Selfie Verified &bull; Saved to R2</span>
-                    </div>
-                  )}
 
-                  {/* 3-Column Muzz-Inspired Grid: 4 Photo Slots + 1 Photo Guidelines Tile */}
+                  {/* 3-Column Grid: 4 Photo Slots + 1 Photo Guidelines Tile */}
                   <div className="grid grid-cols-3 gap-2.5">
                     {[0, 1, 2, 3].map((slotIdx) => {
                       const slotItem = photoSlots[slotIdx];
@@ -1779,7 +1879,7 @@ export default function CompleteProfilePage() {
                             <div className="flex flex-col items-center justify-center text-slate-500 group-hover:text-[#e21e5b] transition-colors">
                               <Plus size={24} strokeWidth={2.2} />
                               {slotIdx === 0 && (
-                                <span className="text-[10px] font-extrabold mt-1 text-[#e21e5b]">Main Photo</span>
+                                <span className="text-[10px] font-extrabold mt-1 text-[#e21e5b]">Main Photo *</span>
                               )}
                             </div>
                           )}
@@ -1787,7 +1887,7 @@ export default function CompleteProfilePage() {
                       );
                     })}
 
-                    {/* Tile 5: Photo Guidelines Button (Matching Muzz Screenshot 1) */}
+                    {/* Tile 5: Photo Guidelines Button */}
                     <button
                       type="button"
                       onClick={() => setGuidelinesOpen(true)}
@@ -1802,50 +1902,42 @@ export default function CompleteProfilePage() {
                     </button>
                   </div>
 
-                  {/* 🔒 SLEEK PHOTO PRIVACY TRIGGER DROPDOWN (ONLY VISIBLE WHEN PHOTO IS PRESENT) */}
-                  {activePhotosList.length > 0 ? (
-                    <div className="text-left space-y-1">
-                      <label className="text-[10px] font-bold uppercase text-slate-500 block">Photo Privacy Setting</label>
-                      <div 
-                        onClick={() => setPrivacySheetOpen(true)}
-                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between cursor-pointer hover:bg-slate-100 transition-colors"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Lock size={14} className="text-[#e21e5b]" />
-                          <span className="text-xs font-bold text-slate-800">{formData.photoPrivacy}</span>
-                        </div>
-                        <ChevronDown size={14} className="text-slate-400" />
+                  {/* Photo Privacy Trigger */}
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setPrivacySheetOpen(true)}
+                      className="w-full py-2 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left flex items-center justify-between text-xs font-semibold text-slate-700 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Lock size={13} className="text-[#e21e5b]" />
+                        <span>Photo Privacy:</span>
+                        <span className="font-bold text-slate-900">{formData.photoPrivacy}</span>
                       </div>
-                      <p className="text-[10px] text-slate-400">
-                        Control who can view your photos across matches.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-left">
-                      <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                        Photos are optional right now. You can upload up to 4 verified photos now or anytime later from your Dashboard Gallery.
-                      </p>
-                    </div>
-                  )}
+                      <ChevronDown size={14} className="text-slate-400" />
+                    </button>
+                  </div>
 
-                  {/* QUICK ABOUT ME / BIO */}
-                  <div className="text-left space-y-1">
-                    <label className="text-[10px] font-bold uppercase text-slate-500 block">About Yourself (Optional)</label>
+                  {/* About Me Bio */}
+                  <div className="pt-1 text-left space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                      About Me (Optional)
+                    </label>
                     <textarea
                       rows={2}
-                      placeholder="Write a brief sentence about your personality, values or background..."
+                      placeholder="Write a few lines about your values, personality, and partner preferences..."
                       value={formData.aboutMe}
-                      onChange={(e) => setFormData(p => ({ ...p, aboutMe: e.target.value }))}
+                      onChange={(e) => setFormData(prev => ({ ...prev, aboutMe: e.target.value }))}
                       className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-[#e21e5b] resize-none"
                     />
                   </div>
 
-                  {/* SUBMIT BUTTON */}
+                  {/* Final Submit Button */}
                   <button
                     type="button"
-                    disabled={loading}
                     onClick={handleFinalSubmit}
-                    className="w-full py-3.5 bg-gradient-to-r from-[#e21e5b] via-[#ce1b53] to-[#e21e5b] hover:brightness-105 disabled:opacity-60 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all active:scale-[0.99] cursor-pointer flex items-center justify-center gap-1.5"
+                    disabled={loading || activePhotosList.length === 0}
+                    className="w-full py-3.5 bg-[#e21e5b] hover:bg-[#ce1b53] disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2"
                   >
                     {loading ? (
                       <>
@@ -1854,24 +1946,14 @@ export default function CompleteProfilePage() {
                       </>
                     ) : (
                       <>
-                        {activePhotosList.length > 0 && !verifiedSelfieUrl ? (
-                          <ScanFace size={16} className="text-white" />
-                        ) : (
-                          <Sparkles size={15} className="text-amber-300" />
-                        )}
-                        <span>
-                          {activePhotosList.length > 0
-                            ? verifiedSelfieUrl
-                              ? "Complete Verified Profile"
-                              : `Verify Face & Save ${activePhotosList.length} Photo${activePhotosList.length > 1 ? 's' : ''}`
-                            : "Skip Photo & Complete Profile"}
-                        </span>
+                        <Sparkles size={15} className="text-amber-300" />
+                        <span>Complete Profile</span>
                       </>
                     )}
                   </button>
 
                   <span className="text-[10px] text-slate-400 font-medium block">
-                    🔒 100% Secure & AI Face-Verified Matrimony Network
+                    🔒 100% Genuine & Verified Matrimony Network
                   </span>
 
                 </div>
@@ -1885,66 +1967,56 @@ export default function CompleteProfilePage() {
       {/* 🌟 PRIVACY BOTTOM SHEET / MODAL */}
       <AnimatePresence>
         {privacySheetOpen && (
-          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
-            {/* Backdrop */}
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setPrivacySheetOpen(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-xs"
-            />
-
-            {/* Bottom Sheet Modal */}
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs">
             <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 28, stiffness: 300 }}
-              className="relative w-full max-w-sm bg-white rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl z-10 space-y-4"
+              transition={{ type: "spring", damping: 25, stiffness: 250 }}
+              className="w-full max-w-sm bg-white rounded-t-3xl sm:rounded-2xl p-5 space-y-3.5 shadow-2xl text-left"
             >
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-2">
-                  <Shield size={16} className="text-[#e21e5b]" />
-                  <h3 className="text-sm font-bold text-slate-800">Photo Privacy Setting</h3>
-                </div>
+              <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                <h3 className="text-sm font-black text-slate-800">Who can see your photos?</h3>
                 <button
                   type="button"
                   onClick={() => setPrivacySheetOpen(false)}
-                  className="text-xs text-slate-400 hover:text-slate-700 font-bold"
+                  className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 cursor-pointer"
                 >
-                  Close
+                  <X size={14} />
                 </button>
               </div>
 
               <div className="space-y-2">
-                {PRIVACY_OPTIONS.map((opt) => {
-                  const isSelected = formData.photoPrivacy === opt.id;
+                {[
+                  { value: 'All Members', title: 'All Members', desc: 'Visible to all registered profiles' },
+                  { value: 'Protected', title: 'Photo Blur / Protected', desc: 'Photos blurred; visible only upon your request approval' },
+                  { value: 'Premium Only', title: 'Premium Only', desc: 'Visible only to verified paid VIP subscribers' }
+                ].map((opt) => {
+                  const isSel = formData.photoPrivacy === opt.value;
                   return (
                     <button
-                      key={opt.id}
+                      key={opt.value}
                       type="button"
                       onClick={() => {
-                        setFormData(p => ({ ...p, photoPrivacy: opt.id }));
+                        setFormData(p => ({ ...p, photoPrivacy: opt.value }));
                         setPrivacySheetOpen(false);
                       }}
-                      className={`w-full p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
-                        isSelected 
-                          ? 'border-[#e21e5b] bg-rose-50/80 shadow-2xs' 
-                          : 'border-slate-200 hover:bg-slate-50'
+                      className={`w-full p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start justify-between ${
+                        isSel ? 'border-[#e21e5b] bg-rose-50/60' : 'border-slate-200 hover:bg-slate-50'
                       }`}
                     >
-                      <span className="text-lg shrink-0 mt-0.5">{opt.icon}</span>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <span className={`text-xs font-bold ${isSelected ? 'text-[#e21e5b]' : 'text-slate-800'}`}>
-                            {opt.title}
-                          </span>
-                          {isSelected && <Check size={14} className="text-[#e21e5b]" />}
+                      <div className="space-y-0.5">
+                        <div className={`text-xs font-bold ${isSel ? 'text-[#e21e5b]' : 'text-slate-800'}`}>
+                          {opt.title}
                         </div>
-                        <p className="text-[10px] text-slate-500 font-medium mt-0.5 leading-tight">
+                        <div className="text-[11px] text-slate-500 leading-snug">
                           {opt.desc}
-                        </p>
+                        </div>
+                      </div>
+                      <div className={`w-4 h-4 rounded-full border mt-0.5 flex items-center justify-center ${
+                        isSel ? 'border-[#e21e5b] bg-[#e21e5b]' : 'border-slate-300'
+                      }`}>
+                        {isSel && <Check size={10} className="text-white stroke-[3]" />}
                       </div>
                     </button>
                   );
@@ -1955,7 +2027,7 @@ export default function CompleteProfilePage() {
         )}
       </AnimatePresence>
 
-      {/* 🌟 AI FACE & SELFIE VERIFICATION MODALS */}
+      {/* 🌟 AI PHOTO GUIDELINES & REJECTION MODALS */}
       <PhotoGuidelinesModal
         open={guidelinesOpen}
         onClose={() => setGuidelinesOpen(false)}
@@ -1972,27 +2044,6 @@ export default function CompleteProfilePage() {
           setRejectedModal((p) => ({ ...p, open: false }));
           setTimeout(() => triggerSlotPicker(slotToPick), 150);
         }}
-      />
-
-      <VerifyIdentityIntroModal
-        open={introModalOpen}
-        mainPhotoUrl={activePhotosList[0]?.previewUrl || ''}
-        onStartVerification={() => {
-          setIntroModalOpen(false);
-          setScannerModalOpen(true);
-        }}
-        onChangePhoto={() => {
-          setIntroModalOpen(false);
-          setTimeout(() => triggerSlotPicker(0), 150);
-        }}
-      />
-
-      <LiveOvalSelfieScannerModal
-        open={scannerModalOpen}
-        verifying={selfieVerifying}
-        statusText={selfieStatusText}
-        onCaptureSelfie={handleCaptureAndVerifySelfie}
-        onClose={() => setScannerModalOpen(false)}
       />
 
       <footer className="h-4" />

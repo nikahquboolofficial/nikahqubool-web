@@ -16,7 +16,6 @@ import {
   updatePhotoPrivacyApiCall 
 } from '@/lib/api';
 import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
-import VerificationModal from '@/components/profile/VerificationModal';
 import { getAuthToken, getStoredUserPhoto } from '@/lib/auth';
 
 // 🧮 100% REAL PROFILE COMPLETION CALCULATION
@@ -85,7 +84,7 @@ export default function MyProfilePage() {
   const [activePlan, setActivePlan] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [isPhotoLoaded, setIsPhotoLoaded] = useState<boolean>(false);
-  const [isVerificationOpen, setIsVerificationOpen] = useState(false);
+
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
   const [selectedPrivacy, setSelectedPrivacy] = useState<string>('All Members');
   const [savingPrivacy, setSavingPrivacy] = useState(false);
@@ -457,29 +456,7 @@ export default function MyProfilePage() {
             <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
           </button>
 
-          {/* 3. Profile Verification (Selfie or Govt Document) */}
-          <button
-            type="button"
-            onClick={() => setIsVerificationOpen(true)}
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer text-left"
-          >
-            <div className="flex items-center gap-3.5">
-              <ShieldCheck size={18} className={isVerified ? "text-emerald-600" : "text-[#E21E5B]"} />
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-slate-800">Profile Verification</span>
-                {isVerified ? (
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                    ✓ Verified
-                  </span>
-                ) : (
-                  <span className="px-2 py-0.5 rounded-full bg-rose-100 text-[#E21E5B] text-[10px] font-bold">
-                    Verify Now
-                  </span>
-                )}
-              </div>
-            </div>
-            <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
-          </button>
+
 
           {/* 4. Payment Info */}
           <Link prefetch={false} href="/dashboard/payment-info"
@@ -608,18 +585,6 @@ export default function MyProfilePage() {
           </div>
         )}
       </AnimatePresence>
-
-      {/* 🛡️ STRICT 2-OPTION VERIFICATION MODAL */}
-      <VerificationModal
-        isOpen={isVerificationOpen}
-        onClose={() => setIsVerificationOpen(false)}
-        userId={userIdNum}
-        token={getToken() || null}
-        mainPhotoUrl={rawPhoto}
-        onVerificationSuccess={() => {
-          loadMyProfile();
-        }}
-      />
 
     </div>
   );

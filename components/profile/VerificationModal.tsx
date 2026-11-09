@@ -26,116 +26,11 @@ export default function VerificationModal({
   mainPhotoUrl,
   onVerificationSuccess
 }: VerificationModalProps) {
-  // Only 2 options: 'selfie' or 'document'
-  const [activeTab, setActiveTab] = useState<'selfie' | 'document'>('selfie');
-  
-  // Document Upload State
+  // Document Upload State (Govt ID Document only)
   const [docFile, setDocFile] = useState<File | null>(null);
   const [uploadingDoc, setUploadingDoc] = useState(false);
 
-  // Live Camera Selfie State
-  const [isCameraActive, setIsCameraActive] = useState(false);
-  const [capturedSelfie, setCapturedSelfie] = useState<string | null>(null);
-  const [blinkDetected, setBlinkDetected] = useState(false);
-  const [verifyingSelfie, setVerifyingSelfie] = useState(false);
-  const [isDesktopPrompt, setIsDesktopPrompt] = useState(false);
-  
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      setIsDesktopPrompt(!isMobile);
-    }
-  }, [isOpen]);
-
-  // Start Camera
-  const startCamera = async () => {
-    // Check if main photo is present
-    if (!mainPhotoUrl || mainPhotoUrl.includes('placeholder') || mainPhotoUrl.includes('default')) {
-      toast.error("Please upload your main profile photo in Gallery first before verifying with selfie.");
-      return;
-    }
-
-    setCapturedSelfie(null);
-    setBlinkDetected(false);
-    setIsDesktopPrompt(false);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        setIsCameraActive(true);
-
-        setTimeout(() => {
-          setBlinkDetected(true);
-        }, 1800);
-      }
-    } catch (err) {
-      toast.error("Camera access not available or blocked. Please verify on mobile or upload a Govt ID document.");
-      setIsCameraActive(false);
-    }
-  };
-
-  // Stop Camera
-  const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-    }
-    setIsCameraActive(false);
-  };
-
-  useEffect(() => {
-    if (!isOpen) {
-      stopCamera();
-      setCapturedSelfie(null);
-    }
-  }, [isOpen]);
-
   if (!isOpen) return null;
-
-  // Capture Canvas Snapshot
-  const captureSnapshot = () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      canvas.width = video.videoWidth || 640;
-      canvas.height = video.videoHeight || 480;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-        setCapturedSelfie(dataUrl);
-        stopCamera();
-      }
-    }
-  };
-
-  // Submit Selfie Match with captured selfie
-  const handleVerifySelfieMatch = async () => {
-    if (!capturedSelfie) {
-      toast.error("Please capture your live selfie first.");
-      return;
-    }
-    setVerifyingSelfie(true);
-    toast.info("Analyzing face match against your profile photo...");
-
-    const res = await verifySelfieFaceMatchApi(capturedSelfie, token);
-    setVerifyingSelfie(false);
-
-    if (res.success) {
-      toast.success(res.message || "Live selfie verified successfully! Profile is now verified.");
-      onVerificationSuccess();
-      onClose();
-    } else {
-      toast.error(res.message || "Face match verification failed. Please take a clear photo in good light.");
-    }
-  };
 
   // Handle Govt Document Upload
   const handleDocSubmit = async () => {
@@ -184,70 +79,72 @@ export default function VerificationModal({
             </button>
             <div className="flex items-center justify-center gap-2 mb-1">
               <ShieldCheck size={24} className="text-emerald-400" />
-              <h2 className="text-xl font-bold tracking-tight text-white">Profile Verification</h2>
+              <h2 className="text-xl font-bold tracking-tight text-white">Govt ID Verification</h2>
             </div>
-            <p className="text-xs text-rose-100 font-medium">Verify your profile with Live Selfie or Govt ID Document</p>
+            <p className="text-xs text-rose-100 font-medium">Upload your Aadhaar, Passport or Driving License to get a Verified Badge</p>
           </div>
 
-          {/* STRICTLY 2 TABS: SELFIE & GOVT ID */}
-          <div className="grid grid-cols-2 gap-2 p-2 bg-rose-50/70 border-b border-rose-100">
-            <button
-              onClick={() => { setActiveTab('selfie'); stopCamera(); }}
-              className={`py-2.5 px-3 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                activeTab === 'selfie' 
-                  ? 'bg-[#d91b5c] text-white shadow-sm' 
-                  : 'text-slate-600 hover:text-[#d91b5c] bg-white/50'
-              }`}
-            >
-              <Camera size={16} />
-              <span>1. Live Selfie</span>
-            </button>
+          {/* DOCUMENT BODY */}
+          <div className="p-5 sm:p-6 space-y-4">
+            <div className="p-4 rounded-2xl bg-rose-50/50 border border-rose-100 space-y-2 text-center">
+              <div className="w-12 h-12 rounded-full bg-rose-100 text-[#d91b5c] flex items-center justify-center mx-auto">
+                <FileText size={24} />
+              </div>
+              <h4 className="text-sm font-black text-slate-800">Upload Government ID Document</h4>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Accepted: Aadhaar Card, Passport, Driving License, or Voter ID.
+                <br />
+                <span className="text-emerald-600 font-semibold">Your document remains 100% confidential and is never shared publicly.</span>
+              </p>
+            </div>
+
+            <label className="block border-2 border-dashed border-rose-200 hover:border-[#d91b5c] rounded-2xl p-5 text-center cursor-pointer transition-all bg-white hover:bg-rose-50/20">
+              <input 
+                type="file" 
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                className="hidden" 
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    setDocFile(e.target.files[0]);
+                  }
+                }}
+              />
+              <Upload size={28} className="mx-auto text-[#d91b5c] mb-2" />
+              {docFile ? (
+                <div className="space-y-1">
+                  <p className="text-xs font-black text-emerald-600 truncate max-w-xs mx-auto">
+                    ✓ {docFile.name}
+                  </p>
+                  <p className="text-[11px] text-slate-400">Click to change file</p>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <p className="text-xs font-black text-slate-700">Choose file to upload</p>
+                  <p className="text-[11px] text-slate-400">JPG, PNG, WEBP or PDF (Max 5 MB)</p>
+                </div>
+              )}
+            </label>
 
             <button
-              onClick={() => { setActiveTab('document'); stopCamera(); }}
-              className={`py-2.5 px-3 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                activeTab === 'document' 
-                  ? 'bg-[#d91b5c] text-white shadow-sm' 
-                  : 'text-slate-600 hover:text-[#d91b5c] bg-white/50'
-              }`}
+              onClick={handleDocSubmit}
+              disabled={!docFile || uploadingDoc}
+              className="w-full py-3.5 rounded-2xl bg-[#d91b5c] hover:bg-[#c2144f] disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              <FileText size={16} />
-              <span>2. Govt ID Document</span>
+              {uploadingDoc ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Submitting Document...</span>
+                </>
+              ) : (
+                <span>Submit for Verification</span>
+              )}
             </button>
           </div>
-
-          {/* TAB BODY */}
-          <div className="p-5 sm:p-6">
-
-            {/* 📸 TAB 1: AI CAMERA SELFIE FACE MATCH */}
-            {activeTab === 'selfie' && (
-              <div className="space-y-4 text-center">
-                
-                {/* DESKTOP NOTICE IF USER IS ON PC/LAPTOP */}
-                {isDesktopPrompt && !isCameraActive && !capturedSelfie ? (
-                  <div className="p-5 rounded-2xl bg-amber-50/80 border border-amber-200 text-center space-y-3">
-                    <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto">
-                      <Smartphone size={24} />
-                    </div>
-                    <div className="space-y-1">
-                      <h4 className="text-sm font-black text-slate-900">Mobile Camera Recommended</h4>
-                      <p className="text-xs text-slate-600 leading-relaxed">
-                        Live Selfie AI face verification front smartphone camera se sabse behtar kaam karta hai.
-                      </p>
-                    </div>
-                    <p className="text-[11px] text-slate-500 font-medium">
-                      Mobile phone se login karke selfie verify karein, ya yahan desktop par apna Govt ID Document (Aadhaar / Passport) upload karein.
-                    </p>
-                    <div className="flex flex-col gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab('document')}
-                        className="w-full py-2.5 rounded-xl bg-[#d91b5c] text-white text-xs font-black shadow-sm hover:brightness-110 cursor-pointer"
-                      >
-                        Upload Govt ID on Desktop
-                      </button>
-                      <button
-                        type="button"
+        </motion.div>
+      </div>
+    </AnimatePresence>
+  );
+}
                         onClick={() => startCamera()}
                         className="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
                       >
