@@ -461,8 +461,13 @@ export function LiveOvalSelfieScannerModal({
     canvas.height = video.videoHeight || 800;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    
+    // Un-mirror the captured selfie so it aligns with normal uploaded photos
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
+    
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
     onCaptureSelfie(dataUrl);
   };
 

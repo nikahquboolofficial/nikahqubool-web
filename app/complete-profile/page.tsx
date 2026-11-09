@@ -656,8 +656,11 @@ export default function CompleteProfilePage() {
         return;
       }
 
-      // Step B: Compare selfie biometric descriptor with every uploaded photo
+      // Step B: Compare selfie biometric descriptor with uploaded photos (at least 1 photo must match)
       setSelfieStatusText('Matching selfie with your uploaded photos...');
+      let anyMatch = false;
+      let lastFailedIndex = 0;
+
       for (let i = 0; i < photosToVerify.length; i++) {
         let photoDesc = photosToVerify[i].descriptor;
         if (!photoDesc) {
@@ -666,21 +669,28 @@ export default function CompleteProfilePage() {
         }
 
         if (photoDesc) {
-          const cmp = compareFaceDescriptors(selfieCheck.descriptor, photoDesc, 0.58);
-          if (!cmp.isMatch) {
-            setSelfieVerifying(false);
-            setScannerModalOpen(false);
-            const label = i === 0 ? 'Main Photo' : `Photo #${i + 1}`;
-            setRejectedModal({
-              open: true,
-              previewUrl: selfieDataUrl,
-              errorCode: 'SELFIE_MISMATCH',
-              message: `Face verification failed! Your live selfie did not match your ${label}. Please make sure all uploaded photos are of yourself.`,
-              slotIndex: i,
-            });
-            return;
+          const cmp = compareFaceDescriptors(selfieCheck.descriptor, photoDesc, 0.68);
+          if (cmp.isMatch) {
+            anyMatch = true;
+            break;
+          } else {
+            lastFailedIndex = i;
           }
         }
+      }
+
+      if (!anyMatch) {
+        setSelfieVerifying(false);
+        setScannerModalOpen(false);
+        const label = lastFailedIndex === 0 ? 'Main Photo' : `Photo #${lastFailedIndex + 1}`;
+        setRejectedModal({
+          open: true,
+          previewUrl: selfieDataUrl,
+          errorCode: 'SELFIE_MISMATCH',
+          message: `Face verification failed! Your live selfie did not match your ${label}. Please ensure your face is well-lit and clearly visible.`,
+          slotIndex: lastFailedIndex,
+        });
+        return;
       }
 
       // Step C: Upload verified selfie to Cloudflare R2 `user-selfies`
