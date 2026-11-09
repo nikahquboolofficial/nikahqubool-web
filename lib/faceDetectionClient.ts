@@ -14,6 +14,7 @@ export async function loadFaceApiModels(): Promise<boolean> {
       }
       const MODEL_URL = "/models";
       await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
         faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
         faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
         faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
@@ -29,6 +30,7 @@ export async function loadFaceApiModels(): Promise<boolean> {
         }
         const CDN_URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/";
         await Promise.all([
+          faceapi.nets.tinyFaceDetector.loadFromUri(CDN_URL),
           faceapi.nets.ssdMobilenetv1.loadFromUri(CDN_URL),
           faceapi.nets.faceLandmark68Net.loadFromUri(CDN_URL),
           faceapi.nets.faceRecognitionNet.loadFromUri(CDN_URL),
@@ -53,7 +55,34 @@ export interface ClientFaceCheckResult {
   similarity?: number;
 }
 
-// Helper to convert base64 or URL to HTMLImageElement
+/**
+ * Fast real-time live face detection for the oval camera video feed
+ */
+export async function detectFaceInVideo(video: HTMLVideoElement): Promise<{ hasFace: boolean; score: number }> {
+  const ready = await loadFaceApiModels();
+  if (!ready || !faceapi) return { hasFace: false, score: 0 };
+  try {
+    const detection = await faceapi.detectSingleFace(
+      video,
+      new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 })
+    );
+    if (detection && detection.score >= 0.4) {
+      return { hasFace: true, score: detection.score };
+    }
+  } catch (err) {
+    // Fallback to SSD detector
+    try {
+      const ssdDetection = await faceapi.detectSingleFace(
+        video,
+        new faceapi.SsdMobilenetv1Options({ minConfidence: 0.4 })
+      );
+      if (ssdDetection && ssdDetection.score >= 0.4) {
+        return { hasFace: true, score: ssdDetection.score };
+      }
+    } catch (_) {}
+  }
+  return { hasFace: false, score: 0 };
+}
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();

@@ -454,40 +454,37 @@ export function LiveOvalSelfieScannerModal({
         }
 
         // Live Auto-Detection Loop like Muzz:
-        // Detects when face is centered in the oval frame, turns green, and auto-captures!
+        // Runs ultra-fast TinyFaceDetector directly on video feed every 300ms!
+        // As soon as face enters the oval, turns green and auto-captures!
+        let steadyCount = 0;
+
         checkIntervalRef.current = setInterval(async () => {
           if (!mounted || autoCapturedRef.current || verifying || !videoRef.current) return;
           const video = videoRef.current;
           if (video.readyState < 2) return;
 
           try {
-            // Import and run live lightweight face detection
-            const { clientValidateSingleFace } = await import("@/lib/faceDetectionClient");
-            const tempCanvas = document.createElement("canvas");
-            tempCanvas.width = 320;
-            tempCanvas.height = 400;
-            const tCtx = tempCanvas.getContext("2d");
-            if (!tCtx) return;
-            tCtx.drawImage(video, 0, 0, 320, 400);
-            const previewB64 = tempCanvas.toDataURL("image/jpeg", 0.7);
+            const { detectFaceInVideo } = await import("@/lib/faceDetectionClient");
+            const res = await detectFaceInVideo(video);
 
-            const res = await clientValidateSingleFace(previewB64);
-            if (res.isValid && !autoCapturedRef.current) {
+            if (res.hasFace) {
+              steadyCount++;
               setFaceInsideOval(true);
-              setGuidePrompt("Hold still • Scanning your face...");
-              
-              // Give 600ms steady hold, turn green and auto-capture without button click!
-              setTimeout(() => {
-                if (mounted && !autoCapturedRef.current) {
-                  captureFrame();
-                }
-              }, 600);
+              setGuidePrompt("Face aligned • Hold still...");
+
+              // Once face is steady for 2 ticks (~600ms), auto-capture!
+              if (steadyCount >= 2 && !autoCapturedRef.current) {
+                autoCapturedRef.current = true;
+                if (checkIntervalRef.current) clearInterval(checkIntervalRef.current);
+                captureFrame();
+              }
             } else {
+              steadyCount = 0;
               setFaceInsideOval(false);
-              setGuidePrompt(res.errorCode === "FACE_TOO_FAR" ? "Move slightly closer" : "Position your face in the outline");
+              setGuidePrompt("Position your face in the outline");
             }
           } catch (_) {}
-        }, 800);
+        }, 300);
       })
       .catch(() => {
         if (mounted) {
