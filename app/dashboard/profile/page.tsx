@@ -129,7 +129,13 @@ export default function ProfileDetailPage() {
   const loadProfileDetails = useCallback(async (showFullLoader: boolean = true) => {
     const token = getToken();
     if (!token) {
-      router.push('/');
+      if (typeof window !== "undefined") {
+        const fullCurrentPath = window.location.pathname + window.location.search;
+        sessionStorage.setItem('auth_redirect_target', fullCurrentPath);
+        router.push(`/login?redirect=${encodeURIComponent(fullCurrentPath)}`);
+      } else {
+        router.push('/login');
+      }
       return;
     }
 
@@ -1558,68 +1564,121 @@ export default function ProfileDetailPage() {
             </section>
           )}
 
-          {/* 7. 🕌 RELIGIOUS DETAILS (MATCHING USER SCREENSHOT 3) */}
-          {(sectText || maslakText || profileData.casteName || profileData.caste || profileData.namazHabit) && (
+          {/* 7. 🕌 RELIGIOUS DETAILS */}
+          {(sectText || maslakText || profileData.casteName || profileData.caste || profileData.namazHabit || profileData.NamazHabit || profileData.rozaHabit || profileData.RozaHabit || profileData.quranReading || profileData.QuranReading || profileData.zakatHabit || profileData.ZakatHabit || profileData.hajjUmrah || profileData.HajjUmrah || profileData.hijabOrBeard || profileData.HijabOrBeard) && (
             <section id="section-religious" className="bg-white rounded-3xl p-5 md:p-6 shadow-xs border border-slate-200/80 space-y-3.5 scroll-mt-20">
               <h3 className="font-serif font-extrabold text-base md:text-lg text-slate-900">Religious Details</h3>
               <div className="flex flex-wrap items-center gap-2.5 pt-1">
-                <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-slate-50 border border-slate-200/90 text-xs font-bold text-slate-700 shadow-xs">
-                  <span>🕌</span>
-                  <span>{profileData.namazHabit || profileData.preferredNamazHabit || 'Regularly'}</span>
-                </span>
-                <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-slate-50 border border-slate-200/90 text-xs font-bold text-slate-700 shadow-xs">
-                  <Check size={14} className="text-emerald-600 stroke-[3]" />
-                  <span>{profileData.fastingHabit || 'Yes'}</span>
-                </span>
-                <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-slate-50 border border-slate-200/90 text-xs font-bold text-slate-700 shadow-xs">
-                  <span>🕌</span>
-                  <span>{profileData.quranHabit || 'Regularly'}</span>
-                </span>
-                {profileData.zakatHabit && (
+                {(profileData.namazHabit || profileData.NamazHabit) && (
                   <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-slate-50 border border-slate-200/90 text-xs font-bold text-slate-700 shadow-xs">
-                    <span>🤲</span>
-                    <span>{profileData.zakatHabit}</span>
+                    <span>🕌</span>
+                    <span>Namaz: {profileData.namazHabit || profileData.NamazHabit}</span>
                   </span>
                 )}
-                {(profileData.hijabOrBeard || preferences?.preferredHijabOrBeard) && (
+                {(profileData.rozaHabit || profileData.RozaHabit || profileData.fastingHabit) && (
+                  <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-slate-50 border border-slate-200/90 text-xs font-bold text-slate-700 shadow-xs">
+                    <Check size={14} className="text-emerald-600 stroke-[3]" />
+                    <span>Roza: {profileData.rozaHabit || profileData.RozaHabit || profileData.fastingHabit}</span>
+                  </span>
+                )}
+                {(profileData.quranReading || profileData.QuranReading || profileData.quranHabit) && (
+                  <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-slate-50 border border-slate-200/90 text-xs font-bold text-slate-700 shadow-xs">
+                    <span>📖</span>
+                    <span>Quran: {profileData.quranReading || profileData.QuranReading || profileData.quranHabit}</span>
+                  </span>
+                )}
+                {(profileData.zakatHabit || profileData.ZakatHabit) && (
+                  <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-slate-50 border border-slate-200/90 text-xs font-bold text-slate-700 shadow-xs">
+                    <span>🤲</span>
+                    <span>Zakat: {profileData.zakatHabit || profileData.ZakatHabit}</span>
+                  </span>
+                )}
+                {(profileData.hajjUmrah || profileData.HajjUmrah) && (
+                  <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-slate-50 border border-slate-200/90 text-xs font-bold text-slate-700 shadow-xs">
+                    <span>🕋</span>
+                    <span>Hajj / Umrah: {profileData.hajjUmrah || profileData.HajjUmrah}</span>
+                  </span>
+                )}
+                {(profileData.hijabOrBeard || profileData.HijabOrBeard || preferences?.preferredHijabOrBeard) && (
                   <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-slate-50 border border-slate-200/90 text-xs font-bold text-slate-700 shadow-xs">
                     <span>✨</span>
-                    <span>{profileData.hijabOrBeard || preferences?.preferredHijabOrBeard}</span>
+                    <span>{profileData.hijabOrBeard || profileData.HijabOrBeard || preferences?.preferredHijabOrBeard}</span>
                   </span>
                 )}
               </div>
             </section>
           )}
 
-          {/* 8. 🌿 LIFESTYLE & INTEREST (MATCHING USER SCREENSHOT 3) */}
-          {(profileData.dietType || profileData.DietType || profileData.smokeHabit || profileData.SmokeHabit || profileData.drinkHabit || profileData.DrinkHabit || (profileData.canCook !== undefined && profileData.canCook !== null) || profileData.hobbies || profileData.Hobbies || profileData.interests || profileData.Interests) && (
+          {/* 8. 🌿 LIFESTYLE & INTEREST */}
+          {(profileData.dietType || profileData.DietType || profileData.smokeHabit || profileData.SmokeHabit || profileData.drinkHabit || profileData.DrinkHabit || (profileData.canCook !== undefined && profileData.canCook !== null) || profileData.languagesKnown || profileData.LanguagesKnown || profileData.sports || profileData.Sports || profileData.hobbies || profileData.Hobbies || profileData.interests || profileData.Interests) && (
             <section id="section-lifestyle" className="bg-white rounded-3xl p-5 md:p-6 shadow-xs border border-slate-200/80 space-y-3.5 scroll-mt-20">
               <h3 className="font-serif font-extrabold text-base md:text-lg text-slate-900">Lifestyle & Interest</h3>
               <div className="flex flex-wrap items-center gap-2.5 pt-1">
-                <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-slate-50 border border-slate-200/90 text-xs font-bold text-slate-700 shadow-xs">
-                  <span>🚭</span>
-                  <span>{profileData.smokeHabit || 'No'}</span>
-                </span>
-                <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-slate-50 border border-slate-200/90 text-xs font-bold text-slate-700 shadow-xs">
-                  <span>🍷</span>
-                  <span>{profileData.drinkHabit || 'No'}</span>
-                </span>
                 {(profileData.dietType || profileData.DietType) && (
                   <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-slate-50 border border-slate-200/90 text-xs font-bold text-slate-700 shadow-xs">
                     <span>🍲</span>
-                    <span>{profileData.dietType || profileData.DietType}</span>
+                    <span>Diet: {profileData.dietType || profileData.DietType}</span>
+                  </span>
+                )}
+                {(profileData.smokeHabit || profileData.SmokeHabit) && (
+                  <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-slate-50 border border-slate-200/90 text-xs font-bold text-slate-700 shadow-xs">
+                    <span>🚭</span>
+                    <span>Smoke: {profileData.smokeHabit || profileData.SmokeHabit}</span>
+                  </span>
+                )}
+                {(profileData.drinkHabit || profileData.DrinkHabit) && (
+                  <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-slate-50 border border-slate-200/90 text-xs font-bold text-slate-700 shadow-xs">
+                    <span>🍷</span>
+                    <span>Drink: {profileData.drinkHabit || profileData.DrinkHabit}</span>
+                  </span>
+                )}
+                {(profileData.canCook !== undefined && profileData.canCook !== null && profileData.canCook !== '') && (
+                  <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-slate-50 border border-slate-200/90 text-xs font-bold text-slate-700 shadow-xs">
+                    <span>🍳</span>
+                    <span>Can Cook: {profileData.canCook === true ? 'Yes' : (profileData.canCook === false ? 'No' : String(profileData.canCook))}</span>
+                  </span>
+                )}
+                {(profileData.languagesKnown || profileData.LanguagesKnown) && (
+                  <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-slate-50 border border-slate-200/90 text-xs font-bold text-slate-700 shadow-xs">
+                    <span>🗣️</span>
+                    <span>Languages: {profileData.languagesKnown || profileData.LanguagesKnown}</span>
+                  </span>
+                )}
+                {(profileData.sports || profileData.Sports) && (
+                  <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-slate-50 border border-slate-200/90 text-xs font-bold text-slate-700 shadow-xs">
+                    <span>⚽</span>
+                    <span>Sports: {profileData.sports || profileData.Sports}</span>
                   </span>
                 )}
               </div>
 
-              {/* Hobbies / Interests tags if present */}
+              {/* Hobbies / Interests chips */}
               {((profileData.hobbies || profileData.Hobbies) || (profileData.interests || profileData.Interests)) && (
-                <div className="pt-2 border-t border-slate-100 flex flex-wrap gap-2">
-                  {String(profileData.hobbies || profileData.Hobbies || profileData.interests || profileData.Interests).split(',').map((item: string, idx: number) => (
-                    <span key={idx} className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 font-semibold text-xs">
-                      {item.trim()}
-                    </span>
-                  ))}
+                <div className="pt-2 border-t border-slate-100 space-y-2">
+                  {(profileData.hobbies || profileData.Hobbies) && (
+                    <div>
+                      <span className="text-[11px] font-bold text-slate-400 block mb-1">Hobbies</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {String(profileData.hobbies || profileData.Hobbies).split(',').map((item: string, idx: number) => (
+                          <span key={idx} className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 font-bold text-xs">
+                            {item.trim()}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {(profileData.interests || profileData.Interests) && (
+                    <div>
+                      <span className="text-[11px] font-bold text-slate-400 block mb-1">Musics & Interests</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {String(profileData.interests || profileData.Interests).split(',').map((item: string, idx: number) => (
+                          <span key={idx} className="px-3 py-1 rounded-full bg-rose-50 text-[#d91b5c] font-bold text-xs border border-rose-100">
+                            {item.trim()}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </section>

@@ -224,9 +224,14 @@ type DurationKey = keyof typeof DURATION_PLANS_CONFIG;
 
 export default function MembershipPage() {
   const router = useRouter();
-  const [selectedDuration, setSelectedDuration] = useState<DurationKey>("3 Months");
+  const [selectedDuration, setSelectedDuration] = useState<string>("3 Months");
   const [selectedPlanId, setSelectedPlanId] = useState<string>("gold_3m");
   const [expandedPlanIds, setExpandedPlanIds] = useState<Record<string, boolean>>({ "gold_3m": false });
+
+  // 🌟 DYNAMIC DATABASE PLANS STATE
+  const [dynamicPlansConfig, setDynamicPlansConfig] = useState<Record<string, any[]>>(DURATION_PLANS_CONFIG);
+  const [availableDurations, setAvailableDurations] = useState<string[]>(["3 Months", "6 Months", "Unlimited"]);
+
   const [activeSub, setActiveSub] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
@@ -276,7 +281,75 @@ export default function MembershipPage() {
       }
     }
 
-    const loadActiveAndHistory = async () => {
+    const loadAllPlansAndSubscription = async () => {
+      // 1. Fetch Dynamic Plans from Database
+      try {
+        const plansRes = await fetchSubscriptionPlansApi();
+        if (plansRes && plansRes.success && Array.isArray(plansRes.data) && plansRes.data.length > 0) {
+          const grouped: Record<string, any[]> = {};
+
+          plansRes.data.forEach((p: any) => {
+            const duration = p.durationLabel || p.DurationLabel || (p.durationMonths ? `${p.durationMonths} Months` : '3 Months');
+            if (!grouped[duration]) {
+              grouped[duration] = [];
+            }
+
+            let parsedFeatures: string[] = [];
+            try {
+              const rawFeat = p.features || p.Features;
+              if (Array.isArray(rawFeat)) {
+                parsedFeatures = rawFeat;
+              } else if (typeof rawFeat === 'string' && rawFeat.trim().startsWith('[')) {
+                parsedFeatures = JSON.parse(rawFeat);
+              } else if (typeof rawFeat === 'string') {
+                parsedFeatures = rawFeat.split(',').map((s: string) => s.trim());
+              }
+            } catch (e) {
+              parsedFeatures = [
+                "Send Unlimited Messages",
+                `View ${p.totalContactsAllowed || p.TotalContactsAllowed || 30} Contact Numbers`,
+                "Unlimited Photo Requests",
+                "VIP Crown badge on your profile"
+              ];
+            }
+
+            const planObj = {
+              id: `plan_${p.planId || p.PlanId}`,
+              backendPlanId: Number(p.planId || p.PlanId),
+              name: p.planName || p.PlanName,
+              badge: p.badgeText || p.BadgeText || (p.isPopular || p.IsPopular ? "Best Seller" : (p.isBestValue || p.IsBestValue ? "Premium" : null)),
+              badgeColor: (p.isPopular || p.IsPopular) ? "bg-[#E21E5B] text-white" : "bg-[#8D5B10] text-white",
+              monthlyRate: Math.round(Number(p.discountPrice || p.DiscountPrice) / Math.max(1, Number(p.durationMonths || p.DurationMonths || 1))),
+              originalPrice: Number(p.originalPrice || p.OriginalPrice),
+              discountPrice: Number(p.discountPrice || p.DiscountPrice),
+              summary: p.description || p.Description || `View ${p.totalContactsAllowed || p.TotalContactsAllowed} Contact Numbers`,
+              contacts: Number(p.totalContactsAllowed || p.TotalContactsAllowed || 0),
+              features: parsedFeatures
+            };
+
+            grouped[duration].push(planObj);
+          });
+
+          const durKeys = Object.keys(grouped);
+          if (durKeys.length > 0) {
+            setDynamicPlansConfig(grouped);
+            setAvailableDurations(durKeys);
+            
+            // Prefer 3 Months if available, else first
+            const defaultDur = durKeys.includes("3 Months") ? "3 Months" : durKeys[0];
+            setSelectedDuration(defaultDur);
+            const firstGroup = grouped[defaultDur];
+            const preferred = firstGroup.find(p => p.name.toLowerCase().includes("gold")) || firstGroup[0];
+            if (preferred) {
+              setSelectedPlanId(preferred.id);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching dynamic plans:", err);
+      }
+
+      // 2. Fetch User Active Subscription & History
       const token = getToken();
       if (token) {
         try {
@@ -300,21 +373,22 @@ export default function MembershipPage() {
       }
     };
 
-    loadActiveAndHistory();
+    loadAllPlansAndSubscription();
   }, []);
 
-  // Current plans for the active duration tab
-  const currentPlans = DURATION_PLANS_CONFIG[selectedDuration] || DURATION_PLANS_CONFIG["3 Months"];
+  // Current plans for the active duration tab from Dynamic Database State
+  const currentPlans = dynamicPlansConfig[selectedDuration] || dynamicPlansConfig["3 Months"] || Object.values(dynamicPlansConfig)[0] || [];
 
   // Ensure selectedPlanId matches one in current duration
   const activePlan = currentPlans.find(p => p.id === selectedPlanId) || currentPlans[0];
 
-  const handleDurationChange = (dur: DurationKey) => {
+  const handleDurationChange = (dur: string) => {
     setSelectedDuration(dur);
-    const plansForDur = DURATION_PLANS_CONFIG[dur];
-    // Default to gold if present, else first
-    const preferred = plansForDur.find(p => p.name.includes("Gold")) || plansForDur[0];
-    setSelectedPlanId(preferred.id);
+    const plansForDur = dynamicPlansConfig[dur] || [];
+    const preferred = plansForDur.find(p => p.name.toLowerCase().includes("gold")) || plansForDur[0];
+    if (preferred) {
+      setSelectedPlanId(preferred.id);
+    }
     setAppliedPromo(null);
   };
 
@@ -471,16 +545,16 @@ export default function MembershipPage() {
           </div>
         )}
 
-        {/* DURATION SELECTOR TABS: [ 3 Months ] [ 6 Months ] [ Unlimited ] */}
-        <div className="flex items-center gap-2.5 pt-1">
-          {(["3 Months", "6 Months", "Unlimited"] as DurationKey[]).map((dur) => {
+        {/* DURATION SELECTOR TABS DYNAMIC FROM DATABASE */}
+        <div className="flex items-center gap-2.5 pt-1 overflow-x-auto pb-1">
+          {availableDurations.map((dur) => {
             const isSelected = selectedDuration === dur;
             return (
               <button
                 key={dur}
                 type="button"
                 onClick={() => handleDurationChange(dur)}
-                className={`flex-1 py-2 rounded-full text-xs font-bold transition-all text-center cursor-pointer shadow-2xs ${
+                className={`flex-1 min-w-[90px] py-2 px-3 rounded-full text-xs font-bold transition-all text-center cursor-pointer shadow-2xs whitespace-nowrap ${
                   isSelected
                     ? "bg-[#1C2024] text-white border border-[#1C2024]"
                     : "bg-white text-slate-700 border border-slate-300 hover:border-slate-400"

@@ -1209,7 +1209,9 @@ export default function EditMyProfilePage() {
 
     setUploadingGovtDoc(true);
     try {
-      const res = await uploadGovtDocumentApi(govtDocFile, token);
+      const fd = new FormData();
+      fd.append("Document", govtDocFile);
+      const res = await uploadGovtDocumentApi(fd, token);
       if (res.success || res.Success === 1) {
         toast.success("Identity document submitted! Our team will verify it.");
         setFormData((prev: any) => ({ ...prev, GovtIdDocUrl: govtDocPreview, IsGovtIdVerified: false }));
@@ -1505,10 +1507,10 @@ export default function EditMyProfilePage() {
           {activePhotosCount > 0 && (
             <div 
               onClick={() => setActiveSheet('photoPrivacy')}
-              className="pt-2 border-t border-slate-100 flex items-center justify-between cursor-pointer hover:opacity-85 transition-opacity"
+              className="mt-3 p-3 rounded-2xl bg-rose-50/40 border border-rose-100 flex items-center justify-between cursor-pointer hover:bg-rose-50/70 transition-all"
             >
               <div>
-                <span className="text-xs font-semibold text-slate-700 block">Control who sees your photo</span>
+                <span className="text-xs font-bold text-slate-800 block">Control who sees your photo</span>
                 <span className="text-xs font-bold text-[#d91b5c] mt-0.5 flex items-center gap-1">
                   {formData.PhotoPrivacy} <ChevronRight size={13} className="inline rotate-90" />
                 </span>
@@ -1570,81 +1572,67 @@ export default function EditMyProfilePage() {
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
-            {/* 2. Profile Created For */}
+            {/* 2. Profile Created For (Locked - Screenshot 9) */}
             <div 
-              onClick={() => openOptionSheet('Profile Created for', 'ProfileCreatedFor', formData.ProfileCreatedFor, profileCreatedForOpts)}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              onClick={() => toast.info("Profile created for is locked for security.", { icon: "🔒" })}
+              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/40 cursor-default"
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Profile Created for</span>
                 <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('PROFILE_CREATED_FOR', formData.ProfileCreatedFor)}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold">
+                <Info size={12} className="text-slate-400" />
+                <span>You can not edit this</span>
+              </div>
             </div>
 
-            {/* 3. Age and Gender */}
+            {/* 3. Age and Gender (Locked - Screenshot 9) */}
             <div 
-              onClick={openDobPickerSheet}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              onClick={() => toast.info("Age and gender are verified during registration and locked.", { icon: "🔒" })}
+              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/40 cursor-default"
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Age and Gender</span>
                 <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.Age}, {formData.Gender}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
-
-            {/* 4. Date of Birth */}
-            <div 
-              onClick={openDobPickerSheet}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[13px] font-bold text-slate-900 block">Date of Birth</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">
-                  {formData.DateOfBirth ? new Date(formData.DateOfBirth).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : `${formData.Age} Years`}
-                </span>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold">
+                <Info size={12} className="text-slate-400" />
+                <span>You can not edit this</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
-            {/* 5. Marital Status */}
+            {/* 4. Marital Status (Locked - Screenshot 9) */}
             <div 
-              onClick={() => openOptionSheet('Marital Status', 'MaritalStatus', formData.MaritalStatus, maritalStatusOpts)}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              onClick={() => toast.info("Marital status is locked. Contact support if needed.", { icon: "🔒" })}
+              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/40 cursor-default"
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Marital Status</span>
                 <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('MARITAL_STATUS', formData.MaritalStatus)}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold">
+                <Info size={12} className="text-slate-400" />
+                <span>You can not edit this</span>
+              </div>
             </div>
 
-            {/* 6. Sect */}
+            {/* 5. Sect (Locked - Screenshot 6 & 9) */}
             <div 
-              onClick={() => openOptionSheet('Sect', 'Sect', formData.Sect, sectOpts)}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              onClick={() => toast.info("Sect cannot be edited directly.", { icon: "🔒" })}
+              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/40 cursor-default"
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Sect</span>
                 <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('SECTS', formData.Sect)}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
-
-            {/* 7. Caste */}
-            <div 
-              onClick={() => openOptionSheet('Select caste', 'Caste', formData.Caste, casteOpts)}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[13px] font-bold text-slate-900 block">Caste</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('CASTES', formData.Caste)}</span>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold">
+                <Info size={12} className="text-slate-400" />
+                <span>You can not edit this</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
-            {/* 8. Height */}
+            {/* 6. Height (Editable with Slider Sheet) */}
             <div 
               onClick={openHeightSheet}
               className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
@@ -1656,7 +1644,19 @@ export default function EditMyProfilePage() {
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
-            {/* 9. Maslak */}
+            {/* 7. Caste (Editable with Searchable Radio Sheet) */}
+            <div 
+              onClick={() => openOptionSheet('Select caste', 'Caste', formData.Caste, casteOpts)}
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+            >
+              <div>
+                <span className="text-[13px] font-bold text-slate-900 block">Caste</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('CASTES', formData.Caste)}</span>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* 8. Maslak (Editable with Searchable Radio Sheet) */}
             <div 
               onClick={() => openOptionSheet('Select Maslak', 'Maslak', formData.Maslak, maslakOpts)}
               className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
@@ -1668,7 +1668,7 @@ export default function EditMyProfilePage() {
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
-            {/* 10. Mother Tongue */}
+            {/* 9. Mother Tongue */}
             <div 
               onClick={() => openOptionSheet('Select Mother Tongue', 'MotherTongue', formData.MotherTongue, languageOpts)}
               className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
@@ -1680,7 +1680,7 @@ export default function EditMyProfilePage() {
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
-            {/* 11. Location */}
+            {/* 10. Location (State & City Selector) */}
             <div 
               onClick={() => openLocationSheet('Location')}
               className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
@@ -1692,7 +1692,7 @@ export default function EditMyProfilePage() {
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
-            {/* 12. Disability */}
+            {/* 11. Disability */}
             <div 
               onClick={() => openOptionSheet('Disability', 'Disability', formData.Disability, disabilityOpts)}
               className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"

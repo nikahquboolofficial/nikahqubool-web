@@ -872,16 +872,27 @@ export const deleteAccountApi = async (reason: string, token: string | null | un
 };
 
 // 🔒 Protected: Upload Govt ID Document (R2 documents/ folder)
-export const uploadGovtDocumentApi = async (formDataPayload: FormData, token: string | null | undefined) => {
+export const uploadGovtDocumentApi = async (fileOrFormData: File | FormData, token: string | null | undefined) => {
   if (!token) return { success: false, message: "Unauthorized access." };
   try {
+    let bodyData: FormData;
+    if (fileOrFormData instanceof FormData) {
+      bodyData = fileOrFormData;
+    } else {
+      bodyData = new FormData();
+      bodyData.append("Document", fileOrFormData);
+    }
+
     const res = await fetch(`${API_BASE_URL}/User/upload-govt-document`, {
       method: "POST",
       headers: { "Authorization": `Bearer ${token}` },
-      body: formDataPayload,
+      body: bodyData,
     });
     const data = await res.json();
-    return { success: Boolean(data.success || data.Success), message: data.message || data.Message || "Document uploaded successfully." };
+    return { 
+      success: Boolean(data.success === 1 || data.success === true || data.Success === 1), 
+      message: data.message || data.Message || "Govt ID document uploaded successfully. Sent for Admin verification." 
+    };
   } catch (e) {
     return { success: false, message: "Failed to upload document to server." };
   }

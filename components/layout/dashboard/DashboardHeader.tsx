@@ -278,8 +278,9 @@ export default function DashboardHeader({
 
         {/* USER PROFILE AVATAR DP (DESKTOP ONLY) */}
         <div className="relative group hidden md:flex">
-          <Link prefetch={false} href="/dashboard/my-profile" 
-            className="flex items-center gap-2.5 py-1 px-2.5 rounded-full bg-rose-50/60 hover:bg-rose-100/60 border border-rose-200/60 transition-all duration-200 shadow-xs"
+          <Link prefetch={false} href="/dashboard/edit-profile" 
+            className="flex items-center gap-2.5 py-1 px-2.5 rounded-full bg-rose-50/60 hover:bg-rose-100/60 border border-rose-200/60 transition-all duration-200 shadow-xs cursor-pointer"
+            title="Edit Profile"
           >
             <div className="relative w-9 h-9 rounded-full overflow-hidden border-2 border-[#d91b5c] shadow-xs bg-slate-100">
               <div className="w-full h-full relative flex items-center justify-center bg-slate-100">

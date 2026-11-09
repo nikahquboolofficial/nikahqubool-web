@@ -128,6 +128,13 @@ export const handleAuthSuccessRedirect = (result: any, router: any) => {
 
   if (isProfileDone) {
     if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const redirectUrl = urlParams.get('redirect') || urlParams.get('returnUrl') || sessionStorage.getItem('auth_redirect_target');
+      if (redirectUrl && redirectUrl.startsWith('/') && !redirectUrl.startsWith('//')) {
+        sessionStorage.removeItem('auth_redirect_target');
+        window.location.href = redirectUrl;
+        return;
+      }
       window.location.href = '/dashboard';
     } else {
       router.push('/dashboard');

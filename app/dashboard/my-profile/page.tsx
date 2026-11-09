@@ -320,8 +320,8 @@ export default function MyProfilePage() {
             {/* Photo inside Ring */}
             <div 
               className="absolute inset-2 rounded-full overflow-hidden cursor-pointer group bg-slate-100"
-              onClick={() => router.push('/dashboard/gallery')}
-              title="Click to view/change photos"
+              onClick={() => router.push('/dashboard/edit-profile')}
+              title="Click to edit profile"
             >
               {hasRealPhoto && !isPhotoLoaded && (
                 <div className="absolute inset-0 bg-slate-200 animate-pulse flex items-center justify-center z-10">
@@ -345,10 +345,10 @@ export default function MyProfilePage() {
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                router.push('/dashboard/gallery');
+                router.push('/dashboard/edit-profile');
               }}
               className="absolute top-1 right-1 w-7 h-7 rounded-full bg-white border border-rose-200 text-[#E21E5B] shadow-sm flex items-center justify-center hover:bg-rose-50 transition-all cursor-pointer z-20"
-              title="Manage Photos"
+              title="Edit Profile"
             >
               <Camera size={13} />
             </button>
@@ -362,8 +362,11 @@ export default function MyProfilePage() {
           {/* STATUS PILL BADGE */}
           <div className="pt-1">
             {isIncomplete ? (
-              <span className="inline-flex items-center px-4 py-1 rounded-full bg-rose-50 text-[#E21E5B] text-xs font-bold">
-                Incomplete Profile
+              <span 
+                onClick={() => router.push('/dashboard/edit-profile')}
+                className="inline-flex items-center px-4 py-1 rounded-full bg-rose-50 text-[#E21E5B] text-xs font-bold cursor-pointer hover:bg-rose-100 transition-colors"
+              >
+                Incomplete Profile &bull; Click to Edit
               </span>
             ) : (
               <span className="inline-flex items-center px-4 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold">
@@ -374,7 +377,11 @@ export default function MyProfilePage() {
 
           {/* NAME, VERIFIED BADGE & VIP CROWN */}
           <div className="space-y-1">
-            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center justify-center gap-1.5">
+            <h2 
+              onClick={() => router.push('/dashboard/edit-profile')}
+              className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center justify-center gap-1.5 cursor-pointer hover:text-[#E21E5B] transition-colors"
+              title="Click to edit profile"
+            >
               <span>{fullName}</span>
               {isVerified && (
                 <span title="Verified Member">
