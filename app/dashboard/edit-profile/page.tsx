@@ -9,7 +9,8 @@ import {
   ArrowLeft, Upload, FileText, Check, Loader2, Star,
   GraduationCap, Briefcase, Heart, Home, Moon, User,
   Minus, Award, ShieldCheck, MapPin, Activity, Utensils,
-  BookOpen, Smile
+  BookOpen, Smile, Phone, Mail, MessageCircle, Calendar,
+  Dumbbell, Music, Languages, DollarSign, Users, Info
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import { 
@@ -48,6 +49,28 @@ function parseHeightToCm(hStr: string): number {
   return 170;
 }
 
+// Comprehensive Income Brackets
+const INCOME_BRACKETS = [
+  "No Income / Dependent",
+  "Below ₹2 Lakhs",
+  "₹2 - 3 Lakhs",
+  "₹3 - 5 Lakhs",
+  "₹5 - 7 Lakhs",
+  "₹7 - 10 Lakhs",
+  "₹10 - 15 Lakhs",
+  "₹15 - 20 Lakhs",
+  "₹20 - 30 Lakhs",
+  "₹30 - 50 Lakhs",
+  "₹50 - 75 Lakhs",
+  "₹75 Lakhs - ₹1 Crore",
+  "Above ₹1 Crore"
+];
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+
 // 🌟 COMPLETE FALLBACK MASTER DATA (0ms Instant Guarantee)
 const FALLBACK_MASTERS: { [key: string]: MasterOption[] } = {
   PROFILE_CREATED_FOR: [
@@ -85,7 +108,7 @@ const FALLBACK_MASTERS: { [key: string]: MasterOption[] } = {
     { id: 1, value: "Ansari" },
     { id: 2, value: "Qureshi" },
     { id: 3, value: "Syed" },
-    { id: 4, value: "Shaikh" },
+    { id: 4, value: "Sheikh or Shaikh" },
     { id: 5, value: "Khan / Pathan" },
     { id: 6, value: "Siddiqui" },
     { id: 7, value: "Malik" },
@@ -127,16 +150,16 @@ const FALLBACK_MASTERS: { [key: string]: MasterOption[] } = {
     { id: 2, value: "Intermediate / 12th" },
     { id: 3, value: "Diploma" },
     { id: 4, value: "Bachelor of Arts (B.A.)" },
-    { id: 5, value: "Bachelor of Commerce (B.Com)" },
-    { id: 6, value: "Bachelor of Science (B.Sc)" },
+    { id: 5, value: "Bachelor of Commerce (B.Com.)" },
+    { id: 6, value: "Bachelor of Science (B.Sc.)" },
     { id: 7, value: "B.Tech / B.E." },
     { id: 8, value: "BBA / BBM" },
     { id: 9, value: "BCA" },
     { id: 10, value: "MBBS / BDS / Medical" },
     { id: 11, value: "LLB / Law" },
     { id: 12, value: "Master of Arts (M.A.)" },
-    { id: 13, value: "Master of Commerce (M.Com)" },
-    { id: 14, value: "Master of Science (M.Sc)" },
+    { id: 13, value: "Master of Commerce (M.Com.)" },
+    { id: 14, value: "Master of Science (M.Sc.)" },
     { id: 15, value: "M.Tech / M.E." },
     { id: 16, value: "MBA / PGDM" },
     { id: 17, value: "MCA" },
@@ -247,6 +270,41 @@ const FALLBACK_MASTERS: { [key: string]: MasterOption[] } = {
     { id: 13, value: "History & Culture" },
     { id: 14, value: "Content Creation" },
     { id: 15, value: "Finance & Investing" }
+  ],
+  SPORTS: [
+    { id: 1, value: "Cricket" },
+    { id: 2, value: "Football / Soccer" },
+    { id: 3, value: "Badminton" },
+    { id: 4, value: "Swimming" },
+    { id: 5, value: "Fitness / Gym" },
+    { id: 6, value: "Running / Jogging" },
+    { id: 7, value: "Cycling" },
+    { id: 8, value: "Table Tennis" },
+    { id: 9, value: "Lawn Tennis" },
+    { id: 10, value: "Basketball" },
+    { id: 11, value: "Volleyball" },
+    { id: 12, value: "Martial Arts / Boxing" },
+    { id: 13, value: "Snooker / Pool" },
+    { id: 14, value: "Chess" },
+    { id: 15, value: "Yoga & Calisthenics" }
+  ],
+  LANGUAGES: [
+    { id: 1, value: "Urdu" },
+    { id: 2, value: "English" },
+    { id: 3, value: "Hindi" },
+    { id: 4, value: "Arabic" },
+    { id: 5, value: "Bengali" },
+    { id: 6, value: "Telugu" },
+    { id: 7, value: "Marathi" },
+    { id: 8, value: "Tamil" },
+    { id: 9, value: "Gujarati" },
+    { id: 10, value: "Malayalam" },
+    { id: 11, value: "Punjabi" },
+    { id: 12, value: "Kashmiri" },
+    { id: 13, value: "Persian / Farsi" },
+    { id: 14, value: "Turkish" },
+    { id: 15, value: "French" },
+    { id: 16, value: "German" }
   ]
 };
 
@@ -280,11 +338,14 @@ export default function EditMyProfilePage() {
     UserId: 0,
     FullName: '',
     ProfileCreatedFor: 'Self',
+    ProfileCreatedForId: 1,
     Age: 25,
     Gender: 'Female',
     DateOfBirth: '',
     MaritalStatus: 'Never Married',
+    MaritalStatusId: 1,
     Sect: 'Sunni',
+    SectId: 1,
     Height: `5ft 7in (170 cm)`,
     Weight: '60 kg',
     Complexion: 'Fair',
@@ -311,13 +372,17 @@ export default function EditMyProfilePage() {
     Occupation: 'Software Professional',
     OccupationId: 1,
     OccupationDetails: '',
-    AnnualIncome: '5 - 7 Lakh',
+    AnnualIncome: '₹5 - 7 Lakhs',
 
     // Family Details
     FamilyLocation: 'Bareilly, Uttar Pradesh, India',
     FamilyType: 'Joint Family',
-    FamilyValues: 'Traditional & Religious',
+    FamilyTypeId: 1,
     FamilyStatus: 'Upper Middle Class',
+    FamilyStatusId: 2,
+    NativeLocation: 'Bareilly, Uttar Pradesh, India',
+    NativePlaceStateId: 14,
+    NativePlaceCityId: 1,
     FatherName: '',
     FatherOccupation: 'Business Owner / Entrepreneur',
     FatherOccupationId: 4,
@@ -330,13 +395,26 @@ export default function EditMyProfilePage() {
     MarriedSisters: 1,
     FamilyAbout: '',
 
-    // Religious & Lifestyle
+    // Contact Details
+    MobileNumber: '',
+    Email: '',
+    WhatsAppNumber: '',
+
+    // Religious Details
     NamazHabit: 'Always (5 Times Daily)',
+    QuranReading: 'Daily Recitation',
+    RozaHabit: 'All 30 Days in Ramadan',
     HijabOrBeard: 'Hijab',
+    ZakatHabit: 'Pay Regularly Every Year',
+    HajjUmrah: 'Planning Soon Insha\'Allah',
+
+    // Lifestyle & Interest
     DietType: 'Halal Only',
     SmokeHabit: 'Never',
     DrinkHabit: 'Never',
+    LanguagesKnown: 'Urdu, English, Hindi',
     CanCook: 'Yes',
+    Sports: 'Badminton, Swimming',
     Hobbies: '',
     Interests: '',
 
@@ -357,7 +435,6 @@ export default function EditMyProfilePage() {
   const [stateCities, setStateCities] = useState<MasterOption[]>([]);
 
   // Active Bottom Sheet / Subscreen
-  // 'bio' | 'height' | 'option' | 'location' | 'textInput' | 'counters' | 'photoPrivacy' | 'trustBadge' | null
   const [activeSheet, setActiveSheet] = useState<string | null>(null);
   const [sheetTitle, setSheetTitle] = useState('');
   const [sheetSearch, setSheetSearch] = useState('');
@@ -374,6 +451,7 @@ export default function EditMyProfilePage() {
     placeholder: string;
     maxLength?: number;
     multiline?: boolean;
+    inputType?: 'text' | 'tel' | 'email';
   }>({
     title: '',
     subtitle: '',
@@ -382,6 +460,7 @@ export default function EditMyProfilePage() {
     placeholder: '',
     maxLength: 120,
     multiline: false,
+    inputType: 'text',
   });
 
   // Counters Sheet Substate
@@ -395,13 +474,21 @@ export default function EditMyProfilePage() {
   // Height Slider Substate
   const [heightCm, setHeightCm] = useState(170);
 
+  // Income Slider Substate (index 0 to 12)
+  const [incomeIndex, setIncomeIndex] = useState(4);
+
+  // Date of Birth 3-Column Picker Substate
+  const [dobDay, setDobDay] = useState<number>(15);
+  const [dobMonth, setDobMonth] = useState<number>(8); // 1-12
+  const [dobYear, setDobYear] = useState<number>(1998);
+
   // Bio Substate
   const [bioDraft, setBioDraft] = useState('');
 
   // Location Substate
   const [selectedStateId, setSelectedStateId] = useState<number>(14);
   const [selectedCityId, setSelectedCityId] = useState<number>(1);
-  const [locationTargetField, setLocationTargetField] = useState<'Location' | 'FamilyLocation'>('Location');
+  const [locationTargetField, setLocationTargetField] = useState<'Location' | 'FamilyLocation' | 'NativeLocation'>('Location');
 
   // Trust Badge Substate
   const [govtDocFile, setGovtDocFile] = useState<File | null>(null);
@@ -409,7 +496,7 @@ export default function EditMyProfilePage() {
   const [uploadingGovtDoc, setUploadingGovtDoc] = useState(false);
 
   // Lifestyle Hub & Multi-Select Substate
-  const [multiSelectKey, setMultiSelectKey] = useState<'Hobbies' | 'Interests'>('Hobbies');
+  const [multiSelectKey, setMultiSelectKey] = useState<'Hobbies' | 'Interests' | 'Sports' | 'LanguagesKnown'>('Hobbies');
   const [multiSelectTitle, setMultiSelectTitle] = useState('');
   const [multiSelectSubtitle, setMultiSelectSubtitle] = useState('');
   const [multiSelectItems, setMultiSelectItems] = useState<string[]>([]);
@@ -442,7 +529,9 @@ export default function EditMyProfilePage() {
           'FAMILY_STATUS',
           'COMPLEXION',
           'HOBBIES',
-          'INTERESTS'
+          'INTERESTS',
+          'SPORTS',
+          'LANGUAGES'
         ];
 
         // Fetch all master data in parallel with profile details
@@ -482,16 +571,36 @@ export default function EditMyProfilePage() {
             resolvedName = getInitialFullName() || 'Candidate Profile';
           }
 
+          // Parse Date of Birth into picker state
+          if (p.dateOfBirth) {
+            const dob = new Date(p.dateOfBirth);
+            if (!isNaN(dob.getTime())) {
+              setDobDay(dob.getDate());
+              setDobMonth(dob.getMonth() + 1);
+              setDobYear(dob.getFullYear());
+            }
+          }
+
+          // Income Index resolver
+          const incStr = p.annualIncome || p.AnnualIncome || '₹5 - 7 Lakhs';
+          const matchedIncIdx = INCOME_BRACKETS.findIndex(b => b.toLowerCase().replace(/[^a-z0-9]/g, '') === incStr.toLowerCase().replace(/[^a-z0-9]/g, ''));
+          if (matchedIncIdx >= 0) {
+            setIncomeIndex(matchedIncIdx);
+          }
+
           setFormData((prev: any) => ({
             ...prev,
             UserId: p.userId || p.UserId || 0,
             FullName: resolvedName,
             ProfileCreatedFor: p.profileCreatedForName || p.profileCreatedFor || prev.ProfileCreatedFor,
+            ProfileCreatedForId: p.profileCreatedFor || prev.ProfileCreatedForId,
             Age: p.age || prev.Age,
             Gender: p.gender || p.Gender || prev.Gender,
             DateOfBirth: p.dateOfBirth || prev.DateOfBirth,
             MaritalStatus: p.maritalStatusName || p.maritalStatus || prev.MaritalStatus,
+            MaritalStatusId: p.maritalStatus || prev.MaritalStatusId,
             Sect: p.sectName || p.sect || prev.Sect,
+            SectId: p.sect || prev.SectId,
             Height: p.height || p.Height || prev.Height,
             Weight: p.weight || p.Weight || prev.Weight,
             Complexion: p.complexionName || p.complexion || prev.Complexion,
@@ -507,7 +616,7 @@ export default function EditMyProfilePage() {
             CurrentCityId: p.currentCityId || prev.CurrentCityId,
             StateName: p.currentStateName || p.stateName || prev.StateName,
             CityName: p.currentCityName || p.cityName || prev.CityName,
-            Disability: p.disability || prev.Disability,
+            Disability: p.disability || prev.Disability || 'No',
 
             // Education & Career
             Education: p.highestDegreeName || p.highestDegree || p.education || prev.Education,
@@ -518,13 +627,17 @@ export default function EditMyProfilePage() {
             Occupation: p.designationName || p.designation || p.occupation || prev.Occupation,
             OccupationId: p.designation || prev.OccupationId,
             OccupationDetails: p.occupationDetails || prev.OccupationDetails,
-            AnnualIncome: p.annualIncome || prev.AnnualIncome,
+            AnnualIncome: incStr,
 
             // Family
             FamilyLocation: p.familyCityName ? `${p.familyCityName}, ${p.familyStateName || ''}, India` : prev.FamilyLocation,
             FamilyType: p.familyTypeName || p.familyType || prev.FamilyType,
-            FamilyValues: p.familyValuesName || p.familyValues || prev.FamilyValues,
+            FamilyTypeId: p.familyType || prev.FamilyTypeId,
             FamilyStatus: p.familyStatusName || p.familyStatus || prev.FamilyStatus,
+            FamilyStatusId: p.familyStatus || prev.FamilyStatusId,
+            NativeLocation: p.nativeCityName ? `${p.nativeCityName}, ${p.nativeStateName || ''}, India` : (p.familyCityName ? `${p.familyCityName}, ${p.familyStateName || ''}, India` : prev.NativeLocation),
+            NativePlaceStateId: p.nativePlaceStateId || prev.NativePlaceStateId,
+            NativePlaceCityId: p.nativePlaceCityId || prev.NativePlaceCityId,
             FatherName: p.fatherName || p.FatherName || prev.FatherName,
             FatherOccupation: p.fatherOccupationName || p.fatherOccupation || prev.FatherOccupation,
             FatherOccupationId: p.fatherOccupationId || prev.FatherOccupationId,
@@ -537,13 +650,26 @@ export default function EditMyProfilePage() {
             MarriedSisters: p.marriedSisters !== undefined ? Number(p.marriedSisters) : prev.MarriedSisters,
             FamilyAbout: p.familyAbout || prev.FamilyAbout,
 
-            // Religious & Lifestyle
-            NamazHabit: p.namazHabit || prev.NamazHabit,
-            HijabOrBeard: p.hijabOrBeard || prev.HijabOrBeard,
+            // Contact Details
+            MobileNumber: p.mobileNumber || p.MobileNumber || prev.MobileNumber || '',
+            Email: p.email || p.Email || prev.Email || '',
+            WhatsAppNumber: p.whatsAppNumber || p.WhatsAppNumber || p.waliContactNumber || p.WaliContactNumber || prev.WhatsAppNumber || '',
+
+            // Religious Details
+            NamazHabit: p.namazHabit || p.NamazHabit || prev.NamazHabit,
+            QuranReading: p.quranReading || p.QuranReading || prev.QuranReading,
+            RozaHabit: p.rozaHabit || p.RozaHabit || prev.RozaHabit,
+            HijabOrBeard: p.hijabOrBeard || p.HijabOrBeard || prev.HijabOrBeard,
+            ZakatHabit: p.zakatHabit || p.ZakatHabit || prev.ZakatHabit,
+            HajjUmrah: p.hajjUmrah || p.HajjUmrah || prev.HajjUmrah,
+
+            // Lifestyle & Interest
             DietType: p.dietType || prev.DietType,
             SmokeHabit: p.smokeHabit || prev.SmokeHabit,
             DrinkHabit: p.drinkHabit || prev.DrinkHabit,
+            LanguagesKnown: p.languagesKnown || p.LanguagesKnown || prev.LanguagesKnown,
             CanCook: p.canCook ? 'Yes' : (p.canCook === false ? 'No' : prev.CanCook),
+            Sports: p.sports || p.Sports || prev.Sports,
             Hobbies: p.hobbies || prev.Hobbies,
             Interests: p.interests || prev.Interests,
 
@@ -594,7 +720,7 @@ export default function EditMyProfilePage() {
     }
   }, [selectedStateId]);
 
-  // Save specific field via API
+  // 🌟 Save specific field via API (Silent on success, no annoying toasts!)
   const saveFieldValue = async (field: string, value: any, extraData: any = {}) => {
     const token = getAuthToken();
     if (!token) return;
@@ -633,7 +759,7 @@ export default function EditMyProfilePage() {
           });
         }
 
-        toast.success("Updated successfully!");
+        // Silent close of sheets without intrusive toasts!
         setActiveSheet(null);
       } else {
         toast.error(res.message || "Failed to update detail.");
@@ -649,61 +775,119 @@ export default function EditMyProfilePage() {
   const openOptionSheet = (
     title: string, 
     fieldKey: string, 
-    currentVal: any, 
+    currentValue: any, 
     options: Array<{ id: any; value: string; desc?: string }>
   ) => {
     setSheetTitle(title);
     setSheetFieldKey(fieldKey);
-    setSelectedSheetValue(currentVal);
+    setSelectedSheetValue(currentValue);
     setSheetOptions(options);
     setSheetSearch('');
     setActiveSheet('option');
   };
 
-  // Open In-App Text Input Sheet
+  // Open Text Input Sheet
   const openTextInputSheet = (
     title: string,
     subtitle: string,
     fieldKey: string,
-    currentVal: string,
+    currentValue: string,
     placeholder: string,
     maxLength: number = 120,
-    multiline: boolean = false
+    multiline: boolean = false,
+    inputType: 'text' | 'tel' | 'email' = 'text'
   ) => {
     setTextInputData({
       title,
       subtitle,
       fieldKey,
-      value: currentVal || '',
+      value: currentValue || '',
       placeholder,
       maxLength,
       multiline,
+      inputType,
     });
     setActiveSheet('textInput');
   };
 
-  // Save Text Input Sheet
+  // Save Text Input
   const handleSaveTextInput = () => {
-    const trimmed = textInputData.value.trim();
-    if (textInputData.fieldKey === 'FullName' && !trimmed) {
-      toast.error("Full Name cannot be empty.");
-      return;
-    }
-    saveFieldValue(textInputData.fieldKey, trimmed);
+    saveFieldValue(textInputData.fieldKey, textInputData.value.trim());
   };
 
-  // Open Sibling Counters Sheet
+  // Open Height Sheet
+  const openHeightSheet = () => {
+    setHeightCm(parseHeightToCm(formData.Height));
+    setActiveSheet('height');
+  };
+
+  const handleSaveHeight = () => {
+    const formatted = cmToFtIn(heightCm);
+    saveFieldValue('Height', formatted);
+  };
+
+  // Open Income Sheet
+  const openIncomeSheet = () => {
+    const current = formData.AnnualIncome || '₹5 - 7 Lakhs';
+    const idx = INCOME_BRACKETS.findIndex(b => b.toLowerCase().replace(/[^a-z0-9]/g, '') === current.toLowerCase().replace(/[^a-z0-9]/g, ''));
+    setIncomeIndex(idx >= 0 ? idx : 4);
+    setActiveSheet('income');
+  };
+
+  const handleSaveIncome = () => {
+    const selectedIncome = INCOME_BRACKETS[incomeIndex] || '₹5 - 7 Lakhs';
+    saveFieldValue('AnnualIncome', selectedIncome);
+  };
+
+  // Open Date of Birth 3-Column Picker
+  const openDobPickerSheet = () => {
+    if (formData.DateOfBirth) {
+      const dob = new Date(formData.DateOfBirth);
+      if (!isNaN(dob.getTime())) {
+        setDobDay(dob.getDate());
+        setDobMonth(dob.getMonth() + 1);
+        setDobYear(dob.getFullYear());
+      }
+    }
+    setActiveSheet('dobPicker');
+  };
+
+  // Dynamic days in selected month & year
+  const daysInCurrentMonth = useMemo(() => {
+    return new Date(dobYear, dobMonth, 0).getDate();
+  }, [dobYear, dobMonth]);
+
+  // Calculated Age live from selected DOB
+  const calculatedLiveAge = useMemo(() => {
+    const birthDate = new Date(dobYear, dobMonth - 1, Math.min(dobDay, daysInCurrentMonth));
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return Math.max(18, age);
+  }, [dobYear, dobMonth, dobDay, daysInCurrentMonth]);
+
+  const handleSaveDob = () => {
+    const validDay = Math.min(dobDay, daysInCurrentMonth);
+    const isoDate = `${dobYear}-${String(dobMonth).padStart(2, '0')}-${String(validDay).padStart(2, '0')}`;
+    saveFieldValue('DateOfBirth', isoDate, {
+      Age: calculatedLiveAge,
+    });
+  };
+
+  // Open Sibling Counters
   const openCountersSheet = () => {
     setCountersState({
-      totalBrothers: Number(formData.TotalBrothers) || 0,
-      marriedBrothers: Number(formData.MarriedBrothers) || 0,
-      totalSisters: Number(formData.TotalSisters) || 0,
-      marriedSisters: Number(formData.MarriedSisters) || 0,
+      totalBrothers: formData.TotalBrothers || 0,
+      marriedBrothers: formData.MarriedBrothers || 0,
+      totalSisters: formData.TotalSisters || 0,
+      marriedSisters: formData.MarriedSisters || 0,
     });
     setActiveSheet('counters');
   };
 
-  // Save Sibling Counters
   const handleSaveCounters = () => {
     saveFieldValue('TotalBrothers', countersState.totalBrothers, {
       MarriedBrothers: countersState.marriedBrothers,
@@ -712,42 +896,53 @@ export default function EditMyProfilePage() {
     });
   };
 
-  // Open Height Slider Sheet
-  const openHeightSheet = () => {
-    setHeightCm(parseHeightToCm(formData.Height));
-    setActiveSheet('height');
+  // Open Location Sheet
+  const openLocationSheet = (target: 'Location' | 'FamilyLocation' | 'NativeLocation') => {
+    setLocationTargetField(target);
+    if (target === 'FamilyLocation' || target === 'NativeLocation') {
+      setSelectedStateId(formData.NativePlaceStateId || 14);
+      setSelectedCityId(formData.NativePlaceCityId || 1);
+    } else {
+      setSelectedStateId(formData.CurrentStateId || 14);
+      setSelectedCityId(formData.CurrentCityId || 1);
+    }
+    setActiveSheet('location');
   };
 
-  // Open Bio Edit Sheet
+  // Open Bio Full Sheet
   const openBioSheet = () => {
     setBioDraft(formData.AboutMe || '');
     setActiveSheet('bio');
   };
 
-  // Open Location Sheet
-  const openLocationSheet = (target: 'Location' | 'FamilyLocation' = 'Location') => {
-    setLocationTargetField(target);
-    setSelectedStateId(formData.CurrentStateId || 14);
-    setSelectedCityId(formData.CurrentCityId || 1);
-    setActiveSheet('location');
-  };
-
-  // Save Height
-  const handleSaveHeight = () => {
-    const formatted = cmToFtIn(heightCm);
-    saveFieldValue('Height', formatted);
-  };
-
-  // Open Multi-Select Sheet for Hobbies or Music/Interests
-  const openMultiSelectSheet = (key: 'Hobbies' | 'Interests') => {
-    const isHobbies = key === 'Hobbies';
+  // Open Multi-Select Sheet (Hobbies, Interests, Sports, LanguagesKnown)
+  const openMultiSelectSheet = (key: 'Hobbies' | 'Interests' | 'Sports' | 'LanguagesKnown') => {
     setMultiSelectKey(key);
-    setMultiSelectTitle(isHobbies ? "Select Hobbies & Activities" : "Select Music & Personal Interests");
-    setMultiSelectSubtitle(isHobbies ? "Pick the hobbies and leisure activities you enjoy" : "Choose your favorite music genres & personal interests");
-    const currentStr = isHobbies ? (formData.Hobbies || '') : (formData.Interests || '');
-    const currentList = currentStr ? currentStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+    let title = 'Select Hobbies';
+    let subtitle = 'Choose all pastimes you enjoy';
+    let available: MasterOption[] = masterData.HOBBIES || FALLBACK_MASTERS.HOBBIES;
+
+    if (key === 'Interests') {
+      title = 'Select Music & Interests';
+      subtitle = 'Pick genres, melodies, and personal passions';
+      available = masterData.INTERESTS || FALLBACK_MASTERS.INTERESTS;
+    } else if (key === 'Sports') {
+      title = 'Select Sports & Fitness';
+      subtitle = 'Choose sports and physical activities you participate in';
+      available = masterData.SPORTS || FALLBACK_MASTERS.SPORTS;
+    } else if (key === 'LanguagesKnown') {
+      title = 'Languages You Know';
+      subtitle = 'Select all languages you speak or understand fluently';
+      available = masterData.LANGUAGES || FALLBACK_MASTERS.LANGUAGES;
+    }
+
+    const currentVal = formData[key] || '';
+    const currentList = currentVal.split(',').map((s: string) => s.trim()).filter(Boolean);
+
+    setMultiSelectTitle(title);
+    setMultiSelectSubtitle(subtitle);
     setMultiSelectItems(currentList);
-    setMultiSelectAvailable(isHobbies ? (masterData.HOBBIES || FALLBACK_MASTERS.HOBBIES) : (masterData.INTERESTS || FALLBACK_MASTERS.INTERESTS));
+    setMultiSelectAvailable(available);
     setMultiSelectSearch('');
     setActiveSheet('multiSelect');
   };
@@ -785,6 +980,11 @@ export default function EditMyProfilePage() {
         NativePlaceStateId: selectedStateId,
         NativePlaceCityId: selectedCityId,
       });
+    } else if (locationTargetField === 'NativeLocation') {
+      saveFieldValue('NativeLocation', locText, {
+        NativePlaceStateId: selectedStateId,
+        NativePlaceCityId: selectedCityId,
+      });
     } else {
       saveFieldValue('CurrentStateId', selectedStateId, {
         CurrentCityId: selectedCityId,
@@ -803,7 +1003,13 @@ export default function EditMyProfilePage() {
       return;
     }
 
-    if (sheetFieldKey === 'Education') {
+    if (sheetFieldKey === 'ProfileCreatedFor') {
+      saveFieldValue('ProfileCreatedFor', selectedObj.id, { ProfileCreatedFor: selectedObj.value, ProfileCreatedForId: selectedObj.id });
+    } else if (sheetFieldKey === 'MaritalStatus') {
+      saveFieldValue('MaritalStatus', selectedObj.id, { MaritalStatus: selectedObj.value, MaritalStatusId: selectedObj.id });
+    } else if (sheetFieldKey === 'Sect') {
+      saveFieldValue('Sect', selectedObj.id, { Sect: selectedObj.value, SectId: selectedObj.id });
+    } else if (sheetFieldKey === 'Education') {
       saveFieldValue('HighestDegree', selectedObj.id, { Education: selectedObj.value, EducationId: selectedObj.id });
     } else if (sheetFieldKey === 'EmployedIn') {
       saveFieldValue('EmploymentSector', selectedObj.id, { EmployedIn: selectedObj.value, EmployedInId: selectedObj.id });
@@ -816,25 +1022,31 @@ export default function EditMyProfilePage() {
     } else if (sheetFieldKey === 'AnnualIncome') {
       saveFieldValue('AnnualIncome', selectedObj.value);
     } else if (sheetFieldKey === 'Caste') {
-      saveFieldValue('Caste', selectedObj.id, { CasteText: selectedObj.value });
+      saveFieldValue('Caste', selectedObj.id, { CasteText: selectedObj.value, CasteId: selectedObj.id, Caste: selectedObj.value });
     } else if (sheetFieldKey === 'Maslak') {
-      saveFieldValue('Maslak', selectedObj.id, { MaslakText: selectedObj.value });
+      saveFieldValue('Maslak', selectedObj.id, { MaslakText: selectedObj.value, MaslakId: selectedObj.id, Maslak: selectedObj.value });
     } else if (sheetFieldKey === 'MotherTongue') {
-      saveFieldValue('MotherTongue', selectedObj.id, { MotherTongueText: selectedObj.value });
+      saveFieldValue('MotherTongue', selectedObj.id, { MotherTongueText: selectedObj.value, MotherTongueId: selectedObj.id, MotherTongue: selectedObj.value });
     } else if (sheetFieldKey === 'Complexion') {
-      saveFieldValue('Complexion', selectedObj.id, { Complexion: selectedObj.value });
+      saveFieldValue('Complexion', selectedObj.id, { Complexion: selectedObj.value, ComplexionId: selectedObj.id });
     } else if (sheetFieldKey === 'Disability') {
       saveFieldValue('Disability', selectedObj.value);
     } else if (sheetFieldKey === 'FamilyType') {
-      saveFieldValue('FamilyType', selectedObj.id, { FamilyType: selectedObj.value });
-    } else if (sheetFieldKey === 'FamilyValues') {
-      saveFieldValue('FamilyValues', selectedObj.id, { FamilyValues: selectedObj.value });
+      saveFieldValue('FamilyType', selectedObj.id, { FamilyType: selectedObj.value, FamilyTypeId: selectedObj.id });
     } else if (sheetFieldKey === 'FamilyStatus') {
-      saveFieldValue('FamilyStatus', selectedObj.id, { FamilyStatus: selectedObj.value });
+      saveFieldValue('FamilyStatus', selectedObj.id, { FamilyStatus: selectedObj.value, FamilyStatusId: selectedObj.id });
     } else if (sheetFieldKey === 'NamazHabit') {
       saveFieldValue('NamazHabit', selectedObj.value);
+    } else if (sheetFieldKey === 'QuranReading') {
+      saveFieldValue('QuranReading', selectedObj.value);
+    } else if (sheetFieldKey === 'RozaHabit') {
+      saveFieldValue('RozaHabit', selectedObj.value);
     } else if (sheetFieldKey === 'HijabOrBeard') {
       saveFieldValue('HijabOrBeard', selectedObj.value);
+    } else if (sheetFieldKey === 'ZakatHabit') {
+      saveFieldValue('ZakatHabit', selectedObj.value);
+    } else if (sheetFieldKey === 'HajjUmrah') {
+      saveFieldValue('HajjUmrah', selectedObj.value);
     } else if (sheetFieldKey === 'DietType') {
       saveFieldValue('DietType', selectedObj.value);
     } else if (sheetFieldKey === 'SmokeHabit') {
@@ -859,7 +1071,6 @@ export default function EditMyProfilePage() {
       const res = await updatePhotoPrivacyApi(privacyValue, token);
       if (res.success || res.Success === 1) {
         setFormData((prev: any) => ({ ...prev, PhotoPrivacy: privacyValue }));
-        toast.success(`Photo privacy set to ${privacyValue}`);
         setActiveSheet(null);
       } else {
         toast.error("Failed to update photo privacy.");
@@ -869,7 +1080,7 @@ export default function EditMyProfilePage() {
     }
   };
 
-  // Upload Photo to Slot (1-4)
+  // Upload Photo to Slot (0-3)
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>, slotIdx: number) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -926,8 +1137,6 @@ export default function EditMyProfilePage() {
           syncUserProfilePhoto(newPhotoUrl);
           setFormData((prev: any) => ({ ...prev, PhotoUrl: newPhotoUrl }));
         }
-
-        toast.success(isMainSlot ? "Main profile avatar updated!" : "Photo added to portfolio!");
       } else {
         toast.error(res.message || "Failed to upload photo.");
       }
@@ -984,8 +1193,6 @@ export default function EditMyProfilePage() {
         syncUserProfilePhoto('');
         setFormData(prev => ({ ...prev, PhotoUrl: '' }));
       }
-
-      toast.success("Photo removed successfully.");
     } catch {
       toast.error("Failed to remove photo.");
     }
@@ -1004,7 +1211,7 @@ export default function EditMyProfilePage() {
     try {
       const res = await uploadGovtDocumentApi(govtDocFile, token);
       if (res.success || res.Success === 1) {
-        toast.success("Identity document submitted! Our trust team will verify it within 24 hours.");
+        toast.success("Identity document submitted! Our team will verify it.");
         setFormData((prev: any) => ({ ...prev, GovtIdDocUrl: govtDocPreview, IsGovtIdVerified: false }));
         setActiveSheet(null);
       } else {
@@ -1029,7 +1236,7 @@ export default function EditMyProfilePage() {
     return multiSelectAvailable.filter(o => o.value.toLowerCase().includes(multiSelectSearch.toLowerCase()));
   }, [multiSelectAvailable, multiSelectSearch]);
 
-  // Master Options Mappers (Live Dynamic from DB + 0ms Fallback)
+  // Master Options Mappers
   const educationOpts = masterData.EDUCATIONS || FALLBACK_MASTERS.EDUCATIONS;
   const casteOpts = masterData.CASTES || FALLBACK_MASTERS.CASTES;
   const maslakOpts = masterData.MASLAKS || FALLBACK_MASTERS.MASLAKS;
@@ -1038,33 +1245,9 @@ export default function EditMyProfilePage() {
   const employedInOpts = masterData.EMPLOYMENT_SECTORS || FALLBACK_MASTERS.EMPLOYMENT_SECTORS;
   const familyTypeOpts = masterData.FAMILY_TYPES || FALLBACK_MASTERS.FAMILY_TYPES;
   const familyStatusOpts = masterData.FAMILY_STATUS || FALLBACK_MASTERS.FAMILY_STATUS;
-  const complexionOpts = masterData.COMPLEXION || FALLBACK_MASTERS.COMPLEXION;
-
-  const familyValuesOpts = [
-    { id: 1, value: "Traditional & Religious" },
-    { id: 2, value: "Moderate & Practicing" },
-    { id: 3, value: "Liberal & Open Minded" },
-    { id: 4, value: "Strict Islamic Values" }
-  ];
-
-  const weightOpts = Array.from({ length: 41 }, (_, i) => {
-    const val = `${45 + i} kg`;
-    return { id: val, value: val };
-  });
-
-  const incomeOpts = [
-    { id: 'No Income / Dependent', value: 'No Income / Dependent' },
-    { id: 'Below ₹2 Lakhs', value: 'Below ₹2 Lakhs' },
-    { id: '₹2 - 3 Lakhs', value: '₹2 - 3 Lakhs' },
-    { id: '₹3 - 5 Lakhs', value: '₹3 - 5 Lakhs' },
-    { id: '₹5 - 7 Lakhs', value: '₹5 - 7 Lakhs' },
-    { id: '₹7 - 10 Lakhs', value: '₹7 - 10 Lakhs' },
-    { id: '₹10 - 15 Lakhs', value: '₹10 - 15 Lakhs' },
-    { id: '₹15 - 20 Lakhs', value: '₹15 - 20 Lakhs' },
-    { id: '₹20 - 30 Lakhs', value: '₹20 - 30 Lakhs' },
-    { id: '₹30 - 50 Lakhs', value: '₹30 - 50 Lakhs' },
-    { id: 'Above ₹50 Lakhs', value: 'Above ₹50 Lakhs' }
-  ];
+  const profileCreatedForOpts = masterData.PROFILE_CREATED_FOR || FALLBACK_MASTERS.PROFILE_CREATED_FOR;
+  const maritalStatusOpts = masterData.MARITAL_STATUS || FALLBACK_MASTERS.MARITAL_STATUS;
+  const sectOpts = masterData.SECTS || FALLBACK_MASTERS.SECTS;
 
   const disabilityOpts = [
     { id: 'No', value: 'No' },
@@ -1079,11 +1262,39 @@ export default function EditMyProfilePage() {
     { id: 'Trying to be Regular', value: 'Trying to be Regular' }
   ];
 
+  const quranOpts = [
+    { id: 'Daily Recitation', value: 'Daily Recitation' },
+    { id: 'Learning / Reciting with Translation', value: 'Learning / Reciting with Translation' },
+    { id: 'Frequently', value: 'Frequently' },
+    { id: 'During Ramadan', value: 'During Ramadan' },
+    { id: 'Completed Hafiz / Qari', value: 'Completed Hafiz / Qari' }
+  ];
+
+  const rozaOpts = [
+    { id: 'All 30 Days in Ramadan', value: 'All 30 Days in Ramadan' },
+    { id: 'Most Days in Ramadan', value: 'Most Days in Ramadan' },
+    { id: 'Only Fridays / Special Days', value: 'Only Fridays / Special Days' },
+    { id: 'Medical Exemption', value: 'Medical Exemption' }
+  ];
+
   const hijabOpts = [
     { id: 'Hijab', value: 'Hijab' },
     { id: 'Niqab', value: 'Niqab' },
     { id: 'Sunnah Beard', value: 'Sunnah Beard' },
     { id: 'Modest Dress / Clean Shaved', value: 'Modest Dress / Clean Shaved' }
+  ];
+
+  const zakatOpts = [
+    { id: 'Pay Regularly Every Year', value: 'Pay Regularly Every Year' },
+    { id: 'Not Eligible / Dependent', value: 'Not Eligible / Dependent' },
+    { id: 'Pay Voluntarily / Charity', value: 'Pay Voluntarily / Charity' }
+  ];
+
+  const hajjOpts = [
+    { id: 'Performed Hajj & Umrah', value: 'Performed Hajj & Umrah' },
+    { id: 'Performed Umrah', value: 'Performed Umrah' },
+    { id: 'Planning Soon Insha\'Allah', value: 'Planning Soon Insha\'Allah' },
+    { id: 'Not Yet Performed', value: 'Not Yet Performed' }
   ];
 
   const dietOpts = [
@@ -1117,10 +1328,11 @@ export default function EditMyProfilePage() {
   const activePhotosCount = photos.filter(p => p && p.photoUrl).length;
   const hasHobbies = Boolean(formData.Hobbies && formData.Hobbies.trim().length > 0);
   const hasMusicInterests = Boolean(formData.Interests && formData.Interests.trim().length > 0);
-  const hasLifestyleSelected = hasHobbies && hasMusicInterests;
+  // Prompt card is visible ONLY when user has NOT yet selected both Hobbies and Music!
+  const showTopLifestylePrompt = !(hasHobbies && hasMusicInterests);
 
   return (
-    <div className="min-h-screen bg-[#FBF9F7] text-slate-900 pb-24 font-sans selection:bg-[#d91b5c] selection:text-white">
+    <div className="min-h-screen bg-[#FBF9F7] text-slate-900 pb-28 font-sans selection:bg-[#d91b5c] selection:text-white">
       <Toaster position="top-center" richColors />
 
       {/* 🌟 1. ELEVATED FLOATING APP BAR */}
@@ -1138,7 +1350,7 @@ export default function EditMyProfilePage() {
             </button>
             <div>
               <h1 className="text-base font-black tracking-tight text-slate-900 flex items-center gap-1.5">
-                Edit Matrimonial Profile
+                Edit Profile
               </h1>
               <p className="text-[11px] font-semibold text-slate-500">Nikah Qubool Identity</p>
             </div>
@@ -1158,34 +1370,7 @@ export default function EditMyProfilePage() {
       {/* 🌟 MAIN CONTAINER */}
       <main className="max-w-lg mx-auto px-4 pt-4 space-y-4">
 
-        {/* 🌟 TOP HERO BANNER: NIKAH PROFILE STRENGTH */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#800020] via-[#9B1138] to-[#D91B5C] p-4 text-white shadow-lg">
-          <div className="absolute -right-4 -bottom-4 w-28 h-28 bg-white/10 rounded-full blur-xl pointer-events-none" />
-          
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <span className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-xs flex items-center justify-center text-amber-300">
-                <Star size={15} className="fill-amber-300" />
-              </span>
-              <span className="text-xs font-black tracking-wider uppercase text-rose-100">
-                Match Readiness
-              </span>
-            </div>
-            <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-xs text-white">
-              85% Completed
-            </span>
-          </div>
-
-          <p className="text-xs font-medium text-rose-100/90 leading-snug">
-            Profiles with complete information and verified photos receive up to 5x more proposal responses from serious families.
-          </p>
-
-          <div className="w-full bg-black/25 rounded-full h-1.5 mt-3 overflow-hidden">
-            <div className="bg-gradient-to-r from-amber-300 to-amber-400 h-full rounded-full transition-all duration-700" style={{ width: '85%' }} />
-          </div>
-        </div>
-
-        {/* 🌟 100% COMPLETE PROFILE BADGE PROMPT */}
+        {/* 🌟 100% COMPLETE PROFILE BADGE PROMPT (Matching Screenshot) */}
         <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-[#FFF9F2] border border-amber-200/80 shadow-xs">
           <div className="w-7 h-7 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center shrink-0 shadow-xs">
             <Star size={14} className="fill-amber-400" />
@@ -1196,10 +1381,10 @@ export default function EditMyProfilePage() {
         </div>
 
         {/* 🌟 TOP QUICK ACTION CARDS */}
-        <div className={`grid ${!hasLifestyleSelected ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
+        <div className={`grid ${showTopLifestylePrompt ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
           {/* Card 1: Lifestyle & Interest Prompt Card */}
           {/* Strict Rule: Disappears as soon as user selects Hobbies & Music! Reappears if either is empty! */}
-          {!hasLifestyleSelected && (
+          {showTopLifestylePrompt && (
             <div 
               onClick={() => setActiveSheet('lifestyleHub')}
               className="p-3.5 rounded-2xl bg-white border border-rose-100 shadow-xs hover:shadow-md hover:border-rose-300 transition-all cursor-pointer flex flex-col justify-between group"
@@ -1251,27 +1436,22 @@ export default function EditMyProfilePage() {
         </div>
 
         {/* ============================================================== */}
-        {/* 🌟 SECTION 1: PHOTO GALLERY & VISIBILITY PRIVACY              */}
+        {/* 🌟 PHOTOS GALLERY SECTION                                      */}
         {/* ============================================================== */}
         <section className="bg-white rounded-3xl border border-slate-200/90 p-4 sm:p-5 shadow-xs space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-rose-50 text-[#d91b5c] flex items-center justify-center">
-                <Camera size={18} />
-              </div>
-              <div>
-                <h2 className="text-sm font-black text-slate-900">Visual Portfolio & Privacy</h2>
-                <p className="text-[11px] text-slate-500 font-medium">Slot #1 is your primary display photo</p>
-              </div>
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <div className="flex items-center gap-2">
+              <Camera size={18} className="text-slate-700" />
+              <h2 className="text-sm font-black text-slate-900">Photos</h2>
             </div>
-            <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+            <span className="text-xs font-bold text-slate-400">
               {activePhotosCount}/4 Uploaded
             </span>
           </div>
 
-          {/* 4-Slots Photo Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[0, 1, 2, 3].map((slotIdx) => {
+          {/* Photos Grid */}
+          <div className="grid grid-cols-3 gap-3">
+            {[0, 1, 2].map((slotIdx) => {
               const photo = photos[slotIdx];
               const isUploading = uploadingPhotoSlot === slotIdx;
 
@@ -1279,7 +1459,7 @@ export default function EditMyProfilePage() {
                 return (
                   <div 
                     key={slotIdx} 
-                    className="relative aspect-3/4 rounded-2xl overflow-hidden border-2 border-rose-200/80 shadow-xs group bg-slate-100"
+                    className="relative aspect-3/4 rounded-2xl overflow-hidden border border-slate-200 shadow-xs group bg-slate-100"
                   >
                     <img 
                       src={photo.photoUrl} 
@@ -1287,22 +1467,23 @@ export default function EditMyProfilePage() {
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
                     />
                     
+                    {/* Primary Avatar Badge on First Photo */}
                     {slotIdx === 0 && (
-                      <div className="absolute top-2 left-2 bg-black/75 backdrop-blur-xs px-2 py-0.5 rounded-md flex items-center gap-1 shadow-xs">
-                        <Award size={10} className="text-amber-400" />
+                      <div className="absolute bottom-0 inset-x-0 bg-black/80 backdrop-blur-xs py-1 text-center">
                         <span className="text-[9px] font-black tracking-wider text-white uppercase">
-                          PRIMARY
+                          PROFILE PHOTO
                         </span>
                       </div>
                     )}
 
+                    {/* Delete Photo Button */}
                     <button
                       type="button"
                       onClick={() => handleDeletePhoto(photo.photoId, slotIdx)}
-                      className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 hover:bg-rose-600 text-white flex items-center justify-center transition-all cursor-pointer shadow-sm hover:scale-110 active:scale-95"
+                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 hover:bg-rose-600 text-white flex items-center justify-center transition-all cursor-pointer shadow-sm active:scale-95"
                       title="Delete this photo"
                     >
-                      <Trash2 size={13} />
+                      <Trash2 size={12} />
                     </button>
                   </div>
                 );
@@ -1311,7 +1492,7 @@ export default function EditMyProfilePage() {
               return (
                 <label 
                   key={slotIdx} 
-                  className="aspect-3/4 rounded-2xl border-2 border-dashed border-rose-200 hover:border-[#d91b5c] bg-rose-50/20 hover:bg-rose-50/60 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all relative group"
+                  className="aspect-3/4 rounded-2xl border-2 border-dashed border-rose-200 hover:border-[#d91b5c] bg-white flex flex-col items-center justify-center gap-2 cursor-pointer transition-all relative group"
                 >
                   <input 
                     type="file"
@@ -1321,16 +1502,11 @@ export default function EditMyProfilePage() {
                     onChange={(e) => handlePhotoSelect(e, slotIdx)}
                   />
                   {isUploading ? (
-                    <Loader2 size={22} className="text-[#d91b5c] animate-spin" />
+                    <Loader2 size={20} className="text-[#d91b5c] animate-spin" />
                   ) : (
-                    <>
-                      <div className="w-9 h-9 rounded-full bg-rose-100 text-[#d91b5c] flex items-center justify-center shadow-xs group-hover:scale-110 transition-transform">
-                        <Plus size={18} className="stroke-[3]" />
-                      </div>
-                      <span className="text-[11px] font-bold text-slate-600">
-                        {slotIdx === 0 ? "Main Avatar" : `Add Photo ${slotIdx + 1}`}
-                      </span>
-                    </>
+                    <div className="w-8 h-8 rounded-full bg-[#d91b5c] text-white flex items-center justify-center shadow-xs group-hover:scale-110 transition-transform">
+                      <Plus size={16} className="stroke-[3]" />
+                    </div>
                   )}
                 </label>
               );
@@ -1339,694 +1515,703 @@ export default function EditMyProfilePage() {
 
           {/* Strict Rule: Photo privacy option ONLY appears when at least 1 photo is uploaded */}
           {activePhotosCount > 0 && (
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between bg-rose-50/40 p-3 rounded-2xl">
+            <div 
+              onClick={() => setActiveSheet('photoPrivacy')}
+              className="pt-2 border-t border-slate-100 flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity"
+            >
               <div>
-                <span className="text-xs font-bold text-slate-800 block">Who Can View Photos</span>
-                <span className="text-[11px] text-slate-500 font-medium">Configure visibility for your pictures</span>
+                <span className="text-xs font-semibold text-slate-700 block">Control who sees your photo</span>
+                <span className="text-xs font-black text-[#d91b5c] mt-0.5 flex items-center gap-1">
+                  {formData.PhotoPrivacy} <ChevronRight size={14} className="inline rotate-90" />
+                </span>
               </div>
-              <button
-                type="button"
-                onClick={() => setActiveSheet('photoPrivacy')}
-                className="flex items-center gap-1.5 text-xs font-black text-[#d91b5c] hover:text-[#b8144b] bg-white px-3 py-1.5 rounded-full border border-rose-200 shadow-2xs transition-all cursor-pointer"
-              >
-                <span>{formData.PhotoPrivacy}</span>
-                <ChevronRight size={14} />
-              </button>
             </div>
           )}
         </section>
 
         {/* ============================================================== */}
-        {/* 🌟 SECTION 2: PERSONAL STORY & PARTNER OUTLOOK                */}
+        {/* 🌟 BIO / ABOUT ME SECTION                                      */}
         {/* ============================================================== */}
         <section className="bg-white rounded-3xl border border-slate-200/90 p-4 sm:p-5 shadow-xs space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-violet-50 text-violet-700 flex items-center justify-center">
-                <Heart size={18} />
-              </div>
-              <div>
-                <h2 className="text-sm font-black text-slate-900">Personal Story & Partner Outlook</h2>
-                <p className="text-[11px] text-slate-500 font-medium">In your own words: temperament & aspirations</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={openBioSheet}
-              className="text-xs font-black text-[#d91b5c] hover:text-[#b8144b] bg-rose-50 px-3 py-1 rounded-full cursor-pointer transition-colors"
-            >
-              Edit Story
-            </button>
+          <div className="flex items-center gap-2">
+            <User size={18} className="text-slate-700" />
+            <h2 className="text-sm font-black text-slate-900">Bio</h2>
           </div>
 
           <div 
             onClick={openBioSheet}
-            className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200/60 hover:border-rose-200 hover:bg-rose-50/20 transition-all cursor-pointer relative group"
+            className="p-4 rounded-2xl border border-slate-200/80 hover:border-rose-200 bg-white transition-all cursor-pointer relative"
           >
-            <p className="text-xs text-slate-700 leading-relaxed font-normal line-clamp-3 italic">
-              &ldquo;{formData.AboutMe || "Alhamdulillah, we seek a pious, respectful, and understanding partner with strong moral character and family values. Click here to describe yourself..."}&rdquo;
+            <p className="text-xs text-slate-700 leading-relaxed font-normal line-clamp-4">
+              {formData.AboutMe || "Alhamdulillah, we are a well-established and educated family rooted in strong moral values. We prefer a simple, meaningful, and dignified Nikah ceremony built on mutual understanding and respect..."}
             </p>
-            <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-200/50 text-[10px] font-bold text-slate-400">
-              <span>{formData.AboutMe ? `${formData.AboutMe.length}/1000 characters` : "Write up to 1000 characters"}</span>
-              <span className="text-[#d91b5c] font-black group-hover:underline">Tap to update &rarr;</span>
+            <div className="mt-3 text-right">
+              <span className="text-xs font-black text-slate-900 hover:text-[#d91b5c] transition-colors">
+                ... Edit
+              </span>
             </div>
-          </div>
-
-          {/* Partner Expectations */}
-          <div 
-            onClick={() => openTextInputSheet(
-              "Partner Expectations",
-              "Describe the qualities, values, and qualifications you look for in a spouse",
-              "PartnerExpectations",
-              formData.PartnerExpectations,
-              "e.g. Educated, practicing Muslim, caring nature, family-oriented...",
-              500,
-              true
-            )}
-            className="p-3.5 rounded-2xl border border-slate-200/70 hover:border-rose-200 hover:bg-rose-50/10 transition-all cursor-pointer flex items-center justify-between"
-          >
-            <div className="min-w-0 pr-2">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Partner Expectations</span>
-              <p className="text-xs font-semibold text-slate-800 mt-0.5 truncate">
-                {formData.PartnerExpectations || "Add partner expectations..."}
-              </p>
-            </div>
-            <ChevronRight size={16} className="text-slate-400 shrink-0" />
           </div>
         </section>
 
         {/* ============================================================== */}
-        {/* 🌟 SECTION 3: CORE IDENTITY & RESIDENTIAL BACKGROUND          */}
+        {/* 🌟 1. PERSONAL DETAILS SECTION                                 */}
         {/* ============================================================== */}
         <section className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs">
-          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
-              <User size={18} />
-            </div>
-            <div>
-              <h2 className="text-sm font-black text-slate-900">Core Identity & Residential Roots</h2>
-              <p className="text-[11px] text-slate-500 font-medium">Personal attributes, community heritage & living</p>
-            </div>
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center gap-2">
+            <User size={18} className="text-slate-700" />
+            <h2 className="text-sm font-black text-slate-900">Personal Details</h2>
           </div>
 
           <div className="divide-y divide-slate-100 text-left">
-            {/* Full Name */}
+            {/* 1. Name */}
             <div 
               onClick={() => openTextInputSheet(
-                "Full Name", 
-                "Update your official display name", 
+                "Name", 
+                "Update your full name", 
                 "FullName", 
                 formData.FullName, 
-                "Enter your full name",
+                "Enter full name",
                 80
               )}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Candidate Name</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.FullName || "Add Name"}</span>
+                <span className="text-xs font-black text-slate-900 block">Name</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.FullName || "Add Name"}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
 
-            {/* Profile Created For - Locked */}
-            <div className="p-4 flex items-center justify-between bg-slate-50/40">
+            {/* 2. Profile Created For */}
+            <div 
+              onClick={() => openOptionSheet('Profile Created for', 'ProfileCreatedFor', formData.ProfileCreatedForId || formData.ProfileCreatedFor, profileCreatedForOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Profile Managed By</span>
-                <span className="text-xs font-bold text-slate-800 mt-0.5 block">{formData.ProfileCreatedFor}</span>
+                <span className="text-xs font-black text-slate-900 block">Profile Created for</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.ProfileCreatedFor}</span>
               </div>
-              <span className="px-2.5 py-1 rounded-full bg-slate-200/80 text-slate-700 text-[10px] font-black flex items-center gap-1">
-                <Lock size={10} /> Verified & Locked
-              </span>
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
 
-            {/* Age & Gender - Locked */}
-            <div className="p-4 flex items-center justify-between bg-slate-50/40">
+            {/* 3. Age and Gender */}
+            <div 
+              onClick={openDobPickerSheet}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Age & Gender</span>
-                <span className="text-xs font-bold text-slate-800 mt-0.5 block">{formData.Age} Years, {formData.Gender}</span>
+                <span className="text-xs font-black text-slate-900 block">Age and Gender</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.Age}, {formData.Gender}</span>
               </div>
-              <span className="px-2.5 py-1 rounded-full bg-slate-200/80 text-slate-700 text-[10px] font-black flex items-center gap-1">
-                <Lock size={10} /> Verified & Locked
-              </span>
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
 
-            {/* Marital Status - Locked */}
-            <div className="p-4 flex items-center justify-between bg-slate-50/40">
+            {/* 4. Date of Birth (3-wheel scroll picker!) */}
+            <div 
+              onClick={openDobPickerSheet}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Marital Status</span>
-                <span className="text-xs font-bold text-slate-800 mt-0.5 block">{formData.MaritalStatus}</span>
-              </div>
-              <span className="px-2.5 py-1 rounded-full bg-slate-200/80 text-slate-700 text-[10px] font-black flex items-center gap-1">
-                <Lock size={10} /> Verified & Locked
-              </span>
-            </div>
-
-            {/* Sect - Locked */}
-            <div className="p-4 flex items-center justify-between bg-slate-50/40">
-              <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Islamic Sect</span>
-                <span className="text-xs font-bold text-slate-800 mt-0.5 block">{formData.Sect}</span>
-              </div>
-              <span className="px-2.5 py-1 rounded-full bg-slate-200/80 text-slate-700 text-[10px] font-black flex items-center gap-1">
-                <Lock size={10} /> Verified & Locked
-              </span>
-            </div>
-
-            {/* Date of Birth - Verified */}
-            <div className="p-4 flex items-center justify-between bg-slate-50/40">
-              <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Date of Birth</span>
-                <span className="text-xs font-bold text-slate-800 mt-0.5 block">
+                <span className="text-xs font-black text-slate-900 block">Date of Birth</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">
                   {formData.DateOfBirth ? new Date(formData.DateOfBirth).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : `${formData.Age} Years`}
                 </span>
               </div>
-              <span className="px-2.5 py-1 rounded-full bg-slate-200/80 text-slate-700 text-[10px] font-black flex items-center gap-1">
-                <Lock size={10} /> Verified & Locked
-              </span>
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
 
-            {/* Height - Slider Sheet */}
+            {/* 5. Marital Status */}
+            <div 
+              onClick={() => openOptionSheet('Marital Status', 'MaritalStatus', formData.MaritalStatusId || formData.MaritalStatus, maritalStatusOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
+              <div>
+                <span className="text-xs font-black text-slate-900 block">Marital Status</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.MaritalStatus}</span>
+              </div>
+              <ChevronRight size={18} className="text-slate-400" />
+            </div>
+
+            {/* 6. Sect */}
+            <div 
+              onClick={() => openOptionSheet('Sect', 'Sect', formData.SectId || formData.Sect, sectOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
+              <div>
+                <span className="text-xs font-black text-slate-900 block">Sect</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.Sect}</span>
+              </div>
+              <ChevronRight size={18} className="text-slate-400" />
+            </div>
+
+            {/* 7. Caste */}
+            <div 
+              onClick={() => openOptionSheet('Select caste', 'Caste', formData.CasteId || formData.Caste, casteOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
+              <div>
+                <span className="text-xs font-black text-slate-900 block">Caste</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.Caste}</span>
+              </div>
+              <ChevronRight size={18} className="text-slate-400" />
+            </div>
+
+            {/* 8. Height */}
             <div 
               onClick={openHeightSheet}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Physical Height</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.Height}</span>
+                <span className="text-xs font-black text-slate-900 block">Height</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.Height}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
 
-            {/* Weight */}
+            {/* 9. Maslak */}
             <div 
-              onClick={() => openOptionSheet('Select Weight', 'Weight', formData.Weight, weightOpts)}
+              onClick={() => openOptionSheet('Select Maslak', 'Maslak', formData.MaslakId || formData.Maslak, maslakOpts)}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Physical Weight</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.Weight}</span>
+                <span className="text-xs font-black text-slate-900 block">Maslak</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.Maslak}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
 
-            {/* Complexion */}
+            {/* 10. Mother Tongue */}
             <div 
-              onClick={() => openOptionSheet('Select Complexion / Skin Tone', 'Complexion', formData.Complexion, complexionOpts)}
+              onClick={() => openOptionSheet('Select Mother Tongue', 'MotherTongue', formData.MotherTongueId || formData.MotherTongue, languageOpts)}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Complexion / Skin Tone</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.Complexion}</span>
+                <span className="text-xs font-black text-slate-900 block">Mother Tongue</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.MotherTongue}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
 
-            {/* Caste / Community */}
-            <div 
-              onClick={() => openOptionSheet('Select Caste / Biradari', 'Caste', formData.Caste, casteOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Caste / Community</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.Caste}</span>
-              </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
-
-            {/* Maslak */}
-            <div 
-              onClick={() => openOptionSheet('Select Maslak / School of Thought', 'Maslak', formData.Maslak, maslakOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Maslak / School of Thought</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.Maslak}</span>
-              </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
-
-            {/* Mother Tongue */}
-            <div 
-              onClick={() => openOptionSheet('Select Mother Tongue', 'MotherTongue', formData.MotherTongue, languageOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Mother Tongue</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.MotherTongue}</span>
-              </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
-
-            {/* Location (Current Living In) */}
+            {/* 11. Location */}
             <div 
               onClick={() => openLocationSheet('Location')}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Current Residence Location</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.Location}</span>
+                <span className="text-xs font-black text-slate-900 block">Location</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.Location}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
 
-            {/* Physical Disability */}
+            {/* 12. Disability */}
             <div 
-              onClick={() => openOptionSheet('Physical Disability Assessment', 'Disability', formData.Disability, disabilityOpts)}
+              onClick={() => openOptionSheet('Disability', 'Disability', formData.Disability, disabilityOpts)}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Physical Disability</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.Disability}</span>
+                <span className="text-xs font-black text-slate-900 block">Disability</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.Disability}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
           </div>
         </section>
 
         {/* ============================================================== */}
-        {/* 🌟 SECTION 4: ACADEMICS & PROFESSIONAL CREDENTIALS           */}
+        {/* 🌟 2. EDUCATION & CAREER SECTION                               */}
         {/* ============================================================== */}
         <section className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs">
-          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-              <GraduationCap size={18} />
-            </div>
-            <div>
-              <h2 className="text-sm font-black text-slate-900">Academics & Professional Career</h2>
-              <p className="text-[11px] text-slate-500 font-medium">Educational degrees, employment sector & annual remuneration</p>
-            </div>
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center gap-2">
+            <GraduationCap size={18} className="text-slate-700" />
+            <h2 className="text-sm font-black text-slate-900">Education & Career</h2>
           </div>
 
           <div className="divide-y divide-slate-100 text-left">
-            {/* Highest Degree */}
+            {/* 1. Education */}
             <div 
-              onClick={() => openOptionSheet('Select Highest Education Qualification', 'Education', formData.Education, educationOpts)}
+              onClick={() => openOptionSheet('Select education', 'Education', formData.EducationId || formData.Education, educationOpts)}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Highest Qualification</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.Education}</span>
+                <span className="text-xs font-black text-slate-900 block">Education</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.Education}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
 
-            {/* College Name */}
+            {/* 2. College Name */}
             <div 
               onClick={() => openTextInputSheet(
-                "College / University Name",
-                "Specify your educational institute",
+                "College Name",
+                "Enter your institute / college name",
                 "CollegeName",
                 formData.CollegeName,
-                "e.g. Aligarh Muslim University, Delhi University...",
+                "e.g. Regional College Of Professional Studies...",
                 140
               )}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">College / University Attended</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.CollegeName || "Add College Name"}</span>
+                <span className="text-xs font-black text-slate-900 block">College Name</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.CollegeName || "Add College Name"}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
 
-            {/* Employed In */}
+            {/* 3. Employed In */}
             <div 
-              onClick={() => openOptionSheet('Employment Working Sector', 'EmployedIn', formData.EmployedIn, employedInOpts)}
+              onClick={() => openOptionSheet('Select Employed In', 'EmployedIn', formData.EmployedInId || formData.EmployedIn, employedInOpts)}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Working With / Sector</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.EmployedIn}</span>
+                <span className="text-xs font-black text-slate-900 block">Employed In</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.EmployedIn}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
 
-            {/* Occupation */}
+            {/* 4. Occupation */}
             <div 
-              onClick={() => openOptionSheet('Professional Role / Occupation', 'Occupation', formData.Occupation, occupationOpts)}
+              onClick={() => openOptionSheet('Select Occupation', 'Occupation', formData.OccupationId || formData.Occupation, occupationOpts)}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Job Title / Profession</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.Occupation}</span>
+                <span className="text-xs font-black text-slate-900 block">Occupation</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.Occupation}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
 
-            {/* Occupation Details */}
+            {/* 5. Annual Income (Slider Sheet) */}
             <div 
-              onClick={() => openTextInputSheet(
-                "Workplace & Job Description",
-                "Mention your company name, designation, or role responsibilities",
-                "OccupationDetails",
-                formData.OccupationDetails,
-                "e.g. Senior Developer at MNC, Clinic owner in Bareilly...",
-                250
-              )}
+              onClick={openIncomeSheet}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Occupation Details</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.OccupationDetails || "Add details..."}</span>
+                <span className="text-xs font-black text-slate-900 block">Annual Income</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.AnnualIncome}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
-
-            {/* Annual Income */}
-            <div 
-              onClick={() => openOptionSheet('Annual Income Bracket', 'AnnualIncome', formData.AnnualIncome, incomeOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Annual Income Bracket</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.AnnualIncome}</span>
-              </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
           </div>
         </section>
 
         {/* ============================================================== */}
-        {/* 🌟 SECTION 5: FAMILY ROOTS & SIBLINGS                         */}
+        {/* 🌟 3. FAMILY DETAILS SECTION                                   */}
         {/* ============================================================== */}
         <section className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs">
-          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
-              <Home size={18} />
-            </div>
-            <div>
-              <h2 className="text-sm font-black text-slate-900">Family Roots & Household Details</h2>
-              <p className="text-[11px] text-slate-500 font-medium">Ancestral native origins, household values & siblings</p>
-            </div>
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center gap-2">
+            <Users size={18} className="text-slate-700" />
+            <h2 className="text-sm font-black text-slate-900">Family Details</h2>
           </div>
 
           <div className="divide-y divide-slate-100 text-left">
-            {/* Family Location */}
+            {/* 1. Family Location */}
             <div 
               onClick={() => openLocationSheet('FamilyLocation')}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Family Native Location</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.FamilyLocation}</span>
+                <span className="text-xs font-black text-slate-900 block">Family Location</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.FamilyLocation}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
 
-            {/* Family Type */}
+            {/* 2. Family Type */}
             <div 
-              onClick={() => openOptionSheet('Family Structure', 'FamilyType', formData.FamilyType, familyTypeOpts)}
+              onClick={() => openOptionSheet('Family Type', 'FamilyType', formData.FamilyTypeId || formData.FamilyType, familyTypeOpts)}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Family Structure</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.FamilyType}</span>
+                <span className="text-xs font-black text-slate-900 block">Family Type</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.FamilyType}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
 
-            {/* Family Values */}
+            {/* 3. Family Status */}
             <div 
-              onClick={() => openOptionSheet('Cultural & Family Ethics', 'FamilyValues', formData.FamilyValues, familyValuesOpts)}
+              onClick={() => openOptionSheet('Family Status', 'FamilyStatus', formData.FamilyStatusId || formData.FamilyStatus, familyStatusOpts)}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Family Culture & Values</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.FamilyValues}</span>
+                <span className="text-xs font-black text-slate-900 block">Family Status</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.FamilyStatus}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
 
-            {/* Family Status */}
+            {/* 4. Native Location */}
             <div 
-              onClick={() => openOptionSheet('Family Social Status', 'FamilyStatus', formData.FamilyStatus, familyStatusOpts)}
+              onClick={() => openLocationSheet('NativeLocation')}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Family Social Status</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.FamilyStatus}</span>
+                <span className="text-xs font-black text-slate-900 block">Native Location</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.NativeLocation}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
 
-            {/* Father's Name */}
+            {/* 5. Father's Occupation (100% Dynamic Master, NO text box!) */}
             <div 
-              onClick={() => openTextInputSheet(
-                "Father's Name",
-                "Enter father's full name",
-                "FatherName",
-                formData.FatherName,
-                "e.g. Mohammad Shaikh...",
-                80
-              )}
+              onClick={() => openOptionSheet("Select Father's Profession", "FatherOccupation", formData.FatherOccupationId || formData.FatherOccupation, occupationOpts)}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Father's Full Name</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.FatherName || "Add Father's Name"}</span>
+                <span className="text-xs font-black text-slate-900 block">Father's Occupation</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.FatherOccupation || "Select Occupation"}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
 
-            {/* 🌟 Father's Occupation: 100% Dynamic Master Occupations List */}
+            {/* 6. Mother's Occupation (100% Dynamic Master, NO text box!) */}
             <div 
-              onClick={() => openOptionSheet("Select Father's Profession", "FatherOccupation", formData.FatherOccupation, occupationOpts)}
+              onClick={() => openOptionSheet("Select Mother's Profession", "MotherOccupation", formData.MotherOccupationId || formData.MotherOccupation, occupationOpts)}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Father's Profession</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.FatherOccupation || "Select Occupation"}</span>
+                <span className="text-xs font-black text-slate-900 block">Mother's Occupation</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.MotherOccupation || "Select Occupation"}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
 
-            {/* Mother's Name */}
-            <div 
-              onClick={() => openTextInputSheet(
-                "Mother's Name",
-                "Enter mother's full name",
-                "MotherName",
-                formData.MotherName,
-                "e.g. Parveen Begum...",
-                80
-              )}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Mother's Full Name</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.MotherName || "Add Mother's Name"}</span>
-              </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
-
-            {/* 🌟 Mother's Occupation: 100% Dynamic Master Occupations List (No Text Box!) */}
-            <div 
-              onClick={() => openOptionSheet("Select Mother's Profession", "MotherOccupation", formData.MotherOccupation, occupationOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Mother's Profession</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.MotherOccupation || "Select Occupation"}</span>
-              </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
-
-            {/* Siblings (Brothers & Sisters) */}
+            {/* 7. Brothers */}
             <div 
               onClick={openCountersSheet}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Siblings Overview</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">
-                  {formData.TotalBrothers} Brother ({formData.MarriedBrothers} Married) &bull; {formData.TotalSisters} Sister ({formData.MarriedSisters} Married)
+                <span className="text-xs font-black text-slate-900 block">Brother</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">
+                  {formData.TotalBrothers} Brother ({formData.MarriedBrothers} Married)
                 </span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
 
-            {/* Family Background Note */}
+            {/* 8. Sisters */}
             <div 
-              onClick={() => openTextInputSheet(
-                "About Family Background",
-                "Share information about your family origin, values, and relatives",
-                "FamilyAbout",
-                formData.FamilyAbout,
-                "e.g. Well-settled family in Bareilly with high moral values...",
-                500,
-                true
-              )}
+              onClick={openCountersSheet}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Family Background Summary</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block truncate max-w-[280px]">
-                  {formData.FamilyAbout || "Add summary..."}
+                <span className="text-xs font-black text-slate-900 block">Sister</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">
+                  {formData.TotalSisters} Sister ({formData.MarriedSisters} Married)
                 </span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
           </div>
         </section>
 
         {/* ============================================================== */}
-        {/* 🌟 SECTION 6: DEEN, SUNNAH & DAILY LIFESTYLE HABITS           */}
+        {/* 🌟 4. CONTACT DETAILS SECTION                                  */}
         {/* ============================================================== */}
         <section className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs">
-          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center">
-              <Moon size={18} />
-            </div>
-            <div>
-              <h2 className="text-sm font-black text-slate-900">Deen, Sunnah & Lifestyle Habits</h2>
-              <p className="text-[11px] text-slate-500 font-medium">Daily Salah adherence, Islamic appearance & personal discipline</p>
-            </div>
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center gap-2">
+            <Phone size={18} className="text-slate-700" />
+            <h2 className="text-sm font-black text-slate-900">Contact Details</h2>
           </div>
 
           <div className="divide-y divide-slate-100 text-left">
-            {/* Namaz Habit */}
+            {/* 1. Phone Number */}
             <div 
-              onClick={() => openOptionSheet('Daily Salah (Namaz) Routine', 'NamazHabit', formData.NamazHabit, namazOpts)}
+              onClick={() => openTextInputSheet(
+                "Phone Number",
+                "Enter registered mobile contact number",
+                "MobileNumber",
+                formData.MobileNumber,
+                "e.g. +91 9876543210",
+                20,
+                false,
+                "tel"
+              )}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Daily Salah Observance</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.NamazHabit}</span>
+                <span className="text-xs font-black text-slate-900 block">Phone Number</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.MobileNumber || "Add Mobile Number"}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
 
-            {/* Hijab or Beard */}
+            {/* 2. Email */}
             <div 
-              onClick={() => openOptionSheet('Islamic Appearance / Attire', 'HijabOrBeard', formData.HijabOrBeard, hijabOpts)}
+              onClick={() => openTextInputSheet(
+                "Email Address",
+                "Enter valid contact email address",
+                "Email",
+                formData.Email,
+                "e.g. candidate@example.com",
+                80,
+                false,
+                "email"
+              )}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Islamic Attire & Appearance</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.HijabOrBeard}</span>
+                <span className="text-xs font-black text-slate-900 block">Email</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.Email || "Add Email Address"}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
 
-            {/* Diet Type */}
+            {/* 3. WhatsApp Number */}
             <div 
-              onClick={() => openOptionSheet('Dietary & Food Habits', 'DietType', formData.DietType, dietOpts)}
+              onClick={() => openTextInputSheet(
+                "WhatsApp Number",
+                "Enter direct or Wali's WhatsApp number",
+                "WhatsAppNumber",
+                formData.WhatsAppNumber,
+                "e.g. +91 9876543210",
+                20,
+                false,
+                "tel"
+              )}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Dietary Preferences</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.DietType}</span>
+                <span className="text-xs font-black text-slate-900 block">WhatsApp Number</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.WhatsAppNumber || "Add WhatsApp Number"}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
+          </div>
+        </section>
 
-            {/* Culinary / Can Cook */}
+        {/* ============================================================== */}
+        {/* 🌟 5. RELIGIOUS DETAILS SECTION                                */}
+        {/* ============================================================== */}
+        <section className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs">
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center gap-2">
+            <Moon size={18} className="text-slate-700" />
+            <h2 className="text-sm font-black text-slate-900">Religious Details</h2>
+          </div>
+
+          <div className="divide-y divide-slate-100 text-left">
+            {/* 1. Namaz */}
             <div 
-              onClick={() => openOptionSheet('Can Cook Food?', 'CanCook', formData.CanCook, cookOpts)}
+              onClick={() => openOptionSheet('Daily Salah (Namaz)', 'NamazHabit', formData.NamazHabit, namazOpts)}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Cooking / Culinary Skills</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.CanCook}</span>
+                <span className="text-xs font-black text-slate-900 block">Namaz</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.NamazHabit}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
 
-            {/* Smoking */}
+            {/* 2. Quran Reading */}
+            <div 
+              onClick={() => openOptionSheet('Quran Reading & Recitation', 'QuranReading', formData.QuranReading, quranOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
+              <div>
+                <span className="text-xs font-black text-slate-900 block">Quran Reading</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.QuranReading || "Select Reading Routine"}</span>
+              </div>
+              <ChevronRight size={18} className="text-slate-400" />
+            </div>
+
+            {/* 3. Do you keep Roza (Fasting) */}
+            <div 
+              onClick={() => openOptionSheet('Do You Keep Roza (Fasting)?', 'RozaHabit', formData.RozaHabit, rozaOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
+              <div>
+                <span className="text-xs font-black text-slate-900 block">Do you keep Roza (Fasting)</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.RozaHabit || "Select Fasting Routine"}</span>
+              </div>
+              <ChevronRight size={18} className="text-slate-400" />
+            </div>
+
+            {/* 4. Hijab / Beard */}
+            <div 
+              onClick={() => openOptionSheet('Islamic Attire (Hijab / Beard)', 'HijabOrBeard', formData.HijabOrBeard, hijabOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
+              <div>
+                <span className="text-xs font-black text-slate-900 block">Hijab / Beard</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.HijabOrBeard}</span>
+              </div>
+              <ChevronRight size={18} className="text-slate-400" />
+            </div>
+
+            {/* 5. Zakat */}
+            <div 
+              onClick={() => openOptionSheet('Zakat Practice', 'ZakatHabit', formData.ZakatHabit, zakatOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
+              <div>
+                <span className="text-xs font-black text-slate-900 block">Zakat</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.ZakatHabit || "Select Zakat Practice"}</span>
+              </div>
+              <ChevronRight size={18} className="text-slate-400" />
+            </div>
+
+            {/* 6. Hajj / Umrah */}
+            <div 
+              onClick={() => openOptionSheet('Hajj / Umrah Pilgrimage', 'HajjUmrah', formData.HajjUmrah, hajjOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
+              <div>
+                <span className="text-xs font-black text-slate-900 block">Hajj / Umrah</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.HajjUmrah || "Select Pilgrimage Status"}</span>
+              </div>
+              <ChevronRight size={18} className="text-slate-400" />
+            </div>
+          </div>
+        </section>
+
+        {/* ============================================================== */}
+        {/* 🌟 6. LIFESTYLE & INTEREST SECTION                             */}
+        {/* ============================================================== */}
+        <section className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs">
+          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center gap-2">
+            <Sparkles size={18} className="text-slate-700" />
+            <h2 className="text-sm font-black text-slate-900">Lifestyle & Interest</h2>
+          </div>
+
+          <div className="divide-y divide-slate-100 text-left">
+            {/* 1. Diet Preference */}
+            <div 
+              onClick={() => openOptionSheet('Diet Preference', 'DietType', formData.DietType, dietOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
+              <div>
+                <span className="text-xs font-black text-slate-900 block">Diet Preference</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.DietType}</span>
+              </div>
+              <ChevronRight size={18} className="text-slate-400" />
+            </div>
+
+            {/* 2. Smoke */}
             <div 
               onClick={() => openOptionSheet('Smoking Habits', 'SmokeHabit', formData.SmokeHabit, habitOpts)}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Smoking Habits</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.SmokeHabit}</span>
+                <span className="text-xs font-black text-slate-900 block">Smoke</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.SmokeHabit}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
 
-            {/* Drinking */}
+            {/* 3. Drink */}
             <div 
               onClick={() => openOptionSheet('Alcohol / Drinking Habits', 'DrinkHabit', formData.DrinkHabit, habitOpts)}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Alcohol / Drinking</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.DrinkHabit}</span>
+                <span className="text-xs font-black text-slate-900 block">Drink</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.DrinkHabit}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <ChevronRight size={18} className="text-slate-400" />
             </div>
 
-            {/* Hobbies & Pastimes */}
+            {/* 4. Languages You Know (Multi-select) */}
+            <div 
+              onClick={() => openMultiSelectSheet('LanguagesKnown')}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
+              <div className="min-w-0 pr-3">
+                <span className="text-xs font-black text-slate-900 block">Languages you know</span>
+                {formData.LanguagesKnown ? (
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {formData.LanguagesKnown.split(',').map((l: string) => l.trim()).filter(Boolean).map((l: string) => (
+                      <span key={l} className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-slate-800 text-[11px] font-bold">
+                        {l}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-xs text-slate-400 mt-0.5 block italic">Select languages</span>
+                )}
+              </div>
+              <ChevronRight size={18} className="text-slate-400 shrink-0" />
+            </div>
+
+            {/* 5. Cook Food */}
+            <div 
+              onClick={() => openOptionSheet('Can You Cook Food?', 'CanCook', formData.CanCook, cookOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
+              <div>
+                <span className="text-xs font-black text-slate-900 block">Cook Food</span>
+                <span className="text-xs text-slate-600 mt-0.5 block">{formData.CanCook}</span>
+              </div>
+              <ChevronRight size={18} className="text-slate-400" />
+            </div>
+
+            {/* 6. Sports (Multi-select) */}
+            <div 
+              onClick={() => openMultiSelectSheet('Sports')}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
+              <div className="min-w-0 pr-3">
+                <span className="text-xs font-black text-slate-900 block">Sports</span>
+                {formData.Sports ? (
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {formData.Sports.split(',').map((s: string) => s.trim()).filter(Boolean).map((s: string) => (
+                      <span key={s} className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-slate-800 text-[11px] font-bold">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-xs text-slate-400 mt-0.5 block italic">Select sports</span>
+                )}
+              </div>
+              <ChevronRight size={18} className="text-slate-400 shrink-0" />
+            </div>
+
+            {/* 7. Hobbies (Multi-select) */}
             <div 
               onClick={() => openMultiSelectSheet('Hobbies')}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div className="min-w-0 pr-3">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Hobbies & Pastimes</span>
-                  {hasHobbies && (
-                    <span className="text-[10px] font-black px-2 py-0.2 rounded-full bg-rose-100 text-[#d91b5c]">
-                      {formData.Hobbies.split(',').filter(Boolean).length} Added
-                    </span>
-                  )}
-                </div>
-                {hasHobbies ? (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
+                <span className="text-xs font-black text-slate-900 block">Hobbies</span>
+                {formData.Hobbies ? (
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
                     {formData.Hobbies.split(',').map((h: string) => h.trim()).filter(Boolean).map((h: string) => (
-                      <span key={h} className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-rose-50 text-[#d91b5c] border border-rose-200/80 text-[11px] font-black">
+                      <span key={h} className="inline-flex items-center px-2 py-0.5 rounded-full bg-rose-50 text-[#d91b5c] text-[11px] font-bold">
                         {h}
                       </span>
                     ))}
                   </div>
                 ) : (
-                  <span className="text-xs font-bold text-slate-400 mt-0.5 block italic">
-                    Tap to add hobbies (Reading, Travelling, Cooking...)
-                  </span>
+                  <span className="text-xs text-slate-400 mt-0.5 block italic">Select hobbies</span>
                 )}
               </div>
-              <button 
-                type="button" 
-                className="text-xs font-bold text-[#d91b5c] shrink-0 bg-rose-50 px-2.5 py-1 rounded-full hover:bg-rose-100 transition-colors"
-              >
-                {hasHobbies ? "Edit" : "Add"}
-              </button>
+              <ChevronRight size={18} className="text-slate-400 shrink-0" />
             </div>
 
-            {/* Music & Personal Interests */}
+            {/* 8. Musics (Multi-select) */}
             <div 
               onClick={() => openMultiSelectSheet('Interests')}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div className="min-w-0 pr-3">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Music & Personal Interests</span>
-                  {hasMusicInterests && (
-                    <span className="text-[10px] font-black px-2 py-0.2 rounded-full bg-violet-100 text-violet-800">
-                      {formData.Interests.split(',').filter(Boolean).length} Added
-                    </span>
-                  )}
-                </div>
-                {hasMusicInterests ? (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {formData.Interests.split(',').map((item: string) => item.trim()).filter(Boolean).map((item: string) => (
-                      <span key={item} className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200/80 text-[11px] font-black">
-                        {item}
+                <span className="text-xs font-black text-slate-900 block">Musics & Interests</span>
+                {formData.Interests ? (
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {formData.Interests.split(',').map((m: string) => m.trim()).filter(Boolean).map((m: string) => (
+                      <span key={m} className="inline-flex items-center px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 text-[11px] font-bold">
+                        {m}
                       </span>
                     ))}
                   </div>
                 ) : (
-                  <span className="text-xs font-bold text-slate-400 mt-0.5 block italic">
-                    Tap to add music tastes & interests (Sufi, Classical, Tech...)
-                  </span>
+                  <span className="text-xs text-slate-400 mt-0.5 block italic">Select music & interests</span>
                 )}
               </div>
-              <button 
-                type="button" 
-                className="text-xs font-bold text-violet-700 shrink-0 bg-violet-50 px-2.5 py-1 rounded-full hover:bg-violet-100 transition-colors"
-              >
-                {hasMusicInterests ? "Edit" : "Add"}
-              </button>
+              <ChevronRight size={18} className="text-slate-400 shrink-0" />
             </div>
           </div>
         </section>
@@ -2034,7 +2219,7 @@ export default function EditMyProfilePage() {
       </main>
 
       {/* ============================================================== */}
-      {/* 🌟 10. ULTRA-LUXURY BOTTOM SHEETS & DRAWERS                   */}
+      {/* 🌟 10. LUXURY BOTTOM SHEETS & DRAWERS                          */}
       {/* ============================================================== */}
       <AnimatePresence>
         {activeSheet && (
@@ -2048,7 +2233,7 @@ export default function EditMyProfilePage() {
               className="fixed inset-0 bg-black/60 backdrop-blur-xs"
             />
 
-            {/* 🌟 SHEET A: HEIGHT SLIDER BOTTOM SHEET */}
+            {/* 🌟 SHEET A: HEIGHT SLIDER BOTTOM SHEET (Matches Screenshot Exactly) */}
             {activeSheet === 'height' && (
               <motion.div 
                 initial={{ y: "100%" }}
@@ -2061,26 +2246,25 @@ export default function EditMyProfilePage() {
                   <button
                     type="button"
                     onClick={() => setActiveSheet(null)}
-                    className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
+                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
                   >
                     <X size={18} />
                   </button>
                 </div>
 
-                <div className="text-center">
-                  <h3 className="text-lg font-black text-slate-900">Physical Height</h3>
-                  <p className="text-xs text-slate-500 font-medium">Slide to accurately set your height</p>
+                <div className="text-left">
+                  <h3 className="text-lg font-black text-slate-900">Add Height</h3>
                 </div>
 
                 {/* Selected Height Pill */}
-                <div className="flex justify-center">
-                  <div className="px-6 py-2.5 rounded-full border-2 border-[#d91b5c] text-[#d91b5c] font-black text-base bg-rose-50/50 shadow-2xs">
+                <div className="flex justify-start">
+                  <div className="px-5 py-2 rounded-full border border-[#d91b5c] text-[#d91b5c] font-black text-xs bg-rose-50/30">
                     {cmToFtIn(heightCm)}
                   </div>
                 </div>
 
                 {/* Slider */}
-                <div className="px-3 pt-2">
+                <div className="p-4 rounded-2xl border border-slate-200/80 bg-white">
                   <input 
                     type="range"
                     min={135}
@@ -2088,26 +2272,187 @@ export default function EditMyProfilePage() {
                     step={1}
                     value={heightCm}
                     onChange={(e) => setHeightCm(Number(e.target.value))}
-                    className="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#d91b5c]"
+                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#d91b5c]"
                   />
-                  <div className="flex justify-between text-[11px] text-slate-400 font-bold mt-2">
-                    <span>4ft 5in (135 cm)</span>
-                    <span>7ft 0in (213 cm)</span>
-                  </div>
                 </div>
 
                 <button
                   type="button"
                   onClick={handleSaveHeight}
                   disabled={savingField === 'Height'}
-                  className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#9B1138] to-[#D91B5C] hover:opacity-95 text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
+                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
                 >
-                  {savingField === 'Height' ? <Loader2 size={18} className="animate-spin" /> : "Confirm Height"}
+                  {savingField === 'Height' ? <Loader2 size={18} className="animate-spin" /> : "Update"}
                 </button>
               </motion.div>
             )}
 
-            {/* 🌟 SHEET B: SEARCHABLE OPTIONS BOTTOM SHEET (DYNAMIC MASTER BOUND) */}
+            {/* 🌟 SHEET B: ANNUAL INCOME SLIDER BOTTOM SHEET */}
+            {activeSheet === 'income' && (
+              <motion.div 
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 260 }}
+                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pt-5 space-y-5 shadow-2xl text-left"
+              >
+                <div className="flex justify-center -mt-10 mb-1">
+                  <button
+                    type="button"
+                    onClick={() => setActiveSheet(null)}
+                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="text-left">
+                  <h3 className="text-lg font-black text-slate-900">Annual Income</h3>
+                  <p className="text-xs text-slate-500 font-medium">Select or slide your estimated annual remuneration</p>
+                </div>
+
+                {/* Selected Income Pill */}
+                <div className="flex justify-start">
+                  <div className="px-5 py-2 rounded-full border border-[#d91b5c] text-[#d91b5c] font-black text-xs bg-rose-50/30">
+                    {INCOME_BRACKETS[incomeIndex]}
+                  </div>
+                </div>
+
+                {/* Slider */}
+                <div className="p-4 rounded-2xl border border-slate-200/80 bg-white space-y-2">
+                  <input 
+                    type="range"
+                    min={0}
+                    max={INCOME_BRACKETS.length - 1}
+                    step={1}
+                    value={incomeIndex}
+                    onChange={(e) => setIncomeIndex(Number(e.target.value))}
+                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#d91b5c]"
+                  />
+                  <div className="flex justify-between text-[10px] text-slate-400 font-bold">
+                    <span>No Income</span>
+                    <span>₹10 - 15L</span>
+                    <span>₹1 Cr+</span>
+                  </div>
+                </div>
+
+                {/* Quick Chips */}
+                <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
+                  {INCOME_BRACKETS.map((bracket, idx) => (
+                    <button
+                      key={bracket}
+                      type="button"
+                      onClick={() => setIncomeIndex(idx)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                        incomeIndex === idx 
+                          ? 'bg-[#d91b5c] text-white shadow-xs' 
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                      }`}
+                    >
+                      {bracket}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSaveIncome}
+                  disabled={savingField === 'AnnualIncome'}
+                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
+                >
+                  {savingField === 'AnnualIncome' ? <Loader2 size={18} className="animate-spin" /> : "Update"}
+                </button>
+              </motion.div>
+            )}
+
+            {/* 🌟 SHEET C: DATE OF BIRTH 3-COLUMN WHEEL / SCROLL PICKER */}
+            {activeSheet === 'dobPicker' && (
+              <motion.div 
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 260 }}
+                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pt-5 space-y-5 shadow-2xl text-left"
+              >
+                <div className="flex justify-center -mt-10 mb-1">
+                  <button
+                    type="button"
+                    onClick={() => setActiveSheet(null)}
+                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">Select Date of Birth</h3>
+                  <p className="text-xs text-slate-500 font-medium">Scroll and select Day, Month, and Year</p>
+                </div>
+
+                {/* Live Preview Pill */}
+                <div className="flex justify-center">
+                  <div className="px-6 py-2 rounded-full border border-[#d91b5c] text-[#d91b5c] font-black text-sm bg-rose-50/40">
+                    {Math.min(dobDay, daysInCurrentMonth)} {MONTH_NAMES[dobMonth - 1]} {dobYear} &bull; ({calculatedLiveAge} Years)
+                  </div>
+                </div>
+
+                {/* 3-Column Selectors */}
+                <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                  {/* Day Column */}
+                  <div>
+                    <label className="text-[10px] font-black uppercase text-slate-500 block mb-1 text-center">Day</label>
+                    <select
+                      value={Math.min(dobDay, daysInCurrentMonth)}
+                      onChange={(e) => setDobDay(Number(e.target.value))}
+                      className="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 bg-white text-center focus:outline-none focus:border-[#d91b5c]"
+                    >
+                      {Array.from({ length: daysInCurrentMonth }, (_, i) => i + 1).map(d => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Month Column */}
+                  <div>
+                    <label className="text-[10px] font-black uppercase text-slate-500 block mb-1 text-center">Month</label>
+                    <select
+                      value={dobMonth}
+                      onChange={(e) => setDobMonth(Number(e.target.value))}
+                      className="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 bg-white text-center focus:outline-none focus:border-[#d91b5c]"
+                    >
+                      {MONTH_NAMES.map((name, idx) => (
+                        <option key={name} value={idx + 1}>{name.slice(0, 3)}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Year Column */}
+                  <div>
+                    <label className="text-[10px] font-black uppercase text-slate-500 block mb-1 text-center">Year</label>
+                    <select
+                      value={dobYear}
+                      onChange={(e) => setDobYear(Number(e.target.value))}
+                      className="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 bg-white text-center focus:outline-none focus:border-[#d91b5c]"
+                    >
+                      {Array.from({ length: 48 }, (_, i) => 2008 - i).map(yr => (
+                        <option key={yr} value={yr}>{yr}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSaveDob}
+                  disabled={savingField === 'DateOfBirth'}
+                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
+                >
+                  {savingField === 'DateOfBirth' ? <Loader2 size={18} className="animate-spin" /> : "Update Date of Birth"}
+                </button>
+              </motion.div>
+            )}
+
+            {/* 🌟 SHEET D: SEARCHABLE RADIO OPTIONS (Matches Screenshot: Search bar + Radios + Pink Update Button) */}
             {activeSheet === 'option' && (
               <motion.div 
                 initial={{ y: "100%" }}
@@ -2120,48 +2465,45 @@ export default function EditMyProfilePage() {
                   <button
                     type="button"
                     onClick={() => setActiveSheet(null)}
-                    className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
+                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
                   >
                     <X size={18} />
                   </button>
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-black text-slate-900">{sheetTitle}</h3>
-                  <p className="text-xs text-slate-500 font-medium">Choose from verified master list</p>
+                  <h3 className="text-base font-black text-slate-900">{sheetTitle}</h3>
                 </div>
 
                 {/* Search Bar */}
-                {sheetOptions.length > 5 && (
-                  <div className="relative">
-                    <Search size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
-                    <input 
-                      type="text"
-                      placeholder={`Search in ${sheetTitle}...`}
-                      value={sheetSearch}
-                      onChange={(e) => setSheetSearch(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2.5 bg-slate-100 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#d91b5c]/20"
-                    />
-                  </div>
-                )}
+                <div className="relative">
+                  <Search size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
+                  <input 
+                    type="text"
+                    placeholder={`Search ${sheetTitle.toLowerCase().replace('select', '').trim()}...`}
+                    value={sheetSearch}
+                    onChange={(e) => setSheetSearch(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 bg-slate-100/80 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#d91b5c]/20"
+                  />
+                </div>
 
                 {/* Radio List */}
-                <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 divide-y divide-slate-100">
+                <div className="flex-1 overflow-y-auto space-y-1 pr-1 divide-y divide-slate-100">
                   {filteredSheetOptions.map((opt) => {
                     const isSelected = selectedSheetValue === opt.id || selectedSheetValue === opt.value;
                     return (
                       <div 
                         key={String(opt.id || opt.value)}
                         onClick={() => setSelectedSheetValue(opt.id !== undefined ? opt.id : opt.value)}
-                        className="py-3 px-1.5 flex items-center justify-between cursor-pointer hover:bg-slate-50 rounded-xl transition-colors"
+                        className="py-3 px-1 flex items-center justify-between cursor-pointer hover:bg-slate-50 rounded-xl transition-colors"
                       >
-                        <span className={`text-xs font-semibold ${isSelected ? 'text-[#d91b5c] font-black' : 'text-slate-800'}`}>
+                        <span className={`text-xs ${isSelected ? 'text-slate-900 font-bold' : 'text-slate-800 font-medium'}`}>
                           {opt.value}
                         </span>
                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                          isSelected ? 'border-[#d91b5c] bg-[#d91b5c]' : 'border-slate-300'
+                          isSelected ? 'border-[#d91b5c]' : 'border-slate-300'
                         }`}>
-                          {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                          {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-[#d91b5c]" />}
                         </div>
                       </div>
                     );
@@ -2177,14 +2519,14 @@ export default function EditMyProfilePage() {
                   type="button"
                   onClick={handleSaveOption}
                   disabled={Boolean(savingField)}
-                  className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#9B1138] to-[#D91B5C] hover:opacity-95 text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
+                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
                 >
-                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Save Choice"}
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Update"}
                 </button>
               </motion.div>
             )}
 
-            {/* 🌟 SHEET C: IN-APP TEXT / TEXTAREA INPUT SHEET (REPLACES PROMPT) */}
+            {/* 🌟 SHEET E: IN-APP TEXT / EMAIL / PHONE INPUT SHEET */}
             {activeSheet === 'textInput' && (
               <motion.div 
                 initial={{ y: "100%" }}
@@ -2197,7 +2539,7 @@ export default function EditMyProfilePage() {
                   <button
                     type="button"
                     onClick={() => setActiveSheet(null)}
-                    className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
+                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
                   >
                     <X size={18} />
                   </button>
@@ -2221,7 +2563,7 @@ export default function EditMyProfilePage() {
                     />
                   ) : (
                     <input
-                      type="text"
+                      type={textInputData.inputType || 'text'}
                       maxLength={textInputData.maxLength || 120}
                       value={textInputData.value}
                       onChange={(e) => setTextInputData(prev => ({ ...prev, value: e.target.value }))}
@@ -2239,14 +2581,14 @@ export default function EditMyProfilePage() {
                   type="button"
                   onClick={handleSaveTextInput}
                   disabled={Boolean(savingField)}
-                  className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#9B1138] to-[#D91B5C] hover:opacity-95 text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
+                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
                 >
-                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Save Detail"}
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Update"}
                 </button>
               </motion.div>
             )}
 
-            {/* 🌟 SHEET D: SIBLING COUNTERS SHEET (REPLACES PROMPT) */}
+            {/* 🌟 SHEET F: SIBLING COUNTERS SHEET */}
             {activeSheet === 'counters' && (
               <motion.div 
                 initial={{ y: "100%" }}
@@ -2259,7 +2601,7 @@ export default function EditMyProfilePage() {
                   <button
                     type="button"
                     onClick={() => setActiveSheet(null)}
-                    className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
+                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
                   >
                     <X size={18} />
                   </button>
@@ -2386,14 +2728,14 @@ export default function EditMyProfilePage() {
                   type="button"
                   onClick={handleSaveCounters}
                   disabled={Boolean(savingField)}
-                  className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#9B1138] to-[#D91B5C] hover:opacity-95 text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
+                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
                 >
-                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Save Siblings Overview"}
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Update"}
                 </button>
               </motion.div>
             )}
 
-            {/* 🌟 SHEET E: BIO FULL SLIDE SHEET */}
+            {/* 🌟 SHEET G: BIO FULL SLIDE SHEET (Matches Screenshot Exactly: ✕ Bio + Tell us about yourself + Save) */}
             {activeSheet === 'bio' && (
               <motion.div 
                 initial={{ y: "100%" }}
@@ -2402,33 +2744,31 @@ export default function EditMyProfilePage() {
                 transition={{ type: "spring", damping: 25, stiffness: 260 }}
                 className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pt-5 space-y-4 shadow-2xl text-left"
               >
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setActiveSheet(null)}
-                      className="p-1 rounded-full hover:bg-slate-100 text-slate-700 cursor-pointer"
-                    >
-                      <X size={20} />
-                    </button>
-                    <span className="text-sm font-black text-slate-900">Personal Story & Partner Outlook</span>
-                  </div>
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setActiveSheet(null)}
+                    className="p-1 rounded-full hover:bg-slate-100 text-slate-800 cursor-pointer"
+                  >
+                    <X size={20} />
+                  </button>
+                  <span className="text-base font-black text-slate-900">Bio</span>
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-black text-slate-900">Tell Us About Yourself</h3>
+                  <h3 className="text-lg font-black text-slate-900">Tell us about yourself</h3>
                   <p className="text-xs text-slate-500 font-medium mt-1">
-                    Share your deen, daily interests, household background, and what qualities you look for in a spouse.
+                    Tell them more about your principles, partner expectations, family and hobbies.
                   </p>
                 </div>
 
                 <div className="relative">
                   <textarea 
-                    rows={7}
+                    rows={6}
                     maxLength={1000}
                     value={bioDraft}
                     onChange={(e) => setBioDraft(e.target.value)}
-                    placeholder="Write a few paragraphs about your personality, principles, and partner expectations..."
+                    placeholder="values. We prefer a simple, meaningful, and dignified Nikah ceremony..."
                     className="w-full p-4 rounded-2xl border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:border-[#d91b5c] focus:ring-2 focus:ring-[#d91b5c]/20 leading-relaxed resize-none shadow-2xs"
                   />
                   <div className="text-right text-[11px] text-slate-400 font-bold mt-1">
@@ -2440,14 +2780,14 @@ export default function EditMyProfilePage() {
                   type="button"
                   onClick={handleSaveBio}
                   disabled={savingField === 'AboutMe'}
-                  className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#9B1138] to-[#D91B5C] hover:opacity-95 text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
+                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
                 >
-                  {savingField === 'AboutMe' ? <Loader2 size={18} className="animate-spin" /> : "Save Story"}
+                  {savingField === 'AboutMe' ? <Loader2 size={18} className="animate-spin" /> : "Save"}
                 </button>
               </motion.div>
             )}
 
-            {/* 🌟 SHEET F: LOCATION SELECTOR (STATE & CITY) */}
+            {/* 🌟 SHEET H: LOCATION SELECTOR (STATE & CITY) */}
             {activeSheet === 'location' && (
               <motion.div 
                 initial={{ y: "100%" }}
@@ -2460,7 +2800,7 @@ export default function EditMyProfilePage() {
                   <button
                     type="button"
                     onClick={() => setActiveSheet(null)}
-                    className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
+                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
                   >
                     <X size={18} />
                   </button>
@@ -2468,7 +2808,7 @@ export default function EditMyProfilePage() {
 
                 <div>
                   <h3 className="text-lg font-black text-slate-900">
-                    {locationTargetField === 'FamilyLocation' ? "Family Native Origin" : "Current Residence"}
+                    {locationTargetField === 'FamilyLocation' ? "Family Location" : (locationTargetField === 'NativeLocation' ? "Native Location" : "Current Location")}
                   </h3>
                   <p className="text-xs text-slate-500 font-medium">Select state and city in India</p>
                 </div>
@@ -2509,14 +2849,14 @@ export default function EditMyProfilePage() {
                   type="button"
                   onClick={handleSaveLocation}
                   disabled={Boolean(savingField)}
-                  className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#9B1138] to-[#D91B5C] hover:opacity-95 text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
+                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
                 >
-                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Confirm Location"}
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Update"}
                 </button>
               </motion.div>
             )}
 
-            {/* 🌟 SHEET G: PHOTO PRIVACY BOTTOM SHEET */}
+            {/* 🌟 SHEET I: PHOTO PRIVACY BOTTOM SHEET (Matches Screenshot Exactly: Who can see my photo + Save) */}
             {activeSheet === 'photoPrivacy' && (
               <motion.div 
                 initial={{ y: "100%" }}
@@ -2529,51 +2869,62 @@ export default function EditMyProfilePage() {
                   <button
                     type="button"
                     onClick={() => setActiveSheet(null)}
-                    className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
+                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
                   >
                     <X size={18} />
                   </button>
                 </div>
 
-                <div className="text-center">
-                  <h3 className="text-lg font-black text-slate-900">Photo Visibility Privacy</h3>
-                  <p className="text-xs text-slate-500 font-medium">Control who can view your photo portfolio</p>
+                <div className="text-left">
+                  <h3 className="text-base font-black text-slate-900">Who can see my photo</h3>
                 </div>
 
-                <div className="space-y-2.5 pt-2">
+                <div className="space-y-3 pt-1">
                   {[
-                    { id: 'All Members', title: 'All Registered Members', desc: 'Visible to all authenticated rishta seekers' },
-                    { id: 'Premium Members', title: 'Premium Verified Members', desc: 'Blurred for free users until upgraded' },
-                    { id: 'Members I Approve', title: 'Members I Explicitly Approve', desc: 'Blurred until you accept their photo request' },
+                    { id: 'All Members', title: 'All Members', desc: 'Visible to everyone' },
+                    { id: 'Premium Members', title: 'Premium Members', desc: 'Blurred for free users' },
+                    { id: 'Members I Approve', title: 'Members I Approve', desc: 'Blurred until you approve' },
                   ].map((item) => {
                     const isSelected = formData.PhotoPrivacy === item.id;
                     return (
                       <div
                         key={item.id}
-                        onClick={() => handleSavePhotoPrivacy(item.id)}
-                        className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between ${
-                          isSelected ? 'border-[#d91b5c] bg-rose-50/40 shadow-xs' : 'border-slate-200 hover:border-slate-300'
+                        onClick={() => setSelectedSheetValue(item.id)}
+                        className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                          isSelected ? 'border-[#d91b5c]' : 'border-slate-200 hover:border-slate-300'
                         }`}
                       >
                         <div>
-                          <div className={`text-xs font-black ${isSelected ? 'text-[#d91b5c]' : 'text-slate-900'}`}>
+                          <div className="text-xs font-black text-slate-900">
                             {item.title}
                           </div>
-                          <div className="text-[11px] text-slate-500 mt-0.5">{item.desc}</div>
+                          <div className="text-[11px] text-slate-400 mt-0.5">{item.desc}</div>
                         </div>
                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                          isSelected ? 'border-[#d91b5c] bg-[#d91b5c]' : 'border-slate-300'
+                          isSelected ? 'border-[#d91b5c]' : 'border-slate-300'
                         }`}>
-                          {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                          {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-[#d91b5c]" />}
                         </div>
                       </div>
                     );
                   })}
                 </div>
+
+                <p className="text-[11px] text-slate-400 text-center font-medium">
+                  You can change this later in your privacy settings
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => handleSavePhotoPrivacy(selectedSheetValue || formData.PhotoPrivacy)}
+                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
+                >
+                  Save
+                </button>
               </motion.div>
             )}
 
-            {/* 🌟 SHEET H: TRUST BADGE (GOVT ID VERIFICATION) */}
+            {/* 🌟 SHEET J: TRUST BADGE (Matches Screenshot Exactly: Add Trust Badge + Continue) */}
             {activeSheet === 'trustBadge' && (
               <motion.div 
                 initial={{ y: "100%" }}
@@ -2582,24 +2933,22 @@ export default function EditMyProfilePage() {
                 transition={{ type: "spring", damping: 25, stiffness: 260 }}
                 className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pt-5 space-y-4 shadow-2xl text-left max-h-[90vh] flex flex-col"
               >
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setActiveSheet(null)}
-                      className="p-1 rounded-full hover:bg-slate-100 text-slate-700 cursor-pointer"
-                    >
-                      <ArrowLeft size={20} />
-                    </button>
-                    <span className="text-sm font-black text-slate-900 flex items-center gap-1.5">
-                      Add Trust Badge <ShieldCheck size={16} className="text-sky-500" />
-                    </span>
-                  </div>
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setActiveSheet(null)}
+                    className="p-1 rounded-full hover:bg-slate-100 text-slate-800 cursor-pointer"
+                  >
+                    <ArrowLeft size={20} />
+                  </button>
+                  <span className="text-base font-black text-slate-900 flex items-center gap-1.5">
+                    Add Trust Badge <CheckCircle2 size={16} className="text-sky-500 fill-sky-100" />
+                  </span>
                 </div>
 
                 <div className="flex-1 overflow-y-auto space-y-4 pr-1">
                   {/* Upload Box */}
-                  <label className="border-2 border-dashed border-rose-300 rounded-3xl p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-rose-50/30 transition-all bg-rose-50/10">
+                  <label className="border-2 border-dashed border-[#d91b5c] rounded-3xl p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-rose-50/20 transition-all bg-white">
                     <input 
                       type="file"
                       accept="image/*,.pdf"
@@ -2624,39 +2973,37 @@ export default function EditMyProfilePage() {
                           alt="ID Preview" 
                           className="max-h-36 rounded-xl object-contain border border-slate-200 mx-auto"
                         />
-                        <span className="text-xs font-bold text-[#d91b5c] block">Tap to choose another file</span>
+                        <span className="text-xs font-bold text-[#d91b5c] block">Tap to change document</span>
                       </div>
                     ) : (
                       <>
-                        <div className="w-12 h-12 rounded-2xl bg-rose-100 text-[#d91b5c] flex items-center justify-center mb-2 shadow-xs">
-                          <Upload size={22} />
+                        <div className="relative mb-3">
+                          <div className="w-14 h-14 rounded-2xl border-2 border-slate-300 flex items-center justify-center text-slate-400">
+                            <Upload size={24} />
+                          </div>
+                          <div className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-[#d91b5c] text-white flex items-center justify-center text-xs font-black shadow-xs">
+                            +
+                          </div>
                         </div>
-                        <span className="text-sm font-black text-slate-900 block">Upload Official Govt ID</span>
-                        <span className="text-xs text-slate-500 font-medium block mt-0.5">
-                          Aadhaar Card, Passport, Driving License or PAN Card
-                        </span>
-                        <span className="text-[10px] text-slate-400 mt-2 block font-semibold">
-                          Supported: JPG, PNG, PDF (Max 10MB)
+                        <span className="text-sm font-black text-slate-900 block">Upload Govt ID</span>
+                        <span className="text-xs text-slate-400 font-medium block mt-0.5">
+                          (Adhaar, PAN, Passport etc)
                         </span>
                       </>
                     )}
                   </label>
 
                   {/* Benefits Card */}
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2.5">
-                    <span className="text-xs font-black text-slate-900 block">Trust & Privacy Guarantee</span>
-                    <ul className="text-[11px] text-slate-600 space-y-1.5 font-medium">
-                      <li className="flex items-start gap-1.5">
-                        <Check size={14} className="text-emerald-600 shrink-0 mt-0.5" />
-                        <span>Your identity document is 100% confidential and never visible to other users.</span>
+                  <div className="p-4 rounded-2xl border border-slate-200/80 space-y-2 bg-white">
+                    <span className="text-xs font-black text-slate-900 block">Benefits</span>
+                    <ul className="text-xs text-slate-600 space-y-2 font-medium">
+                      <li className="flex items-start gap-2">
+                        <span className="text-slate-400 mt-0.5">&bull;</span>
+                        <span>Upload a Valid Government ID to get the Trust badge.</span>
                       </li>
-                      <li className="flex items-start gap-1.5">
-                        <Check size={14} className="text-emerald-600 shrink-0 mt-0.5" />
-                        <span>Earns the blue <strong>Verified Trust Badge</strong> on your profile card.</span>
-                      </li>
-                      <li className="flex items-start gap-1.5">
-                        <Check size={14} className="text-emerald-600 shrink-0 mt-0.5" />
-                        <span>Builds immediate trust with respectable parents and proposal seekers.</span>
+                      <li className="flex items-start gap-2">
+                        <span className="text-slate-400 mt-0.5">&bull;</span>
+                        <span>Verified member get a Trust Badge for more visibility and trust.</span>
                       </li>
                     </ul>
                   </div>
@@ -2666,14 +3013,14 @@ export default function EditMyProfilePage() {
                   type="button"
                   onClick={handleSubmitGovtDoc}
                   disabled={uploadingGovtDoc || !govtDocFile}
-                  className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#9B1138] to-[#D91B5C] disabled:opacity-50 hover:opacity-95 text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
+                  className="w-full py-3.5 rounded-full bg-slate-200 disabled:opacity-50 enabled:bg-[#d91b5c] enabled:hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
                 >
-                  {uploadingGovtDoc ? <Loader2 size={18} className="animate-spin" /> : "Submit for Admin Verification"}
+                  {uploadingGovtDoc ? <Loader2 size={18} className="animate-spin" /> : "Continue"}
                 </button>
               </motion.div>
             )}
 
-            {/* 🌟 SHEET I: LIFESTYLE & INTEREST PROMPT HUB */}
+            {/* 🌟 SHEET K: LIFESTYLE & INTEREST PROMPT HUB */}
             {activeSheet === 'lifestyleHub' && (
               <motion.div 
                 initial={{ y: "100%" }}
@@ -2686,7 +3033,7 @@ export default function EditMyProfilePage() {
                   <button
                     type="button"
                     onClick={() => setActiveSheet(null)}
-                    className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
+                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
                   >
                     <X size={18} />
                   </button>
@@ -2709,7 +3056,7 @@ export default function EditMyProfilePage() {
                       </div>
                       <div>
                         <div className="text-xs font-black text-slate-900 group-hover:text-[#d91b5c] transition-colors">
-                          Hobbies & Pastimes
+                          Hobbies
                         </div>
                         <div className="text-[11px] text-slate-500 font-medium mt-0.5">
                           {formData.Hobbies ? `${formData.Hobbies.split(',').filter(Boolean).length} Selected: ${formData.Hobbies}` : "Reading, Travelling, Cooking..."}
@@ -2719,18 +3066,18 @@ export default function EditMyProfilePage() {
                     <ChevronRight size={18} className="text-[#d91b5c] shrink-0" />
                   </div>
 
-                  {/* Option 2: Music / Interests */}
+                  {/* Option 2: Musics */}
                   <div
                     onClick={() => openMultiSelectSheet('Interests')}
                     className="p-4 rounded-2xl border-2 border-violet-100 hover:border-violet-600 bg-violet-50/20 hover:bg-violet-50/50 transition-all cursor-pointer flex items-center justify-between group"
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-violet-100 text-violet-700 flex items-center justify-center shrink-0">
-                        <Sparkles size={20} />
+                        <Music size={20} />
                       </div>
                       <div>
                         <div className="text-xs font-black text-slate-900 group-hover:text-violet-700 transition-colors">
-                          Music & Personal Interests
+                          Musics
                         </div>
                         <div className="text-[11px] text-slate-500 font-medium mt-0.5">
                           {formData.Interests ? `${formData.Interests.split(',').filter(Boolean).length} Selected: ${formData.Interests}` : "Sufi, Classical Ghazals, Poetry..."}
@@ -2743,7 +3090,7 @@ export default function EditMyProfilePage() {
               </motion.div>
             )}
 
-            {/* 🌟 SHEET J: MULTI-SELECT CHIPS BOTTOM SHEET */}
+            {/* 🌟 SHEET L: MULTI-SELECT CHIPS BOTTOM SHEET (For Languages, Sports, Hobbies, Musics) */}
             {activeSheet === 'multiSelect' && (
               <motion.div 
                 initial={{ y: "100%" }}
@@ -2756,7 +3103,7 @@ export default function EditMyProfilePage() {
                   <button
                     type="button"
                     onClick={() => setActiveSheet(null)}
-                    className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
+                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
                   >
                     <X size={18} />
                   </button>
@@ -2764,7 +3111,7 @@ export default function EditMyProfilePage() {
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-black text-slate-900">{multiSelectTitle}</h3>
+                    <h3 className="text-base font-black text-slate-900">{multiSelectTitle}</h3>
                     <p className="text-xs text-slate-500 font-medium">{multiSelectSubtitle}</p>
                   </div>
                   <span className="text-xs font-black text-[#d91b5c] bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200">
@@ -2796,7 +3143,7 @@ export default function EditMyProfilePage() {
                           onClick={() => toggleMultiSelectItem(opt.value)}
                           className={`px-3.5 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
                             isSelected 
-                              ? 'bg-gradient-to-r from-[#9B1138] to-[#D91B5C] text-white shadow-xs' 
+                              ? 'bg-[#d91b5c] text-white shadow-xs' 
                               : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/60'
                           }`}
                         >
@@ -2817,9 +3164,9 @@ export default function EditMyProfilePage() {
                   type="button"
                   onClick={handleSaveMultiSelect}
                   disabled={Boolean(savingField)}
-                  className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#9B1138] to-[#D91B5C] hover:opacity-95 text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
+                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
                 >
-                  {savingField ? <Loader2 size={18} className="animate-spin" /> : `Save Selection (${multiSelectItems.length})`}
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Update"}
                 </button>
               </motion.div>
             )}
