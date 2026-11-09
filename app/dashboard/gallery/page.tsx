@@ -179,11 +179,46 @@ export default function GalleryManagementPage() {
     try {
       let res: any;
       if (photos.length === 0 || (isMainReplace && (!replacePhotoId || replacePhotoId <= 1))) {
+        let uploadedUrl = "";
+        try {
+          const ext = file.name.split('.').pop() || 'jpg';
+          const base64Data: string = await new Promise((resolve) => {
+            const r = new FileReader();
+            r.onload = () => resolve(String(r.result || ""));
+            r.readAsDataURL(file);
+          });
+          const upRes = await fetch("/api/face-verification", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "upload-photo-r2",
+              photoBase64: base64Data,
+              userId: getCurrentUserId(),
+              ext,
+              mimeType: file.type || "image/jpeg",
+            }),
+          });
+          const upJson = await upRes.json();
+          if (upJson?.success && upJson?.photoUrl) {
+            uploadedUrl = upJson.photoUrl;
+          }
+        } catch (e) {
+          console.warn("Direct R2 upload fallback:", e);
+        }
+
         const fd = new FormData();
         fd.append("UserId", String(getCurrentUserId()));
-        fd.append("Photo", file);
+        if (uploadedUrl) {
+          fd.append("PhotoUrl", uploadedUrl);
+        } else {
+          fd.append("Photo", file);
+        }
         fd.append("PhotoPrivacy", privacy);
         res = await updateProfileApi(fd, token);
+        if (res.success && uploadedUrl && !res.photoUrl && !res.data?.photoUrl) {
+          if (!res.data) res.data = {};
+          res.data.photoUrl = uploadedUrl;
+        }
       } else {
         const formData = new FormData();
         formData.append("Photo", file);

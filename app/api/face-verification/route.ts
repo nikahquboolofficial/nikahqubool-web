@@ -450,6 +450,31 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // 4. UPLOAD PROFILE OR GALLERY PHOTO DIRECTLY TO CLOUDFLARE R2 `user-profiles`
+    if (action === "upload-photo-r2") {
+      const userId = Number(body?.userId || 0);
+      const photoBase64 = stripBase64Prefix(String(body?.photoBase64 || ""));
+      const folder = String(body?.folder || "user-profiles");
+      const ext = String(body?.ext || "jpg").replace(/^\.+/, "");
+      const mime = String(body?.mimeType || `image/${ext === "jpg" ? "jpeg" : ext}`);
+
+      if (!photoBase64) {
+        return NextResponse.json({ success: false, message: "No photo data provided." }, { status: 400 });
+      }
+
+      const photoBuffer = Buffer.from(photoBase64, "base64");
+      const fileName = `photo_${userId || "user"}_${Date.now()}_${crypto.randomUUID().slice(0, 8)}.${ext}`;
+      const photoRelativeKey = await uploadBufferToR2(photoBuffer, folder, fileName, mime);
+      const fullCdnUrl = `${R2_CDN_URL}/${photoRelativeKey}`;
+
+      return NextResponse.json({
+        success: true,
+        photoRelativeKey,
+        photoUrl: fullCdnUrl,
+        message: "Photo uploaded to Cloudflare R2 successfully.",
+      });
+    }
+
     return NextResponse.json({ success: false, message: "Unsupported action" }, { status: 400 });
   } catch (err: any) {
     console.error("Face verification route error:", err);

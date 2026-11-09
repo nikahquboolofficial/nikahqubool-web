@@ -872,9 +872,35 @@ export default function CompleteProfilePage() {
     if (formData.aboutMe) fd.append("AboutMe", formData.aboutMe);
 
     const selectedPhotos = photoSlots.filter((p): p is { file: File; previewUrl: string; dataUrl: string } => p !== null);
+    let uploadedMainPhotoUrl = "";
+
     if (selectedPhotos.length > 0) {
-      setSubmitStatus("Uploading Main photo...");
-      fd.append("Photo", selectedPhotos[0].file);
+      setSubmitStatus("Uploading profile photo...");
+      try {
+        const file = selectedPhotos[0].file;
+        const ext = file.name.split('.').pop() || 'jpg';
+        const upRes = await fetch("/api/face-verification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "upload-photo-r2",
+            photoBase64: selectedPhotos[0].dataUrl,
+            userId: Number(userData?.userId || userData?.UserId || 0),
+            ext,
+            mimeType: file.type || "image/jpeg",
+          }),
+        });
+        const upJson = await upRes.json();
+        if (upJson?.success && upJson?.photoUrl) {
+          uploadedMainPhotoUrl = upJson.photoUrl;
+          fd.append("PhotoUrl", upJson.photoUrl);
+        } else {
+          fd.append("Photo", selectedPhotos[0].file);
+        }
+      } catch (upErr) {
+        console.warn("Direct R2 upload fallback:", upErr);
+        fd.append("Photo", selectedPhotos[0].file);
+      }
     }
 
     try {
@@ -884,11 +910,15 @@ export default function CompleteProfilePage() {
       if (res.success) {
         // Upload any additional gallery photos (Slots 2, 3, 4)
         for (let i = 1; i < selectedPhotos.length; i++) {
-          setSubmitStatus(`Uploading gallery photo ${i + 1} of ${selectedPhotos.length}...`);
-          const gfd = new FormData();
-          gfd.append("Photo", selectedPhotos[i].file);
-          gfd.append("Privacy", formData.photoPrivacy || "All Members");
-          await uploadGalleryPhotoApi(gfd, token);
+          try {
+            setSubmitStatus(`Uploading gallery photo ${i + 1} of ${selectedPhotos.length}...`);
+            const gfd = new FormData();
+            gfd.append("Photo", selectedPhotos[i].file);
+            gfd.append("Privacy", formData.photoPrivacy || "All Members");
+            await uploadGalleryPhotoApi(gfd, token);
+          } catch (gErr) {
+            console.warn("Gallery photo upload skipped:", gErr);
+          }
         }
 
         let updatedSessionData: any = session ? JSON.parse(session) : {};
@@ -910,11 +940,17 @@ export default function CompleteProfilePage() {
             }
           }
         } catch (_) {
-          const mainPhoto = selectedPhotos[0]?.previewUrl;
+          const mainPhoto = uploadedMainPhotoUrl || selectedPhotos[0]?.previewUrl;
           if (mainPhoto) {
             updatedSessionData.photoUrl = mainPhoto;
             syncUserProfilePhoto(mainPhoto);
           }
+        }
+
+        if (!updatedSessionData.photoUrl && uploadedMainPhotoUrl) {
+          updatedSessionData.photoUrl = uploadedMainPhotoUrl;
+          updatedSessionData.PhotoUrl = uploadedMainPhotoUrl;
+          syncUserProfilePhoto(uploadedMainPhotoUrl);
         }
 
         if (typeof window !== "undefined") {
