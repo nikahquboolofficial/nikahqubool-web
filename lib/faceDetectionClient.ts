@@ -55,6 +55,70 @@ export interface ClientFaceCheckResult {
   similarity?: number;
 }
 
+// Helper to calculate Eye Aspect Ratio (EAR) for Liveness / Eye Blink Detection
+function getEyeAspectRatio(eyePoints: Array<{ x: number; y: number }>): number {
+  // Eye points: [p1, p2, p3, p4, p5, p6]
+  // Vertical distances: ||p2 - p6|| and ||p3 - p5||
+  const dV1 = Math.hypot(eyePoints[1].x - eyePoints[5].x, eyePoints[1].y - eyePoints[5].y);
+  const dV2 = Math.hypot(eyePoints[2].x - eyePoints[4].x, eyePoints[2].y - eyePoints[4].y);
+  // Horizontal distance: ||p1 - p4||
+  const dH = Math.hypot(eyePoints[0].x - eyePoints[3].x, eyePoints[0].y - eyePoints[3].y);
+  return dH > 0 ? (dV1 + dV2) / (2.0 * dH) : 0.3;
+}
+
+/**
+ * Fast real-time live face & eye-blink detection for the oval camera video feed:
+ * 1. Confirms face is inside the oval outline
+ * 2. Scans 68-landmarks for 3D Liveness (Eye Blink Detection)
+ * Prevents anyone from holding a fake printed photo or phone screen!
+ */
+export async function detectFaceAndBlinkInVideo(
+  video: HTMLVideoElement
+): Promise<{ hasFace: boolean; isBlinking: boolean; ear: number }> {
+  const ready = await loadFaceApiModels();
+  if (!ready || !faceapi) return { hasFace: false, isBlinking: false, ear: 0.3 };
+
+  try {
+    const detection = await faceapi
+      .detectSingleFace(
+        video,
+        new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 })
+      )
+      .withFaceLandmarks(true); // tiny landmark model for ultra fast 60fps tracking
+
+    if (detection && detection.detection.score >= 0.4) {
+      const landmarks = detection.landmarks;
+      const leftEye = landmarks.getLeftEye();
+      const rightEye = landmarks.getRightEye();
+
+      const leftEAR = getEyeAspectRatio(leftEye);
+      const rightEAR = getEyeAspectRatio(rightEye);
+      const avgEAR = (leftEAR + rightEAR) / 2.0;
+
+      // EAR < 0.22 means eyes are closed / blinking
+      const isBlinking = avgEAR < 0.22;
+
+      return { hasFace: true, isBlinking, ear: avgEAR };
+    }
+  } catch (err) {
+    // Fallback SSD landmark check
+    try {
+      const ssdDet = await faceapi
+        .detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.4 }))
+        .withFaceLandmarks();
+      if (ssdDet && ssdDet.detection.score >= 0.4) {
+        const landmarks = ssdDet.landmarks;
+        const leftEye = landmarks.getLeftEye();
+        const rightEye = landmarks.getRightEye();
+        const avgEAR = (getEyeAspectRatio(leftEye) + getEyeAspectRatio(rightEye)) / 2.0;
+        return { hasFace: true, isBlinking: avgEAR < 0.22, ear: avgEAR };
+      }
+    } catch (_) {}
+  }
+
+  return { hasFace: false, isBlinking: false, ear: 0.3 };
+}
+
 /**
  * Fast real-time live face detection for the oval camera video feed
  */

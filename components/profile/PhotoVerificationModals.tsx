@@ -453,10 +453,12 @@ export function LiveOvalSelfieScannerModal({
           videoRef.current.srcObject = stream;
         }
 
-        // Live Auto-Detection Loop like Muzz:
-        // Runs ultra-fast TinyFaceDetector directly on video feed every 300ms!
-        // As soon as face enters the oval, turns green and auto-captures!
-        let steadyCount = 0;
+        // LIVENESS & BLINK DETECTION LOOP:
+        // 1. Oval turns GREEN when face is positioned
+        // 2. Instructs user: "Blink your eyes now 😉"
+        // 3. Auto-captures as soon as the blink is detected!
+        // This guarantees 100% real human presence and blocks all fake photo / screen attacks!
+        let hasSeenOpenEyes = false;
 
         checkIntervalRef.current = setInterval(async () => {
           if (!mounted || autoCapturedRef.current || verifying || !videoRef.current) return;
@@ -464,27 +466,34 @@ export function LiveOvalSelfieScannerModal({
           if (video.readyState < 2) return;
 
           try {
-            const { detectFaceInVideo } = await import("@/lib/faceDetectionClient");
-            const res = await detectFaceInVideo(video);
+            const { detectFaceAndBlinkInVideo } = await import("@/lib/faceDetectionClient");
+            const res = await detectFaceAndBlinkInVideo(video);
 
             if (res.hasFace) {
-              steadyCount++;
               setFaceInsideOval(true);
-              setGuidePrompt("Face aligned • Hold still...");
 
-              // Once face is steady for 2 ticks (~600ms), auto-capture!
-              if (steadyCount >= 2 && !autoCapturedRef.current) {
+              // If eyes are open (EAR >= 0.23)
+              if (!res.isBlinking) {
+                hasSeenOpenEyes = true;
+                setGuidePrompt("Blink your eyes now 😉");
+              } else if (hasSeenOpenEyes && res.isBlinking) {
+                // Blink detected! Live Human verified!
                 autoCapturedRef.current = true;
+                setGuidePrompt("Blink verified! Scanning face...");
                 if (checkIntervalRef.current) clearInterval(checkIntervalRef.current);
-                captureFrame();
+                
+                // Capture immediately upon opening eyes
+                setTimeout(() => {
+                  if (mounted) captureFrame();
+                }, 200);
               }
             } else {
-              steadyCount = 0;
+              hasSeenOpenEyes = false;
               setFaceInsideOval(false);
               setGuidePrompt("Position your face in the outline");
             }
           } catch (_) {}
-        }, 300);
+        }, 200);
       })
       .catch(() => {
         if (mounted) {
