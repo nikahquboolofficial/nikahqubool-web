@@ -315,6 +315,34 @@ export default function EditMyProfilePage() {
   const [loading, setLoading] = useState(true);
   const [savingField, setSavingField] = useState<string | null>(null);
 
+  // Dynamic Master Data Cache initialized with FALLBACK_MASTERS so options ALWAYS bind instantly!
+  const [masterData, setMasterData] = useState<{ [key: string]: MasterOption[] }>(FALLBACK_MASTERS);
+  const [stateCities, setStateCities] = useState<MasterOption[]>([]);
+
+  // 🌟 GUARANTEED TEXT RESOLVER: NEVER SHOW A NUMERIC ID ON SCREEN!
+  const getMasterLabel = useCallback((type: string, val: any): string => {
+    if (val === null || val === undefined || val === '') return '';
+    const strVal = String(val).trim();
+    const list = masterData[type] || FALLBACK_MASTERS[type] || [];
+    
+    // 1. Try finding by numeric id
+    const byId = list.find(item => String(item.id) === strVal);
+    if (byId) return byId.value;
+
+    // 2. Try finding by case-insensitive value
+    const byVal = list.find(item => item.value.toLowerCase() === strVal.toLowerCase());
+    if (byVal) return byVal.value;
+
+    // 3. Fallback: if it's a numeric string that didn't match, avoid showing raw number if possible
+    if (/^\d+$/.test(strVal)) {
+      const idx = Number(strVal) - 1;
+      if (idx >= 0 && idx < list.length) {
+        return list[idx].value;
+      }
+    }
+    return strVal;
+  }, [masterData]);
+
   // Helper to get cached Full Name from localStorage so it never starts empty
   const getInitialFullName = (): string => {
     if (typeof window === "undefined") return '';
@@ -337,25 +365,18 @@ export default function EditMyProfilePage() {
   const [formData, setFormData] = useState<any>({
     UserId: 0,
     FullName: '',
-    ProfileCreatedFor: 'Self',
-    ProfileCreatedForId: 1,
+    ProfileCreatedFor: 1,
     Age: 25,
     Gender: 'Female',
     DateOfBirth: '',
-    MaritalStatus: 'Never Married',
-    MaritalStatusId: 1,
-    Sect: 'Sunni',
-    SectId: 1,
+    MaritalStatus: 1,
+    Sect: 1,
     Height: `5ft 7in (170 cm)`,
     Weight: '60 kg',
-    Complexion: 'Fair',
-    ComplexionId: 2,
-    Caste: 'Sheikh or Shaikh',
-    CasteId: 4,
-    Maslak: 'Sunni (Hanafi)',
-    MaslakId: 1,
-    MotherTongue: 'Urdu',
-    MotherTongueId: 1,
+    Complexion: 2,
+    Caste: 4,
+    Maslak: 1,
+    MotherTongue: 1,
     Location: 'Bareilly, Uttar Pradesh, India',
     CurrentStateId: 14,
     CurrentCityId: 1,
@@ -364,31 +385,24 @@ export default function EditMyProfilePage() {
     Disability: 'No',
 
     // Education & Career
-    Education: 'B.Com.',
-    EducationId: 5,
+    Education: 5,
     CollegeName: 'Regional College Of Professional Studies & Research',
-    EmployedIn: 'Private Sector',
-    EmployedInId: 1,
-    Occupation: 'Software Professional',
-    OccupationId: 1,
+    EmployedIn: 1,
+    Occupation: 1,
     OccupationDetails: '',
     AnnualIncome: '₹5 - 7 Lakhs',
 
     // Family Details
     FamilyLocation: 'Bareilly, Uttar Pradesh, India',
-    FamilyType: 'Joint Family',
-    FamilyTypeId: 1,
-    FamilyStatus: 'Upper Middle Class',
-    FamilyStatusId: 2,
+    FamilyType: 1,
+    FamilyStatus: 2,
     NativeLocation: 'Bareilly, Uttar Pradesh, India',
     NativePlaceStateId: 14,
     NativePlaceCityId: 1,
     FatherName: '',
-    FatherOccupation: 'Business Owner / Entrepreneur',
-    FatherOccupationId: 4,
+    FatherOccupation: 4,
     MotherName: '',
-    MotherOccupation: 'Homemaker / Housewife',
-    MotherOccupationId: 18,
+    MotherOccupation: 18,
     TotalBrothers: 1,
     MarriedBrothers: 0,
     TotalSisters: 2,
@@ -430,11 +444,7 @@ export default function EditMyProfilePage() {
   const [photos, setPhotos] = useState<Array<{ photoId: number; photoUrl: string; isMain: boolean; privacy?: string }>>([]);
   const [uploadingPhotoSlot, setUploadingPhotoSlot] = useState<number | null>(null);
 
-  // Dynamic Master Data Cache initialized with FALLBACK_MASTERS so options ALWAYS bind instantly!
-  const [masterData, setMasterData] = useState<{ [key: string]: MasterOption[] }>(FALLBACK_MASTERS);
-  const [stateCities, setStateCities] = useState<MasterOption[]>([]);
-
-  // Active Bottom Sheet / Subscreen
+  // Active Bottom Sheet
   const [activeSheet, setActiveSheet] = useState<string | null>(null);
   const [sheetTitle, setSheetTitle] = useState('');
   const [sheetSearch, setSheetSearch] = useState('');
@@ -495,7 +505,7 @@ export default function EditMyProfilePage() {
   const [govtDocPreview, setGovtDocPreview] = useState<string>('');
   const [uploadingGovtDoc, setUploadingGovtDoc] = useState(false);
 
-  // Lifestyle Hub & Multi-Select Substate
+  // Multi-Select Substate
   const [multiSelectKey, setMultiSelectKey] = useState<'Hobbies' | 'Interests' | 'Sports' | 'LanguagesKnown'>('Hobbies');
   const [multiSelectTitle, setMultiSelectTitle] = useState('');
   const [multiSelectSubtitle, setMultiSelectSubtitle] = useState('');
@@ -565,7 +575,7 @@ export default function EditMyProfilePage() {
           const p = profileRes.data.profile || profileRes.data.Profile || profileRes.data;
           const g = profileRes.data.gallery || profileRes.data.Gallery || [];
 
-          // Robust Name resolver: Never allow blank!
+          // Robust Name resolver
           let resolvedName = p.fullName || p.FullName || p.name || p.Name;
           if (!resolvedName || String(resolvedName).trim() === '' || resolvedName === 'User') {
             resolvedName = getInitialFullName() || 'Candidate Profile';
@@ -592,25 +602,18 @@ export default function EditMyProfilePage() {
             ...prev,
             UserId: p.userId || p.UserId || 0,
             FullName: resolvedName,
-            ProfileCreatedFor: p.profileCreatedForName || p.profileCreatedFor || prev.ProfileCreatedFor,
-            ProfileCreatedForId: p.profileCreatedFor || prev.ProfileCreatedForId,
+            ProfileCreatedFor: p.profileCreatedForId || p.profileCreatedFor || prev.ProfileCreatedFor,
             Age: p.age || prev.Age,
             Gender: p.gender || p.Gender || prev.Gender,
             DateOfBirth: p.dateOfBirth || prev.DateOfBirth,
-            MaritalStatus: p.maritalStatusName || p.maritalStatus || prev.MaritalStatus,
-            MaritalStatusId: p.maritalStatus || prev.MaritalStatusId,
-            Sect: p.sectName || p.sect || prev.Sect,
-            SectId: p.sect || prev.SectId,
+            MaritalStatus: p.maritalStatusId || p.maritalStatus || prev.MaritalStatus,
+            Sect: p.sectId || p.sect || prev.Sect,
             Height: p.height || p.Height || prev.Height,
             Weight: p.weight || p.Weight || prev.Weight,
-            Complexion: p.complexionName || p.complexion || prev.Complexion,
-            ComplexionId: p.complexionId || prev.ComplexionId,
-            Caste: p.casteName || p.caste || prev.Caste,
-            CasteId: p.casteId || prev.CasteId,
-            Maslak: p.maslakName || p.maslak || prev.Maslak,
-            MaslakId: p.maslakId || prev.MaslakId,
-            MotherTongue: p.motherTongueName || p.motherTongue || prev.MotherTongue,
-            MotherTongueId: p.motherTongueId || prev.MotherTongueId,
+            Complexion: p.complexionId || p.complexion || prev.Complexion,
+            Caste: p.casteId || p.caste || prev.Caste,
+            Maslak: p.maslakId || p.maslak || prev.Maslak,
+            MotherTongue: p.motherTongueId || p.motherTongue || prev.MotherTongue,
             Location: `${p.currentCityName || p.cityName || 'Bareilly'}, ${p.currentStateName || p.stateName || 'Uttar Pradesh'}, India`,
             CurrentStateId: p.currentStateId || prev.CurrentStateId,
             CurrentCityId: p.currentCityId || prev.CurrentCityId,
@@ -619,31 +622,24 @@ export default function EditMyProfilePage() {
             Disability: p.disability || prev.Disability || 'No',
 
             // Education & Career
-            Education: p.highestDegreeName || p.highestDegree || p.education || prev.Education,
-            EducationId: p.highestDegree || prev.EducationId,
+            Education: p.highestDegreeId || p.highestDegree || prev.Education,
             CollegeName: p.collegeName || prev.CollegeName,
-            EmployedIn: p.employmentSectorName || p.employmentSector || p.employedIn || prev.EmployedIn,
-            EmployedInId: p.employmentSector || prev.EmployedInId,
-            Occupation: p.designationName || p.designation || p.occupation || prev.Occupation,
-            OccupationId: p.designation || prev.OccupationId,
+            EmployedIn: p.employmentSectorId || p.employmentSector || prev.EmployedIn,
+            Occupation: p.designationId || p.designation || prev.Occupation,
             OccupationDetails: p.occupationDetails || prev.OccupationDetails,
             AnnualIncome: incStr,
 
             // Family
             FamilyLocation: p.familyCityName ? `${p.familyCityName}, ${p.familyStateName || ''}, India` : prev.FamilyLocation,
-            FamilyType: p.familyTypeName || p.familyType || prev.FamilyType,
-            FamilyTypeId: p.familyType || prev.FamilyTypeId,
-            FamilyStatus: p.familyStatusName || p.familyStatus || prev.FamilyStatus,
-            FamilyStatusId: p.familyStatus || prev.FamilyStatusId,
+            FamilyType: p.familyTypeId || p.familyType || prev.FamilyType,
+            FamilyStatus: p.familyStatusId || p.familyStatus || prev.FamilyStatus,
             NativeLocation: p.nativeCityName ? `${p.nativeCityName}, ${p.nativeStateName || ''}, India` : (p.familyCityName ? `${p.familyCityName}, ${p.familyStateName || ''}, India` : prev.NativeLocation),
             NativePlaceStateId: p.nativePlaceStateId || prev.NativePlaceStateId,
             NativePlaceCityId: p.nativePlaceCityId || prev.NativePlaceCityId,
             FatherName: p.fatherName || p.FatherName || prev.FatherName,
-            FatherOccupation: p.fatherOccupationName || p.fatherOccupation || prev.FatherOccupation,
-            FatherOccupationId: p.fatherOccupationId || prev.FatherOccupationId,
+            FatherOccupation: p.fatherOccupationId || p.fatherOccupation || prev.FatherOccupation,
             MotherName: p.motherName || p.MotherName || prev.MotherName,
-            MotherOccupation: p.motherOccupationName || p.motherOccupation || prev.MotherOccupation,
-            MotherOccupationId: p.motherOccupationId || prev.MotherOccupationId,
+            MotherOccupation: p.motherOccupationId || p.motherOccupation || prev.MotherOccupation,
             TotalBrothers: p.totalBrothers !== undefined ? Number(p.totalBrothers) : prev.TotalBrothers,
             MarriedBrothers: p.marriedBrothers !== undefined ? Number(p.marriedBrothers) : prev.MarriedBrothers,
             TotalSisters: p.totalSisters !== undefined ? Number(p.totalSisters) : prev.TotalSisters,
@@ -720,7 +716,7 @@ export default function EditMyProfilePage() {
     }
   }, [selectedStateId]);
 
-  // 🌟 Save specific field via API (Silent on success, no annoying toasts!)
+  // 🌟 Save specific field via API (Silent on success, no intrusive toasts!)
   const saveFieldValue = async (field: string, value: any, extraData: any = {}) => {
     const token = getAuthToken();
     if (!token) return;
@@ -732,9 +728,19 @@ export default function EditMyProfilePage() {
       fd.append("UserId", String(formData.UserId || 0));
       fd.append(field, String(value));
 
-      Object.entries(extraData).forEach(([k, v]) => {
-        fd.append(k, String(v));
-      });
+      // Append companion text names if saving occupation IDs
+      if (extraData.FatherOccupation && field === 'FatherOccupationId') {
+        fd.append('FatherOccupation', String(extraData.FatherOccupation));
+      }
+      if (extraData.MotherOccupation && field === 'MotherOccupationId') {
+        fd.append('MotherOccupation', String(extraData.MotherOccupation));
+      }
+      if (extraData.CurrentCityId && field === 'CurrentStateId') {
+        fd.append('CurrentCityId', String(extraData.CurrentCityId));
+      }
+      if (extraData.NativePlaceCityId && (field === 'NativePlaceStateId' || field === 'NativeLocation' || field === 'FamilyLocation')) {
+        fd.append('NativePlaceCityId', String(extraData.NativePlaceCityId));
+      }
 
       const res = await updateProfileApi(fd, token);
       if (res.success || res.Success === 1) {
@@ -981,9 +987,9 @@ export default function EditMyProfilePage() {
         NativePlaceCityId: selectedCityId,
       });
     } else if (locationTargetField === 'NativeLocation') {
-      saveFieldValue('NativeLocation', locText, {
-        NativePlaceStateId: selectedStateId,
+      saveFieldValue('NativePlaceStateId', selectedStateId, {
         NativePlaceCityId: selectedCityId,
+        NativeLocation: locText,
       });
     } else {
       saveFieldValue('CurrentStateId', selectedStateId, {
@@ -997,44 +1003,40 @@ export default function EditMyProfilePage() {
 
   // Save Option Selection with Dynamic Master IDs
   const handleSaveOption = () => {
-    const selectedObj = sheetOptions.find(o => o.id === selectedSheetValue || o.value === selectedSheetValue);
+    const selectedObj = sheetOptions.find(o => String(o.id) === String(selectedSheetValue) || o.value === selectedSheetValue);
     if (!selectedObj) {
       setActiveSheet(null);
       return;
     }
 
     if (sheetFieldKey === 'ProfileCreatedFor') {
-      saveFieldValue('ProfileCreatedFor', selectedObj.id, { ProfileCreatedFor: selectedObj.value, ProfileCreatedForId: selectedObj.id });
+      saveFieldValue('ProfileCreatedFor', selectedObj.id, { ProfileCreatedFor: selectedObj.id, ProfileCreatedForName: selectedObj.value });
     } else if (sheetFieldKey === 'MaritalStatus') {
-      saveFieldValue('MaritalStatus', selectedObj.id, { MaritalStatus: selectedObj.value, MaritalStatusId: selectedObj.id });
+      saveFieldValue('MaritalStatus', selectedObj.id, { MaritalStatus: selectedObj.id, MaritalStatusName: selectedObj.value });
     } else if (sheetFieldKey === 'Sect') {
-      saveFieldValue('Sect', selectedObj.id, { Sect: selectedObj.value, SectId: selectedObj.id });
-    } else if (sheetFieldKey === 'Education') {
-      saveFieldValue('HighestDegree', selectedObj.id, { Education: selectedObj.value, EducationId: selectedObj.id });
-    } else if (sheetFieldKey === 'EmployedIn') {
-      saveFieldValue('EmploymentSector', selectedObj.id, { EmployedIn: selectedObj.value, EmployedInId: selectedObj.id });
-    } else if (sheetFieldKey === 'Occupation') {
-      saveFieldValue('Designation', selectedObj.id, { Occupation: selectedObj.value, OccupationId: selectedObj.id });
-    } else if (sheetFieldKey === 'FatherOccupation') {
-      saveFieldValue('FatherOccupationId', selectedObj.id, { FatherOccupation: selectedObj.value, FatherOccupationId: selectedObj.id });
-    } else if (sheetFieldKey === 'MotherOccupation') {
-      saveFieldValue('MotherOccupationId', selectedObj.id, { MotherOccupation: selectedObj.value, MotherOccupationId: selectedObj.id });
-    } else if (sheetFieldKey === 'AnnualIncome') {
-      saveFieldValue('AnnualIncome', selectedObj.value);
+      saveFieldValue('Sect', selectedObj.id, { Sect: selectedObj.id, SectName: selectedObj.value });
     } else if (sheetFieldKey === 'Caste') {
-      saveFieldValue('Caste', selectedObj.id, { CasteText: selectedObj.value, CasteId: selectedObj.id, Caste: selectedObj.value });
+      saveFieldValue('Caste', selectedObj.id, { Caste: selectedObj.id, CasteName: selectedObj.value });
     } else if (sheetFieldKey === 'Maslak') {
-      saveFieldValue('Maslak', selectedObj.id, { MaslakText: selectedObj.value, MaslakId: selectedObj.id, Maslak: selectedObj.value });
+      saveFieldValue('Maslak', selectedObj.id, { Maslak: selectedObj.id, MaslakName: selectedObj.value });
     } else if (sheetFieldKey === 'MotherTongue') {
-      saveFieldValue('MotherTongue', selectedObj.id, { MotherTongueText: selectedObj.value, MotherTongueId: selectedObj.id, MotherTongue: selectedObj.value });
-    } else if (sheetFieldKey === 'Complexion') {
-      saveFieldValue('Complexion', selectedObj.id, { Complexion: selectedObj.value, ComplexionId: selectedObj.id });
+      saveFieldValue('MotherTongue', selectedObj.id, { MotherTongue: selectedObj.id, MotherTongueName: selectedObj.value });
+    } else if (sheetFieldKey === 'Education') {
+      saveFieldValue('HighestDegree', selectedObj.id, { Education: selectedObj.id, HighestDegree: selectedObj.id, HighestDegreeName: selectedObj.value });
+    } else if (sheetFieldKey === 'EmployedIn') {
+      saveFieldValue('EmploymentSector', selectedObj.id, { EmployedIn: selectedObj.id, EmploymentSector: selectedObj.id, EmploymentSectorName: selectedObj.value });
+    } else if (sheetFieldKey === 'Occupation') {
+      saveFieldValue('Designation', selectedObj.id, { Occupation: selectedObj.id, Designation: selectedObj.id, DesignationName: selectedObj.value });
+    } else if (sheetFieldKey === 'FatherOccupation') {
+      saveFieldValue('FatherOccupationId', selectedObj.id, { FatherOccupation: selectedObj.value, FatherOccupationId: selectedObj.id, FatherOccupationName: selectedObj.value });
+    } else if (sheetFieldKey === 'MotherOccupation') {
+      saveFieldValue('MotherOccupationId', selectedObj.id, { MotherOccupation: selectedObj.value, MotherOccupationId: selectedObj.id, MotherOccupationName: selectedObj.value });
+    } else if (sheetFieldKey === 'FamilyType') {
+      saveFieldValue('FamilyType', selectedObj.id, { FamilyType: selectedObj.id, FamilyTypeName: selectedObj.value });
+    } else if (sheetFieldKey === 'FamilyStatus') {
+      saveFieldValue('FamilyStatus', selectedObj.id, { FamilyStatus: selectedObj.id, FamilyStatusName: selectedObj.value });
     } else if (sheetFieldKey === 'Disability') {
       saveFieldValue('Disability', selectedObj.value);
-    } else if (sheetFieldKey === 'FamilyType') {
-      saveFieldValue('FamilyType', selectedObj.id, { FamilyType: selectedObj.value, FamilyTypeId: selectedObj.id });
-    } else if (sheetFieldKey === 'FamilyStatus') {
-      saveFieldValue('FamilyStatus', selectedObj.id, { FamilyStatus: selectedObj.value, FamilyStatusId: selectedObj.id });
     } else if (sheetFieldKey === 'NamazHabit') {
       saveFieldValue('NamazHabit', selectedObj.value);
     } else if (sheetFieldKey === 'QuranReading') {
@@ -1055,8 +1057,6 @@ export default function EditMyProfilePage() {
       saveFieldValue('DrinkHabit', selectedObj.value);
     } else if (sheetFieldKey === 'CanCook') {
       saveFieldValue('CanCook', selectedObj.value === 'Yes');
-    } else if (sheetFieldKey === 'Weight') {
-      saveFieldValue('Weight', selectedObj.value);
     } else {
       saveFieldValue(sheetFieldKey, selectedObj.value);
     }
@@ -1328,7 +1328,6 @@ export default function EditMyProfilePage() {
   const activePhotosCount = photos.filter(p => p && p.photoUrl).length;
   const hasHobbies = Boolean(formData.Hobbies && formData.Hobbies.trim().length > 0);
   const hasMusicInterests = Boolean(formData.Interests && formData.Interests.trim().length > 0);
-  // Prompt card is visible ONLY when user has NOT yet selected both Hobbies and Music!
   const showTopLifestylePrompt = !(hasHobbies && hasMusicInterests);
 
   return (
@@ -1336,46 +1335,42 @@ export default function EditMyProfilePage() {
       <Toaster position="top-center" richColors />
 
       {/* 🌟 1. ELEVATED FLOATING APP BAR */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-rose-100/80 px-4 py-3 shadow-xs">
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 px-4 py-3 shadow-xs">
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button 
               type="button" 
               onClick={() => router.push('/dashboard/my-profile')}
-              className="w-9 h-9 rounded-full bg-slate-100 hover:bg-rose-50 text-slate-800 hover:text-[#d91b5c] flex items-center justify-center transition-colors cursor-pointer"
+              className="w-9 h-9 rounded-full hover:bg-slate-100 text-slate-800 flex items-center justify-center transition-colors cursor-pointer"
               aria-label="Back to profile"
-              title="Close and return"
             >
               <X size={20} className="stroke-[2.2]" />
             </button>
-            <div>
-              <h1 className="text-base font-black tracking-tight text-slate-900 flex items-center gap-1.5">
-                Edit Profile
-              </h1>
-              <p className="text-[11px] font-semibold text-slate-500">Nikah Qubool Identity</p>
-            </div>
+            <h1 className="text-base font-black tracking-tight text-slate-900">
+              Edit Profile
+            </h1>
           </div>
 
           <button 
             type="button"
             onClick={() => router.push('/dashboard/my-profile')}
-            className="flex items-center gap-1.5 text-xs font-black text-[#d91b5c] hover:text-[#b8144b] bg-rose-50 hover:bg-rose-100/80 px-3.5 py-1.5 rounded-full border border-rose-200/60 transition-all cursor-pointer shadow-xs active:scale-96"
+            className="flex items-center gap-1.5 text-xs font-bold text-[#d91b5c] hover:opacity-80 transition-all cursor-pointer"
           >
-            <Eye size={14} className="stroke-[2.5]" />
+            <Eye size={16} className="text-[#d91b5c]" />
             <span>Preview</span>
           </button>
         </div>
       </header>
 
       {/* 🌟 MAIN CONTAINER */}
-      <main className="max-w-lg mx-auto px-4 pt-4 space-y-4">
+      <main className="max-w-lg mx-auto px-4 pt-3 space-y-4">
 
         {/* 🌟 100% COMPLETE PROFILE BADGE PROMPT (Matching Screenshot) */}
-        <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-[#FFF9F2] border border-amber-200/80 shadow-xs">
-          <div className="w-7 h-7 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center shrink-0 shadow-xs">
-            <Star size={14} className="fill-amber-400" />
+        <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-[#FFF9F2] border border-amber-200/60 shadow-xs">
+          <div className="w-6 h-6 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center shrink-0">
+            <Star size={13} className="fill-amber-400" />
           </div>
-          <span className="text-xs font-black text-slate-800">
+          <span className="text-xs font-bold text-slate-800">
             Earn the badge on 100% complete profile.
           </span>
         </div>
@@ -1383,26 +1378,22 @@ export default function EditMyProfilePage() {
         {/* 🌟 TOP QUICK ACTION CARDS */}
         <div className={`grid ${showTopLifestylePrompt ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
           {/* Card 1: Lifestyle & Interest Prompt Card */}
-          {/* Strict Rule: Disappears as soon as user selects Hobbies & Music! Reappears if either is empty! */}
           {showTopLifestylePrompt && (
             <div 
               onClick={() => setActiveSheet('lifestyleHub')}
-              className="p-3.5 rounded-2xl bg-white border border-rose-100 shadow-xs hover:shadow-md hover:border-rose-300 transition-all cursor-pointer flex flex-col justify-between group"
+              className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:border-rose-300 transition-all cursor-pointer flex flex-col justify-between"
             >
               <div className="flex items-center justify-between">
-                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
-                  <Sparkles size={16} />
-                </div>
-                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">
+                <span className="text-xs font-bold text-slate-900">
+                  Lifestyle & Interest
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#FFF3D6] text-[#8C6000]">
                   +10% Score
                 </span>
               </div>
               <div className="mt-3">
-                <h2 className="text-xs font-black text-slate-900 group-hover:text-[#d91b5c] transition-colors">
-                  Lifestyle & Interest
-                </h2>
-                <span className="text-[11px] font-bold text-[#d91b5c] inline-block mt-0.5">
-                  Add Details &rarr;
+                <span className="text-xs font-bold text-[#d91b5c] block">
+                  Add Details
                 </span>
               </div>
             </div>
@@ -1411,47 +1402,41 @@ export default function EditMyProfilePage() {
           {/* Card 2: Official Govt ID Trust Verification */}
           <div 
             onClick={() => setActiveSheet('trustBadge')}
-            className="p-3.5 rounded-2xl bg-white border border-rose-100 shadow-xs hover:shadow-md hover:border-rose-300 transition-all cursor-pointer flex flex-col justify-between group"
+            className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:border-rose-300 transition-all cursor-pointer flex flex-col justify-between"
           >
             <div className="flex items-center justify-between">
-              <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
-                <ShieldCheck size={17} />
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-slate-900">
+                  Verify Your Profile
+                </span>
+                <CheckCircle2 size={14} className="text-sky-500 fill-sky-100 shrink-0" />
               </div>
-              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-sky-100 text-sky-800">
-                Trust Badge
-              </span>
             </div>
             <div className="mt-3">
-              <div className="flex items-center gap-1">
-                <h2 className="text-xs font-black text-slate-900 group-hover:text-sky-600 transition-colors">
-                  Verify Your Profile
-                </h2>
-                <CheckCircle2 size={13} className="text-sky-500 fill-sky-100 shrink-0" />
-              </div>
-              <span className="text-[11px] font-bold text-sky-600 inline-block mt-0.5">
-                {formData.IsGovtIdVerified ? "Verified ✓" : (formData.GovtIdDocUrl ? "Under Review ⏳" : "Verify Profile &rarr;")}
+              <span className="text-xs font-bold text-[#d91b5c] block">
+                {formData.IsGovtIdVerified ? "Verified ✓" : (formData.GovtIdDocUrl ? "Under Review ⏳" : "Verify Profile")}
               </span>
             </div>
           </div>
         </div>
 
         {/* ============================================================== */}
-        {/* 🌟 PHOTOS GALLERY SECTION                                      */}
+        {/* 🌟 PHOTOS GALLERY SECTION (COMPACT SQUARE THUMBNAILS!)          */}
         {/* ============================================================== */}
-        <section className="bg-white rounded-3xl border border-slate-200/90 p-4 sm:p-5 shadow-xs space-y-4">
+        <section className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <div className="flex items-center gap-2">
-              <Camera size={18} className="text-slate-700" />
+              <Camera size={18} className="text-slate-800" />
               <h2 className="text-sm font-black text-slate-900">Photos</h2>
             </div>
-            <span className="text-xs font-bold text-slate-400">
+            <span className="text-xs text-slate-400 font-medium">
               {activePhotosCount}/4 Uploaded
             </span>
           </div>
 
-          {/* Photos Grid */}
-          <div className="grid grid-cols-3 gap-3">
-            {[0, 1, 2].map((slotIdx) => {
+          {/* Compact Photo Thumbnails Row */}
+          <div className="flex items-center gap-3 overflow-x-auto pb-1 pt-1">
+            {[0, 1, 2, 3].map((slotIdx) => {
               const photo = photos[slotIdx];
               const isUploading = uploadingPhotoSlot === slotIdx;
 
@@ -1459,18 +1444,18 @@ export default function EditMyProfilePage() {
                 return (
                   <div 
                     key={slotIdx} 
-                    className="relative aspect-3/4 rounded-2xl overflow-hidden border border-slate-200 shadow-xs group bg-slate-100"
+                    className="relative w-20 h-24 sm:w-24 sm:h-28 rounded-xl overflow-hidden border border-slate-200 shadow-xs group bg-slate-100 shrink-0"
                   >
                     <img 
                       src={photo.photoUrl} 
                       alt={`Photo ${slotIdx + 1}`}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                      className="w-full h-full object-cover" 
                     />
                     
                     {/* Primary Avatar Badge on First Photo */}
                     {slotIdx === 0 && (
-                      <div className="absolute bottom-0 inset-x-0 bg-black/80 backdrop-blur-xs py-1 text-center">
-                        <span className="text-[9px] font-black tracking-wider text-white uppercase">
+                      <div className="absolute bottom-0 inset-x-0 bg-black/80 py-0.5 text-center">
+                        <span className="text-[8px] font-black tracking-wider text-white uppercase block">
                           PROFILE PHOTO
                         </span>
                       </div>
@@ -1479,11 +1464,14 @@ export default function EditMyProfilePage() {
                     {/* Delete Photo Button */}
                     <button
                       type="button"
-                      onClick={() => handleDeletePhoto(photo.photoId, slotIdx)}
-                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 hover:bg-rose-600 text-white flex items-center justify-center transition-all cursor-pointer shadow-sm active:scale-95"
-                      title="Delete this photo"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeletePhoto(photo.photoId, slotIdx);
+                      }}
+                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 hover:bg-rose-600 text-white flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-95"
+                      title="Delete photo"
                     >
-                      <Trash2 size={12} />
+                      <Trash2 size={10} />
                     </button>
                   </div>
                 );
@@ -1492,7 +1480,7 @@ export default function EditMyProfilePage() {
               return (
                 <label 
                   key={slotIdx} 
-                  className="aspect-3/4 rounded-2xl border-2 border-dashed border-rose-200 hover:border-[#d91b5c] bg-white flex flex-col items-center justify-center gap-2 cursor-pointer transition-all relative group"
+                  className="w-20 h-24 sm:w-24 sm:h-28 rounded-xl border-2 border-dashed border-rose-300/80 hover:border-[#d91b5c] bg-white flex flex-col items-center justify-center cursor-pointer transition-all shrink-0 relative group"
                 >
                   <input 
                     type="file"
@@ -1502,10 +1490,10 @@ export default function EditMyProfilePage() {
                     onChange={(e) => handlePhotoSelect(e, slotIdx)}
                   />
                   {isUploading ? (
-                    <Loader2 size={20} className="text-[#d91b5c] animate-spin" />
+                    <Loader2 size={18} className="text-[#d91b5c] animate-spin" />
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-[#d91b5c] text-white flex items-center justify-center shadow-xs group-hover:scale-110 transition-transform">
-                      <Plus size={16} className="stroke-[3]" />
+                    <div className="w-7 h-7 rounded-full bg-[#d91b5c] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                      <Plus size={15} className="stroke-[3]" />
                     </div>
                   )}
                 </label>
@@ -1513,16 +1501,16 @@ export default function EditMyProfilePage() {
             })}
           </div>
 
-          {/* Strict Rule: Photo privacy option ONLY appears when at least 1 photo is uploaded */}
+          {/* Photo privacy option: ONLY appears when at least 1 photo is uploaded */}
           {activePhotosCount > 0 && (
             <div 
               onClick={() => setActiveSheet('photoPrivacy')}
-              className="pt-2 border-t border-slate-100 flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity"
+              className="pt-2 border-t border-slate-100 flex items-center justify-between cursor-pointer hover:opacity-85 transition-opacity"
             >
               <div>
                 <span className="text-xs font-semibold text-slate-700 block">Control who sees your photo</span>
-                <span className="text-xs font-black text-[#d91b5c] mt-0.5 flex items-center gap-1">
-                  {formData.PhotoPrivacy} <ChevronRight size={14} className="inline rotate-90" />
+                <span className="text-xs font-bold text-[#d91b5c] mt-0.5 flex items-center gap-1">
+                  {formData.PhotoPrivacy} <ChevronRight size={13} className="inline rotate-90" />
                 </span>
               </div>
             </div>
@@ -1532,21 +1520,21 @@ export default function EditMyProfilePage() {
         {/* ============================================================== */}
         {/* 🌟 BIO / ABOUT ME SECTION                                      */}
         {/* ============================================================== */}
-        <section className="bg-white rounded-3xl border border-slate-200/90 p-4 sm:p-5 shadow-xs space-y-3">
+        <section className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-2">
           <div className="flex items-center gap-2">
-            <User size={18} className="text-slate-700" />
+            <User size={18} className="text-slate-800" />
             <h2 className="text-sm font-black text-slate-900">Bio</h2>
           </div>
 
           <div 
             onClick={openBioSheet}
-            className="p-4 rounded-2xl border border-slate-200/80 hover:border-rose-200 bg-white transition-all cursor-pointer relative"
+            className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-rose-300 transition-all cursor-pointer relative"
           >
-            <p className="text-xs text-slate-700 leading-relaxed font-normal line-clamp-4">
-              {formData.AboutMe || "Alhamdulillah, we are a well-established and educated family rooted in strong moral values. We prefer a simple, meaningful, and dignified Nikah ceremony built on mutual understanding and respect..."}
+            <p className="text-xs text-slate-700 leading-relaxed font-normal line-clamp-3">
+              {formData.AboutMe || "Alhamdulillah, we are a well-established and educated family rooted in strong moral values. We prefer a simple, meaningful, and dignified Nikah ceremony built on mutual understanding and respect, rather than customary demands. We seek a compatible and understanding partner from a similar cultural background."}
             </p>
-            <div className="mt-3 text-right">
-              <span className="text-xs font-black text-slate-900 hover:text-[#d91b5c] transition-colors">
+            <div className="mt-2 text-right">
+              <span className="text-xs font-bold text-slate-900 hover:text-[#d91b5c] transition-colors">
                 ... Edit
               </span>
             </div>
@@ -1556,13 +1544,13 @@ export default function EditMyProfilePage() {
         {/* ============================================================== */}
         {/* 🌟 1. PERSONAL DETAILS SECTION                                 */}
         {/* ============================================================== */}
-        <section className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs">
-          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center gap-2">
-            <User size={18} className="text-slate-700" />
+        <section className="space-y-2">
+          <div className="flex items-center gap-2 px-1">
+            <User size={18} className="text-slate-800" />
             <h2 className="text-sm font-black text-slate-900">Personal Details</h2>
           </div>
 
-          <div className="divide-y divide-slate-100 text-left">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
             {/* 1. Name */}
             <div 
               onClick={() => openTextInputSheet(
@@ -1573,147 +1561,147 @@ export default function EditMyProfilePage() {
                 "Enter full name",
                 80
               )}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Name</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.FullName || "Add Name"}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Name</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.FullName || "Add Name"}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 2. Profile Created For */}
             <div 
-              onClick={() => openOptionSheet('Profile Created for', 'ProfileCreatedFor', formData.ProfileCreatedForId || formData.ProfileCreatedFor, profileCreatedForOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Profile Created for', 'ProfileCreatedFor', formData.ProfileCreatedFor, profileCreatedForOpts)}
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Profile Created for</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.ProfileCreatedFor}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Profile Created for</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('PROFILE_CREATED_FOR', formData.ProfileCreatedFor)}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 3. Age and Gender */}
             <div 
               onClick={openDobPickerSheet}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Age and Gender</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.Age}, {formData.Gender}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Age and Gender</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.Age}, {formData.Gender}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
-            {/* 4. Date of Birth (3-wheel scroll picker!) */}
+            {/* 4. Date of Birth */}
             <div 
               onClick={openDobPickerSheet}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Date of Birth</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">
+                <span className="text-[13px] font-bold text-slate-900 block">Date of Birth</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">
                   {formData.DateOfBirth ? new Date(formData.DateOfBirth).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : `${formData.Age} Years`}
                 </span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 5. Marital Status */}
             <div 
-              onClick={() => openOptionSheet('Marital Status', 'MaritalStatus', formData.MaritalStatusId || formData.MaritalStatus, maritalStatusOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Marital Status', 'MaritalStatus', formData.MaritalStatus, maritalStatusOpts)}
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Marital Status</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.MaritalStatus}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Marital Status</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('MARITAL_STATUS', formData.MaritalStatus)}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 6. Sect */}
             <div 
-              onClick={() => openOptionSheet('Sect', 'Sect', formData.SectId || formData.Sect, sectOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Sect', 'Sect', formData.Sect, sectOpts)}
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Sect</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.Sect}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Sect</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('SECTS', formData.Sect)}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 7. Caste */}
             <div 
-              onClick={() => openOptionSheet('Select caste', 'Caste', formData.CasteId || formData.Caste, casteOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Select caste', 'Caste', formData.Caste, casteOpts)}
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Caste</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.Caste}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Caste</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('CASTES', formData.Caste)}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 8. Height */}
             <div 
               onClick={openHeightSheet}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Height</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.Height}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Height</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.Height}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 9. Maslak */}
             <div 
-              onClick={() => openOptionSheet('Select Maslak', 'Maslak', formData.MaslakId || formData.Maslak, maslakOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Select Maslak', 'Maslak', formData.Maslak, maslakOpts)}
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Maslak</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.Maslak}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Maslak</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('MASLAKS', formData.Maslak)}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 10. Mother Tongue */}
             <div 
-              onClick={() => openOptionSheet('Select Mother Tongue', 'MotherTongue', formData.MotherTongueId || formData.MotherTongue, languageOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Select Mother Tongue', 'MotherTongue', formData.MotherTongue, languageOpts)}
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Mother Tongue</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.MotherTongue}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Mother Tongue</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('MOTHER_TONGUES', formData.MotherTongue)}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 11. Location */}
             <div 
               onClick={() => openLocationSheet('Location')}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Location</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.Location}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Location</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.Location}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 12. Disability */}
             <div 
               onClick={() => openOptionSheet('Disability', 'Disability', formData.Disability, disabilityOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Disability</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.Disability}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Disability</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.Disability}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
           </div>
         </section>
@@ -1721,78 +1709,78 @@ export default function EditMyProfilePage() {
         {/* ============================================================== */}
         {/* 🌟 2. EDUCATION & CAREER SECTION                               */}
         {/* ============================================================== */}
-        <section className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs">
-          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center gap-2">
-            <GraduationCap size={18} className="text-slate-700" />
+        <section className="space-y-2">
+          <div className="flex items-center gap-2 px-1">
+            <GraduationCap size={18} className="text-slate-800" />
             <h2 className="text-sm font-black text-slate-900">Education & Career</h2>
           </div>
 
-          <div className="divide-y divide-slate-100 text-left">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
             {/* 1. Education */}
             <div 
-              onClick={() => openOptionSheet('Select education', 'Education', formData.EducationId || formData.Education, educationOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Select education', 'Education', formData.Education, educationOpts)}
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Education</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.Education}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Education</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('EDUCATIONS', formData.Education)}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 2. College Name */}
             <div 
               onClick={() => openTextInputSheet(
                 "College Name",
-                "Enter your institute / college name",
+                "Enter your college or institute name",
                 "CollegeName",
                 formData.CollegeName,
                 "e.g. Regional College Of Professional Studies...",
                 140
               )}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">College Name</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.CollegeName || "Add College Name"}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">College Name</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.CollegeName || "Add College Name"}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 3. Employed In */}
             <div 
-              onClick={() => openOptionSheet('Select Employed In', 'EmployedIn', formData.EmployedInId || formData.EmployedIn, employedInOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Select Employed In', 'EmployedIn', formData.EmployedIn, employedInOpts)}
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Employed In</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.EmployedIn}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Employed In</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('EMPLOYMENT_SECTORS', formData.EmployedIn)}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 4. Occupation */}
             <div 
-              onClick={() => openOptionSheet('Select Occupation', 'Occupation', formData.OccupationId || formData.Occupation, occupationOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Select Occupation', 'Occupation', formData.Occupation, occupationOpts)}
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Occupation</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.Occupation}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Occupation</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('OCCUPATIONS', formData.Occupation)}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
-            {/* 5. Annual Income (Slider Sheet) */}
+            {/* 5. Annual Income */}
             <div 
               onClick={openIncomeSheet}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Annual Income</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.AnnualIncome}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Annual Income</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.AnnualIncome}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
           </div>
         </section>
@@ -1800,111 +1788,111 @@ export default function EditMyProfilePage() {
         {/* ============================================================== */}
         {/* 🌟 3. FAMILY DETAILS SECTION                                   */}
         {/* ============================================================== */}
-        <section className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs">
-          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center gap-2">
-            <Users size={18} className="text-slate-700" />
+        <section className="space-y-2">
+          <div className="flex items-center gap-2 px-1">
+            <Users size={18} className="text-slate-800" />
             <h2 className="text-sm font-black text-slate-900">Family Details</h2>
           </div>
 
-          <div className="divide-y divide-slate-100 text-left">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
             {/* 1. Family Location */}
             <div 
               onClick={() => openLocationSheet('FamilyLocation')}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Family Location</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.FamilyLocation}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Family Location</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.FamilyLocation}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 2. Family Type */}
             <div 
-              onClick={() => openOptionSheet('Family Type', 'FamilyType', formData.FamilyTypeId || formData.FamilyType, familyTypeOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Family Type', 'FamilyType', formData.FamilyType, familyTypeOpts)}
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Family Type</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.FamilyType}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Family Type</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('FAMILY_TYPES', formData.FamilyType)}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 3. Family Status */}
             <div 
-              onClick={() => openOptionSheet('Family Status', 'FamilyStatus', formData.FamilyStatusId || formData.FamilyStatus, familyStatusOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet('Family Status', 'FamilyStatus', formData.FamilyStatus, familyStatusOpts)}
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Family Status</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.FamilyStatus}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Family Status</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('FAMILY_STATUS', formData.FamilyStatus)}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 4. Native Location */}
             <div 
               onClick={() => openLocationSheet('NativeLocation')}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Native Location</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.NativeLocation}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Native Location</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.NativeLocation}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 5. Father's Occupation (100% Dynamic Master, NO text box!) */}
             <div 
-              onClick={() => openOptionSheet("Select Father's Profession", "FatherOccupation", formData.FatherOccupationId || formData.FatherOccupation, occupationOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet("Select Father's Profession", "FatherOccupation", formData.FatherOccupation, occupationOpts)}
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Father's Occupation</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.FatherOccupation || "Select Occupation"}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Father's Occupation</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('OCCUPATIONS', formData.FatherOccupation) || "Select Occupation"}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 6. Mother's Occupation (100% Dynamic Master, NO text box!) */}
             <div 
-              onClick={() => openOptionSheet("Select Mother's Profession", "MotherOccupation", formData.MotherOccupationId || formData.MotherOccupation, occupationOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              onClick={() => openOptionSheet("Select Mother's Profession", "MotherOccupation", formData.MotherOccupation, occupationOpts)}
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Mother's Occupation</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.MotherOccupation || "Select Occupation"}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Mother's Occupation</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('OCCUPATIONS', formData.MotherOccupation) || "Select Occupation"}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 7. Brothers */}
             <div 
               onClick={openCountersSheet}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Brother</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">
+                <span className="text-[13px] font-bold text-slate-900 block">Brother</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">
                   {formData.TotalBrothers} Brother ({formData.MarriedBrothers} Married)
                 </span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 8. Sisters */}
             <div 
               onClick={openCountersSheet}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Sister</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">
+                <span className="text-[13px] font-bold text-slate-900 block">Sister</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">
                   {formData.TotalSisters} Sister ({formData.MarriedSisters} Married)
                 </span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
           </div>
         </section>
@@ -1912,13 +1900,13 @@ export default function EditMyProfilePage() {
         {/* ============================================================== */}
         {/* 🌟 4. CONTACT DETAILS SECTION                                  */}
         {/* ============================================================== */}
-        <section className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs">
-          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center gap-2">
-            <Phone size={18} className="text-slate-700" />
+        <section className="space-y-2">
+          <div className="flex items-center gap-2 px-1">
+            <Phone size={18} className="text-slate-800" />
             <h2 className="text-sm font-black text-slate-900">Contact Details</h2>
           </div>
 
-          <div className="divide-y divide-slate-100 text-left">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
             {/* 1. Phone Number */}
             <div 
               onClick={() => openTextInputSheet(
@@ -1931,13 +1919,13 @@ export default function EditMyProfilePage() {
                 false,
                 "tel"
               )}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Phone Number</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.MobileNumber || "Add Mobile Number"}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Phone Number</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.MobileNumber || "Add Mobile Number"}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 2. Email */}
@@ -1952,13 +1940,13 @@ export default function EditMyProfilePage() {
                 false,
                 "email"
               )}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Email</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.Email || "Add Email Address"}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Email</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.Email || "Add Email Address"}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 3. WhatsApp Number */}
@@ -1973,13 +1961,13 @@ export default function EditMyProfilePage() {
                 false,
                 "tel"
               )}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">WhatsApp Number</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.WhatsAppNumber || "Add WhatsApp Number"}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">WhatsApp Number</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.WhatsAppNumber || "Add WhatsApp Number"}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
           </div>
         </section>
@@ -1987,83 +1975,83 @@ export default function EditMyProfilePage() {
         {/* ============================================================== */}
         {/* 🌟 5. RELIGIOUS DETAILS SECTION                                */}
         {/* ============================================================== */}
-        <section className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs">
-          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center gap-2">
-            <Moon size={18} className="text-slate-700" />
+        <section className="space-y-2">
+          <div className="flex items-center gap-2 px-1">
+            <Moon size={18} className="text-slate-800" />
             <h2 className="text-sm font-black text-slate-900">Religious Details</h2>
           </div>
 
-          <div className="divide-y divide-slate-100 text-left">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
             {/* 1. Namaz */}
             <div 
               onClick={() => openOptionSheet('Daily Salah (Namaz)', 'NamazHabit', formData.NamazHabit, namazOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Namaz</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.NamazHabit}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Namaz</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.NamazHabit}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 2. Quran Reading */}
             <div 
               onClick={() => openOptionSheet('Quran Reading & Recitation', 'QuranReading', formData.QuranReading, quranOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Quran Reading</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.QuranReading || "Select Reading Routine"}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Quran Reading</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.QuranReading || "Select Reading Routine"}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 3. Do you keep Roza (Fasting) */}
             <div 
               onClick={() => openOptionSheet('Do You Keep Roza (Fasting)?', 'RozaHabit', formData.RozaHabit, rozaOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Do you keep Roza (Fasting)</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.RozaHabit || "Select Fasting Routine"}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Do you keep Roza (Fasting)</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.RozaHabit || "Select Fasting Routine"}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 4. Hijab / Beard */}
             <div 
               onClick={() => openOptionSheet('Islamic Attire (Hijab / Beard)', 'HijabOrBeard', formData.HijabOrBeard, hijabOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Hijab / Beard</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.HijabOrBeard}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Hijab / Beard</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.HijabOrBeard}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 5. Zakat */}
             <div 
               onClick={() => openOptionSheet('Zakat Practice', 'ZakatHabit', formData.ZakatHabit, zakatOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Zakat</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.ZakatHabit || "Select Zakat Practice"}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Zakat</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.ZakatHabit || "Select Zakat Practice"}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 6. Hajj / Umrah */}
             <div 
               onClick={() => openOptionSheet('Hajj / Umrah Pilgrimage', 'HajjUmrah', formData.HajjUmrah, hajjOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Hajj / Umrah</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.HajjUmrah || "Select Pilgrimage Status"}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Hajj / Umrah</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.HajjUmrah || "Select Pilgrimage Status"}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
           </div>
         </section>
@@ -2071,147 +2059,115 @@ export default function EditMyProfilePage() {
         {/* ============================================================== */}
         {/* 🌟 6. LIFESTYLE & INTEREST SECTION                             */}
         {/* ============================================================== */}
-        <section className="bg-white rounded-3xl border border-slate-200/90 overflow-hidden shadow-xs">
-          <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center gap-2">
-            <Sparkles size={18} className="text-slate-700" />
+        <section className="space-y-2">
+          <div className="flex items-center gap-2 px-1">
+            <Sparkles size={18} className="text-slate-800" />
             <h2 className="text-sm font-black text-slate-900">Lifestyle & Interest</h2>
           </div>
 
-          <div className="divide-y divide-slate-100 text-left">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
             {/* 1. Diet Preference */}
             <div 
               onClick={() => openOptionSheet('Diet Preference', 'DietType', formData.DietType, dietOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Diet Preference</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.DietType}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Diet Preference</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.DietType}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 2. Smoke */}
             <div 
               onClick={() => openOptionSheet('Smoking Habits', 'SmokeHabit', formData.SmokeHabit, habitOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Smoke</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.SmokeHabit}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Smoke</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.SmokeHabit}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 3. Drink */}
             <div 
               onClick={() => openOptionSheet('Alcohol / Drinking Habits', 'DrinkHabit', formData.DrinkHabit, habitOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Drink</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.DrinkHabit}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Drink</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.DrinkHabit}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 4. Languages You Know (Multi-select) */}
             <div 
               onClick={() => openMultiSelectSheet('LanguagesKnown')}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div className="min-w-0 pr-3">
-                <span className="text-xs font-black text-slate-900 block">Languages you know</span>
-                {formData.LanguagesKnown ? (
-                  <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    {formData.LanguagesKnown.split(',').map((l: string) => l.trim()).filter(Boolean).map((l: string) => (
-                      <span key={l} className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-slate-800 text-[11px] font-bold">
-                        {l}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-xs text-slate-400 mt-0.5 block italic">Select languages</span>
-                )}
+                <span className="text-[13px] font-bold text-slate-900 block">Languages you know</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block truncate">
+                  {formData.LanguagesKnown || "Select languages"}
+                </span>
               </div>
-              <ChevronRight size={18} className="text-slate-400 shrink-0" />
+              <ChevronRight size={16} className="text-slate-400 shrink-0" />
             </div>
 
             {/* 5. Cook Food */}
             <div 
               onClick={() => openOptionSheet('Can You Cook Food?', 'CanCook', formData.CanCook, cookOpts)}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-xs font-black text-slate-900 block">Cook Food</span>
-                <span className="text-xs text-slate-600 mt-0.5 block">{formData.CanCook}</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Cook Food</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.CanCook}</span>
               </div>
-              <ChevronRight size={18} className="text-slate-400" />
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 6. Sports (Multi-select) */}
             <div 
               onClick={() => openMultiSelectSheet('Sports')}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div className="min-w-0 pr-3">
-                <span className="text-xs font-black text-slate-900 block">Sports</span>
-                {formData.Sports ? (
-                  <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    {formData.Sports.split(',').map((s: string) => s.trim()).filter(Boolean).map((s: string) => (
-                      <span key={s} className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-slate-800 text-[11px] font-bold">
-                        {s}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-xs text-slate-400 mt-0.5 block italic">Select sports</span>
-                )}
+                <span className="text-[13px] font-bold text-slate-900 block">Sports</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block truncate">
+                  {formData.Sports || "Select sports"}
+                </span>
               </div>
-              <ChevronRight size={18} className="text-slate-400 shrink-0" />
+              <ChevronRight size={16} className="text-slate-400 shrink-0" />
             </div>
 
             {/* 7. Hobbies (Multi-select) */}
             <div 
               onClick={() => openMultiSelectSheet('Hobbies')}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div className="min-w-0 pr-3">
-                <span className="text-xs font-black text-slate-900 block">Hobbies</span>
-                {formData.Hobbies ? (
-                  <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    {formData.Hobbies.split(',').map((h: string) => h.trim()).filter(Boolean).map((h: string) => (
-                      <span key={h} className="inline-flex items-center px-2 py-0.5 rounded-full bg-rose-50 text-[#d91b5c] text-[11px] font-bold">
-                        {h}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-xs text-slate-400 mt-0.5 block italic">Select hobbies</span>
-                )}
+                <span className="text-[13px] font-bold text-slate-900 block">Hobbies</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block truncate">
+                  {formData.Hobbies || "Select hobbies"}
+                </span>
               </div>
-              <ChevronRight size={18} className="text-slate-400 shrink-0" />
+              <ChevronRight size={16} className="text-slate-400 shrink-0" />
             </div>
 
             {/* 8. Musics (Multi-select) */}
             <div 
               onClick={() => openMultiSelectSheet('Interests')}
-              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div className="min-w-0 pr-3">
-                <span className="text-xs font-black text-slate-900 block">Musics & Interests</span>
-                {formData.Interests ? (
-                  <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    {formData.Interests.split(',').map((m: string) => m.trim()).filter(Boolean).map((m: string) => (
-                      <span key={m} className="inline-flex items-center px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 text-[11px] font-bold">
-                        {m}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-xs text-slate-400 mt-0.5 block italic">Select music & interests</span>
-                )}
+                <span className="text-[13px] font-bold text-slate-900 block">Musics</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block truncate">
+                  {formData.Interests || "Select music & interests"}
+                </span>
               </div>
-              <ChevronRight size={18} className="text-slate-400 shrink-0" />
+              <ChevronRight size={16} className="text-slate-400 shrink-0" />
             </div>
           </div>
         </section>
@@ -2490,7 +2446,7 @@ export default function EditMyProfilePage() {
                 {/* Radio List */}
                 <div className="flex-1 overflow-y-auto space-y-1 pr-1 divide-y divide-slate-100">
                   {filteredSheetOptions.map((opt) => {
-                    const isSelected = selectedSheetValue === opt.id || selectedSheetValue === opt.value;
+                    const isSelected = String(selectedSheetValue) === String(opt.id) || String(selectedSheetValue) === String(opt.value);
                     return (
                       <div 
                         key={String(opt.id || opt.value)}
@@ -3090,7 +3046,7 @@ export default function EditMyProfilePage() {
               </motion.div>
             )}
 
-            {/* 🌟 SHEET L: MULTI-SELECT CHIPS BOTTOM SHEET (For Languages, Sports, Hobbies, Musics) */}
+            {/* 🌟 SHEET L: APP-LIKE MULTI-SELECT BOTTOM SHEET (For Languages, Sports, Hobbies, Musics) */}
             {activeSheet === 'multiSelect' && (
               <motion.div 
                 initial={{ y: "100%" }}
@@ -3114,10 +3070,29 @@ export default function EditMyProfilePage() {
                     <h3 className="text-base font-black text-slate-900">{multiSelectTitle}</h3>
                     <p className="text-xs text-slate-500 font-medium">{multiSelectSubtitle}</p>
                   </div>
-                  <span className="text-xs font-black text-[#d91b5c] bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200">
+                  <span className="text-xs font-bold text-[#d91b5c] bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200">
                     {multiSelectItems.length} Selected
                   </span>
                 </div>
+
+                {/* Selected Removable Chips at Top */}
+                {multiSelectItems.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 p-2 bg-slate-50 rounded-xl border border-slate-100 max-h-20 overflow-y-auto">
+                    {multiSelectItems.map((item) => (
+                      <span 
+                        key={item}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#d91b5c] text-white text-[11px] font-bold shadow-2xs"
+                      >
+                        <span>{item}</span>
+                        <X 
+                          size={12} 
+                          className="cursor-pointer hover:opacity-80" 
+                          onClick={() => toggleMultiSelectItem(item)}
+                        />
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 {/* Search */}
                 <div className="relative">
@@ -3131,31 +3106,30 @@ export default function EditMyProfilePage() {
                   />
                 </div>
 
-                {/* Multi-Select Chips Container */}
-                <div className="flex-1 overflow-y-auto pr-1 py-1">
-                  <div className="flex flex-wrap gap-2">
-                    {filteredMultiSelectOptions.map((opt) => {
-                      const isSelected = multiSelectItems.includes(opt.value);
-                      return (
-                        <button
-                          key={String(opt.id || opt.value)}
-                          type="button"
-                          onClick={() => toggleMultiSelectItem(opt.value)}
-                          className={`px-3.5 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
-                            isSelected 
-                              ? 'bg-[#d91b5c] text-white shadow-xs' 
-                              : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/60'
-                          }`}
-                        >
-                          {isSelected && <Check size={14} className="stroke-[3]" />}
-                          <span>{opt.value}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                {/* App-Style Options List with Checkboxes */}
+                <div className="flex-1 overflow-y-auto pr-1 divide-y divide-slate-100">
+                  {filteredMultiSelectOptions.map((opt) => {
+                    const isSelected = multiSelectItems.includes(opt.value);
+                    return (
+                      <div
+                        key={String(opt.id || opt.value)}
+                        onClick={() => toggleMultiSelectItem(opt.value)}
+                        className="py-3 px-1.5 flex items-center justify-between cursor-pointer hover:bg-slate-50 rounded-xl transition-colors"
+                      >
+                        <span className={`text-xs ${isSelected ? 'text-[#d91b5c] font-black' : 'text-slate-800 font-medium'}`}>
+                          {opt.value}
+                        </span>
+                        <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
+                          isSelected ? 'border-[#d91b5c] bg-[#d91b5c]' : 'border-slate-300'
+                        }`}>
+                          {isSelected && <Check size={13} className="text-white stroke-[3]" />}
+                        </div>
+                      </div>
+                    );
+                  })}
                   {filteredMultiSelectOptions.length === 0 && (
                     <div className="py-8 text-center text-xs text-slate-400 font-semibold">
-                      No matching tags found.
+                      No matching options found.
                     </div>
                   )}
                 </div>
