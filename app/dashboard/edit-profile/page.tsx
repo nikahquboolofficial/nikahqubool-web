@@ -16,11 +16,12 @@ import {
   fetchCitiesApi,
   deleteGalleryPhotoApi,
   uploadGalleryPhotoApi,
+  setMainPhotoApi,
   updatePhotoPrivacyApi,
   uploadGovtDocumentApi,
   MasterOption 
 } from '@/lib/api';
-import { getAuthToken } from '@/lib/auth';
+import { getAuthToken, syncUserProfilePhoto } from '@/lib/auth';
 import { clientValidateSingleFace } from '@/lib/faceDetectionClient';
 
 // Helper for Height conversions
@@ -531,23 +532,54 @@ export default function EditMyProfilePage() {
     }
   };
 
-  // Delete Photo
+  // Delete Photo - allows deleting any photo, even all photos, auto-promotes slot 1 if main deleted
   const handleDeletePhoto = async (photoId: number, index: number) => {
     const token = getAuthToken();
     if (!token) return;
 
     try {
-      if (index === 0) {
-        // If main photo deleted, clear PhotoUrl in profile
-        const fd = new FormData();
-        fd.append("UserId", String(formData.UserId || 0));
-        fd.append("PhotoUrl", "");
-        await updateProfileApi(fd, token);
+      const remaining = photos.filter((_, i) => i !== index);
+
+      // If photo has photoId in DB, delete it
+      if (photoId > 0) {
+        if (index === 0 && remaining.length > 0) {
+          // Promote new first photo (slot 1) to main
+          const nextPhotoId = Number(remaining[0].photoId || remaining[0].PhotoId || 0);
+          if (nextPhotoId > 0) {
+            await setMainPhotoApi(nextPhotoId, token);
+          }
+        }
+        const delRes = await deleteGalleryPhotoApi(photoId, token);
+        if (!delRes.success && remaining.length === 0) {
+          // Fallback if backend SP blocks deleting only main photo
+          const fd = new FormData();
+          fd.append("UserId", String(formData.UserId || 0));
+          fd.append("PhotoUrl", "");
+          await updateProfileApi(fd, token);
+        }
       } else {
-        await deleteGalleryPhotoApi(photoId, token);
+        if (remaining.length === 0) {
+          const fd = new FormData();
+          fd.append("UserId", String(formData.UserId || 0));
+          fd.append("PhotoUrl", "");
+          await updateProfileApi(fd, token);
+        }
       }
 
-      setPhotos(prev => prev.filter((_, i) => i !== index));
+      setPhotos(remaining);
+
+      // Sync user session photo: first photo (slot 1) is always the main/avatar photo!
+      if (remaining.length > 0) {
+        const firstPhotoUrl = remaining[0].photoUrl || remaining[0].PhotoUrl || '';
+        if (firstPhotoUrl) {
+          syncUserProfilePhoto(firstPhotoUrl);
+          setFormData(prev => ({ ...prev, PhotoUrl: firstPhotoUrl }));
+        }
+      } else {
+        syncUserProfilePhoto('');
+        setFormData(prev => ({ ...prev, PhotoUrl: '' }));
+      }
+
       toast.success("Photo removed successfully.");
     } catch {
       toast.error("Failed to remove photo.");

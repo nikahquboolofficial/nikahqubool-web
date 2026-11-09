@@ -358,19 +358,41 @@ export default function GalleryManagementPage() {
     if (!photo) return;
     
     const token = getToken();
-    const photoId = photo.photoId || photo.PhotoId;
+    const photoId = Number(photo.photoId || photo.PhotoId || 0);
     if (!photoId) return;
 
-    setUploading(true);
-    const res = await deleteGalleryPhotoApi(photoId, token);
-    setUploading(false);
+    const isMain = Boolean(photo.isMain ?? photo.IsMain);
+    const remaining = photos.filter((p: any) => Number(p.photoId || p.PhotoId || 0) !== photoId);
 
-    if (res.success) {
-      toast.success("Photo deleted successfully.");
+    setUploading(true);
+
+    try {
+      // If photo to delete is main and other photos exist, promote next photo first
+      if (isMain && remaining.length > 0) {
+        const nextId = Number(remaining[0].photoId || remaining[0].PhotoId || 0);
+        if (nextId > 0) {
+          await setMainPhotoApi(nextId, token);
+        }
+      }
+
+      const res = await deleteGalleryPhotoApi(photoId, token);
+
+      if (res.success || res.Success === 1) {
+        toast.success("Photo deleted successfully.");
+      } else if (remaining.length === 0) {
+        // Was the only photo and backend SP blocked it
+        const fd = new FormData();
+        fd.append("UserId", String(getCurrentUserId()));
+        fd.append("PhotoUrl", "");
+        await updateProfileApi(fd, token);
+        toast.success("Photo removed successfully.");
+      } else {
+        toast.error(res.message || "Failed to delete photo.");
+      }
+
       setSelectedPhoto(null);
       await loadGalleryData();
       
-      const remaining = photos.filter((p: any) => (p.photoId || p.PhotoId) !== photoId);
       if (remaining.length > 0) {
         const nextMain = remaining.find((p: any) => Boolean(p.isMain ?? p.IsMain)) || remaining[0];
         if (nextMain?.photoUrl) {
@@ -381,8 +403,8 @@ export default function GalleryManagementPage() {
         setPrivacy('All Members');
         updatePhotoPrivacyApi('All Members', token).catch(() => {});
       }
-    } else {
-      toast.error(res.message || "Failed to delete photo.");
+    } finally {
+      setUploading(false);
     }
   };
 
