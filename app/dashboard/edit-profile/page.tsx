@@ -8,7 +8,8 @@ import {
   Camera, Plus, Trash2, Lock, Sparkles, AlertCircle, 
   ArrowLeft, Upload, FileText, Check, Loader2, Star,
   GraduationCap, Briefcase, Heart, Home, Moon, User,
-  Minus, Award, ShieldCheck, MapPin
+  Minus, Award, ShieldCheck, MapPin, Activity, Utensils,
+  BookOpen, Smile
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import { 
@@ -47,12 +48,198 @@ function parseHeightToCm(hStr: string): number {
   return 170;
 }
 
+// 🌟 COMPLETE FALLBACK MASTER DATA (0ms Instant Guarantee)
+const FALLBACK_MASTERS: { [key: string]: MasterOption[] } = {
+  PROFILE_CREATED_FOR: [
+    { id: 1, value: "Self" },
+    { id: 2, value: "Son" },
+    { id: 3, value: "Daughter" },
+    { id: 4, value: "Brother" },
+    { id: 5, value: "Sister" },
+    { id: 6, value: "Friend / Relative" }
+  ],
+  MARITAL_STATUS: [
+    { id: 1, value: "Never Married" },
+    { id: 2, value: "Divorced" },
+    { id: 3, value: "Widowed" },
+    { id: 4, value: "Awaiting Divorce" },
+    { id: 5, value: "Annulled" }
+  ],
+  SECTS: [
+    { id: 1, value: "Sunni" },
+    { id: 2, value: "Shia" },
+    { id: 3, value: "Ahl-e-Hadith" },
+    { id: 4, value: "Other" }
+  ],
+  MASLAKS: [
+    { id: 1, value: "Sunni (Hanafi)" },
+    { id: 2, value: "Deobandi" },
+    { id: 3, value: "Barelvi" },
+    { id: 4, value: "Salafi / Ahle Hadith" },
+    { id: 5, value: "Jamaat-e-Islami" },
+    { id: 6, value: "Just Muslim / Non-sectarian" },
+    { id: 7, value: "Tablighi Jamaat" },
+    { id: 8, value: "Other" }
+  ],
+  CASTES: [
+    { id: 1, value: "Ansari" },
+    { id: 2, value: "Qureshi" },
+    { id: 3, value: "Syed" },
+    { id: 4, value: "Shaikh" },
+    { id: 5, value: "Khan / Pathan" },
+    { id: 6, value: "Siddiqui" },
+    { id: 7, value: "Malik" },
+    { id: 8, value: "Choudhary" },
+    { id: 9, value: "Mansoori" },
+    { id: 10, value: "Saifi" },
+    { id: 11, value: "Abbasi" },
+    { id: 12, value: "Farooqui" },
+    { id: 13, value: "Usmani" },
+    { id: 14, value: "Alvi" },
+    { id: 15, value: "Memon" },
+    { id: 16, value: "Bohra" },
+    { id: 17, value: "Khoja" },
+    { id: 18, value: "Rayeen" },
+    { id: 19, value: "Idrisi" },
+    { id: 20, value: "Shah" },
+    { id: 21, value: "Mirza / Mughal" },
+    { id: 22, value: "Other" }
+  ],
+  MOTHER_TONGUES: [
+    { id: 1, value: "Urdu" },
+    { id: 2, value: "Hindi" },
+    { id: 3, value: "English" },
+    { id: 4, value: "Bengali" },
+    { id: 5, value: "Telugu" },
+    { id: 6, value: "Marathi" },
+    { id: 7, value: "Tamil" },
+    { id: 8, value: "Gujarati" },
+    { id: 9, value: "Malayalam" },
+    { id: 10, value: "Kannada" },
+    { id: 11, value: "Odia" },
+    { id: 12, value: "Punjabi" },
+    { id: 13, value: "Assamese" },
+    { id: 14, value: "Kashmiri" },
+    { id: 15, value: "Other" }
+  ],
+  EDUCATIONS: [
+    { id: 1, value: "High School" },
+    { id: 2, value: "Intermediate / 12th" },
+    { id: 3, value: "Diploma" },
+    { id: 4, value: "Bachelor of Arts (B.A.)" },
+    { id: 5, value: "Bachelor of Commerce (B.Com)" },
+    { id: 6, value: "Bachelor of Science (B.Sc)" },
+    { id: 7, value: "B.Tech / B.E." },
+    { id: 8, value: "BBA / BBM" },
+    { id: 9, value: "BCA" },
+    { id: 10, value: "MBBS / BDS / Medical" },
+    { id: 11, value: "LLB / Law" },
+    { id: 12, value: "Master of Arts (M.A.)" },
+    { id: 13, value: "Master of Commerce (M.Com)" },
+    { id: 14, value: "Master of Science (M.Sc)" },
+    { id: 15, value: "M.Tech / M.E." },
+    { id: 16, value: "MBA / PGDM" },
+    { id: 17, value: "MCA" },
+    { id: 18, value: "MD / MS / Super Specialty" },
+    { id: 19, value: "LLM" },
+    { id: 20, value: "CA / CS / ICWA" },
+    { id: 21, value: "Ph.D / Doctorate" },
+    { id: 22, value: "Islamic Education (Aalim / Mufti / Hafiz)" },
+    { id: 23, value: "Other" }
+  ],
+  EMPLOYMENT_SECTORS: [
+    { id: 1, value: "Private Sector" },
+    { id: 2, value: "Government / Public Sector" },
+    { id: 3, value: "Business / Self Employed" },
+    { id: 4, value: "Civil Services (IAS / IPS / State PSC)" },
+    { id: 5, value: "Defense / Police" },
+    { id: 6, value: "Not Working / Homemaker" }
+  ],
+  OCCUPATIONS: [
+    { id: 1, value: "Software Engineer / IT Professional" },
+    { id: 2, value: "Doctor / Surgeon / Healthcare" },
+    { id: 3, value: "Chartered Accountant / Finance" },
+    { id: 4, value: "Business Owner / Entrepreneur" },
+    { id: 5, value: "Government Officer / Employee" },
+    { id: 6, value: "Teacher / Professor / Academic" },
+    { id: 7, value: "Lawyer / Legal Professional" },
+    { id: 8, value: "Architect / Interior Designer" },
+    { id: 9, value: "Mechanical / Civil Engineer" },
+    { id: 10, value: "Banking / Insurance Professional" },
+    { id: 11, value: "Marketing / Sales Executive" },
+    { id: 12, value: "HR Professional" },
+    { id: 13, value: "Graphic / UI-UX Designer" },
+    { id: 14, value: "Islamic Scholar / Teacher" },
+    { id: 15, value: "Consultant" },
+    { id: 16, value: "Pharmacist" },
+    { id: 17, value: "Research Scientist" },
+    { id: 18, value: "Homemaker / Housewife" },
+    { id: 19, value: "Retired" },
+    { id: 20, value: "Passed Away" },
+    { id: 21, value: "Student" },
+    { id: 22, value: "Other" }
+  ],
+  STATES: [
+    { id: 1, value: "Andhra Pradesh" },
+    { id: 2, value: "Bihar" },
+    { id: 3, value: "Delhi" },
+    { id: 4, value: "Gujarat" },
+    { id: 5, value: "Haryana" },
+    { id: 6, value: "Karnataka" },
+    { id: 7, value: "Kerala" },
+    { id: 8, value: "Madhya Pradesh" },
+    { id: 9, value: "Maharashtra" },
+    { id: 10, value: "Punjab" },
+    { id: 11, value: "Rajasthan" },
+    { id: 12, value: "Tamil Nadu" },
+    { id: 13, value: "Telangana" },
+    { id: 14, value: "Uttar Pradesh" },
+    { id: 15, value: "West Bengal" }
+  ],
+  FAMILY_TYPES: [
+    { id: 1, value: "Joint Family" },
+    { id: 2, value: "Nuclear Family" },
+    { id: 3, value: "Other" }
+  ],
+  FAMILY_STATUS: [
+    { id: 1, value: "Middle Class" },
+    { id: 2, value: "Upper Middle Class" },
+    { id: 3, value: "High Class / Rich" },
+    { id: 4, value: "Affluent / Elite" }
+  ],
+  COMPLEXION: [
+    { id: 1, value: "Very Fair" },
+    { id: 2, value: "Fair" },
+    { id: 3, value: "Wheatish" },
+    { id: 4, value: "Wheatish Medium" },
+    { id: 5, value: "Dark / Olive" }
+  ]
+};
+
 export default function EditMyProfilePage() {
   const router = useRouter();
 
   // Loading & Saving States
   const [loading, setLoading] = useState(true);
   const [savingField, setSavingField] = useState<string | null>(null);
+
+  // Helper to get cached Full Name from localStorage so it never starts empty
+  const getInitialFullName = (): string => {
+    if (typeof window === "undefined") return '';
+    try {
+      for (const key of ['user_details', 'user_session', 'cached_profile_details']) {
+        const uStr = localStorage.getItem(key);
+        if (uStr) {
+          const parsed = JSON.parse(uStr);
+          const name = parsed.fullName || parsed.FullName || parsed.name || parsed.Name || parsed.user?.fullName || parsed.user?.name || parsed.profile?.fullName;
+          if (name && name !== 'User' && String(name).trim().length > 0) {
+            return String(name).trim();
+          }
+        }
+      }
+    } catch {}
+    return '';
+  };
 
   // Profile Data State
   const [formData, setFormData] = useState<any>({
@@ -66,14 +253,16 @@ export default function EditMyProfilePage() {
     Sect: 'Sunni',
     Height: `5ft 7in (170 cm)`,
     Weight: '60 kg',
+    Complexion: 'Fair',
+    ComplexionId: 2,
     Caste: 'Sheikh or Shaikh',
-    CasteId: 0,
+    CasteId: 4,
     Maslak: 'Sunni (Hanafi)',
-    MaslakId: 0,
+    MaslakId: 1,
     MotherTongue: 'Urdu',
-    MotherTongueId: 0,
+    MotherTongueId: 1,
     Location: 'Bareilly, Uttar Pradesh, India',
-    CurrentStateId: 2,
+    CurrentStateId: 14,
     CurrentCityId: 1,
     StateName: 'Uttar Pradesh',
     CityName: 'Bareilly',
@@ -81,24 +270,29 @@ export default function EditMyProfilePage() {
 
     // Education & Career
     Education: 'B.Com.',
-    EducationId: 0,
+    EducationId: 5,
     CollegeName: 'Regional College Of Professional Studies & Research',
-    EmployedIn: 'Private Company',
-    EmployedInId: 0,
+    EmployedIn: 'Private Sector',
+    EmployedInId: 1,
     Occupation: 'Software Professional',
-    OccupationId: 0,
+    OccupationId: 1,
+    OccupationDetails: '',
     AnnualIncome: '5 - 7 Lakh',
 
     // Family Details
     FamilyLocation: 'Bareilly, Uttar Pradesh, India',
     FamilyType: 'Joint Family',
     FamilyValues: 'Traditional & Religious',
-    FatherOccupation: 'Business',
-    MotherOccupation: 'Home Maker',
+    FamilyStatus: 'Upper Middle Class',
+    FatherOccupation: 'Business Owner / Entrepreneur',
+    FatherOccupationId: 4,
+    MotherOccupation: 'Homemaker / Housewife',
+    MotherOccupationId: 18,
     TotalBrothers: 1,
     MarriedBrothers: 0,
     TotalSisters: 2,
     MarriedSisters: 1,
+    FamilyAbout: '',
 
     // Religious & Lifestyle
     NamazHabit: 'Always (5 Times Daily)',
@@ -106,9 +300,13 @@ export default function EditMyProfilePage() {
     DietType: 'Halal Only',
     SmokeHabit: 'Never',
     DrinkHabit: 'Never',
+    CanCook: 'Yes',
+    Hobbies: '',
+    Interests: '',
 
     // Bio & Trust
     AboutMe: '',
+    PartnerExpectations: '',
     IsGovtIdVerified: false,
     GovtIdDocUrl: '',
     PhotoPrivacy: 'All Members',
@@ -118,9 +316,9 @@ export default function EditMyProfilePage() {
   const [photos, setPhotos] = useState<Array<{ photoId: number; photoUrl: string; isMain: boolean; privacy?: string }>>([]);
   const [uploadingPhotoSlot, setUploadingPhotoSlot] = useState<number | null>(null);
 
-  // Master Data Cache
-  const [masterData, setMasterData] = useState<{ [key: string]: MasterOption[] }>({});
-  const [cities, setCities] = useState<MasterOption[]>([]);
+  // Dynamic Master Data Cache initialized with FALLBACK_MASTERS so options ALWAYS bind instantly!
+  const [masterData, setMasterData] = useState<{ [key: string]: MasterOption[] }>(FALLBACK_MASTERS);
+  const [stateCities, setStateCities] = useState<MasterOption[]>([]);
 
   // Active Bottom Sheet / Subscreen
   // 'bio' | 'height' | 'option' | 'location' | 'textInput' | 'counters' | 'photoPrivacy' | 'trustBadge' | null
@@ -139,6 +337,7 @@ export default function EditMyProfilePage() {
     value: string;
     placeholder: string;
     maxLength?: number;
+    multiline?: boolean;
   }>({
     title: '',
     subtitle: '',
@@ -146,6 +345,7 @@ export default function EditMyProfilePage() {
     value: '',
     placeholder: '',
     maxLength: 120,
+    multiline: false,
   });
 
   // Counters Sheet Substate
@@ -163,9 +363,8 @@ export default function EditMyProfilePage() {
   const [bioDraft, setBioDraft] = useState('');
 
   // Location Substate
-  const [selectedStateId, setSelectedStateId] = useState<number>(2);
+  const [selectedStateId, setSelectedStateId] = useState<number>(14);
   const [selectedCityId, setSelectedCityId] = useState<number>(1);
-  const [stateCities, setStateCities] = useState<MasterOption[]>([]);
   const [locationTargetField, setLocationTargetField] = useState<'Location' | 'FamilyLocation'>('Location');
 
   // Trust Badge Substate
@@ -173,7 +372,7 @@ export default function EditMyProfilePage() {
   const [govtDocPreview, setGovtDocPreview] = useState<string>('');
   const [uploadingGovtDoc, setUploadingGovtDoc] = useState(false);
 
-  // Initial Load & Hydration
+  // 🌟 PARALLEL DYNAMIC MASTER & PROFILE INITIALIZATION
   useEffect(() => {
     const token = getAuthToken();
     if (!token) {
@@ -181,25 +380,66 @@ export default function EditMyProfilePage() {
       return;
     }
 
-    const loadData = async () => {
+    const loadAllData = async () => {
       try {
-        const [profileRes, mastersRes] = await Promise.all([
+        const masterTypes = [
+          'PROFILE_CREATED_FOR',
+          'MARITAL_STATUS',
+          'RELIGIONS',
+          'SECTS',
+          'MASLAKS',
+          'CASTES',
+          'MOTHER_TONGUES',
+          'EDUCATIONS',
+          'EMPLOYMENT_SECTORS',
+          'OCCUPATIONS',
+          'STATES',
+          'FAMILY_TYPES',
+          'FAMILY_STATUS',
+          'COMPLEXION'
+        ];
+
+        // Fetch all master data in parallel with profile details
+        const masterPromises = masterTypes.map(t => 
+          fetchMasterDataApi(t)
+            .then(res => ({ type: t, data: res }))
+            .catch(() => ({ type: t, data: [] }))
+        );
+
+        const [profileRes, ...masterResults] = await Promise.all([
           fetchProfileDetailsApi(0, token),
-          fetchMasterDataApi()
+          ...masterPromises
         ]);
 
-        if (mastersRes) {
-          setMasterData(mastersRes);
-        }
+        // Merge loaded master data over fallback masters
+        const newMasters: { [key: string]: MasterOption[] } = {};
+        masterResults.forEach((r: any) => {
+          if (r.data && Array.isArray(r.data) && r.data.length > 0) {
+            newMasters[r.type] = r.data;
+          }
+        });
 
+        setMasterData(prev => ({
+          ...FALLBACK_MASTERS,
+          ...prev,
+          ...newMasters
+        }));
+
+        // Hydrate Profile Details
         if (profileRes?.success && profileRes?.data) {
           const p = profileRes.data.profile || profileRes.data.Profile || profileRes.data;
           const g = profileRes.data.gallery || profileRes.data.Gallery || [];
 
+          // Robust Name resolver: Never allow blank!
+          let resolvedName = p.fullName || p.FullName || p.name || p.Name;
+          if (!resolvedName || String(resolvedName).trim() === '' || resolvedName === 'User') {
+            resolvedName = getInitialFullName() || 'Candidate Profile';
+          }
+
           setFormData((prev: any) => ({
             ...prev,
             UserId: p.userId || p.UserId || 0,
-            FullName: p.fullName || p.FullName || prev.FullName,
+            FullName: resolvedName,
             ProfileCreatedFor: p.profileCreatedForName || p.profileCreatedFor || prev.ProfileCreatedFor,
             Age: p.age || prev.Age,
             Gender: p.gender || p.Gender || prev.Gender,
@@ -208,6 +448,8 @@ export default function EditMyProfilePage() {
             Sect: p.sectName || p.sect || prev.Sect,
             Height: p.height || p.Height || prev.Height,
             Weight: p.weight || p.Weight || prev.Weight,
+            Complexion: p.complexionName || p.complexion || prev.Complexion,
+            ComplexionId: p.complexionId || prev.ComplexionId,
             Caste: p.casteName || p.caste || prev.Caste,
             CasteId: p.casteId || prev.CasteId,
             Maslak: p.maslakName || p.maslak || prev.Maslak,
@@ -229,18 +471,23 @@ export default function EditMyProfilePage() {
             EmployedInId: p.employmentSector || prev.EmployedInId,
             Occupation: p.designationName || p.designation || p.occupation || prev.Occupation,
             OccupationId: p.designation || prev.OccupationId,
+            OccupationDetails: p.occupationDetails || prev.OccupationDetails,
             AnnualIncome: p.annualIncome || prev.AnnualIncome,
 
             // Family
             FamilyLocation: p.familyCityName ? `${p.familyCityName}, ${p.familyStateName || ''}, India` : prev.FamilyLocation,
             FamilyType: p.familyTypeName || p.familyType || prev.FamilyType,
             FamilyValues: p.familyValuesName || p.familyValues || prev.FamilyValues,
-            FatherOccupation: p.fatherOccupation || prev.FatherOccupation,
-            MotherOccupation: p.motherOccupation || prev.MotherOccupation,
+            FamilyStatus: p.familyStatusName || p.familyStatus || prev.FamilyStatus,
+            FatherOccupation: p.fatherOccupationName || p.fatherOccupation || prev.FatherOccupation,
+            FatherOccupationId: p.fatherOccupationId || prev.FatherOccupationId,
+            MotherOccupation: p.motherOccupationName || p.motherOccupation || prev.MotherOccupation,
+            MotherOccupationId: p.motherOccupationId || prev.MotherOccupationId,
             TotalBrothers: p.totalBrothers !== undefined ? Number(p.totalBrothers) : prev.TotalBrothers,
             MarriedBrothers: p.marriedBrothers !== undefined ? Number(p.marriedBrothers) : prev.MarriedBrothers,
             TotalSisters: p.totalSisters !== undefined ? Number(p.totalSisters) : prev.TotalSisters,
             MarriedSisters: p.marriedSisters !== undefined ? Number(p.marriedSisters) : prev.MarriedSisters,
+            FamilyAbout: p.familyAbout || prev.FamilyAbout,
 
             // Religious & Lifestyle
             NamazHabit: p.namazHabit || prev.NamazHabit,
@@ -248,15 +495,19 @@ export default function EditMyProfilePage() {
             DietType: p.dietType || prev.DietType,
             SmokeHabit: p.smokeHabit || prev.SmokeHabit,
             DrinkHabit: p.drinkHabit || prev.DrinkHabit,
+            CanCook: p.canCook ? 'Yes' : (p.canCook === false ? 'No' : prev.CanCook),
+            Hobbies: p.hobbies || prev.Hobbies,
+            Interests: p.interests || prev.Interests,
 
             // Bio & Trust
             AboutMe: p.aboutMe || p.bio || '',
+            PartnerExpectations: p.partnerExpectations || prev.PartnerExpectations,
             IsGovtIdVerified: Boolean(p.isGovtIdVerified || p.isVerified),
             GovtIdDocUrl: p.govtIdDocUrl || '',
             PhotoPrivacy: p.photoPrivacy || 'All Members',
           }));
 
-          // Set photos
+          // Photos
           if (Array.isArray(g) && g.length > 0) {
             setPhotos(g.map((item: any, idx: number) => ({
               photoId: item.photoId || item.PhotoId || idx + 1,
@@ -275,16 +526,15 @@ export default function EditMyProfilePage() {
         }
       } catch (err) {
         console.error("Error loading edit profile data:", err);
-        toast.error("Could not load full profile data. Please refresh.");
       } finally {
         setLoading(false);
       }
     };
 
-    loadData();
+    loadAllData();
   }, [router]);
 
-  // Load cities when state changes
+  // Load cities whenever selectedStateId changes
   useEffect(() => {
     if (selectedStateId) {
       fetchCitiesApi(selectedStateId).then(list => {
@@ -319,6 +569,22 @@ export default function EditMyProfilePage() {
           [field]: value,
           ...extraData,
         }));
+
+        // Sync FullName with localStorage if Name is updated
+        if (field === 'FullName' && typeof window !== "undefined") {
+          ['user_details', 'user_session', 'cached_profile_details'].forEach(k => {
+            const stored = localStorage.getItem(k);
+            if (stored) {
+              try {
+                const parsed = JSON.parse(stored);
+                parsed.fullName = value;
+                parsed.FullName = value;
+                localStorage.setItem(k, JSON.stringify(parsed));
+              } catch {}
+            }
+          });
+        }
+
         toast.success("Updated successfully!");
         setActiveSheet(null);
       } else {
@@ -353,7 +619,8 @@ export default function EditMyProfilePage() {
     fieldKey: string,
     currentVal: string,
     placeholder: string,
-    maxLength: number = 120
+    maxLength: number = 120,
+    multiline: boolean = false
   ) => {
     setTextInputData({
       title,
@@ -362,6 +629,7 @@ export default function EditMyProfilePage() {
       value: currentVal || '',
       placeholder,
       maxLength,
+      multiline,
     });
     setActiveSheet('textInput');
   };
@@ -411,7 +679,7 @@ export default function EditMyProfilePage() {
   // Open Location Sheet
   const openLocationSheet = (target: 'Location' | 'FamilyLocation' = 'Location') => {
     setLocationTargetField(target);
-    setSelectedStateId(formData.CurrentStateId || 2);
+    setSelectedStateId(formData.CurrentStateId || 14);
     setSelectedCityId(formData.CurrentCityId || 1);
     setActiveSheet('location');
   };
@@ -437,8 +705,8 @@ export default function EditMyProfilePage() {
 
     if (locationTargetField === 'FamilyLocation') {
       saveFieldValue('FamilyLocation', locText, {
-        FamilyStateId: selectedStateId,
-        FamilyCityId: selectedCityId,
+        NativePlaceStateId: selectedStateId,
+        NativePlaceCityId: selectedCityId,
       });
     } else {
       saveFieldValue('CurrentStateId', selectedStateId, {
@@ -450,7 +718,7 @@ export default function EditMyProfilePage() {
     }
   };
 
-  // Save Option Selection
+  // Save Option Selection with Dynamic Master IDs
   const handleSaveOption = () => {
     const selectedObj = sheetOptions.find(o => o.id === selectedSheetValue || o.value === selectedSheetValue);
     if (!selectedObj) {
@@ -464,6 +732,10 @@ export default function EditMyProfilePage() {
       saveFieldValue('EmploymentSector', selectedObj.id, { EmployedIn: selectedObj.value, EmployedInId: selectedObj.id });
     } else if (sheetFieldKey === 'Occupation') {
       saveFieldValue('Designation', selectedObj.id, { Occupation: selectedObj.value, OccupationId: selectedObj.id });
+    } else if (sheetFieldKey === 'FatherOccupation') {
+      saveFieldValue('FatherOccupationId', selectedObj.id, { FatherOccupation: selectedObj.value, FatherOccupationId: selectedObj.id });
+    } else if (sheetFieldKey === 'MotherOccupation') {
+      saveFieldValue('MotherOccupationId', selectedObj.id, { MotherOccupation: selectedObj.value, MotherOccupationId: selectedObj.id });
     } else if (sheetFieldKey === 'AnnualIncome') {
       saveFieldValue('AnnualIncome', selectedObj.value);
     } else if (sheetFieldKey === 'Caste') {
@@ -472,12 +744,16 @@ export default function EditMyProfilePage() {
       saveFieldValue('Maslak', selectedObj.id, { MaslakText: selectedObj.value });
     } else if (sheetFieldKey === 'MotherTongue') {
       saveFieldValue('MotherTongue', selectedObj.id, { MotherTongueText: selectedObj.value });
+    } else if (sheetFieldKey === 'Complexion') {
+      saveFieldValue('Complexion', selectedObj.id, { Complexion: selectedObj.value });
     } else if (sheetFieldKey === 'Disability') {
       saveFieldValue('Disability', selectedObj.value);
     } else if (sheetFieldKey === 'FamilyType') {
       saveFieldValue('FamilyType', selectedObj.id, { FamilyType: selectedObj.value });
     } else if (sheetFieldKey === 'FamilyValues') {
       saveFieldValue('FamilyValues', selectedObj.id, { FamilyValues: selectedObj.value });
+    } else if (sheetFieldKey === 'FamilyStatus') {
+      saveFieldValue('FamilyStatus', selectedObj.id, { FamilyStatus: selectedObj.value });
     } else if (sheetFieldKey === 'NamazHabit') {
       saveFieldValue('NamazHabit', selectedObj.value);
     } else if (sheetFieldKey === 'HijabOrBeard') {
@@ -488,6 +764,10 @@ export default function EditMyProfilePage() {
       saveFieldValue('SmokeHabit', selectedObj.value);
     } else if (sheetFieldKey === 'DrinkHabit') {
       saveFieldValue('DrinkHabit', selectedObj.value);
+    } else if (sheetFieldKey === 'CanCook') {
+      saveFieldValue('CanCook', selectedObj.value === 'Yes');
+    } else if (sheetFieldKey === 'Weight') {
+      saveFieldValue('Weight', selectedObj.value);
     } else {
       saveFieldValue(sheetFieldKey, selectedObj.value);
     }
@@ -621,11 +901,11 @@ export default function EditMyProfilePage() {
         const firstPhotoUrl = remaining[0].photoUrl || remaining[0].PhotoUrl || '';
         if (firstPhotoUrl) {
           syncUserProfilePhoto(firstPhotoUrl);
-          setFormData((prev: any) => ({ ...prev, PhotoUrl: firstPhotoUrl }));
+          setFormData(prev => ({ ...prev, PhotoUrl: firstPhotoUrl }));
         }
       } else {
         syncUserProfilePhoto('');
-        setFormData((prev: any) => ({ ...prev, PhotoUrl: '' }));
+        setFormData(prev => ({ ...prev, PhotoUrl: '' }));
       }
 
       toast.success("Photo removed successfully.");
@@ -666,26 +946,41 @@ export default function EditMyProfilePage() {
     return sheetOptions.filter(o => o.value.toLowerCase().includes(sheetSearch.toLowerCase()));
   }, [sheetOptions, sheetSearch]);
 
-  // Master Options Mappers
-  const educationOpts = (masterData.QUALIFICATIONS || []).map(m => ({ id: m.id, value: m.value }));
-  const casteOpts = (masterData.CASTES || []).map(m => ({ id: m.id, value: m.value }));
-  const maslakOpts = (masterData.MASLAKS || []).map(m => ({ id: m.id, value: m.value }));
-  const languageOpts = (masterData.LANGUAGES || []).map(m => ({ id: m.id, value: m.value }));
-  const occupationOpts = (masterData.DESIGNATIONS || []).map(m => ({ id: m.id, value: m.value }));
-  const employedInOpts = (masterData.EMPLOYMENT_SECTOR || []).map(m => ({ id: m.id, value: m.value }));
-  const familyTypeOpts = (masterData.FAMILY_TYPE || []).map(m => ({ id: m.id, value: m.value }));
-  const familyValuesOpts = (masterData.FAMILY_VALUES || []).map(m => ({ id: m.id, value: m.value }));
-  
+  // Master Options Mappers (Live Dynamic from DB + 0ms Fallback)
+  const educationOpts = masterData.EDUCATIONS || FALLBACK_MASTERS.EDUCATIONS;
+  const casteOpts = masterData.CASTES || FALLBACK_MASTERS.CASTES;
+  const maslakOpts = masterData.MASLAKS || FALLBACK_MASTERS.MASLAKS;
+  const languageOpts = masterData.MOTHER_TONGUES || FALLBACK_MASTERS.MOTHER_TONGUES;
+  const occupationOpts = masterData.OCCUPATIONS || FALLBACK_MASTERS.OCCUPATIONS;
+  const employedInOpts = masterData.EMPLOYMENT_SECTORS || FALLBACK_MASTERS.EMPLOYMENT_SECTORS;
+  const familyTypeOpts = masterData.FAMILY_TYPES || FALLBACK_MASTERS.FAMILY_TYPES;
+  const familyStatusOpts = masterData.FAMILY_STATUS || FALLBACK_MASTERS.FAMILY_STATUS;
+  const complexionOpts = masterData.COMPLEXION || FALLBACK_MASTERS.COMPLEXION;
+
+  const familyValuesOpts = [
+    { id: 1, value: "Traditional & Religious" },
+    { id: 2, value: "Moderate & Practicing" },
+    { id: 3, value: "Liberal & Open Minded" },
+    { id: 4, value: "Strict Islamic Values" }
+  ];
+
+  const weightOpts = Array.from({ length: 41 }, (_, i) => {
+    const val = `${45 + i} kg`;
+    return { id: val, value: val };
+  });
+
   const incomeOpts = [
-    { id: 'No Income', value: 'No Income' },
-    { id: '1 - 3 Lakh', value: '1 - 3 Lakh' },
-    { id: '3 - 5 Lakh', value: '3 - 5 Lakh' },
-    { id: '5 - 7 Lakh', value: '5 - 7 Lakh' },
-    { id: '7 - 10 Lakh', value: '7 - 10 Lakh' },
-    { id: '10 - 15 Lakh', value: '10 - 15 Lakh' },
-    { id: '15 - 25 Lakh', value: '15 - 25 Lakh' },
-    { id: '25 - 50 Lakh', value: '25 - 50 Lakh' },
-    { id: '50 Lakh+', value: '50 Lakh+' }
+    { id: 'No Income / Dependent', value: 'No Income / Dependent' },
+    { id: 'Below ₹2 Lakhs', value: 'Below ₹2 Lakhs' },
+    { id: '₹2 - 3 Lakhs', value: '₹2 - 3 Lakhs' },
+    { id: '₹3 - 5 Lakhs', value: '₹3 - 5 Lakhs' },
+    { id: '₹5 - 7 Lakhs', value: '₹5 - 7 Lakhs' },
+    { id: '₹7 - 10 Lakhs', value: '₹7 - 10 Lakhs' },
+    { id: '₹10 - 15 Lakhs', value: '₹10 - 15 Lakhs' },
+    { id: '₹15 - 20 Lakhs', value: '₹15 - 20 Lakhs' },
+    { id: '₹20 - 30 Lakhs', value: '₹20 - 30 Lakhs' },
+    { id: '₹30 - 50 Lakhs', value: '₹30 - 50 Lakhs' },
+    { id: 'Above ₹50 Lakhs', value: 'Above ₹50 Lakhs' }
   ];
 
   const disabilityOpts = [
@@ -704,7 +999,7 @@ export default function EditMyProfilePage() {
   const hijabOpts = [
     { id: 'Hijab', value: 'Hijab' },
     { id: 'Niqab', value: 'Niqab' },
-    { id: 'Beard', value: 'Sunnah Beard' },
+    { id: 'Sunnah Beard', value: 'Sunnah Beard' },
     { id: 'Modest Dress / Clean Shaved', value: 'Modest Dress / Clean Shaved' }
   ];
 
@@ -719,6 +1014,12 @@ export default function EditMyProfilePage() {
     { id: 'Never', value: 'Never' },
     { id: 'Occasionally', value: 'Occasionally' },
     { id: 'No', value: 'No' }
+  ];
+
+  const cookOpts = [
+    { id: 'Yes', value: 'Yes' },
+    { id: 'No', value: 'No' },
+    { id: 'Learning', value: 'Learning' }
   ];
 
   if (loading) {
@@ -988,6 +1289,28 @@ export default function EditMyProfilePage() {
               <span className="text-[#d91b5c] font-black group-hover:underline">Tap to update &rarr;</span>
             </div>
           </div>
+
+          {/* Partner Expectations */}
+          <div 
+            onClick={() => openTextInputSheet(
+              "Partner Expectations",
+              "Describe the qualities, values, and qualifications you look for in a spouse",
+              "PartnerExpectations",
+              formData.PartnerExpectations,
+              "e.g. Educated, practicing Muslim, caring nature, family-oriented...",
+              500,
+              true
+            )}
+            className="p-3.5 rounded-2xl border border-slate-200/70 hover:border-rose-200 hover:bg-rose-50/10 transition-all cursor-pointer flex items-center justify-between"
+          >
+            <div className="min-w-0 pr-2">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Partner Expectations</span>
+              <p className="text-xs font-semibold text-slate-800 mt-0.5 truncate">
+                {formData.PartnerExpectations || "Add partner expectations..."}
+              </p>
+            </div>
+            <ChevronRight size={16} className="text-slate-400 shrink-0" />
+          </div>
         </section>
 
         {/* ============================================================== */}
@@ -1076,6 +1399,30 @@ export default function EditMyProfilePage() {
               <div>
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Physical Height</span>
                 <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.Height}</span>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Weight */}
+            <div 
+              onClick={() => openOptionSheet('Select Weight', 'Weight', formData.Weight, weightOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Physical Weight</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.Weight}</span>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Complexion */}
+            <div 
+              onClick={() => openOptionSheet('Select Complexion / Skin Tone', 'Complexion', formData.Complexion, complexionOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Complexion / Skin Tone</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.Complexion}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -1212,6 +1559,25 @@ export default function EditMyProfilePage() {
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
+            {/* Occupation Details */}
+            <div 
+              onClick={() => openTextInputSheet(
+                "Workplace & Job Description",
+                "Mention your company name, designation, or role responsibilities",
+                "OccupationDetails",
+                formData.OccupationDetails,
+                "e.g. Senior Developer at MNC, Clinic owner in Bareilly...",
+                250
+              )}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Occupation Details</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.OccupationDetails || "Add details..."}</span>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
             {/* Annual Income */}
             <div 
               onClick={() => openOptionSheet('Annual Income Bracket', 'AnnualIncome', formData.AnnualIncome, incomeOpts)}
@@ -1277,40 +1643,38 @@ export default function EditMyProfilePage() {
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
-            {/* Father's Occupation */}
+            {/* Family Status */}
             <div 
-              onClick={() => openTextInputSheet(
-                "Father's Profession", 
-                "Occupation or business details of father", 
-                "FatherOccupation", 
-                formData.FatherOccupation, 
-                "e.g. Businessman, Retired Govt Officer, Teacher...",
-                100
-              )}
+              onClick={() => openOptionSheet('Family Social Status', 'FamilyStatus', formData.FamilyStatus, familyStatusOpts)}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Father's Profession</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.FatherOccupation || "Add Occupation"}</span>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Family Social Status</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.FamilyStatus}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
-            {/* Mother's Occupation */}
+            {/* 🌟 Father's Occupation: 100% Dynamic Master Occupations List */}
             <div 
-              onClick={() => openTextInputSheet(
-                "Mother's Profession", 
-                "Occupation or background of mother", 
-                "MotherOccupation", 
-                formData.MotherOccupation, 
-                "e.g. Homemaker, Teacher, Doctor...",
-                100
-              )}
+              onClick={() => openOptionSheet("Select Father's Profession", "FatherOccupation", formData.FatherOccupation, occupationOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Father's Profession</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.FatherOccupation || "Select Occupation"}</span>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* 🌟 Mother's Occupation: 100% Dynamic Master Occupations List (No Text Box!) */}
+            <div 
+              onClick={() => openOptionSheet("Select Mother's Profession", "MotherOccupation", formData.MotherOccupation, occupationOpts)}
               className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
             >
               <div>
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Mother's Profession</span>
-                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.MotherOccupation || "Add Occupation"}</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.MotherOccupation || "Select Occupation"}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -1324,6 +1688,28 @@ export default function EditMyProfilePage() {
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Siblings Overview</span>
                 <span className="text-xs font-black text-slate-900 mt-0.5 block">
                   {formData.TotalBrothers} Brother ({formData.MarriedBrothers} Married) &bull; {formData.TotalSisters} Sister ({formData.MarriedSisters} Married)
+                </span>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Family Background Note */}
+            <div 
+              onClick={() => openTextInputSheet(
+                "About Family Background",
+                "Share information about your family origin, values, and relatives",
+                "FamilyAbout",
+                formData.FamilyAbout,
+                "e.g. Well-settled family in Bareilly with high moral values...",
+                500,
+                true
+              )}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Family Background Summary</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block truncate max-w-[280px]">
+                  {formData.FamilyAbout || "Add summary..."}
                 </span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
@@ -1382,6 +1768,18 @@ export default function EditMyProfilePage() {
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
+            {/* Culinary / Can Cook */}
+            <div 
+              onClick={() => openOptionSheet('Can Cook Food?', 'CanCook', formData.CanCook, cookOpts)}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Cooking / Culinary Skills</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.CanCook}</span>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
             {/* Smoking */}
             <div 
               onClick={() => openOptionSheet('Smoking Habits', 'SmokeHabit', formData.SmokeHabit, habitOpts)}
@@ -1402,6 +1800,27 @@ export default function EditMyProfilePage() {
               <div>
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Alcohol / Drinking</span>
                 <span className="text-xs font-black text-slate-900 mt-0.5 block">{formData.DrinkHabit}</span>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Hobbies & Interests */}
+            <div 
+              onClick={() => openTextInputSheet(
+                "Hobbies & Interests",
+                "Share activities and passions you enjoy in your leisure time",
+                "Hobbies",
+                formData.Hobbies,
+                "e.g. Reading Islamic literature, Traveling, Cooking, Gardening...",
+                250
+              )}
+              className="p-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Hobbies & Pastimes</span>
+                <span className="text-xs font-black text-slate-900 mt-0.5 block truncate max-w-[280px]">
+                  {formData.Hobbies || "Add hobbies..."}
+                </span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -1434,7 +1853,6 @@ export default function EditMyProfilePage() {
                 transition={{ type: "spring", damping: 25, stiffness: 260 }}
                 className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pt-5 space-y-5 shadow-2xl text-left"
               >
-                {/* Floating circular close button */}
                 <div className="flex justify-center -mt-10 mb-1">
                   <button
                     type="button"
@@ -1485,7 +1903,7 @@ export default function EditMyProfilePage() {
               </motion.div>
             )}
 
-            {/* 🌟 SHEET B: SEARCHABLE OPTIONS BOTTOM SHEET */}
+            {/* 🌟 SHEET B: SEARCHABLE OPTIONS BOTTOM SHEET (DYNAMIC MASTER BOUND) */}
             {activeSheet === 'option' && (
               <motion.div 
                 initial={{ y: "100%" }}
@@ -1506,7 +1924,7 @@ export default function EditMyProfilePage() {
 
                 <div>
                   <h3 className="text-lg font-black text-slate-900">{sheetTitle}</h3>
-                  <p className="text-xs text-slate-500 font-medium">Choose the most accurate match</p>
+                  <p className="text-xs text-slate-500 font-medium">Choose from verified master list</p>
                 </div>
 
                 {/* Search Bar */}
@@ -1515,7 +1933,7 @@ export default function EditMyProfilePage() {
                     <Search size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
                     <input 
                       type="text"
-                      placeholder={`Search options...`}
+                      placeholder={`Search in ${sheetTitle}...`}
                       value={sheetSearch}
                       onChange={(e) => setSheetSearch(e.target.value)}
                       className="w-full pl-9 pr-4 py-2.5 bg-slate-100 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#d91b5c]/20"
@@ -1562,7 +1980,7 @@ export default function EditMyProfilePage() {
               </motion.div>
             )}
 
-            {/* 🌟 SHEET C: IN-APP TEXT INPUT SHEET (REPLACES PROMPT) */}
+            {/* 🌟 SHEET C: IN-APP TEXT / TEXTAREA INPUT SHEET (REPLACES PROMPT) */}
             {activeSheet === 'textInput' && (
               <motion.div 
                 initial={{ y: "100%" }}
@@ -1587,15 +2005,27 @@ export default function EditMyProfilePage() {
                 </div>
 
                 <div className="space-y-1">
-                  <input
-                    type="text"
-                    maxLength={textInputData.maxLength || 120}
-                    value={textInputData.value}
-                    onChange={(e) => setTextInputData(prev => ({ ...prev, value: e.target.value }))}
-                    placeholder={textInputData.placeholder}
-                    className="w-full p-3.5 rounded-2xl border border-slate-300 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#d91b5c] focus:ring-2 focus:ring-[#d91b5c]/20"
-                    autoFocus
-                  />
+                  {textInputData.multiline ? (
+                    <textarea
+                      rows={5}
+                      maxLength={textInputData.maxLength || 500}
+                      value={textInputData.value}
+                      onChange={(e) => setTextInputData(prev => ({ ...prev, value: e.target.value }))}
+                      placeholder={textInputData.placeholder}
+                      className="w-full p-3.5 rounded-2xl border border-slate-300 text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#d91b5c] focus:ring-2 focus:ring-[#d91b5c]/20 leading-relaxed resize-none"
+                      autoFocus
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      maxLength={textInputData.maxLength || 120}
+                      value={textInputData.value}
+                      onChange={(e) => setTextInputData(prev => ({ ...prev, value: e.target.value }))}
+                      placeholder={textInputData.placeholder}
+                      className="w-full p-3.5 rounded-2xl border border-slate-300 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#d91b5c] focus:ring-2 focus:ring-[#d91b5c]/20"
+                      autoFocus
+                    />
+                  )}
                   <div className="text-right text-[11px] text-slate-400 font-bold">
                     {textInputData.value.length}/{textInputData.maxLength || 120}
                   </div>
