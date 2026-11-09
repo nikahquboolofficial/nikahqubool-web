@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   Check,
   X,
@@ -386,14 +386,41 @@ export function LiveOvalSelfieScannerModal({
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const autoCapturedRef = useRef<boolean>(false);
+  const checkIntervalRef = useRef<any>(null);
+
   const [cameraError, setCameraError] = useState<string>("");
   const [guidePrompt, setGuidePrompt] = useState<string>(
     "Position your face in the outline"
   );
-  const [readyToCapture, setReadyToCapture] = useState(false);
+  const [faceInsideOval, setFaceInsideOval] = useState(false);
+
+  // Un-mirror and capture image
+  const captureFrame = useCallback(() => {
+    if (!videoRef.current || autoCapturedRef.current) return;
+    autoCapturedRef.current = true;
+    const video = videoRef.current;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 800;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Un-mirror captured selfie
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+    onCaptureSelfie(dataUrl);
+  }, [onCaptureSelfie]);
 
   useEffect(() => {
     if (!open) {
+      if (checkIntervalRef.current) {
+        clearInterval(checkIntervalRef.current);
+        checkIntervalRef.current = null;
+      }
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
@@ -402,9 +429,10 @@ export function LiveOvalSelfieScannerModal({
     }
 
     let mounted = true;
+    autoCapturedRef.current = false;
     setCameraError("");
+    setFaceInsideOval(false);
     setGuidePrompt("Position your face in the outline");
-    setReadyToCapture(false);
 
     navigator.mediaDevices
       ?.getUserMedia({
@@ -424,15 +452,42 @@ export function LiveOvalSelfieScannerModal({
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
         }
-        setTimeout(() => {
-          if (mounted) setGuidePrompt("Move slightly closer & look straight");
-        }, 1100);
-        setTimeout(() => {
-          if (mounted) {
-            setGuidePrompt("Perfect! Hold still & tap Capture");
-            setReadyToCapture(true);
-          }
-        }, 2300);
+
+        // Live Auto-Detection Loop like Muzz:
+        // Detects when face is centered in the oval frame, turns green, and auto-captures!
+        checkIntervalRef.current = setInterval(async () => {
+          if (!mounted || autoCapturedRef.current || verifying || !videoRef.current) return;
+          const video = videoRef.current;
+          if (video.readyState < 2) return;
+
+          try {
+            // Import and run live lightweight face detection
+            const { clientValidateSingleFace } = await import("@/lib/faceDetectionClient");
+            const tempCanvas = document.createElement("canvas");
+            tempCanvas.width = 320;
+            tempCanvas.height = 400;
+            const tCtx = tempCanvas.getContext("2d");
+            if (!tCtx) return;
+            tCtx.drawImage(video, 0, 0, 320, 400);
+            const previewB64 = tempCanvas.toDataURL("image/jpeg", 0.7);
+
+            const res = await clientValidateSingleFace(previewB64);
+            if (res.isValid && !autoCapturedRef.current) {
+              setFaceInsideOval(true);
+              setGuidePrompt("Hold still • Scanning your face...");
+              
+              // Give 600ms steady hold, turn green and auto-capture without button click!
+              setTimeout(() => {
+                if (mounted && !autoCapturedRef.current) {
+                  captureFrame();
+                }
+              }, 600);
+            } else {
+              setFaceInsideOval(false);
+              setGuidePrompt(res.errorCode === "FACE_TOO_FAR" ? "Move slightly closer" : "Position your face in the outline");
+            }
+          } catch (_) {}
+        }, 800);
       })
       .catch(() => {
         if (mounted) {
@@ -444,32 +499,18 @@ export function LiveOvalSelfieScannerModal({
 
     return () => {
       mounted = false;
+      if (checkIntervalRef.current) {
+        clearInterval(checkIntervalRef.current);
+        checkIntervalRef.current = null;
+      }
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
       }
     };
-  }, [open]);
+  }, [open, verifying, captureFrame]);
 
   if (!open) return null;
-
-  const handleCapture = () => {
-    if (!videoRef.current || verifying) return;
-    const video = videoRef.current;
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 800;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    
-    // Un-mirror the captured selfie so it aligns with normal uploaded photos
-    ctx.translate(canvas.width, 0);
-    ctx.scale(-1, 1);
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
-    onCaptureSelfie(dataUrl);
-  };
 
   return (
     <div className="fixed inset-0 z-[130] bg-white sm:bg-slate-950/75 sm:backdrop-blur-sm flex items-center justify-center sm:p-4 animate-in fade-in duration-200">
@@ -485,24 +526,32 @@ export function LiveOvalSelfieScannerModal({
             <X size={18} />
           </button>
           <span className="text-xs font-extrabold text-slate-400 uppercase tracking-widest flex items-center gap-1">
-            <ShieldCheck size={14} className="text-[#E21E5B]" /> Live Face Check
+            <ShieldCheck size={14} className={faceInsideOval ? "text-emerald-500" : "text-[#E21E5B]"} /> Live Face Check
           </span>
           <div className="w-9" />
         </div>
 
-        {/* Dynamic Crimson Top Pill (Matching Muzz Screenshot 5) */}
+        {/* Dynamic Status Pill (Green when aligned, Crimson when adjusting) */}
         <div className="mt-3 mb-4">
-          <div className="px-6 py-2.5 rounded-2xl bg-[#C81E56] text-white font-extrabold text-sm sm:text-base shadow-lg shadow-rose-600/25 text-center transition-all">
+          <div className={`px-6 py-2.5 rounded-2xl text-white font-extrabold text-sm sm:text-base shadow-lg transition-all text-center ${
+            faceInsideOval
+              ? "bg-emerald-600 shadow-emerald-600/30 ring-4 ring-emerald-100 animate-pulse"
+              : "bg-[#C81E56] shadow-rose-600/25"
+          }`}>
             {verifying
-              ? statusText || "Verifying your face with AI..."
+              ? statusText || "Verifying identity & biometrics..."
               : guidePrompt}
           </div>
         </div>
 
-        {/* Dotted Oval Camera Frame */}
+        {/* Muzz-Style Oval Camera Frame with Dynamic Green/Crimson Border */}
         <div className="relative my-2 flex items-center justify-center">
-          <div className="w-64 h-80 sm:w-68 sm:h-88 rounded-[999px] p-2.5 border-[3.5px] border-dashed border-[#C81E56] flex items-center justify-center">
-            <div className="w-full h-full rounded-[999px] border-[3px] border-[#C81E56] overflow-hidden bg-slate-900 relative shadow-inner">
+          <div className={`w-64 h-80 sm:w-68 sm:h-88 rounded-[999px] p-2.5 border-[4px] border-dashed transition-all duration-300 flex items-center justify-center ${
+            faceInsideOval ? "border-emerald-500 scale-[1.02]" : "border-[#C81E56]"
+          }`}>
+            <div className={`w-full h-full rounded-[999px] border-[3px] overflow-hidden bg-slate-900 relative shadow-inner transition-colors duration-300 ${
+              faceInsideOval ? "border-emerald-500" : "border-[#C81E56]"
+            }`}>
               {cameraError ? (
                 <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center text-white">
                   <AlertCircle size={36} className="text-rose-400 mb-2" />
@@ -520,10 +569,15 @@ export function LiveOvalSelfieScannerModal({
                 />
               )}
 
+              {/* Scanning Glow Ring when aligned */}
+              {faceInsideOval && !verifying && (
+                <div className="absolute inset-0 border-4 border-emerald-400 rounded-[999px] animate-ping opacity-30 pointer-events-none" />
+              )}
+
               {verifying && (
-                <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px] flex flex-col items-center justify-center text-white p-4 text-center">
-                  <RefreshCw size={34} className="animate-spin text-rose-400 mb-3" />
-                  <p className="text-xs font-extrabold tracking-wide">
+                <div className="absolute inset-0 bg-slate-950/65 backdrop-blur-[2px] flex flex-col items-center justify-center text-white p-4 text-center z-20">
+                  <RefreshCw size={36} className="animate-spin text-emerald-400 mb-3" />
+                  <p className="text-xs font-extrabold tracking-wide text-white">
                     {statusText || "Matching live selfie with your photos..."}
                   </p>
                 </div>
@@ -532,30 +586,21 @@ export function LiveOvalSelfieScannerModal({
           </div>
         </div>
 
-        {/* Bottom Instruction Card & Capture CTA */}
-        <div className="w-full space-y-3 mt-4">
-          <div className="w-full py-3 px-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-center shadow-sm">
-            <p className="text-xs font-bold text-slate-700 leading-relaxed">
-              Hold your device at eye level and position your full face inside
-              the oval outline.
+        {/* Bottom Instruction Card (No manual capture click needed!) */}
+        <div className="w-full space-y-2.5 mt-4">
+          <div className={`w-full py-3 px-4 rounded-2xl border text-center shadow-sm transition-colors ${
+            faceInsideOval
+              ? "bg-emerald-50 border-emerald-200"
+              : "bg-slate-50 border-slate-200/80"
+          }`}>
+            <p className={`text-xs font-bold leading-relaxed ${
+              faceInsideOval ? "text-emerald-800" : "text-slate-700"
+            }`}>
+              {faceInsideOval
+                ? "Face detected! Hold still for automatic scan..."
+                : "Hold your phone at eye level. When your face is aligned, it will scan automatically."}
             </p>
           </div>
-
-          {!cameraError && (
-            <button
-              type="button"
-              disabled={verifying}
-              onClick={handleCapture}
-              className={`w-full py-3.5 rounded-full font-extrabold text-sm text-white shadow-lg transition flex items-center justify-center gap-2 cursor-pointer ${
-                readyToCapture
-                  ? "bg-gradient-to-r from-[#E21E5B] to-rose-600 shadow-rose-500/25"
-                  : "bg-slate-800 hover:bg-slate-900"
-              } disabled:opacity-50`}
-            >
-              <Camera size={17} />
-              {verifying ? "Verifying Identity..." : "Capture & Verify Selfie"}
-            </button>
-          )}
         </div>
       </div>
     </div>
