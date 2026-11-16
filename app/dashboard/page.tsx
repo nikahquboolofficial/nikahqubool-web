@@ -1,7 +1,6 @@
 "use client";
 
 import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
-
 import { getClientSubscriptionStatus } from '@/lib/subscriptionUtils';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
@@ -9,18 +8,19 @@ import { Loader2, Sparkles, Flame, RefreshCw, Crown, Lock, ArrowRight } from 'lu
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import { fetchDashboardApi, handleInteractionApiCall, fetchActiveSubscriptionApi } from '@/lib/api';
-import { checkDailyViewLimit, formatTimeRemaining } from '@/lib/limitUtils';
+import { checkDailyViewLimit, formatTimeRemaining, DAILY_FREE_PROFILE_LIMIT } from '@/lib/limitUtils';
 import { getAuthToken } from '@/lib/auth';
 import ProfileCard from '@/components/dashboard/ProfileCard';
 import ProfileCardSkeleton from '@/components/dashboard/ProfileCardSkeleton';
 import { useSignalR } from '@/context/SignalRContext';
 
-function LiveCountdownDisplay() {
+function LiveCountdownDisplay({ tab = 'best-matches' }: { tab?: string }) {
   const [timeText, setTimeText] = useState('24h 00m 00s');
 
   useEffect(() => {
     const updateTimer = () => {
-      const stored = localStorage.getItem('daily_profile_views_tracker');
+      const storageKey = `daily_profile_views_tracker_${tab}`;
+      const stored = localStorage.getItem(storageKey);
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
@@ -32,7 +32,7 @@ function LiveCountdownDisplay() {
     updateTimer();
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [tab]);
 
   return <span>{timeText}</span>;
 }
@@ -40,35 +40,40 @@ function LiveCountdownDisplay() {
 // ⚡ GLOBAL IN-MEMORY FEED CACHE (PERSISTS ACROSS SPA ROUTING FOR ZERO SKELETON FLASHES)
 const globalFeedCache: Record<string, { profiles: any[], hasMore: boolean, timestamp: number }> = {};
 
+const getInitialFeed = (tabName: string = 'best-matches'): any[] => {
+  if (typeof window !== "undefined") {
+    try {
+      const saved = sessionStorage.getItem(`cached_dashboard_feed_${tabName}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.profiles && Array.isArray(parsed.profiles) && parsed.profiles.length > 0 && Date.now() - parsed.timestamp < 300000) {
+          globalFeedCache[tabName] = parsed;
+          return parsed.profiles;
+        }
+      }
+    } catch (e) {}
+  }
+  return globalFeedCache[tabName]?.profiles || [];
+};
+
 export default function VIPCleanDashboardPage() {
   const router = useRouter();
   const { onlineUsers, fetchBulkOnlineStatuses } = useSignalR();
   const [activeTab, setActiveTab] = useState('best-matches');
-  const [profiles, setProfiles] = useState<any[]>(() => globalFeedCache['best-matches']?.profiles || []);
+  const [profiles, setProfiles] = useState<any[]>(() => getInitialFeed('best-matches'));
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState<boolean>(() => !globalFeedCache['best-matches']);
+  const [loading, setLoading] = useState<boolean>(() => getInitialFeed('best-matches').length === 0);
   const [fetchingMore, setFetchingMore] = useState(false);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [actionState, setActionState] = useState<{ [key: number]: boolean }>({});
   const [actionTypeState, setActionTypeState] = useState<{ [key: number]: string | null }>({});
 
-  // ⚡ HIGH-SPEED CLIENT TAB CACHE (STALE-WHILE-REVALIDATE FOR 0MS TAB SWITCHING)
-  // Tab cache ref synced with globalFeedCache
-  const tabCacheRef = React.useRef(globalFeedCache);
-
-  // 🔒 24-HOUR / 20 PROFILE VIEW LIMIT STATE FOR FREE USERS
+  // 🔒 24-HOUR / 15 PROFILE VIEW LIMIT STATE FOR FREE USERS
   const [isCurrentUserPaid, setIsCurrentUserPaid] = useState<boolean>(false);
   const [dailyLimitReached, setDailyLimitReached] = useState<boolean>(false);
 
   const getToken = useCallback((): string | null => getAuthToken(), []);
-
-  // 🕒 CHECK & UPDATE 24-HOUR PROFILE VIEW COUNT IN LOCALSTORAGE
-  const checkDailyViewLimitState = useCallback((newLoadedProfilesCount: number, paidStatus: boolean) => {
-    const limitState = checkDailyViewLimit(newLoadedProfilesCount, paidStatus);
-    setDailyLimitReached(limitState.isLimitReached);
-    return limitState.isLimitReached;
-  }, []);
 
   const loadDashboardData = useCallback(async (tabName: string, pageNum: number, append: boolean = false) => {
     const token = getToken();
@@ -78,18 +83,18 @@ export default function VIPCleanDashboardPage() {
     }
 
     // ⚡ 0MS INSTANT TAB CACHE HIT
-    if (pageNum === 1 && !append && globalFeedCache[tabName]) {
+    if (pageNum === 1 && !append && globalFeedCache[tabName] && globalFeedCache[tabName].profiles.length > 0) {
       const cached = globalFeedCache[tabName];
       setProfiles(cached.profiles);
       setHasMore(cached.hasMore);
       setLoading(false);
 
-      // If cached less than 60 seconds ago, skip network call entirely (Zero DB Hit)
-      if (Date.now() - cached.timestamp < 60000) {
+      // If cached less than 45 seconds ago, skip network call entirely (Zero DB Hit)
+      if (Date.now() - cached.timestamp < 45000) {
         return;
       }
     } else if (pageNum === 1 && !append) {
-      if (!globalFeedCache[tabName]) {
+      if (!globalFeedCache[tabName] || globalFeedCache[tabName].profiles.length === 0) {
         setLoading(true);
       }
     } else {
@@ -138,21 +143,21 @@ export default function VIPCleanDashboardPage() {
         }
       }
 
-      const limitState = checkDailyViewLimit(list.length, userPaid);
+      const limitState = checkDailyViewLimit(list.length, userPaid, tabName);
       setDailyLimitReached(limitState.isLimitReached && !userPaid);
 
       let finalProfiles: any[] = [];
       if (append) {
         setProfiles((prev) => {
           const combined = [...prev, ...list];
-          const curLimit = checkDailyViewLimit(combined.length, userPaid);
-          finalProfiles = (curLimit.isLimitReached && !userPaid) ? combined.slice(0, 20) : combined;
+          const curLimit = checkDailyViewLimit(combined.length, userPaid, tabName);
+          finalProfiles = (curLimit.isLimitReached && !userPaid) ? combined.slice(0, DAILY_FREE_PROFILE_LIMIT) : combined;
           return finalProfiles;
         });
       } else {
         let updatedList = list;
         if (limitState.isLimitReached && !userPaid) {
-          updatedList = list.slice(0, 20);
+          updatedList = list.slice(0, DAILY_FREE_PROFILE_LIMIT);
         }
         finalProfiles = updatedList;
         setProfiles(updatedList);
@@ -161,14 +166,19 @@ export default function VIPCleanDashboardPage() {
       const nextHasMore = list.length >= 12 && (!limitState.isLimitReached || userPaid);
       setHasMore(nextHasMore);
 
-      // Save to client-side tab cache
+      // Save to client-side tab cache and persistent sessionStorage
       if (!append) {
-        globalFeedCache[tabName] = {
+        const cacheObj = {
           profiles: finalProfiles,
           hasMore: nextHasMore,
           timestamp: Date.now()
         };
-        tabCacheRef.current[tabName] = globalFeedCache[tabName];
+        globalFeedCache[tabName] = cacheObj;
+        if (typeof window !== "undefined") {
+          try {
+            sessionStorage.setItem(`cached_dashboard_feed_${tabName}`, JSON.stringify(cacheObj));
+          } catch (e) {}
+        }
       }
     } else {
       if (!globalFeedCache[tabName] || globalFeedCache[tabName].profiles.length === 0) {
@@ -178,7 +188,7 @@ export default function VIPCleanDashboardPage() {
 
     setLoading(false);
     setFetchingMore(false);
-  }, [getToken, router, checkDailyViewLimitState]);
+  }, [getToken, router]);
 
   useEffect(() => {
     setPage(1);
@@ -230,54 +240,54 @@ export default function VIPCleanDashboardPage() {
     } else {
       setProfiles((prevProfiles) =>
         prevProfiles.map((p) => {
-          const uId = Number(p.userId || p.UserId || 0);
-          if (uId === targetId) {
-            if (type === 'SHORTLIST') {
-              const currentIsShort = Boolean(p.isShortlisted ?? p.IsShortlisted);
-              return { ...p, isShortlisted: !currentIsShort, IsShortlisted: !currentIsShort };
+          if (Number(p.userId || p.UserId || 0) === targetId) {
+            const updated = { ...p };
+            if (type.toUpperCase() === 'INTEREST') {
+              updated.isInterestSent = true;
+              updated.interestStatus = 'Sent';
+            } else if (type.toUpperCase() === 'SHORTLIST') {
+              updated.isShortlisted = status !== 'NONE';
             }
-            if (type === 'INTEREST') {
-              const newStatus = status === 'ACCEPTED' ? 'Accepted' : status === 'DECLINED' ? 'Declined' : 'SentPending';
-              return { ...p, interestStatus: newStatus, InterestStatus: newStatus };
-            }
+            return updated;
           }
           return p;
         })
       );
     }
 
-    setActionState((prev) => ({ ...prev, [receiverUserId]: true }));
-    setActionTypeState((prev) => ({ ...prev, [receiverUserId]: type }));
+    setActionState((prev) => ({ ...prev, [targetId]: true }));
+    setActionTypeState((prev) => ({ ...prev, [targetId]: type }));
 
-    const res = await handleInteractionApiCall(receiverUserId, type, status, token);
-
-    setActionState((prev) => ({ ...prev, [receiverUserId]: false }));
-    setActionTypeState((prev) => ({ ...prev, [receiverUserId]: null }));
-
-    if (!res.success) {
-      loadDashboardData(activeTab, 1, false);
+    if (token) {
+      try {
+        const response = await handleInteractionApiCall(receiverUserId, type, status, token);
+        if (response && response.isUnauthorized) {
+          toast.dismiss();
+          toast.error("Session expired.");
+          router.push('/');
+        }
+      } catch (e) {
+        console.error("Optimistic interaction sync failed:", e);
+      } finally {
+        setActionState((prev) => ({ ...prev, [targetId]: false }));
+        setActionTypeState((prev) => ({ ...prev, [targetId]: null }));
+      }
+    } else {
+      setActionState((prev) => ({ ...prev, [targetId]: false }));
+      setActionTypeState((prev) => ({ ...prev, [targetId]: null }));
     }
   };
 
   const handleViewProfile = (userId: number) => {
-    const token = getToken();
-    const targetProfile = profiles.find((p) => Number(p.userId || p.UserId) === userId);
     if (typeof window !== "undefined") {
       sessionStorage.setItem("last_browse_page", "/dashboard");
-      const rawPhoto = targetProfile?.mainPhotoUrl || targetProfile?.MainPhotoUrl || targetProfile?.photoUrl || targetProfile?.PhotoUrl || targetProfile?.mainPhoto || targetProfile?.photo;
-      const outsidePhoto = rawPhoto ? (String(rawPhoto).startsWith('http') ? rawPhoto : `https://cdn.nikahqubool.in/${String(rawPhoto).replace(/^\/+/, '')}`) : null;
-      const dataToStore = targetProfile ? { ...targetProfile, userId, outsideCardPhoto: outsidePhoto } : { userId };
-      sessionStorage.setItem("viewing_profile_target", JSON.stringify(dataToStore));
-      localStorage.setItem("viewing_profile_target", JSON.stringify(dataToStore));
     }
-    if (token) {
-      handleInteractionApiCall(userId, 'VISIT', 'PENDING', token).catch(() => {});
-    }
+    router.push(`/dashboard/profile?userId=${userId}`);
   };
 
-  const handleInitiateChat = async (profile: any) => {
+  const handleInitiateChat = (profile: any) => {
     const status = getClientSubscriptionStatus();
-    const canChat = isCurrentUserPaid || (status.isPaid && status.canChat);
+    const canChat = status.isPaid && status.canChat;
 
     if (canChat) {
       if (typeof window !== "undefined") { sessionStorage.setItem("last_browse_page", "/dashboard"); }
@@ -322,7 +332,7 @@ export default function VIPCleanDashboardPage() {
 
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 space-y-3 sm:space-y-5">
         
-        {/* 🌟 NIKAH FOREVER FILTER TABS ROW */}
+        {/* 🌟 NIKAH FILTER TABS ROW */}
         <div className="flex items-center justify-center gap-2 overflow-x-auto py-1 no-scrollbar">
           {tabs.map((t) => {
             const isActive = activeTab === t.id;
@@ -332,7 +342,22 @@ export default function VIPCleanDashboardPage() {
                 type="button"
                 onClick={() => {
                   if (activeTab !== t.id) {
-                    setProfiles([]);
+                    const cached = globalFeedCache[t.id];
+                    if (cached && cached.profiles && cached.profiles.length > 0) {
+                      setProfiles(cached.profiles);
+                      setHasMore(cached.hasMore);
+                      const curLimit = checkDailyViewLimit(cached.profiles.length, isCurrentUserPaid, t.id);
+                      setDailyLimitReached(curLimit.isLimitReached && !isCurrentUserPaid);
+                      setLoading(false);
+                    } else {
+                      const sessionFeed = getInitialFeed(t.id);
+                      if (sessionFeed.length > 0) {
+                        setProfiles(sessionFeed);
+                        setLoading(false);
+                      } else {
+                        setLoading(true);
+                      }
+                    }
                     setActiveTab(t.id);
                   }
                 }}
@@ -368,15 +393,15 @@ export default function VIPCleanDashboardPage() {
             </div>
             <button 
               type="button"
-              onClick={() => setActiveTab('best-matches')} 
-              className="px-6 py-2.5 rounded-full bg-slate-950 hover:bg-slate-900 text-white text-xs font-black uppercase tracking-wider cursor-pointer shadow-sm transition-all"
+              onClick={() => loadDashboardData(activeTab, 1, false)}
+              className="px-6 py-2.5 rounded-full bg-[#d91b5c] text-white text-xs font-bold uppercase tracking-wider hover:bg-[#b01348] shadow-md flex items-center gap-2 mx-auto cursor-pointer"
             >
-              Explore Best Matches
+              <RefreshCw size={14} /> Refresh Feed
             </button>
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 justify-center max-w-[420px] sm:max-w-none mx-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
               {displayedProfiles.map((profile) => {
                 const uId = Number(profile.userId || profile.UserId || 0);
                 return (
@@ -393,41 +418,50 @@ export default function VIPCleanDashboardPage() {
               })}
             </div>
 
-            {/* 🔒 24-HOUR DAILY 20 PROFILES VIEW LIMIT CARD (FOR FREE UNPAID USERS) */}
+            {/* 🔒 24-HOUR DAILY 15 PROFILES VIEW LIMIT CARD (FOR FREE UNPAID USERS) */}
             {dailyLimitReached && !isCurrentUserPaid && (
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-gradient-to-br from-slate-900 via-[#3a051b] to-slate-950 text-white rounded-3xl p-8 border-2 border-amber-400/40 shadow-2xl text-center max-w-xl mx-auto space-y-4 relative overflow-hidden"
+                className="bg-gradient-to-br from-[#1b0811] via-[#2c0b1a] to-[#120309] text-white rounded-3xl p-6 sm:p-8 border-2 border-amber-400/50 shadow-2xl text-center max-w-xl mx-auto space-y-4 relative overflow-hidden my-4"
               >
-                <div className="w-16 h-16 rounded-full bg-amber-500/20 text-amber-300 border-2 border-amber-400/50 flex items-center justify-center mx-auto shadow-lg">
-                  <Lock size={32} />
+                {/* Glowing Background Accent */}
+                <div className="absolute -top-12 -right-12 w-36 h-36 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute -bottom-12 -left-12 w-36 h-36 bg-[#d91b5c]/20 rounded-full blur-3xl pointer-events-none" />
+
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-400/20 to-amber-600/30 text-amber-300 border-2 border-amber-400/60 flex items-center justify-center mx-auto shadow-lg shadow-amber-950/40">
+                    <Lock size={30} className="text-amber-300" />
+                  </div>
                 </div>
-                <div>
-                  <span className="bg-amber-400 text-slate-950 text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-widest">
-                    24-Hour Limit Reached
+
+                <div className="space-y-1.5">
+                  <span className="inline-block bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 text-[10px] font-black uppercase px-3.5 py-1 rounded-full tracking-widest shadow-sm">
+                    👑 VIP Daily Limit Reached
                   </span>
-                  <h3 className="text-xl font-serif font-extrabold uppercase mt-2 text-white tracking-wide">
-                    20 / 20 Free Profiles Viewed Today
+                  <h3 className="text-xl sm:text-2xl font-serif font-extrabold uppercase mt-2 text-white tracking-wide">
+                    {activeTab === 'online' ? '15 / 15 Online Members Viewed Today' : '15 / 15 Free Profiles Viewed Today'}
                   </h3>
-                  <p className="text-rose-100/80 text-xs font-medium max-w-md mx-auto mt-1 leading-relaxed">
-                    Free accounts are restricted to viewing 20 profiles per 24 hours. Upgrade to VIP Premium to unlock unlimited instant profiles or wait for timer reset.
+                  <p className="text-rose-100/80 text-xs sm:text-sm font-medium max-w-md mx-auto leading-relaxed">
+                    Aapne aaj ke 15 muft rishte dekh liye hain. Naye rishte unlock hone me baaki hain, ya abhi VIP ban kar <span className="text-amber-300 font-bold">Unlimited Profiles</span> unlock karein!
                   </p>
                 </div>
                 
                 {/* 🕒 LIVE TICKING COUNTDOWN TIMER */}
-                <div className="bg-slate-950/80 p-3 rounded-2xl border border-amber-400/30 max-w-xs mx-auto text-center space-y-1 shadow-inner">
-                  <span className="text-[10px] uppercase font-black tracking-widest text-amber-300">Resetting Daily Limit In</span>
-                  <div className="flex items-center justify-center gap-2 text-amber-300 font-mono font-bold text-xl">
-                    <LiveCountdownDisplay />
+                <div className="bg-slate-950/80 p-3.5 rounded-2xl border border-amber-400/40 max-w-xs mx-auto text-center space-y-1.5 shadow-inner">
+                  <span className="text-[10px] uppercase font-black tracking-widest text-amber-300/90 block">
+                    Daily Limit Resetting In
+                  </span>
+                  <div className="flex items-center justify-center gap-2 text-amber-300 font-mono font-bold text-xl sm:text-2xl tracking-wider">
+                    <LiveCountdownDisplay tab={activeTab} />
                   </div>
                 </div>
 
                 <div className="pt-2">
                   <button 
                     type="button"
-                    onClick={() => router.push('/dashboard/membership')}
-                    className="px-8 py-3.5 rounded-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-xl hover:brightness-110 active:scale-95 transition-all flex items-center gap-2 mx-auto cursor-pointer border border-amber-200"
+                    onClick={() => setShowSubscriptionModal(true)}
+                    className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 mx-auto cursor-pointer border border-amber-200"
                   >
                     <Crown size={18} className="fill-slate-950" />
                     <span>Upgrade to VIP Premium</span>

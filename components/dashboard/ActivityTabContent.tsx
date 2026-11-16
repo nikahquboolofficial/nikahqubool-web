@@ -237,10 +237,7 @@ export default function ActivityTabContent({
 
   const handleInitiateChat = (profile: any) => {
     const subStatus = getClientSubscriptionStatus();
-    const isPaid = (subStatus.isPaid && subStatus.canChat) || Boolean(
-      profile.isCanChat ?? profile.IsCanChat ?? 
-      profile.isCurrentUserPaid ?? profile.IsCurrentUserPaid
-    );
+    const isPaid = subStatus.isPaid && subStatus.canChat;
 
     if (isPaid) {
       if (typeof window !== "undefined") { sessionStorage.setItem("last_browse_page", "/dashboard/activity"); }

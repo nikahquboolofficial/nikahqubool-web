@@ -187,8 +187,21 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
           try { sessionStorage.setItem("cached_chat_inbox", JSON.stringify(finalList)); } catch (e) {}
           return finalList;
         } else {
+          // Immediately inject incoming sender at top of inbox list so it appears in 0ms without refresh!
+          const newChat = {
+            userId: incomingSenderId,
+            fullName: 'Member',
+            photoUrl: '',
+            lastMessage: messageText,
+            lastMessageTime: sentAt || new Date().toISOString(),
+            unreadCount: isOpen ? 0 : 1,
+            accountState: 'Active',
+            isOnline: true
+          };
+          const finalList = [newChat, ...currentList];
+          try { sessionStorage.setItem("cached_chat_inbox", JSON.stringify(finalList)); } catch (e) {}
           fetchInbox();
-          return currentList;
+          return finalList;
         }
       });
     };

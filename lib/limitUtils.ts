@@ -4,16 +4,20 @@ export interface DailyLimitState {
   count: number;
 }
 
-export function checkDailyViewLimit(newLoadedCount: number, isPaidParam: boolean): DailyLimitState {
-  const isPaid = isPaidParam;
+export const DAILY_FREE_PROFILE_LIMIT = 15;
 
-  if (isPaid) {
+export function checkDailyViewLimit(
+  newLoadedCount: number, 
+  isPaidParam: boolean, 
+  tab: string = 'best-matches'
+): DailyLimitState {
+  if (isPaidParam) {
     return { isLimitReached: false, remainingMs: 0, count: 0 };
   }
 
   try {
     const now = Date.now();
-    const storageKey = 'daily_profile_views_tracker';
+    const storageKey = `daily_profile_views_tracker_${tab}`;
     const stored = localStorage.getItem(storageKey);
 
     let record = { timestamp: now, count: 0 };
@@ -38,13 +42,26 @@ export function checkDailyViewLimit(newLoadedCount: number, isPaidParam: boolean
 
     localStorage.setItem(storageKey, JSON.stringify({ timestamp: record.timestamp, count: totalCount }));
 
-    if (totalCount >= 20) {
+    if (totalCount >= DAILY_FREE_PROFILE_LIMIT) {
       const remainingMs = Math.max(0, 86400000 - timeElapsed);
       return { isLimitReached: true, remainingMs, count: totalCount };
     }
   } catch (e) {}
 
   return { isLimitReached: false, remainingMs: 0, count: newLoadedCount };
+}
+
+export function getRemainingTimeForTab(tab: string = 'best-matches'): number {
+  try {
+    const storageKey = `daily_profile_views_tracker_${tab}`;
+    const stored = localStorage.getItem(storageKey);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      const remaining = 86400000 - (Date.now() - parsed.timestamp);
+      return Math.max(0, remaining);
+    }
+  } catch (e) {}
+  return 86400000;
 }
 
 export function formatTimeRemaining(ms: number): string {

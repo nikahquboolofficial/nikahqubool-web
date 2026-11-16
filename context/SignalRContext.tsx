@@ -168,6 +168,7 @@ export function SignalRProvider({ children }: { children: React.ReactNode }) {
     conn.onreconnected(() => {
       if (isMounted) {
         setIsConnected(true);
+        conn.invoke("JoinPersonalGroup").catch(() => {});
         conn.invoke("HeartbeatPing").catch(() => {});
       }
     });
@@ -198,6 +199,7 @@ export function SignalRProvider({ children }: { children: React.ReactNode }) {
             setIsConnected(true);
             connRef.current = conn;
             setConnection(conn);
+            conn.invoke("JoinPersonalGroup").catch(() => {});
             conn.invoke("HeartbeatPing").catch(() => {});
           }
         } catch (err) {

@@ -294,9 +294,9 @@ export default function ProfileDetailPage() {
 
   const handleInitiateChat = (e?: React.MouseEvent) => {
     if (e) { e.preventDefault(); e.stopPropagation(); }
-    const isUserPaid = checkIsUserPaid(profileData);
-    const isChatFree = Boolean(platformSettings?.isChatFreeNow ?? platformSettings?.IsChatFreeNow ?? true);
-    if (isUserPaid || isChatFree) {
+    const subStatus = getClientSubscriptionStatus();
+    const isPaid = subStatus.isPaid && subStatus.canChat;
+    if (isPaid) {
       sessionStorage.setItem('active_chat_target', JSON.stringify({
         userId: profileData.userId || profileData.UserId,
         fullName: profileData.fullName || profileData.FullName,

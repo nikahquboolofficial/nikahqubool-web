@@ -298,10 +298,8 @@ function ActivityPageContent() {
   };
 
   const handleInitiateChat = (profile: any) => {
-    const isPaid = Boolean(
-      profile.isCanChat ?? profile.IsCanChat ?? 
-      profile.isCurrentUserPaid ?? profile.IsCurrentUserPaid
-    );
+    const subStatus = getClientSubscriptionStatus();
+    const isPaid = subStatus.isPaid && subStatus.canChat;
     
     if (isPaid) {
       if (typeof window !== "undefined") { sessionStorage.setItem("last_browse_page", "/dashboard/activity"); }

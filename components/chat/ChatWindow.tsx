@@ -110,6 +110,8 @@ export default function ChatWindow({
   const [showScrollBottom, setShowScrollBottom] = useState(false);
   const typingTimeoutRef = useRef<any>(null);
   const isSendingRef = useRef(false);
+  const lastSentTextRef = useRef<string>("");
+  const lastSentTimeRef = useRef<number>(0);
 
   const [blockStatus, setBlockStatus] = useState<{
     isBlockedByMe: boolean;
@@ -438,27 +440,27 @@ export default function ChatWindow({
     setShowScrollBottom(scrollHeight - scrollTop - clientHeight > 250);
   };
 
-  // 🚀 NON-BLOCKING RAPID DISPATCH (WHATSAPP-STYLE RAPID ENTER SAFE + DEBOUNCE GUARD)
+  // 🚀 NON-BLOCKING RAPID DISPATCH (WHATSAPP-STYLE RAPID ENTER SAFE + RAPID QUEUE)
   const handleSendText = async (textToSend: string) => {
     const trimmed = textToSend.trim();
     if (!trimmed || isBlocked) return;
     
-    // 🛡️ Prevent duplicate execution from simultaneous touch & click events
-    if (isSendingRef.current) return;
-    isSendingRef.current = true;
-    setTimeout(() => {
-      isSendingRef.current = false;
-    }, 350);
+    // 🛡️ Prevent duplicate execution from simultaneous touch & click on same button (80ms guard)
+    const nowTimestamp = Date.now();
+    if (lastSentTextRef.current === trimmed && (nowTimestamp - lastSentTimeRef.current) < 80) {
+      return;
+    }
+    lastSentTextRef.current = trimmed;
+    lastSentTimeRef.current = nowTimestamp;
 
     const token = getToken();
     if (!token) {
-      isSendingRef.current = false;
       return;
     }
 
     const hadExistingConversation = messages.some(m => !String(m.messageId).startsWith('temp-') && !m.isError);
 
-    // Immediately clear input
+    // Immediately clear input for instant butter-smooth typing
     setMsg(""); 
     setShowEmojiPicker(false);
 
