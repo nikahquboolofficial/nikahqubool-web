@@ -20,6 +20,24 @@ import {
 import { CompactSelect, MultiSelectDropdown } from '@/components/profile/CompactSelect';
 import { getAuthToken, clearAuthCookies } from '@/lib/auth';
 
+const PREF_NAMAZ_OPTIONS: MasterOption[] = [
+  { id: '5 Times Daily', value: '5 Times Daily' },
+  { id: 'Regularly / Most Times', value: 'Regularly / Most Times' },
+  { id: 'Only Jummah', value: 'Only Jummah' },
+  { id: 'Sometimes / Occasional', value: 'Sometimes / Occasional' },
+  { id: 'Planning to Start', value: 'Planning to Start' },
+  { id: 'Any / Does Not Matter', value: 'Any / Does Not Matter' }
+];
+
+const PREF_HIJAB_BEARD_OPTIONS: MasterOption[] = [
+  { id: 'Always Hijab / Niqab', value: 'Always Hijab / Niqab' },
+  { id: 'Modest Hijab', value: 'Modest Hijab' },
+  { id: 'Full Sunnah Beard', value: 'Full Sunnah Beard' },
+  { id: 'Trimmed Beard', value: 'Trimmed Beard' },
+  { id: 'No Hijab / Clean Shaved', value: 'No Hijab / Clean Shaved' },
+  { id: 'Any / Open Minded', value: 'Any / Open Minded' }
+];
+
 function SettingsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -43,9 +61,11 @@ function SettingsContent() {
     occupationIds: [1],
     casteIds: [1],
     languageIds: [1],
-    sectId: 1,
+    sectIds: [1],
     stateId: 0,
-    cityId: 0
+    cityId: 0,
+    namazHabits: [],
+    hijabOrBeard: []
   });
 
   const [masterData, setMasterData] = useState<{ [key: string]: MasterOption[] }>({});
@@ -118,12 +138,21 @@ function SettingsContent() {
                 return String(val).split(',').map(s => Number(s.trim())).filter(n => !isNaN(n) && n > 0);
               };
 
+              const parseStringList = (val: any) => {
+                if (!val) return [];
+                if (Array.isArray(val)) return val.map(String);
+                return String(val).split(',').map(s => s.trim()).filter(Boolean);
+              };
+
               const firstStateId = Number(pref.preferredStateID || pref.preferredState || 0);
               if (firstStateId > 0) {
                 fetchCitiesApi(firstStateId).then(cities => {
                   if (isMounted) setMasterData(prev => ({ ...prev, CITIES: cities }));
                 });
               }
+
+              const parsedSectList = parseList(pref.preferredSect);
+              const fallbackSect = Number(pref.preferredSect || 1);
 
               setPrefData({
                 minAge: pref.minAge || 18,
@@ -135,9 +164,11 @@ function SettingsContent() {
                 occupationIds: parseList(pref.preferredOccupation),
                 casteIds: parseList(pref.preferredCaste),
                 languageIds: parseList(pref.preferredMotherTongue),
-                sectId: Number(pref.preferredSect || 1),
+                sectIds: parsedSectList.length > 0 ? parsedSectList : (fallbackSect > 0 ? [fallbackSect] : [1]),
                 stateId: firstStateId,
-                cityId: Number(pref.preferredCityID || pref.preferredCity || 0)
+                cityId: Number(pref.preferredCityID || pref.preferredCity || 0),
+                namazHabits: parseStringList(pref.preferredNamazHabit || pref.namazHabit),
+                hijabOrBeard: parseStringList(pref.preferredHijabOrBeard || pref.hijabOrBeard)
               });
             }
           }
@@ -210,7 +241,7 @@ function SettingsContent() {
       maxAge: Number(prefData.maxAge || 60),
       minHeight: parseFloat(prefData.minHeight || '4.0'),
       maxHeight: parseFloat(prefData.maxHeight || '7.0'),
-      preferredSect: prefData.sectId ? String(prefData.sectId) : '1',
+      preferredSect: cleanArr(prefData.sectIds) || (prefData.sectId ? String(prefData.sectId) : '1'),
       preferredStateID: prefData.stateId ? String(prefData.stateId) : '0',
       preferredCityID: prefData.cityId ? String(prefData.cityId) : '0',
       preferredEducation: cleanArr(prefData.educationIds) || '1',
@@ -218,7 +249,9 @@ function SettingsContent() {
       minAnnualIncome: 0,
       preferredMaritalStatus: cleanArr(prefData.maritalStatusList) || '1',
       preferredMotherTongue: cleanArr(prefData.languageIds) || '1',
-      preferredCaste: cleanArr(prefData.casteIds) || '1'
+      preferredCaste: cleanArr(prefData.casteIds) || '1',
+      preferredNamazHabit: cleanArr(prefData.namazHabits) || '',
+      preferredHijabOrBeard: cleanArr(prefData.hijabOrBeard) || ''
     };
 
     const res = await savePartnerPreferencesApi(prefPayload, token);
@@ -663,11 +696,25 @@ function SettingsContent() {
                 onChange={(ids) => updatePrefField('languageIds', ids)} 
               />
 
-              <CompactSelect 
-                label="Preferred Sect" 
+              <MultiSelectDropdown 
+                label="Preferred Sect / Maslak" 
                 options={masterData.SECTS || []} 
-                value={prefData.sectId} 
-                onChange={(val) => updatePrefField('sectId', Number(val))} 
+                selectedIds={prefData.sectIds || []} 
+                onChange={(ids) => updatePrefField('sectIds', ids)} 
+              />
+
+              <MultiSelectDropdown 
+                label="Preferred Namaz Habit" 
+                options={PREF_NAMAZ_OPTIONS} 
+                selectedIds={prefData.namazHabits || []} 
+                onChange={(ids) => updatePrefField('namazHabits', ids)} 
+              />
+
+              <MultiSelectDropdown 
+                label="Preferred Hijab / Beard" 
+                options={PREF_HIJAB_BEARD_OPTIONS} 
+                selectedIds={prefData.hijabOrBeard || []} 
+                onChange={(ids) => updatePrefField('hijabOrBeard', ids)} 
               />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

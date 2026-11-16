@@ -23,6 +23,8 @@ import {
   setMainPhotoApi,
   updatePhotoPrivacyApi,
   uploadGovtDocumentApi,
+  sendOtpApi,
+  changeMobileApi,
   MasterOption 
 } from '@/lib/api';
 import { getAuthToken, syncUserProfilePhoto } from '@/lib/auth';
@@ -500,6 +502,13 @@ export default function EditMyProfilePage() {
   const [selectedCityId, setSelectedCityId] = useState<number>(1);
   const [locationTargetField, setLocationTargetField] = useState<'Location' | 'FamilyLocation' | 'NativeLocation'>('Location');
 
+  // Mobile Change with OTP Substate
+  const [newMobileNumber, setNewMobileNumber] = useState('');
+  const [mobileOtpCode, setMobileOtpCode] = useState('');
+  const [mobileOtpSent, setMobileOtpSent] = useState(false);
+  const [sendingMobileOtp, setSendingMobileOtp] = useState(false);
+  const [verifyingMobileOtp, setVerifyingMobileOtp] = useState(false);
+
   // Trust Badge Substate
   const [govtDocFile, setGovtDocFile] = useState<File | null>(null);
   const [govtDocPreview, setGovtDocPreview] = useState<string>('');
@@ -819,6 +828,71 @@ export default function EditMyProfilePage() {
   // Save Text Input
   const handleSaveTextInput = () => {
     saveFieldValue(textInputData.fieldKey, textInputData.value.trim());
+  };
+
+  // Open Mobile Change Sheet with OTP
+  const openChangeMobileSheet = () => {
+    setNewMobileNumber('');
+    setMobileOtpCode('');
+    setMobileOtpSent(false);
+    setActiveSheet('changeMobile');
+  };
+
+  const handleSendMobileOtp = async () => {
+    const cleanNum = newMobileNumber.replace(/\D/g, '');
+    if (cleanNum.length !== 10) {
+      toast.error("Please enter a valid 10-digit mobile number.");
+      return;
+    }
+    if (cleanNum === String(formData.MobileNumber || '').replace(/\D/g, '')) {
+      toast.error("New number cannot be the same as your current registered number.");
+      return;
+    }
+
+    setSendingMobileOtp(true);
+    const res = await sendOtpApi(cleanNum, "null", "ChangeMobile");
+    setSendingMobileOtp(false);
+
+    if (res.success || res.Success === 1) {
+      setMobileOtpSent(true);
+      toast.success(`Verification code sent to +91 ${cleanNum}`);
+    } else {
+      toast.error(res.message || res.Message || "Failed to send OTP to new number.");
+    }
+  };
+
+  const handleVerifyAndUpdateMobile = async () => {
+    const cleanNum = newMobileNumber.replace(/\D/g, '');
+    if (!mobileOtpCode || mobileOtpCode.trim().length < 4) {
+      toast.error("Please enter the 6-digit verification code.");
+      return;
+    }
+
+    const token = getAuthToken();
+    setVerifyingMobileOtp(true);
+    const res = await changeMobileApi(cleanNum, mobileOtpCode.trim(), token);
+    setVerifyingMobileOtp(false);
+
+    if (res.success === 1 || res.Success === 1 || res.success === true) {
+      setFormData((prev: any) => ({ ...prev, MobileNumber: cleanNum }));
+      if (typeof window !== "undefined") {
+        ['user_details', 'user_session', 'cached_profile_details'].forEach(k => {
+          const stored = localStorage.getItem(k);
+          if (stored) {
+            try {
+              const parsed = JSON.parse(stored);
+              parsed.mobileNumber = cleanNum;
+              parsed.MobileNumber = cleanNum;
+              localStorage.setItem(k, JSON.stringify(parsed));
+            } catch {}
+          }
+        });
+      }
+      setActiveSheet(null);
+      toast.success("Mobile number updated successfully!");
+    } else {
+      toast.error(res.message || res.Message || "Invalid OTP code. Please try again.");
+    }
   };
 
   // Open Height Sheet
@@ -1553,23 +1627,19 @@ export default function EditMyProfilePage() {
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
-            {/* 1. Name */}
+            {/* 1. Name (Locked - Cannot be edited) */}
             <div 
-              onClick={() => openTextInputSheet(
-                "Name", 
-                "Update your full name", 
-                "FullName", 
-                formData.FullName, 
-                "Enter full name",
-                80
-              )}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              onClick={() => toast.info("Name is verified during registration and cannot be edited.", { icon: "🔒" })}
+              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/40 cursor-default"
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Name</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.FullName || "Add Name"}</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.FullName || "User"}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold">
+                <Info size={12} className="text-slate-400" />
+                <span>You can not edit this</span>
+              </div>
             </div>
 
             {/* 2. Profile Created For (Locked - Screenshot 9) */}
@@ -1907,46 +1977,34 @@ export default function EditMyProfilePage() {
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
-            {/* 1. Phone Number */}
+            {/* 1. Phone Number (Change via OTP Verification) */}
             <div 
-              onClick={() => openTextInputSheet(
-                "Phone Number",
-                "Enter registered mobile contact number",
-                "MobileNumber",
-                formData.MobileNumber,
-                "e.g. +91 9876543210",
-                20,
-                false,
-                "tel"
-              )}
+              onClick={openChangeMobileSheet}
               className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Phone Number</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.MobileNumber || "Add Mobile Number"}</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.MobileNumber ? `+91 ${formData.MobileNumber}` : "Add Mobile Number"}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold text-[#d91b5c]">Change via OTP</span>
+                <ChevronRight size={16} className="text-slate-400" />
+              </div>
             </div>
 
-            {/* 2. Email */}
+            {/* 2. Email (Locked - Cannot be edited) */}
             <div 
-              onClick={() => openTextInputSheet(
-                "Email Address",
-                "Enter valid contact email address",
-                "Email",
-                formData.Email,
-                "e.g. candidate@example.com",
-                80,
-                false,
-                "email"
-              )}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              onClick={() => toast.info("Email address is locked for account security and cannot be edited.", { icon: "🔒" })}
+              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/40 cursor-default"
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Email</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.Email || "Add Email Address"}</span>
+                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.Email || "Not Provided"}</span>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold">
+                <Info size={12} className="text-slate-400" />
+                <span>You can not edit this</span>
+              </div>
             </div>
 
             {/* 3. WhatsApp Number */}
@@ -2541,6 +2599,112 @@ export default function EditMyProfilePage() {
                 >
                   {savingField ? <Loader2 size={18} className="animate-spin" /> : "Update"}
                 </button>
+              </motion.div>
+            )}
+
+            {/* 🌟 SHEET M: CHANGE MOBILE NUMBER WITH OTP SHEET */}
+            {activeSheet === 'changeMobile' && (
+              <motion.div 
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 260 }}
+                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pt-5 space-y-4 shadow-2xl text-left"
+              >
+                <div className="flex justify-center -mt-10 mb-1">
+                  <button
+                    type="button"
+                    onClick={() => setActiveSheet(null)}
+                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div>
+                  <h3 className="text-base font-black text-slate-900">Change Mobile Number</h3>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Enter your new mobile number. We will send a 6-digit OTP to verify ownership.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[11px] font-extrabold uppercase text-slate-600 block mb-1">New Mobile Number</label>
+                    <div className="flex gap-2">
+                      <div className="flex items-center px-3.5 bg-slate-100 rounded-2xl border border-slate-200 text-xs font-bold text-slate-700">
+                        +91
+                      </div>
+                      <input 
+                        type="tel"
+                        maxLength={10}
+                        placeholder="10-digit mobile number"
+                        disabled={mobileOtpSent}
+                        value={newMobileNumber}
+                        onChange={(e) => setNewMobileNumber(e.target.value.replace(/\D/g, ''))}
+                        className="flex-1 px-4 py-3 bg-slate-50 rounded-2xl border-2 border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#d91b5c]"
+                      />
+                    </div>
+                  </div>
+
+                  {!mobileOtpSent ? (
+                    <button
+                      type="button"
+                      disabled={sendingMobileOtp || newMobileNumber.length !== 10}
+                      onClick={handleSendMobileOtp}
+                      className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {sendingMobileOtp ? <Loader2 size={16} className="animate-spin" /> : <Phone size={16} />}
+                      <span>Send Verification Code</span>
+                    </button>
+                  ) : (
+                    <div className="space-y-3 pt-2">
+                      <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 text-[11px] font-bold text-emerald-800 flex items-center justify-between">
+                        <span>OTP sent to +91 {newMobileNumber}</span>
+                        <button 
+                          type="button" 
+                          onClick={() => setMobileOtpSent(false)} 
+                          className="text-[#d91b5c] underline cursor-pointer"
+                        >
+                          Change
+                        </button>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-extrabold uppercase text-slate-600 block mb-1">Enter 6-Digit OTP</label>
+                        <input 
+                          type="text"
+                          maxLength={6}
+                          placeholder="e.g. 123456"
+                          value={mobileOtpCode}
+                          onChange={(e) => setMobileOtpCode(e.target.value.replace(/\D/g, ''))}
+                          className="w-full px-4 py-3 bg-slate-50 rounded-2xl border-2 border-slate-200 text-center tracking-widest text-lg font-black text-slate-900 focus:outline-none focus:border-[#d91b5c]"
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={verifyingMobileOtp || mobileOtpCode.length < 4}
+                        onClick={handleVerifyAndUpdateMobile}
+                        className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-900/20 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {verifyingMobileOtp ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                        <span>Verify & Update Number</span>
+                      </button>
+
+                      <div className="text-center">
+                        <button
+                          type="button"
+                          disabled={sendingMobileOtp}
+                          onClick={handleSendMobileOtp}
+                          className="text-xs font-bold text-[#d91b5c] hover:underline cursor-pointer"
+                        >
+                          Didn't receive code? Resend OTP
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </motion.div>
             )}
 

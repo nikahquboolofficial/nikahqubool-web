@@ -217,6 +217,23 @@ export const verifyOtpApi = async (payload: any) => {
   }
 };
 
+// 📱 Authenticated: Change Mobile Number With Verified OTP
+export const changeMobileApi = async (newMobileNumber: string, otpCode: string, token: string | null) => {
+  try {
+    const res = await fetch(`${API_BASE_URL}/User/change-mobile`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { "Authorization": `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ newMobileNumber, otpCode }),
+    });
+    return await res.json();
+  } catch (e) {
+    return { success: 0, message: 'Connection error while updating mobile number.' };
+  }
+};
+
 // 🔍 Check Email Availability (Public or with UserId)
 export const checkEmailAvailabilityApi = async (email: string, userId?: number | null) => {
   if (!email || !email.trim()) return { success: false, available: false, message: "Please enter an email address." };
@@ -235,20 +252,6 @@ export const checkEmailAvailabilityApi = async (email: string, userId?: number |
     };
   } catch (e) {
     return { success: false, available: false, message: "Connection error verifying email." };
-  }
-};
-
-// 🌟 Fetch Dynamic Platform Settings (Free Launch Mode / Paid Mode)
-export const fetchPlatformSettingsApi = async () => {
-  try {
-    const res = await fetch(`${API_BASE_URL}/master/platform-settings`, {
-      headers: { "Cache-Control": "no-cache" }
-    });
-    if (!res.ok) return null;
-    const json = await res.json();
-    return json?.data ?? null;
-  } catch {
-    return null;
   }
 };
 
