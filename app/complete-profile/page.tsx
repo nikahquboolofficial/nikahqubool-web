@@ -10,6 +10,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import { fetchMasterDataApi, fetchCitiesApi, updateProfileApi, uploadGalleryPhotoApi, fetchProfileDetailsApi, checkEmailAvailabilityApi, MasterOption } from '@/lib/api';
+import { generateHeightLabels, MIN_MALE_AGE, MIN_FEMALE_AGE } from '@/lib/utils/ageHeightRules';
 import { getAuthToken, syncUserProfilePhoto } from '@/lib/auth';
 import {
   fileToDataUrl,
@@ -170,30 +171,24 @@ const FALLBACK_MASTERS: { [key: string]: MasterOption[] } = {
   ]
 };
 
-const HEIGHT_OPTIONS = [
-  "4'5\" (135 cm)", "4'6\" (137 cm)", "4'7\" (140 cm)", "4'8\" (142 cm)", "4'9\" (145 cm)",
-  "4'10\" (147 cm)", "4'11\" (150 cm)", "5'0\" (152 cm)", "5'1\" (155 cm)", "5'2\" (157 cm)",
-  "5'3\" (160 cm)", "5'4\" (163 cm)", "5'5\" (165 cm)", "5'6\" (168 cm)", "5'7\" (170 cm)",
-  "5'8\" (173 cm)", "5'9\" (175 cm)", "5'10\" (178 cm)", "5'11\" (180 cm)", "6'0\" (183 cm)",
-  "6'1\" (185 cm)", "6'2\" (188 cm)", "6'3\" (191 cm)", "6'4\" (193 cm)", "6'5\" (196 cm)"
-];
+const HEIGHT_OPTIONS = generateHeightLabels();
 
 const MONTHS = [
-  { id: '01', name: 'Jan' },
-  { id: '02', name: 'Feb' },
-  { id: '03', name: 'Mar' },
-  { id: '04', name: 'Apr' },
+  { id: '01', name: 'January' },
+  { id: '02', name: 'February' },
+  { id: '03', name: 'March' },
+  { id: '04', name: 'April' },
   { id: '05', name: 'May' },
-  { id: '06', name: 'Jun' },
-  { id: '07', name: 'Jul' },
-  { id: '08', name: 'Aug' },
-  { id: '09', name: 'Sep' },
-  { id: '10', name: 'Oct' },
-  { id: '11', name: 'Nov' },
-  { id: '12', name: 'Dec' },
+  { id: '06', name: 'June' },
+  { id: '07', name: 'July' },
+  { id: '08', name: 'August' },
+  { id: '09', name: 'September' },
+  { id: '10', name: 'October' },
+  { id: '11', name: 'November' },
+  { id: '12', name: 'December' },
 ];
 
-const YEARS = Array.from({ length: 45 }, (_, i) => String(2006 - i));
+// YEARS are computed dynamically in the component based on gender (see dobYears useMemo)
 
 // Client-side image compression supporting all image types safely
 const compressPhoto = async (file: File): Promise<File> => {
@@ -288,9 +283,9 @@ export default function CompleteProfilePage() {
     }
   }, [router]);
 
-  // Wizard state: 1 to 14 (1 field per slide!)
+  // Wizard state: 1 to 17 (1 field per slide!)
   const [step, setStep] = useState<number>(1);
-  const totalSteps = 14;
+  const totalSteps = 17;
   const [slideDirection, setSlideDirection] = useState<'forward' | 'backward'>('forward');
   const [loading, setLoading] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<string>('');
@@ -314,7 +309,7 @@ export default function CompleteProfilePage() {
     email: '',
     maritalStatusId: 0,
     maritalStatusText: '',
-    dob: '',
+    dob: '2000-01-01',
     height: "5'5\" (165 cm)",
     weight: '60 kg',
     complexionId: 0,
@@ -359,27 +354,63 @@ export default function CompleteProfilePage() {
   });
 
   // Modern DOB Picker Sub-states (Matching Mobile App UX)
-  const [dobDay, setDobDay] = useState<string>('15');
-  const [dobMonth, setDobMonth] = useState<string>('06');
-  const [dobYear, setDobYear] = useState<string>('1998');
+  const [dobSelected, setDobSelected] = useState<boolean>(false);
+  const [dobDay, setDobDay] = useState<string>('01');
+  const [dobMonth, setDobMonth] = useState<string>('01');
+  const [dobYear, setDobYear] = useState<string>('2000');
+  const [dobPickerOpen, setDobPickerOpen] = useState<boolean>(false);
+  const [tempDobDay, setTempDobDay] = useState<string>('01');
+  const [tempDobMonth, setTempDobMonth] = useState<string>('01');
+  const [tempDobYear, setTempDobYear] = useState<string>('2000');
+
+  // ============================================================
+  // Gender-based year list: Male -> max 21 yrs old, Female -> max 18 yrs old
+  // Only shows years the user is legally eligible to register
+  // ============================================================
+  const dobYears = React.useMemo(() => {
+    const today = new Date();
+    const minAge = formData.gender === 'male' ? MIN_MALE_AGE : MIN_FEMALE_AGE;
+    const maxYear = today.getFullYear() - minAge; // oldest allowed birth year for YOUNGEST eligible
+    // Show from maxYear (most recent eligible) down to 1950
+    return Array.from({ length: maxYear - 1950 + 1 }, (_, i) => String(maxYear - i));
+  }, [formData.gender]);
+
+  // When gender changes, check if currently selected year is now too young → reset DOB
+  useEffect(() => {
+    if (!dobSelected) return;
+    const minAge = formData.gender === 'male' ? MIN_MALE_AGE : MIN_FEMALE_AGE;
+    const today = new Date();
+    const maxYear = today.getFullYear() - minAge;
+    if (Number(dobYear) > maxYear) {
+      // The selected DOB makes person underage for the new gender → reset
+      const newYear = String(maxYear);
+      setDobYear(newYear);
+      setTempDobYear(newYear);
+      setFormData(prev => ({ ...prev, dob: `${newYear}-${dobMonth}-${dobDay}` }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.gender]);
 
   // Days count dynamically based on selected Month & Year
   const daysInMonth = React.useMemo(() => {
-    const yr = Number(dobYear) || 1998;
-    const mo = Number(dobMonth) || 6;
+    const yr = Number(tempDobYear) || Number(dobYear) || 2000;
+    const mo = Number(tempDobMonth) || Number(dobMonth) || 1;
     return new Date(yr, mo, 0).getDate();
-  }, [dobYear, dobMonth]);
+  }, [tempDobYear, tempDobMonth, dobYear, dobMonth]);
 
   // Adjust day if selected day exceeds month's total days
   useEffect(() => {
+    if (Number(tempDobDay) > daysInMonth) {
+      setTempDobDay(String(daysInMonth).padStart(2, '0'));
+    }
     if (Number(dobDay) > daysInMonth) {
       setDobDay(String(daysInMonth).padStart(2, '0'));
     }
-  }, [daysInMonth, dobDay]);
+  }, [daysInMonth, tempDobDay, dobDay]);
 
   // Compute live Age from selected DOB
   const calculatedAge = React.useMemo(() => {
-    if (!dobDay || !dobMonth || !dobYear) return null;
+    if (!dobSelected || !dobDay || !dobMonth || !dobYear) return null;
     const birthDate = new Date(Number(dobYear), Number(dobMonth) - 1, Number(dobDay));
     const today = new Date();
     let age = today.getFullYear() - birthDate.getFullYear();
@@ -387,8 +418,8 @@ export default function CompleteProfilePage() {
     if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
       age--;
     }
-    return age > 0 ? age : null;
-  }, [dobDay, dobMonth, dobYear]);
+    return age >= 0 ? age : null;
+  }, [dobSelected, dobDay, dobMonth, dobYear]);
 
   // Email check & validation state
   const [emailChecking, setEmailChecking] = useState(false);
@@ -430,96 +461,109 @@ export default function CompleteProfilePage() {
   const validateCurrentStep = (s: number): { valid: boolean; error?: string } => {
     switch (s) {
       case 1:
+        if (!formData.profileCreatedFor) {
+          return { valid: false, error: 'Please select who you are creating this profile for.' };
+        }
+        return { valid: true };
+
+      case 2:
+        if (!formData.gender) {
+          return { valid: false, error: 'Please select your Gender.' };
+        }
+        return { valid: true };
+
+      case 3:
         if (!formData.fullName.trim() || formData.fullName.trim().length < 2) {
           return { valid: false, error: 'Please enter your Full Name.' };
         }
+        return { valid: true };
+
+      case 4:
         if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
           return { valid: false, error: 'Please enter a valid Email address.' };
         }
         if (emailStatus.available === false) {
           return { valid: false, error: emailStatus.message || 'This email is already in use.' };
         }
-        if (!formData.gender) {
-          return { valid: false, error: 'Please select your Gender.' };
-        }
         return { valid: true };
 
-      case 2:
+      case 5:
         if (!formData.maritalStatusId) {
           return { valid: false, error: 'Please select your Marital Status.' };
         }
         return { valid: true };
 
-      case 3:
-        if (!dobYear || !dobMonth || !dobDay) {
+      case 6:
+        if (!dobSelected) {
           return { valid: false, error: 'Please select your Date of Birth.' };
         }
-        if (calculatedAge === null || calculatedAge < 18) {
-          return { valid: false, error: 'You must be at least 18 years old to create a profile.' };
+        const minAge = formData.gender === 'male' ? MIN_MALE_AGE : MIN_FEMALE_AGE;
+        if (calculatedAge === null || calculatedAge < minAge) {
+          return { valid: false, error: `You must be at least ${minAge} years old to register.` };
         }
         return { valid: true };
 
-      case 4:
+      case 7:
         if (!formData.height) {
           return { valid: false, error: 'Please select your Height.' };
         }
         return { valid: true };
 
-      case 5:
+      case 8:
         if (!formData.sectId) {
           return { valid: false, error: 'Please select your Sect.' };
         }
         return { valid: true };
 
-      case 6:
+      case 9:
         if (!formData.maslakId) {
           return { valid: false, error: 'Please select your Maslak.' };
         }
         return { valid: true };
 
-      case 7:
+      case 10:
         if (!formData.casteId) {
           return { valid: false, error: 'Please select your Caste / Biradari.' };
         }
         return { valid: true };
 
-      case 8:
+      case 11:
         if (!formData.stateId) {
           return { valid: false, error: 'Please select your State.' };
         }
         return { valid: true };
 
-      case 9:
+      case 12:
         if (!formData.cityId) {
           return { valid: false, error: 'Please select your City.' };
         }
         return { valid: true };
 
-      case 10:
+      case 13:
         if (!formData.educationId) {
           return { valid: false, error: 'Please select your Highest Qualification.' };
         }
         return { valid: true };
 
-      case 11:
+      case 14:
         if (!formData.employmentSectorId) {
           return { valid: false, error: 'Please select your Employment Sector.' };
         }
         return { valid: true };
 
-      case 12:
+      case 15:
         if (!formData.occupationId) {
           return { valid: false, error: 'Please select your Occupation.' };
         }
         return { valid: true };
 
-      case 13:
+      case 16:
         if (!formData.income) {
           return { valid: false, error: 'Please select your Annual Income.' };
         }
         return { valid: true };
 
-      case 14:
+      case 17:
         if (!photoSlots[0]) {
           return { valid: false, error: 'Please upload at least your Main profile photo.' };
         }
@@ -543,7 +587,13 @@ export default function CompleteProfilePage() {
 
     setSlideDirection('forward');
     setSearchQuery('');
-    setStep(prev => Math.min(totalSteps, prev + 1));
+    
+    // Auto-skip Gender (Step 2) if not Self or Friend / Relative
+    if (step === 1 && [2, 3, 4, 5].includes(formData.profileCreatedFor)) {
+      setStep(3);
+    } else {
+      setStep(prev => Math.min(totalSteps, prev + 1));
+    }
 
     setTimeout(() => {
       isAdvancingRef.current = false;
@@ -561,7 +611,13 @@ export default function CompleteProfilePage() {
 
     setSlideDirection('backward');
     setSearchQuery('');
-    setStep(prev => Math.max(1, prev - 1));
+    
+    // Auto-skip Gender when navigating back from Full Name if gender was auto-determined
+    if (step === 3 && [2, 3, 4, 5].includes(formData.profileCreatedFor)) {
+      setStep(1);
+    } else {
+      setStep(prev => Math.max(1, prev - 1));
+    }
 
     setTimeout(() => {
       isAdvancingRef.current = false;
@@ -717,7 +773,7 @@ export default function CompleteProfilePage() {
       const next = [...prev];
       next[slotIdx] = null;
       // Compact non-null photos so Slot 0 is always Main Photo
-      const compacted = next.filter((p) => p !== null);
+      const compacted: Array<{ file: File; previewUrl: string; dataUrl: string; descriptor?: number[] } | null> = next.filter((p) => p !== null);
       while (compacted.length < 4) compacted.push(null);
       const first = compacted[0];
       setFormData((f) => ({
@@ -788,7 +844,7 @@ export default function CompleteProfilePage() {
         const next = [...prev];
         next[slotIdx] = { file: compressed, previewUrl, dataUrl };
         // Ensure compact ordering so Slot 0 is always Main
-        const compacted = next.filter((p) => p !== null);
+        const compacted: Array<{ file: File; previewUrl: string; dataUrl: string; descriptor?: number[] } | null> = next.filter((p) => p !== null);
         while (compacted.length < 4) compacted.push(null);
         const first = compacted[0];
         setFormData((f) => ({
@@ -930,7 +986,7 @@ export default function CompleteProfilePage() {
 
         // Fetch fresh profile details from API to get the canonical URL
         try {
-          const freshProfile = await fetchProfileDetailsApi(token);
+          const freshProfile = await fetchProfileDetailsApi(Number(userData?.userId || 0), token);
           if (freshProfile?.data) {
             const freshPhoto = freshProfile.data.photoUrl || freshProfile.data.PhotoUrl;
             if (freshPhoto) {
@@ -1052,7 +1108,7 @@ export default function CompleteProfilePage() {
           >
 
             {/* =========================================================
-                SLIDE 1: BASIC IDENTITY (PROFILE FOR, NAME, EMAIL, GENDER)
+                SLIDE 1: PROFILE CREATED FOR ONLY
                 ========================================================= */}
             {step === 1 && (
               <div className="space-y-4">
@@ -1061,11 +1117,11 @@ export default function CompleteProfilePage() {
                   <h2 className="text-base sm:text-lg font-bold text-slate-800">
                     Who are you creating this profile for?
                   </h2>
-                  <p className="text-[11px] text-slate-500 font-normal">Select relationship and basic profile details</p>
+                  <p className="text-[11px] text-slate-500 font-normal">Select relationship to get started</p>
                 </div>
 
-                {/* 1. Profile Created For Pills */}
-                <div className="grid grid-cols-3 gap-2">
+                {/* Profile Created For Options */}
+                <div className="space-y-2 pt-1">
                   {PROFILE_CREATED_FOR_OPTIONS.map((opt) => {
                     const isSelected = formData.profileCreatedFor === opt.id;
                     return (
@@ -1073,116 +1129,190 @@ export default function CompleteProfilePage() {
                         key={opt.id}
                         type="button"
                         onClick={() => {
+                          const autoGender = opt.gender ? opt.gender : formData.gender;
                           setFormData(prev => ({
                             ...prev,
                             profileCreatedFor: opt.id,
                             profileCreatedForText: opt.value,
-                            gender: opt.gender ? opt.gender : prev.gender
+                            gender: autoGender,
                           }));
+                          if ([2, 3, 4, 5].includes(opt.id)) {
+                            setStep(3);
+                          } else {
+                            setStep(2);
+                          }
                         }}
-                        className={`py-2 px-1 rounded-xl text-xs font-bold transition-all border text-center cursor-pointer ${
-                          isSelected 
-                            ? 'border-[#e21e5b] bg-[#e21e5b] text-white shadow-2xs' 
-                            : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
-                        }`}
+                        className={`w-full p-3.5 rounded-2xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${isSelected ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'}`}
                       >
-                        {opt.value}
+                        <span className="text-xs uppercase tracking-wide">{opt.value}</span>
+                        {opt.gender && (
+                          <span className="text-[10px] ml-1.5 opacity-70">
+                            ({opt.gender === 'male' ? 'Groom' : 'Bride'})
+                          </span>
+                        )}
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${isSelected ? 'bg-[#e21e5b] text-white shadow-2xs' : 'border border-slate-300'}`}>
+                          {isSelected && <Check size={12} strokeWidth={3} />}
+                        </div>
                       </button>
                     );
                   })}
                 </div>
+              </div>
+            )}
 
-                {/* 2. Full Name Input */}
-                <div className="space-y-1">
+            {/* =========================================================
+                SLIDE 2: GENDER (ONLY FOR SELF / FRIEND)
+                ========================================================= */}
+            {step === 2 && (
+              <div className="space-y-4">
+                <div className="text-left space-y-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Gender</span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                    What is your Gender?
+                  </h2>
+                  <p className="text-[11px] text-slate-500 font-normal">Select gender to help find the right matches</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  {[
+                    { id: 'male', label: 'Male (Groom)', icon: '👨' },
+                    { id: 'female', label: 'Female (Bride)', icon: '👩' }
+                  ].map((g) => {
+                    const isSelected = formData.gender === g.id;
+                    return (
+                      <button
+                        key={g.id}
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, gender: g.id }));
+                          // Auto advance to Full Name (Step 3)
+                          setTimeout(() => setStep(3), 150);
+                        }}
+                        className={`p-5 rounded-3xl text-xs font-bold transition-all border cursor-pointer flex flex-col items-center justify-center gap-2 active:scale-95 ${
+                          isSelected
+                            ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-md shadow-rose-500/10'
+                            : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        <span className="text-3xl">{g.icon}</span>
+                        <span className="text-sm font-bold">{g.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* =========================================================
+                SLIDE 3: FULL NAME
+                ========================================================= */}
+            {step === 3 && (
+              <div className="space-y-4">
+                <div className="text-left space-y-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Full Name</span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                    What is your Full Name?
+                  </h2>
+                  <p className="text-[11px] text-slate-500 font-normal">Enter the name as it appears on official records</p>
+                </div>
+
+                <div className="space-y-1 pt-1">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
                     Full Name *
                   </label>
                   <div className="relative">
-                    <User size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <User size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                       type="text"
                       placeholder="e.g. Mohammad Tariq"
                       value={formData.fullName}
+                      autoFocus
                       onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
-                      className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#e21e5b]"
-                    />
-                  </div>
-                </div>
-
-                {/* 3. Email Input */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                    Email Address *
-                  </label>
-                  <div className="relative">
-                    <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="email"
-                      placeholder="e.g. tariq@gmail.com"
-                      value={formData.email}
-                      onChange={(e) => {
-                        setFormData(prev => ({ ...prev, email: e.target.value }));
-                        setEmailStatus({ available: null, message: '' });
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          nextStep();
+                        }
                       }}
-                      onBlur={handleEmailBlur}
-                      className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#e21e5b]"
+                      className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 outline-none focus:border-[#e21e5b] shadow-2xs"
                     />
-                    {emailChecking && (
-                      <Loader2 size={13} className="animate-spin text-[#e21e5b] absolute right-3 top-1/2 -translate-y-1/2" />
-                    )}
-                  </div>
-                  {emailStatus.message && (
-                    <p className={`text-[10px] font-bold ${emailStatus.available ? 'text-emerald-600' : 'text-rose-600'}`}>
-                      {emailStatus.message}
-                    </p>
-                  )}
-                </div>
-
-                {/* 4. Gender Pills */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                    Gender *
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { id: 'male', label: 'Male (Groom)' },
-                      { id: 'female', label: 'Female (Bride)' }
-                    ].map((g) => {
-                      const isSelected = formData.gender === g.id;
-                      return (
-                        <button
-                          key={g.id}
-                          type="button"
-                          onClick={() => setFormData(prev => ({ ...prev, gender: g.id }))}
-                          className={`py-2.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
-                            isSelected
-                              ? 'border-[#e21e5b] bg-[#e21e5b] text-white shadow-2xs'
-                              : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
-                          }`}
-                        >
-                          {g.label}
-                        </button>
-                      );
-                    })}
                   </div>
                 </div>
 
-                {/* Continue Button */}
                 <button
                   type="button"
                   onClick={nextStep}
-                  className="w-full py-3 bg-[#e21e5b] hover:bg-[#ce1b53] text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all active:scale-[0.99] cursor-pointer flex items-center justify-center gap-1.5"
+                  className="w-full py-3.5 bg-[#e21e5b] hover:bg-[#ce1b53] text-white font-bold text-xs uppercase tracking-wider rounded-2xl shadow-md shadow-rose-500/20 transition-all active:scale-[0.99] cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   <span>Continue</span>
-                  <ChevronRight size={15} />
+                  <ChevronRight size={16} />
                 </button>
               </div>
             )}
 
             {/* =========================================================
-                SLIDE 2: MARITAL STATUS (AUTO-ADVANCE)
+                SLIDE 4: EMAIL ADDRESS
                 ========================================================= */}
-            {step === 2 && (
+            {step === 4 && (
+              <div className="space-y-4">
+                <div className="text-left space-y-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Contact</span>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
+                    What is your Email Address?
+                  </h2>
+                  <p className="text-[11px] text-slate-500 font-normal">Used for match proposals and security alerts</p>
+                </div>
+
+                <div className="space-y-1.5 pt-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                    Email Address *
+                  </label>
+                  <div className="relative">
+                    <Mail size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="email"
+                      placeholder="e.g. tariq@gmail.com"
+                      value={formData.email}
+                      autoFocus
+                      onChange={(e) => {
+                        setFormData(prev => ({ ...prev, email: e.target.value }));
+                        setEmailStatus({ available: null, message: '' });
+                      }}
+                      onBlur={handleEmailBlur}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          nextStep();
+                        }
+                      }}
+                      className="w-full pl-11 pr-10 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 outline-none focus:border-[#e21e5b] shadow-2xs"
+                    />
+                    {emailChecking && (
+                      <Loader2 size={16} className="animate-spin text-[#e21e5b] absolute right-3.5 top-1/2 -translate-y-1/2" />
+                    )}
+                  </div>
+                  {emailStatus.message && (
+                    <p className={`text-[11px] font-bold ${emailStatus.available ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {emailStatus.message}
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={nextStep}
+                  className="w-full py-3.5 bg-[#e21e5b] hover:bg-[#ce1b53] text-white font-bold text-xs uppercase tracking-wider rounded-2xl shadow-md shadow-rose-500/20 transition-all active:scale-[0.99] cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <span>Continue</span>
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
+
+            {/* =========================================================
+                SLIDE 5: MARITAL STATUS (AUTO-ADVANCE)
+                ========================================================= */}
+            {step === 5 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Personal Background</span>
@@ -1200,7 +1330,7 @@ export default function CompleteProfilePage() {
                         key={opt.id}
                         type="button"
                         onClick={() => handleAutoAdvance('maritalStatusId', opt.id, 'maritalStatusText', opt.value)}
-                        className={`w-full p-3 rounded-xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
+                        className={`w-full p-3.5 rounded-2xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${
                           isSelected 
                             ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' 
                             : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'
@@ -1220,153 +1350,221 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 3: DATE OF BIRTH (APP-STYLE ELEGANT DESIGN)
+                SLIDE 6: DATE OF BIRTH (EXACT APP & SCREENSHOT DESIGN)
                 ========================================================= */}
-            {step === 3 && (
-              <div className="space-y-3.5">
-                <div className="text-left space-y-0.5">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Age Verification</span>
-                  <h2 className="text-base sm:text-lg font-bold text-slate-800">
-                    What is your date of birth?
+            {step === 6 && (
+              <div className="space-y-5">
+                <div className="text-left space-y-1">
+                  <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                    When is your birthday?
                   </h2>
-                  <p className="text-[11px] text-slate-500 font-normal">Choose your birth year, month & day</p>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Your age helps us find the right matches
+                  </p>
                 </div>
 
-                {/* App-Style Modern DOB Card */}
-                <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/90 shadow-sm space-y-4">
-                  
-                  {/* Live Age & Birthday Banner */}
-                  {calculatedAge !== null && (
-                    <div className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-rose-50 via-pink-50 to-rose-50 border border-rose-200/80">
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-lg">🎉</span>
-                        <div>
-                          <span className="text-xs font-black text-[#e21e5b] block">
-                            {calculatedAge} Years Old
-                          </span>
-                          <span className="text-[11px] text-slate-600 font-semibold">
-                            Born {dobDay} {MONTHS.find(m => m.id === dobMonth)?.name} {dobYear}
-                          </span>
+                {/* 1. Tap to select birthday Card */}
+                <div
+                  onClick={() => {
+                    setTempDobDay(dobDay || '01');
+                    setTempDobMonth(dobMonth || '01');
+                    setTempDobYear(dobYear || '2000');
+                    setDobPickerOpen(true);
+                  }}
+                  className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/90 shadow-sm flex items-center justify-between cursor-pointer hover:border-[#ff3366]/40 transition-all active:scale-[0.99]"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center text-[#ff3366] shrink-0">
+                      <Calendar size={22} className="stroke-[2.2]" />
+                    </div>
+                    <div>
+                      {dobDay && dobMonth && dobYear ? (
+                        <>
+                          <h4 className="text-sm sm:text-base font-bold text-slate-900">
+                            {Number(dobDay)} {MONTHS.find(m => m.id === dobMonth)?.name} {dobYear}
+                          </h4>
+                          {calculatedAge !== null && (
+                            <p className="text-xs text-slate-500 font-medium">Age: {calculatedAge} years</p>
+                          )}
+                        </>
+                      ) : (
+                        <h4 className="text-sm font-semibold text-slate-400">
+                          Tap to select your birthday
+                        </h4>
+                      )}
+                    </div>
+                  </div>
+                  <ChevronRight size={20} className="text-slate-400" />
+                </div>
+
+                {/* 2. Minimum Age Info Box */}
+                <div className="bg-rose-50/70 border border-rose-100 rounded-2xl p-3.5 flex items-center gap-2.5">
+                  <div className="w-5 h-5 rounded-full bg-[#ff3366] text-white flex items-center justify-center shrink-0">
+                    <span className="text-xs font-black">!</span>
+                  </div>
+                  <span className="text-xs font-semibold text-slate-700">
+                    You must be at least {formData.gender === 'male' ? MIN_MALE_AGE : MIN_FEMALE_AGE} years old to register
+                  </span>
+                </div>
+
+                {/* 3. Continue Button */}
+                <div className="pt-8">
+                  <button
+                    type="button"
+                    onClick={nextStep}
+                    className="w-full py-4 bg-gradient-to-r from-[#ff3366] to-[#e21e5b] text-white font-bold text-sm tracking-wide rounded-full shadow-lg shadow-rose-500/25 transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <span>Continue</span>
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
+
+                {/* 🌟 DATE PICKER BOTTOM SHEET MODAL (MATCHING SCREENSHOT 2) */}
+                <AnimatePresence>
+                  {dobPickerOpen && (
+                    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+                      {/* Backdrop */}
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setDobPickerOpen(false)}
+                        className="fixed inset-0 bg-black/50 backdrop-blur-xs"
+                      />
+
+                      {/* Sheet Content */}
+                      <motion.div
+                        initial={{ y: '100%' }}
+                        animate={{ y: 0 }}
+                        exit={{ y: '100%' }}
+                        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                        className="relative z-10 w-full max-w-md bg-white rounded-t-[32px] sm:rounded-3xl p-5 shadow-2xl space-y-4"
+                      >
+                        {/* Header */}
+                        <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                          <h3 className="text-base font-black text-slate-900">
+                            Select Date of Birth
+                          </h3>
+                          <button
+                            type="button"
+                            onClick={() => setDobPickerOpen(false)}
+                            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-all cursor-pointer"
+                          >
+                            <X size={16} />
+                          </button>
                         </div>
-                      </div>
-                      <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full border shadow-2xs ${
-                        calculatedAge >= 18 
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                          : 'bg-rose-100 text-[#e21e5b] border-rose-300'
-                      }`}>
-                        {calculatedAge >= 18 ? 'Eligible' : 'Must be 18+'}
-                      </span>
+
+                        {/* Three Picker Columns (Day, Month, Year) */}
+                        <div className="grid grid-cols-3 gap-2 text-center py-2">
+                          {/* Day Column */}
+                          <div className="space-y-1">
+                            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                              Day
+                            </span>
+                            <div className="h-52 overflow-y-auto no-scrollbar space-y-1 py-1">
+                              {Array.from({ length: daysInMonth }, (_, i) => {
+                                const valStr = String(i + 1).padStart(2, '0');
+                                const isCurrent = tempDobDay === valStr;
+                                return (
+                                  <button
+                                    key={valStr}
+                                    type="button"
+                                    onClick={() => setTempDobDay(valStr)}
+                                    className={`w-full py-2 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+                                      isCurrent
+                                        ? 'bg-[#ff3366] text-white shadow-md shadow-rose-500/25'
+                                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    {i + 1}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Month Column */}
+                          <div className="space-y-1">
+                            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                              Month
+                            </span>
+                            <div className="h-52 overflow-y-auto no-scrollbar space-y-1 py-1">
+                              {MONTHS.map((m) => {
+                                const isCurrent = tempDobMonth === m.id;
+                                return (
+                                  <button
+                                    key={m.id}
+                                    type="button"
+                                    onClick={() => setTempDobMonth(m.id)}
+                                    className={`w-full py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer truncate ${
+                                      isCurrent
+                                        ? 'bg-[#ff3366] text-white shadow-md shadow-rose-500/25'
+                                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    {m.name}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Year Column */}
+                          <div className="space-y-1">
+                            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                              Year
+                            </span>
+                            <div className="h-52 overflow-y-auto no-scrollbar space-y-1 py-1">
+                              {dobYears.map((yr) => {
+                                const isCurrent = tempDobYear === yr;
+                                return (
+                                  <button
+                                    key={yr}
+                                    type="button"
+                                    onClick={() => setTempDobYear(yr)}
+                                    className={`w-full py-2 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+                                      isCurrent
+                                        ? 'bg-[#ff3366] text-white shadow-md shadow-rose-500/25'
+                                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    {yr}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Confirm Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDobDay(tempDobDay);
+                            setDobMonth(tempDobMonth);
+                            setDobYear(tempDobYear);
+                            setDobSelected(true);
+                              setFormData(prev => ({
+                                ...prev,
+                                dob: `${tempDobYear}-${tempDobMonth}-${tempDobDay}`
+                              }));
+                            setDobPickerOpen(false);
+                          }}
+                          className="w-full py-3.5 bg-gradient-to-r from-[#ff3366] to-[#e21e5b] text-white font-bold text-sm uppercase tracking-wider rounded-full shadow-lg shadow-rose-500/25 active:scale-[0.98] transition-all cursor-pointer"
+                        >
+                          CONFIRM
+                        </button>
+                      </motion.div>
                     </div>
                   )}
-
-                  {/* 1. Birth Year (Horizontal Scrollable Pills) */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[10.5px] font-black uppercase tracking-wider text-slate-500">
-                        Birth Year
-                      </label>
-                      <span className="text-xs font-black text-[#e21e5b]">{dobYear}</span>
-                    </div>
-                    <div className="flex gap-2 overflow-x-auto pb-1.5 no-scrollbar scroll-smooth">
-                      {YEARS.map(yr => {
-                        const isYearActive = dobYear === yr;
-                        return (
-                          <button
-                            key={yr}
-                            type="button"
-                            onClick={() => setDobYear(yr)}
-                            className={`px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
-                              isYearActive 
-                                ? 'bg-[#e21e5b] text-white shadow-sm shadow-rose-500/25 scale-105' 
-                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                            }`}
-                          >
-                            {yr}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* 2. Birth Month (4x3 Grid) */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[10.5px] font-black uppercase tracking-wider text-slate-500">
-                        Birth Month
-                      </label>
-                      <span className="text-xs font-black text-[#e21e5b]">
-                        {MONTHS.find(m => m.id === dobMonth)?.name}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {MONTHS.map(m => {
-                        const isMonthActive = dobMonth === m.id;
-                        return (
-                          <button
-                            key={m.id}
-                            type="button"
-                            onClick={() => setDobMonth(m.id)}
-                            className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer text-center ${
-                              isMonthActive 
-                                ? 'bg-[#e21e5b] text-white shadow-sm shadow-rose-500/20' 
-                                : 'bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100'
-                            }`}
-                          >
-                            {m.name}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* 3. Birth Day (7-Column Grid, dynamic days in month) */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[10.5px] font-black uppercase tracking-wider text-slate-500">
-                        Birth Day ({dobDay})
-                      </label>
-                      <span className="text-xs font-black text-[#e21e5b]">Day {Number(dobDay)}</span>
-                    </div>
-                    <div className="grid grid-cols-7 gap-1">
-                      {Array.from({ length: daysInMonth }, (_, i) => {
-                        const dStr = String(i + 1).padStart(2, '0');
-                        const isDayActive = dobDay === dStr;
-                        return (
-                          <button
-                            key={dStr}
-                            type="button"
-                            onClick={() => setDobDay(dStr)}
-                            className={`h-9 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center ${
-                              isDayActive 
-                                ? 'bg-[#e21e5b] text-white shadow-sm shadow-rose-500/25 scale-105' 
-                                : 'bg-slate-50 border border-slate-200/70 text-slate-700 hover:bg-slate-100'
-                            }`}
-                          >
-                            {i + 1}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                </div>
-
-                <button
-                  type="button"
-                  onClick={nextStep}
-                  disabled={calculatedAge === null || calculatedAge < 18}
-                  className="w-full py-3.5 bg-[#e21e5b] hover:bg-[#ce1b53] disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-md transition-all active:scale-[0.99] cursor-pointer flex items-center justify-center gap-1.5"
-                >
-                  <span>Continue</span>
-                  <ChevronRight size={15} />
-                </button>
+                </AnimatePresence>
               </div>
             )}
 
             {/* =========================================================
-                SLIDE 4: HEIGHT (AUTO-ADVANCE)
+                SLIDE 7: HEIGHT (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 4 && (
+            {step === 7 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Physical Attributes</span>
@@ -1404,9 +1602,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 5: SECT (AUTO-ADVANCE)
+                SLIDE 8: SECT (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 5 && (
+            {step === 8 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Community</span>
@@ -1444,9 +1642,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 6: MASLAK (AUTO-ADVANCE)
+                SLIDE 9: MASLAK (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 6 && (
+            {step === 9 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Community</span>
@@ -1484,9 +1682,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 7: CASTE / BIRADARI (AUTO-ADVANCE WITH SEARCH)
+                SLIDE 10: CASTE / BIRADARI (AUTO-ADVANCE WITH SEARCH)
                 ========================================================= */}
-            {step === 7 && (
+            {step === 10 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Roots & Heritage</span>
@@ -1545,9 +1743,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 8: STATE (SEPARATE PAGE WITH SEARCH & AUTO-ADVANCE)
+                SLIDE 11: STATE (SEPARATE PAGE WITH SEARCH & AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 8 && (
+            {step === 11 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Location Details</span>
@@ -1612,9 +1810,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 9: CITY (SEPARATE PAGE WITH SEARCH & AUTO-ADVANCE)
+                SLIDE 12: CITY (SEPARATE PAGE WITH SEARCH & AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 9 && (
+            {step === 12 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Location Details</span>
@@ -1688,9 +1886,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 10: EDUCATION LEVEL (AUTO-ADVANCE)
+                SLIDE 13: EDUCATION LEVEL (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 10 && (
+            {step === 13 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Education</span>
@@ -1728,9 +1926,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 11: EMPLOYMENT SECTOR (AUTO-ADVANCE)
+                SLIDE 14: EMPLOYMENT SECTOR (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 11 && (
+            {step === 14 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Career</span>
@@ -1768,9 +1966,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 12: PROFESSION / OCCUPATION (AUTO-ADVANCE)
+                SLIDE 15: PROFESSION / OCCUPATION (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 12 && (
+            {step === 15 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Career</span>
@@ -1808,9 +2006,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 13: ANNUAL INCOME (AUTO-ADVANCE)
+                SLIDE 16: ANNUAL INCOME (AUTO-ADVANCE)
                 ========================================================= */}
-            {step === 13 && (
+            {step === 16 && (
               <div className="space-y-3">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Financials</span>
@@ -1848,9 +2046,9 @@ export default function CompleteProfilePage() {
             )}
 
             {/* =========================================================
-                SLIDE 14: 4-SLOT PHOTO GRID, GUIDELINES, PRIVACY & SUBMIT
+                SLIDE 17: 4-SLOT PHOTO GRID, GUIDELINES, PRIVACY & SUBMIT
                 ========================================================= */}
-            {step === 14 && (
+            {step === 17 && (
               <div className="space-y-4">
                 <div className="text-left space-y-0.5">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Final Step • Profile Photos</span>

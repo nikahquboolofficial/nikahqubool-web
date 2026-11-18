@@ -12,6 +12,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { toast, Toaster } from 'sonner';
+import { filterMinAge, filterMaxAge, MIN_HEIGHT_FT, MAX_HEIGHT_FT } from '@/lib/utils/ageHeightRules';
 import { searchMatchesApi, handleInteractionApiCall, fetchMasterDataApi, fetchDashboardApi } from '@/lib/api';
 import { checkDailyViewLimit, formatTimeRemaining } from '@/lib/limitUtils';
 import ProfileCard from '@/components/dashboard/ProfileCard';
@@ -171,8 +172,10 @@ function matchesShaadiFilter(p: any, f: typeof DEFAULT_FILTERS): boolean {
 }
 
 const DEFAULT_FILTERS = {
-  ageMin: 18, ageMax: 50,
-  heightMin: 4.5, heightMax: 6.8,
+  ageMin: 18,
+  ageMax: 70,
+  heightMin: MIN_HEIGHT_FT,
+  heightMax: MAX_HEIGHT_FT,
   maritalStatus: [] as string[],
   sect: [] as string[],
   caste: [] as string[],
