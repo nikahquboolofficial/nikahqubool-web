@@ -1145,11 +1145,7 @@ export default function CompleteProfilePage() {
                         className={`w-full p-3.5 rounded-2xl border flex items-center justify-between text-left transition-all active:scale-[0.99] cursor-pointer ${isSelected ? 'border-[#e21e5b] bg-rose-50/70 text-[#e21e5b] font-bold shadow-2xs' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-medium'}`}
                       >
                         <span className="text-xs uppercase tracking-wide">{opt.value}</span>
-                        {opt.gender && (
-                          <span className="text-[10px] ml-1.5 opacity-70">
-                            ({opt.gender === 'male' ? 'Groom' : 'Bride'})
-                          </span>
-                        )}
+                        
                         <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${isSelected ? 'bg-[#e21e5b] text-white shadow-2xs' : 'border border-slate-300'}`}>
                           {isSelected && <Check size={12} strokeWidth={3} />}
                         </div>
