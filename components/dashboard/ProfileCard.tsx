@@ -184,7 +184,7 @@ export default function ProfileCard({
             isImgLoaded ? 'opacity-100' : 'opacity-0'
           } ${isPhotoHidden ? 'blur-2xl scale-110 opacity-75' : ''}`}
           onError={(e) => { 
-            const fallback = DEFAULT_MALE_AVATAR;
+            const fallback = getFallbackPhoto(profile?.gender, profile?.userId || 1);
             if ((e.target as HTMLImageElement).src !== fallback) {
               (e.target as HTMLImageElement).src = fallback;
             }

@@ -17,210 +17,9 @@ import {
 } from '@/lib/api';
 import { syncSubscriptionToStorage } from '@/lib/subscriptionUtils';
 
-// Verified Fallback Plans aligned with screenshot pricing structure
-const DURATION_PLANS_CONFIG = {
-  "3 Months": [
-    {
-      id: "basic_3m",
-      backendPlanId: 1,
-      name: "Basic",
-      badge: null,
-      monthlyRate: 633,
-      originalPrice: 2600,
-      discountPrice: 1900,
-      summary: "0 Contact Numbers",
-      contacts: 0,
-      features: [
-        "Send Unlimited Messages",
-        "0 Contact Numbers (Chat Messaging Only)",
-        "Premium badge on your profile",
-        "Unlimited Photo Requests",
-        "Standard search placement"
-      ]
-    },
-    {
-      id: "silver_3m",
-      backendPlanId: 2,
-      name: "Silver",
-      badge: null,
-      monthlyRate: 867,
-      originalPrice: 3500,
-      discountPrice: 2600,
-      summary: "View 30 Contact Numbers",
-      contacts: 30,
-      features: [
-        "Send Unlimited Messages",
-        "View 30 Contact Numbers",
-        "Standout with bold listing and higher search rankings",
-        "Unlimited Photo Requests",
-        "Premium badge on your profile"
-      ]
-    },
-    {
-      id: "gold_3m",
-      backendPlanId: 3,
-      name: "Gold",
-      badge: "Best Seller",
-      badgeColor: "bg-[#E21E5B] text-white",
-      monthlyRate: 1367,
-      originalPrice: 4800,
-      discountPrice: 4100,
-      summary: "View 50 Contact Numbers",
-      contacts: 50,
-      features: [
-        "Send Unlimited Messages",
-        "View 50 Contact Numbers",
-        "Standout with bold listing and higher search rankings",
-        "Unlimited Photo Requests",
-        "Priority WhatsApp assistance",
-        "VIP Crown badge on your profile"
-      ]
-    },
-    {
-      id: "assisted_3m",
-      backendPlanId: 4,
-      name: "Assisted",
-      badge: "Premium",
-      badgeColor: "bg-[#8D5B10] text-white",
-      monthlyRate: 4633,
-      originalPrice: 16400,
-      discountPrice: 13900,
-      summary: "Personal Relationship Manager assigned to you",
-      contacts: 100,
-      features: [
-        "Send Unlimited Messages",
-        "View 100 Contact Numbers",
-        "Personal Relationship Manager assigned to you",
-        "Handpicked verified profile shortlisting",
-        "Introduction calls arranged directly with families",
-        "Top #1 priority boost in search rankings"
-      ]
-    }
-  ],
-  "6 Months": [
-    {
-      id: "basic_6m",
-      backendPlanId: 1,
-      name: "Basic",
-      badge: null,
-      monthlyRate: 483,
-      originalPrice: 3900,
-      discountPrice: 2900,
-      summary: "0 Contact Numbers",
-      contacts: 0,
-      features: [
-        "Send Unlimited Messages",
-        "0 Contact Numbers (Chat Messaging Only)",
-        "Premium badge on your profile",
-        "Unlimited Photo Requests",
-        "Standard search placement"
-      ]
-    },
-    {
-      id: "silver_6m",
-      backendPlanId: 2,
-      name: "Silver",
-      badge: null,
-      monthlyRate: 650,
-      originalPrice: 5200,
-      discountPrice: 3900,
-      summary: "View 60 Contact Numbers",
-      contacts: 60,
-      features: [
-        "Send Unlimited Messages",
-        "View 60 Contact Numbers",
-        "Standout with bold listing and higher search rankings",
-        "Unlimited Photo Requests",
-        "Premium badge on your profile"
-      ]
-    },
-    {
-      id: "gold_6m",
-      backendPlanId: 3,
-      name: "Gold",
-      badge: "Best Seller",
-      badgeColor: "bg-[#E21E5B] text-white",
-      monthlyRate: 983,
-      originalPrice: 7200,
-      discountPrice: 5900,
-      summary: "View 100 Contact Numbers",
-      contacts: 100,
-      features: [
-        "Send Unlimited Messages",
-        "View 100 Contact Numbers",
-        "Standout with bold listing and higher search rankings",
-        "Unlimited Photo Requests",
-        "Priority WhatsApp assistance",
-        "VIP Crown badge on your profile"
-      ]
-    },
-    {
-      id: "assisted_6m",
-      backendPlanId: 4,
-      name: "Assisted",
-      badge: "Premium",
-      badgeColor: "bg-[#8D5B10] text-white",
-      monthlyRate: 3650,
-      originalPrice: 26000,
-      discountPrice: 21900,
-      summary: "Personal Relationship Manager assigned to you",
-      contacts: 180,
-      features: [
-        "Send Unlimited Messages",
-        "View 180 Contact Numbers",
-        "Personal Relationship Manager assigned to you",
-        "Handpicked verified profile shortlisting",
-        "Introduction calls arranged directly with families",
-        "Top #1 priority boost in search rankings"
-      ]
-    }
-  ],
-  "Unlimited": [
-    {
-      id: "gold_unlimited",
-      backendPlanId: 3,
-      name: "Gold Unlimited",
-      badge: "Best Seller",
-      badgeColor: "bg-[#E21E5B] text-white",
-      monthlyRate: 833,
-      originalPrice: 14999,
-      discountPrice: 9999,
-      summary: "View 250 Contact Numbers Till Marriage",
-      contacts: 250,
-      features: [
-        "Send Unlimited Messages",
-        "View 250 Contact Numbers",
-        "Valid until marriage (No expiry)",
-        "Unlimited Photo Requests",
-        "Priority WhatsApp assistance",
-        "VIP Crown badge on your profile"
-      ]
-    },
-    {
-      id: "assisted_unlimited",
-      backendPlanId: 4,
-      name: "Assisted Unlimited",
-      badge: "Premium",
-      badgeColor: "bg-[#8D5B10] text-white",
-      monthlyRate: 2916,
-      originalPrice: 49999,
-      discountPrice: 34999,
-      summary: "Dedicated Personal Relationship Manager Till Nikah",
-      contacts: 500,
-      features: [
-        "Send Unlimited Messages",
-        "View 500 Contact Numbers",
-        "Valid until marriage (No expiry)",
-        "Senior Personal Relationship Manager assigned",
-        "Handpicked verified matches shortlisted weekly",
-        "Direct family introduction meetings and coordination",
-        "Top #1 guaranteed visibility on Nikah Qubool"
-      ]
-    }
-  ]
-};
+type DurationKey = string;
 
-type DurationKey = keyof typeof DURATION_PLANS_CONFIG;
+
 
 export default function MembershipPage() {
   const router = useRouter();
@@ -229,7 +28,20 @@ export default function MembershipPage() {
   const [expandedPlanIds, setExpandedPlanIds] = useState<Record<string, boolean>>({ "gold_3m": false });
 
   // 🌟 DYNAMIC DATABASE PLANS STATE
-  const [dynamicPlansConfig, setDynamicPlansConfig] = useState<Record<string, any[]>>(DURATION_PLANS_CONFIG);
+  const [dynamicPlansConfig, setDynamicPlansConfig] = useState<Record<string, any[]>>(() => {
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("cached_subscription_plans");
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+            return parsed;
+          }
+        } catch (e) {}
+      }
+    }
+    return {};
+  });
   const [availableDurations, setAvailableDurations] = useState<string[]>(["3 Months", "6 Months", "Unlimited"]);
 
   const [activeSub, setActiveSub] = useState<any>(null);
@@ -332,6 +144,9 @@ export default function MembershipPage() {
 
           const durKeys = Object.keys(grouped);
           if (durKeys.length > 0) {
+            if (typeof window !== "undefined") {
+              try { localStorage.setItem("cached_subscription_plans", JSON.stringify(grouped)); } catch (e) {}
+            }
             setDynamicPlansConfig(grouped);
             setAvailableDurations(durKeys);
             
@@ -669,7 +484,7 @@ export default function MembershipPage() {
                       className="overflow-hidden bg-[#FAF9F7] border-t border-slate-100"
                     >
                       <div className="p-4 sm:p-5 space-y-2.5">
-                        {plan.features.map((feat, idx) => (
+                        {plan.features.map((feat: string, idx: number) => (
                           <div key={idx} className="flex items-start gap-2.5 text-xs text-slate-800 font-medium">
                             <Check size={15} className="text-[#E21E5B] stroke-[3] shrink-0 mt-0.5" />
                             <span className="leading-relaxed">{feat}</span>

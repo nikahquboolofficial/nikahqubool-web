@@ -62,6 +62,8 @@ export default function GalleryManagementPage() {
     errorCode: '',
     message: '',
   });
+  const [verifiedSelfieUrl, setVerifiedSelfieUrl] = useState<string>('');
+  const [pendingUpload, setPendingUpload] = useState<any>(null);
 
   // ⚡ 0ms INSTANT HYDRATION FROM LOCAL CACHE
   useEffect(() => {
@@ -377,7 +379,7 @@ export default function GalleryManagementPage() {
 
       const res = await deleteGalleryPhotoApi(photoId, token);
 
-      if (res.success || res.Success === 1) {
+      if (res.success || (res as any).Success === 1) {
         toast.success("Photo deleted successfully.");
       } else if (remaining.length === 0) {
         // Was the only photo and backend SP blocked it

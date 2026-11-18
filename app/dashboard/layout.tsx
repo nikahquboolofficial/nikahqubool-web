@@ -347,7 +347,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const unreadTotal = Math.max(0, rawTotal - readNotificationIds.length);
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] flex flex-col font-sans text-slate-900 selection:bg-[#d91b5c] selection:text-white">
+    <div className="min-h-screen bg-white flex flex-col font-sans text-slate-900 selection:bg-[#d91b5c] selection:text-white">
       
       {/* 🟢 WEBSITE-WIDE REALTIME ONLINE PRESENCE */}
       <GlobalPresence />

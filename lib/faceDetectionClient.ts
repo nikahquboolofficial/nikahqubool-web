@@ -208,3 +208,44 @@ export function compareFaceDescriptors(
 
   return { isMatch, distance, similarity };
 }
+
+export async function detectFaceAndBlinkInVideo(video: HTMLVideoElement): Promise<{ hasFace: boolean; isBlinking: boolean }> {
+  try {
+    const loaded = await loadFaceApiModels();
+    if (!loaded) return { hasFace: true, isBlinking: false };
+
+    const win = window as any;
+    const faceapi = win.faceapi;
+    if (!faceapi) return { hasFace: true, isBlinking: false };
+
+    const detection = await faceapi
+      .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.45 }))
+      .withFaceLandmarks();
+
+    if (!detection) {
+      return { hasFace: false, isBlinking: false };
+    }
+
+    const landmarks = detection.landmarks;
+    const leftEye = landmarks.getLeftEye();
+    const rightEye = landmarks.getRightEye();
+
+    if (!leftEye || !rightEye || leftEye.length < 6 || rightEye.length < 6) {
+      return { hasFace: true, isBlinking: false };
+    }
+
+    const ear = (eye: any[]) => {
+      const d1 = Math.hypot(eye[1].x - eye[5].x, eye[1].y - eye[5].y);
+      const d2 = Math.hypot(eye[2].x - eye[4].x, eye[2].y - eye[4].y);
+      const dH = Math.hypot(eye[0].x - eye[3].x, eye[0].y - eye[3].y);
+      return dH > 0 ? (d1 + d2) / (2.0 * dH) : 0.3;
+    };
+
+    const avgEar = (ear(leftEye) + ear(rightEye)) / 2.0;
+    const isBlinking = avgEar < 0.22;
+
+    return { hasFace: true, isBlinking };
+  } catch {
+    return { hasFace: true, isBlinking: false };
+  }
+}

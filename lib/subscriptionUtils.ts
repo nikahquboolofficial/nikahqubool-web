@@ -40,20 +40,14 @@ export const syncSubscriptionToStorage = (rawActive: any) => {
       active.name || active.Plan || ''
     ).trim();
 
-    const isPaidFlag = Boolean(active.isPaid ?? active.IsPaid ?? active.isCurrentUserPaid ?? active.IsCurrentUserPaid);
-    const hasPaidPlanName = rawName.length > 0 && 
-      !rawName.toLowerCase().includes('free') && 
-      (
-        rawName.toLowerCase().includes('gold') || 
-        rawName.toLowerCase().includes('silver') || 
-        rawName.toLowerCase().includes('diamond') || 
-        rawName.toLowerCase().includes('vip') || 
-        rawName.toLowerCase().includes('premium') ||
-        rawName.toLowerCase().includes('membership')
-      );
-
-    const isCurrentlyPaid = !isExpired && (hasPaidPlanName || (isPaidFlag && rawName.length > 0 && !rawName.toLowerCase().includes('free')));
-    const finalPlanName = isCurrentlyPaid ? (rawName || 'VIP Member') : 'Free Member';
+    const isPaidFlag = Boolean(
+      active.isPaid ?? active.IsPaid ?? 
+      active.isCurrentUserPaid ?? active.IsCurrentUserPaid ?? 
+      active.isActive ?? active.IsActive
+    );
+    const isNamedPaid = rawName.length > 0 && !rawName.toLowerCase().includes('free');
+    const isCurrentlyPaid = !isExpired && (isNamedPaid || isPaidFlag);
+    const finalPlanName = isNamedPaid ? rawName : (isCurrentlyPaid ? 'VIP Member' : 'Free Member');
 
     // 🔢 Calculate remaining contacts views
     let remainingViews = 0;

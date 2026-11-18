@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
-import { fetchMasterDataApi, fetchCitiesApi, updateProfileApi, uploadGalleryPhotoApi, fetchProfileDetailsApi, checkEmailAvailabilityApi, MasterOption } from '@/lib/api';
+import { fetchMasterDataApi, getCachedMasterOptions, fetchCitiesApi, updateProfileApi, uploadGalleryPhotoApi, fetchProfileDetailsApi, checkEmailAvailabilityApi, MasterOption } from '@/lib/api';
 import { generateHeightLabels, MIN_MALE_AGE, MIN_FEMALE_AGE } from '@/lib/utils/ageHeightRules';
 import { getAuthToken, syncUserProfilePhoto } from '@/lib/auth';
 import {
@@ -22,154 +22,6 @@ import {
   compareFaceDescriptors,
   loadFaceApiModels,
 } from '@/lib/faceDetectionClient';
-
-// MASTER FALLBACK DATA
-const PROFILE_CREATED_FOR_OPTIONS = [
-  { id: 1, value: "Self" },
-  { id: 2, value: "Son", gender: "male" },
-  { id: 3, value: "Daughter", gender: "female" },
-  { id: 4, value: "Brother", gender: "male" },
-  { id: 5, value: "Sister", gender: "female" },
-  { id: 6, value: "Friend / Relative" }
-];
-
-const FALLBACK_MASTERS: { [key: string]: MasterOption[] } = {
-  MARITAL_STATUS: [
-    { id: 1, value: "Never Married" },
-    { id: 2, value: "Divorced" },
-    { id: 3, value: "Widowed" },
-    { id: 4, value: "Awaiting Divorce" },
-    { id: 5, value: "Annulled" }
-  ],
-  RELIGIONS: [
-    { id: 1, value: "Islam" }
-  ],
-  SECTS: [
-    { id: 1, value: "Sunni" },
-    { id: 2, value: "Shia" },
-    { id: 3, value: "Ahl-e-Hadith" },
-    { id: 4, value: "Other" }
-  ],
-  MASLAKS: [
-    { id: 1, value: "Deobandi" },
-    { id: 2, value: "Barelvi" },
-    { id: 3, value: "Salafi / Ahle Hadith" },
-    { id: 4, value: "Jamaat-e-Islami" },
-    { id: 5, value: "Just Muslim / Non-sectarian" },
-    { id: 6, value: "Tablighi Jamaat" },
-    { id: 7, value: "Other" }
-  ],
-  CASTES: [
-    { id: 1, value: "Ansari" },
-    { id: 2, value: "Qureshi" },
-    { id: 3, value: "Syed" },
-    { id: 4, value: "Shaikh" },
-    { id: 5, value: "Khan / Pathan" },
-    { id: 6, value: "Siddiqui" },
-    { id: 7, value: "Malik" },
-    { id: 8, value: "Choudhary" },
-    { id: 9, value: "Mansoori" },
-    { id: 10, value: "Saifi" },
-    { id: 11, value: "Abbasi" },
-    { id: 12, value: "Farooqui" },
-    { id: 13, value: "Usmani" },
-    { id: 14, value: "Alvi" },
-    { id: 15, value: "Memon" },
-    { id: 16, value: "Bohra" },
-    { id: 17, value: "Khoja" },
-    { id: 18, value: "Rayeen" },
-    { id: 19, value: "Idrisi" },
-    { id: 20, value: "Shah" },
-    { id: 21, value: "Mirza / Mughal" },
-    { id: 22, value: "Other" }
-  ],
-  STATES: [
-    { id: 1, value: "Andhra Pradesh" },
-    { id: 2, value: "Bihar" },
-    { id: 3, value: "Delhi" },
-    { id: 4, value: "Gujarat" },
-    { id: 5, value: "Haryana" },
-    { id: 6, value: "Karnataka" },
-    { id: 7, value: "Kerala" },
-    { id: 8, value: "Madhya Pradesh" },
-    { id: 9, value: "Maharashtra" },
-    { id: 10, value: "Punjab" },
-    { id: 11, value: "Rajasthan" },
-    { id: 12, value: "Tamil Nadu" },
-    { id: 13, value: "Telangana" },
-    { id: 14, value: "Uttar Pradesh" },
-    { id: 15, value: "West Bengal" }
-  ],
-  EDUCATIONS: [
-    { id: 1, value: "High School" },
-    { id: 2, value: "Intermediate / 12th" },
-    { id: 3, value: "Diploma" },
-    { id: 4, value: "Bachelor of Arts (B.A.)" },
-    { id: 5, value: "Bachelor of Commerce (B.Com)" },
-    { id: 6, value: "Bachelor of Science (B.Sc)" },
-    { id: 7, value: "B.Tech / B.E." },
-    { id: 8, value: "BBA / BBM" },
-    { id: 9, value: "BCA" },
-    { id: 10, value: "MBBS / BDS / Medical" },
-    { id: 11, value: "LLB / Law" },
-    { id: 12, value: "Master of Arts (M.A.)" },
-    { id: 13, value: "Master of Commerce (M.Com)" },
-    { id: 14, value: "Master of Science (M.Sc)" },
-    { id: 15, value: "M.Tech / M.E." },
-    { id: 16, value: "MBA / PGDM" },
-    { id: 17, value: "MCA" },
-    { id: 18, value: "MD / MS / Super Specialty" },
-    { id: 19, value: "LLM" },
-    { id: 20, value: "CA / CS / ICWA" },
-    { id: 21, value: "Ph.D / Doctorate" },
-    { id: 22, value: "Islamic Education (Aalim / Mufti / Hafiz)" },
-    { id: 23, value: "Other" }
-  ],
-  EMPLOYMENT_SECTORS: [
-    { id: 1, value: "Private Sector" },
-    { id: 2, value: "Government / Public Sector" },
-    { id: 3, value: "Business / Self Employed" },
-    { id: 4, value: "Civil Services (IAS / IPS / State PSC)" },
-    { id: 5, value: "Defense / Police" },
-    { id: 6, value: "Not Working / Homemaker" }
-  ],
-  OCCUPATIONS: [
-    { id: 1, value: "Software Engineer / IT Professional" },
-    { id: 2, value: "Doctor / Surgeon / Healthcare" },
-    { id: 3, value: "Chartered Accountant / Finance" },
-    { id: 4, value: "Business Owner / Entrepreneur" },
-    { id: 5, value: "Government Officer / Employee" },
-    { id: 6, value: "Teacher / Professor / Academic" },
-    { id: 7, value: "Lawyer / Legal Professional" },
-    { id: 8, value: "Architect / Interior Designer" },
-    { id: 9, value: "Mechanical / Civil Engineer" },
-    { id: 10, value: "Banking / Insurance Professional" },
-    { id: 11, value: "Marketing / Sales Executive" },
-    { id: 12, value: "HR Professional" },
-    { id: 13, value: "Graphic / UI-UX Designer" },
-    { id: 14, value: "Islamic Scholar / Teacher" },
-    { id: 15, value: "Consultant" },
-    { id: 16, value: "Pharmacist" },
-    { id: 17, value: "Research Scientist" },
-    { id: 18, value: "Student" },
-    { id: 19, value: "Homemaker" },
-    { id: 20, value: "Other" }
-  ],
-  INCOME_RANGES: [
-    { id: 1, value: "No Income / Dependent" },
-    { id: 2, value: "Below ₹2 Lakhs" },
-    { id: 3, value: "₹2 - 3 Lakhs" },
-    { id: 4, value: "₹3 - 5 Lakhs" },
-    { id: 5, value: "₹5 - 7 Lakhs" },
-    { id: 6, value: "₹7 - 10 Lakhs" },
-    { id: 7, value: "₹10 - 15 Lakhs" },
-    { id: 8, value: "₹15 - 20 Lakhs" },
-    { id: 9, value: "₹20 - 30 Lakhs" },
-    { id: 10, value: "₹30 - 50 Lakhs" },
-    { id: 11, value: "₹50 Lakhs - 1 Crore" },
-    { id: 12, value: "Above ₹1 Crore" }
-  ]
-};
 
 const HEIGHT_OPTIONS = generateHeightLabels();
 
@@ -296,7 +148,19 @@ export default function CompleteProfilePage() {
   const isAdvancingRef = useRef(false);
   const autoAdvanceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [masterData, setMasterData] = useState<{ [key: string]: MasterOption[] }>(FALLBACK_MASTERS);
+  const [masterData, setMasterData] = useState<{ [key: string]: MasterOption[] }>(() => ({
+    PROFILE_CREATED_FOR: getCachedMasterOptions('PROFILE_CREATED_FOR'),
+    PHOTO_PRIVACY: getCachedMasterOptions('PHOTO_PRIVACY'),
+    MARITAL_STATUS: getCachedMasterOptions('MARITAL_STATUS'),
+    RELIGIONS: getCachedMasterOptions('RELIGIONS'),
+    SECTS: getCachedMasterOptions('SECTS'),
+    MASLAKS: getCachedMasterOptions('MASLAKS'),
+    CASTES: getCachedMasterOptions('CASTES'),
+    STATES: getCachedMasterOptions('STATES'),
+    EDUCATIONS: getCachedMasterOptions('EDUCATIONS'),
+    EMPLOYMENT_SECTORS: getCachedMasterOptions('EMPLOYMENT_SECTORS'),
+    OCCUPATIONS: getCachedMasterOptions('OCCUPATIONS'),
+  }));
   const [cities, setCities] = useState<MasterOption[]>([]);
   const [loadingCities, setLoadingCities] = useState(false);
 
@@ -574,6 +438,13 @@ export default function CompleteProfilePage() {
     }
   };
 
+  const isGenderPreset = (id: number) => {
+    const list = masterData.PROFILE_CREATED_FOR || [];
+    const match = list.find(o => o.id === id);
+    const v = (match?.value || '').toLowerCase();
+    return v.includes('son') || v.includes('brother') || v.includes('daughter') || v.includes('sister') || [2, 3, 4, 5].includes(id);
+  };
+
   // 🚀 NEXT STEP (Guarded against rapid clicking & skips)
   const nextStep = () => {
     const check = validateCurrentStep(step);
@@ -589,7 +460,7 @@ export default function CompleteProfilePage() {
     setSearchQuery('');
     
     // Auto-skip Gender (Step 2) if not Self or Friend / Relative
-    if (step === 1 && [2, 3, 4, 5].includes(formData.profileCreatedFor)) {
+    if (step === 1 && isGenderPreset(formData.profileCreatedFor)) {
       setStep(3);
     } else {
       setStep(prev => Math.min(totalSteps, prev + 1));
@@ -613,7 +484,7 @@ export default function CompleteProfilePage() {
     setSearchQuery('');
     
     // Auto-skip Gender when navigating back from Full Name if gender was auto-determined
-    if (step === 3 && [2, 3, 4, 5].includes(formData.profileCreatedFor)) {
+    if (step === 3 && isGenderPreset(formData.profileCreatedFor)) {
       setStep(1);
     } else {
       setStep(prev => Math.max(1, prev - 1));
@@ -701,6 +572,7 @@ export default function CompleteProfilePage() {
 
     // Load master options
     const masterTypes = [
+      'PROFILE_CREATED_FOR', 'PHOTO_PRIVACY',
       'MARITAL_STATUS', 'RELIGIONS', 'SECTS', 'MASLAKS', 'CASTES',
       'STATES', 'EDUCATIONS', 'EMPLOYMENT_SECTORS', 'OCCUPATIONS', 'INCOME_RANGES'
     ];
@@ -899,32 +771,40 @@ export default function CompleteProfilePage() {
     if (formData.gender) fd.append("Gender", formData.gender);
     if (formData.profileCreatedFor) fd.append("ProfileCreatedFor", String(formData.profileCreatedFor));
     if (formData.dob) fd.append("DateOfBirth", formData.dob);
-    fd.append("Height", formData.height);
-    fd.append("Weight", formData.weight);
-    fd.append("Complexion", String(formData.complexionId || 2));
-    fd.append("MaritalStatus", String(formData.maritalStatusId || 1));
-    fd.append("Religion", String(formData.religionId || 1));
-    fd.append("Sect", String(formData.sectId || 1));
-    fd.append("Maslak", String(formData.maslakId || 1));
-    fd.append("Caste", String(formData.casteId || 1));
-    fd.append("MotherTongue", String(formData.motherTongueId || 1));
-    fd.append("CurrentStateId", String(formData.stateId || 2));
-    fd.append("CurrentCityId", String(formData.cityId || 1));
-    fd.append("HighestDegree", String(formData.educationId || 1));
-    fd.append("EmploymentSector", String(formData.employmentSectorId || 1));
-    fd.append("Designation", String(formData.occupationId || 1));
-    fd.append("AnnualIncome", formData.income || "₹5 - 7 Lakhs");
-    fd.append("FamilyType", String(formData.familyTypeId || 1));
-    fd.append("FamilyStatus", String(formData.familyStatusId || 1));
-    fd.append("FatherOccupation", formData.fatherOccupation || "Businessman");
-    fd.append("MotherOccupation", formData.motherOccupation || "Homemaker");
-    fd.append("TotalBrothers", String(formData.totalBrothers || 0));
-    fd.append("MarriedBrothers", String(formData.marriedBrothers || 0));
-    fd.append("TotalSisters", String(formData.totalSisters || 0));
-    fd.append("MarriedSisters", String(formData.marriedSisters || 0));
-    fd.append("NamazHabit", formData.namazHabit || "Regular 5 Times");
-    fd.append("HijabOrBeard", formData.hijabOrBeard || "Hijab");
-    fd.append("PhotoPrivacy", formData.photoPrivacy || "All Members");
+    if (formData.height) fd.append("Height", formData.height);
+    if (formData.weight) fd.append("Weight", formData.weight);
+    if (formData.complexionId) fd.append("Complexion", String(formData.complexionId));
+    if (formData.maritalStatusId) fd.append("MaritalStatus", String(formData.maritalStatusId));
+    if (formData.religionId) fd.append("Religion", String(formData.religionId));
+    if (formData.sectId) fd.append("Sect", String(formData.sectId));
+    if (formData.maslakId) fd.append("Maslak", String(formData.maslakId));
+    if (formData.casteId) fd.append("Caste", String(formData.casteId));
+    if (formData.motherTongueId) fd.append("MotherTongue", String(formData.motherTongueId));
+    if (formData.stateId) fd.append("CurrentStateId", String(formData.stateId));
+    if (formData.cityId) fd.append("CurrentCityId", String(formData.cityId));
+    if (formData.educationId) fd.append("HighestDegree", String(formData.educationId));
+    if (formData.employmentSectorId) fd.append("EmploymentSector", String(formData.employmentSectorId));
+    if (formData.occupationId) fd.append("Designation", String(formData.occupationId));
+    if (formData.income) fd.append("AnnualIncome", formData.income);
+    if (formData.familyTypeId) fd.append("FamilyType", String(formData.familyTypeId));
+    if (formData.familyStatusId) fd.append("FamilyStatus", String(formData.familyStatusId));
+    if (formData.fatherOccupation) fd.append("FatherOccupation", formData.fatherOccupation);
+    if (formData.motherOccupation) fd.append("MotherOccupation", formData.motherOccupation);
+    if (formData.totalBrothers !== undefined && formData.totalBrothers !== null && String(formData.totalBrothers).trim() !== '') {
+      fd.append("TotalBrothers", String(formData.totalBrothers));
+    }
+    if (formData.marriedBrothers !== undefined && formData.marriedBrothers !== null && String(formData.marriedBrothers).trim() !== '') {
+      fd.append("MarriedBrothers", String(formData.marriedBrothers));
+    }
+    if (formData.totalSisters !== undefined && formData.totalSisters !== null && String(formData.totalSisters).trim() !== '') {
+      fd.append("TotalSisters", String(formData.totalSisters));
+    }
+    if (formData.marriedSisters !== undefined && formData.marriedSisters !== null && String(formData.marriedSisters).trim() !== '') {
+      fd.append("MarriedSisters", String(formData.marriedSisters));
+    }
+    if (formData.namazHabit) fd.append("NamazHabit", formData.namazHabit);
+    if (formData.hijabOrBeard) fd.append("HijabOrBeard", formData.hijabOrBeard);
+    if (formData.photoPrivacy) fd.append("PhotoPrivacy", formData.photoPrivacy);
     if (formData.aboutMe) fd.append("AboutMe", formData.aboutMe);
 
     const selectedPhotos = photoSlots.filter((p): p is { file: File; previewUrl: string; dataUrl: string } => p !== null);
@@ -1122,21 +1002,36 @@ export default function CompleteProfilePage() {
 
                 {/* Profile Created For Options */}
                 <div className="space-y-2 pt-1">
-                  {PROFILE_CREATED_FOR_OPTIONS.map((opt) => {
+                  {(masterData.PROFILE_CREATED_FOR && masterData.PROFILE_CREATED_FOR.length > 0 ? masterData.PROFILE_CREATED_FOR : [
+                    { id: 1, value: "Self" },
+                    { id: 2, value: "Son" },
+                    { id: 3, value: "Daughter" },
+                    { id: 4, value: "Brother" },
+                    { id: 5, value: "Sister" },
+                    { id: 6, value: "Relative" },
+                    { id: 7, value: "Friend" }
+                  ]).map((opt) => {
                     const isSelected = formData.profileCreatedFor === opt.id;
+                    const optLower = (opt.value || '').toLowerCase();
+                    const autoGender = optLower.includes('son') || optLower.includes('brother')
+                      ? 'male'
+                      : optLower.includes('daughter') || optLower.includes('sister')
+                      ? 'female'
+                      : formData.gender;
+                    const isGenderPreset = optLower.includes('son') || optLower.includes('brother') || optLower.includes('daughter') || optLower.includes('sister') || [2, 3, 4, 5].includes(Number(opt.id));
+
                     return (
                       <button
                         key={opt.id}
                         type="button"
                         onClick={() => {
-                          const autoGender = opt.gender ? opt.gender : formData.gender;
                           setFormData(prev => ({
                             ...prev,
-                            profileCreatedFor: opt.id,
+                            profileCreatedFor: Number(opt.id),
                             profileCreatedForText: opt.value,
                             gender: autoGender,
                           }));
-                          if ([2, 3, 4, 5].includes(opt.id)) {
+                          if (isGenderPreset) {
                             setStep(3);
                           } else {
                             setStep(2);
@@ -2230,18 +2125,21 @@ export default function CompleteProfilePage() {
               </div>
 
               <div className="space-y-2.5">
-                {[
-                  { value: 'All Members', title: 'All Members', desc: 'Visible to everyone' },
-                  { value: 'Premium Members', title: 'Premium Members', desc: 'Blurred for free users' },
-                  { value: 'Members I Approve', title: 'Members I Approve', desc: 'Blurred until you approve' }
-                ].map((opt) => {
-                  const isSel = formData.photoPrivacy === opt.value;
+                {(masterData.PHOTO_PRIVACY && masterData.PHOTO_PRIVACY.length > 0 ? masterData.PHOTO_PRIVACY : [
+                  { id: 1, value: 'All Members', displayName: 'All Members', description: 'Visible to everyone' },
+                  { id: 2, value: 'Premium Only', displayName: 'Premium Members', description: 'Blurred for free users' },
+                  { id: 3, value: 'Only Approved', displayName: 'Members I Approve', description: 'Blurred until you approve' }
+                ]).map((opt: any) => {
+                  const optVal = opt.value || opt.Value || opt.displayName || opt.DisplayName;
+                  const optTitle = opt.displayName || opt.DisplayName || opt.title || optVal;
+                  const optDesc = opt.description || opt.Description || opt.desc || 'Photo privacy setting';
+                  const isSel = formData.photoPrivacy === optVal || formData.photoPrivacy === optTitle;
                   return (
                     <button
-                      key={opt.value}
+                      key={opt.id || optVal}
                       type="button"
                       onClick={() => {
-                        setFormData(p => ({ ...p, photoPrivacy: opt.value }));
+                        setFormData(p => ({ ...p, photoPrivacy: optVal }));
                       }}
                       className={`w-full p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
                         isSel ? 'border-[#e21e5b] bg-rose-50/50 shadow-sm' : 'border-slate-200 hover:bg-slate-50'
@@ -2249,10 +2147,10 @@ export default function CompleteProfilePage() {
                     >
                       <div className="space-y-0.5">
                         <div className={`text-sm font-bold ${isSel ? 'text-[#e21e5b]' : 'text-slate-800'}`}>
-                          {opt.title}
+                          {optTitle}
                         </div>
                         <div className="text-xs text-slate-500">
-                          {opt.desc}
+                          {optDesc}
                         </div>
                       </div>
                       <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${

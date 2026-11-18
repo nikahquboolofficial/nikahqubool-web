@@ -17,6 +17,7 @@ import {
   fetchProfileDetailsApi, 
   updateProfileApi, 
   fetchMasterDataApi, 
+  getCachedMasterOptions,
   fetchCitiesApi,
   deleteGalleryPhotoApi,
   uploadGalleryPhotoApi,
@@ -73,243 +74,6 @@ const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December"
 ];
 
-// 🌟 COMPLETE FALLBACK MASTER DATA (0ms Instant Guarantee)
-const FALLBACK_MASTERS: { [key: string]: MasterOption[] } = {
-  PROFILE_CREATED_FOR: [
-    { id: 1, value: "Self" },
-    { id: 2, value: "Son" },
-    { id: 3, value: "Daughter" },
-    { id: 4, value: "Brother" },
-    { id: 5, value: "Sister" },
-    { id: 6, value: "Friend / Relative" }
-  ],
-  MARITAL_STATUS: [
-    { id: 1, value: "Never Married" },
-    { id: 2, value: "Divorced" },
-    { id: 3, value: "Widowed" },
-    { id: 4, value: "Awaiting Divorce" },
-    { id: 5, value: "Annulled" }
-  ],
-  SECTS: [
-    { id: 1, value: "Sunni" },
-    { id: 2, value: "Shia" },
-    { id: 3, value: "Ahl-e-Hadith" },
-    { id: 4, value: "Other" }
-  ],
-  MASLAKS: [
-    { id: 1, value: "Sunni (Hanafi)" },
-    { id: 2, value: "Deobandi" },
-    { id: 3, value: "Barelvi" },
-    { id: 4, value: "Salafi / Ahle Hadith" },
-    { id: 5, value: "Jamaat-e-Islami" },
-    { id: 6, value: "Just Muslim / Non-sectarian" },
-    { id: 7, value: "Tablighi Jamaat" },
-    { id: 8, value: "Other" }
-  ],
-  CASTES: [
-    { id: 1, value: "Ansari" },
-    { id: 2, value: "Qureshi" },
-    { id: 3, value: "Syed" },
-    { id: 4, value: "Sheikh or Shaikh" },
-    { id: 5, value: "Khan / Pathan" },
-    { id: 6, value: "Siddiqui" },
-    { id: 7, value: "Malik" },
-    { id: 8, value: "Choudhary" },
-    { id: 9, value: "Mansoori" },
-    { id: 10, value: "Saifi" },
-    { id: 11, value: "Abbasi" },
-    { id: 12, value: "Farooqui" },
-    { id: 13, value: "Usmani" },
-    { id: 14, value: "Alvi" },
-    { id: 15, value: "Memon" },
-    { id: 16, value: "Bohra" },
-    { id: 17, value: "Khoja" },
-    { id: 18, value: "Rayeen" },
-    { id: 19, value: "Idrisi" },
-    { id: 20, value: "Shah" },
-    { id: 21, value: "Mirza / Mughal" },
-    { id: 22, value: "Other" }
-  ],
-  MOTHER_TONGUES: [
-    { id: 1, value: "Urdu" },
-    { id: 2, value: "Hindi" },
-    { id: 3, value: "English" },
-    { id: 4, value: "Bengali" },
-    { id: 5, value: "Telugu" },
-    { id: 6, value: "Marathi" },
-    { id: 7, value: "Tamil" },
-    { id: 8, value: "Gujarati" },
-    { id: 9, value: "Malayalam" },
-    { id: 10, value: "Kannada" },
-    { id: 11, value: "Odia" },
-    { id: 12, value: "Punjabi" },
-    { id: 13, value: "Assamese" },
-    { id: 14, value: "Kashmiri" },
-    { id: 15, value: "Other" }
-  ],
-  EDUCATIONS: [
-    { id: 1, value: "High School" },
-    { id: 2, value: "Intermediate / 12th" },
-    { id: 3, value: "Diploma" },
-    { id: 4, value: "Bachelor of Arts (B.A.)" },
-    { id: 5, value: "Bachelor of Commerce (B.Com.)" },
-    { id: 6, value: "Bachelor of Science (B.Sc.)" },
-    { id: 7, value: "B.Tech / B.E." },
-    { id: 8, value: "BBA / BBM" },
-    { id: 9, value: "BCA" },
-    { id: 10, value: "MBBS / BDS / Medical" },
-    { id: 11, value: "LLB / Law" },
-    { id: 12, value: "Master of Arts (M.A.)" },
-    { id: 13, value: "Master of Commerce (M.Com.)" },
-    { id: 14, value: "Master of Science (M.Sc.)" },
-    { id: 15, value: "M.Tech / M.E." },
-    { id: 16, value: "MBA / PGDM" },
-    { id: 17, value: "MCA" },
-    { id: 18, value: "MD / MS / Super Specialty" },
-    { id: 19, value: "LLM" },
-    { id: 20, value: "CA / CS / ICWA" },
-    { id: 21, value: "Ph.D / Doctorate" },
-    { id: 22, value: "Islamic Education (Aalim / Mufti / Hafiz)" },
-    { id: 23, value: "Other" }
-  ],
-  EMPLOYMENT_SECTORS: [
-    { id: 1, value: "Private Sector" },
-    { id: 2, value: "Government / Public Sector" },
-    { id: 3, value: "Business / Self Employed" },
-    { id: 4, value: "Civil Services (IAS / IPS / State PSC)" },
-    { id: 5, value: "Defense / Police" },
-    { id: 6, value: "Not Working / Homemaker" }
-  ],
-  OCCUPATIONS: [
-    { id: 1, value: "Software Engineer / IT Professional" },
-    { id: 2, value: "Doctor / Surgeon / Healthcare" },
-    { id: 3, value: "Chartered Accountant / Finance" },
-    { id: 4, value: "Business Owner / Entrepreneur" },
-    { id: 5, value: "Government Officer / Employee" },
-    { id: 6, value: "Teacher / Professor / Academic" },
-    { id: 7, value: "Lawyer / Legal Professional" },
-    { id: 8, value: "Architect / Interior Designer" },
-    { id: 9, value: "Mechanical / Civil Engineer" },
-    { id: 10, value: "Banking / Insurance Professional" },
-    { id: 11, value: "Marketing / Sales Executive" },
-    { id: 12, value: "HR Professional" },
-    { id: 13, value: "Graphic / UI-UX Designer" },
-    { id: 14, value: "Islamic Scholar / Teacher" },
-    { id: 15, value: "Consultant" },
-    { id: 16, value: "Pharmacist" },
-    { id: 17, value: "Research Scientist" },
-    { id: 18, value: "Homemaker / Housewife" },
-    { id: 19, value: "Retired" },
-    { id: 20, value: "Passed Away" },
-    { id: 21, value: "Student" },
-    { id: 22, value: "Other" }
-  ],
-  STATES: [
-    { id: 1, value: "Andhra Pradesh" },
-    { id: 2, value: "Bihar" },
-    { id: 3, value: "Delhi" },
-    { id: 4, value: "Gujarat" },
-    { id: 5, value: "Haryana" },
-    { id: 6, value: "Karnataka" },
-    { id: 7, value: "Kerala" },
-    { id: 8, value: "Madhya Pradesh" },
-    { id: 9, value: "Maharashtra" },
-    { id: 10, value: "Punjab" },
-    { id: 11, value: "Rajasthan" },
-    { id: 12, value: "Tamil Nadu" },
-    { id: 13, value: "Telangana" },
-    { id: 14, value: "Uttar Pradesh" },
-    { id: 15, value: "West Bengal" }
-  ],
-  FAMILY_TYPES: [
-    { id: 1, value: "Joint Family" },
-    { id: 2, value: "Nuclear Family" },
-    { id: 3, value: "Other" }
-  ],
-  FAMILY_STATUS: [
-    { id: 1, value: "Middle Class" },
-    { id: 2, value: "Upper Middle Class" },
-    { id: 3, value: "High Class / Rich" },
-    { id: 4, value: "Affluent / Elite" }
-  ],
-  COMPLEXION: [
-    { id: 1, value: "Very Fair" },
-    { id: 2, value: "Fair" },
-    { id: 3, value: "Wheatish" },
-    { id: 4, value: "Wheatish Medium" },
-    { id: 5, value: "Dark / Olive" }
-  ],
-  HOBBIES: [
-    { id: 1, value: "Reading" },
-    { id: 2, value: "Photography" },
-    { id: 3, value: "Travelling" },
-    { id: 4, value: "Cooking & Baking" },
-    { id: 5, value: "Music" },
-    { id: 6, value: "Gaming" },
-    { id: 7, value: "Fitness & Gym" },
-    { id: 8, value: "Gardening" },
-    { id: 9, value: "Sports" },
-    { id: 10, value: "Painting & Sketching" },
-    { id: 11, value: "Writing" },
-    { id: 12, value: "Watching Movies" },
-    { id: 13, value: "Trekking & Hiking" },
-    { id: 14, value: "Cycling" },
-    { id: 15, value: "Swimming" }
-  ],
-  INTERESTS: [
-    { id: 1, value: "Sufi & Islamic Nasheeds" },
-    { id: 2, value: "Classic Ghazals" },
-    { id: 3, value: "Instrumental & Acoustic" },
-    { id: 4, value: "Bollywood Classics" },
-    { id: 5, value: "Poetry & Shayari" },
-    { id: 6, value: "Coding & Tech" },
-    { id: 7, value: "Entrepreneurship" },
-    { id: 8, value: "Social Work & Charity" },
-    { id: 9, value: "Fashion & Styling" },
-    { id: 10, value: "Interior Design" },
-    { id: 11, value: "Nature & Wildlife" },
-    { id: 12, value: "Astronomy & Science" },
-    { id: 13, value: "History & Culture" },
-    { id: 14, value: "Content Creation" },
-    { id: 15, value: "Finance & Investing" }
-  ],
-  SPORTS: [
-    { id: 1, value: "Cricket" },
-    { id: 2, value: "Football / Soccer" },
-    { id: 3, value: "Badminton" },
-    { id: 4, value: "Swimming" },
-    { id: 5, value: "Fitness / Gym" },
-    { id: 6, value: "Running / Jogging" },
-    { id: 7, value: "Cycling" },
-    { id: 8, value: "Table Tennis" },
-    { id: 9, value: "Lawn Tennis" },
-    { id: 10, value: "Basketball" },
-    { id: 11, value: "Volleyball" },
-    { id: 12, value: "Martial Arts / Boxing" },
-    { id: 13, value: "Snooker / Pool" },
-    { id: 14, value: "Chess" },
-    { id: 15, value: "Yoga & Calisthenics" }
-  ],
-  LANGUAGES: [
-    { id: 1, value: "Urdu" },
-    { id: 2, value: "English" },
-    { id: 3, value: "Hindi" },
-    { id: 4, value: "Arabic" },
-    { id: 5, value: "Bengali" },
-    { id: 6, value: "Telugu" },
-    { id: 7, value: "Marathi" },
-    { id: 8, value: "Tamil" },
-    { id: 9, value: "Gujarati" },
-    { id: 10, value: "Malayalam" },
-    { id: 11, value: "Punjabi" },
-    { id: 12, value: "Kashmiri" },
-    { id: 13, value: "Persian / Farsi" },
-    { id: 14, value: "Turkish" },
-    { id: 15, value: "French" },
-    { id: 16, value: "German" }
-  ]
-};
-
 export default function EditMyProfilePage() {
   const router = useRouter();
 
@@ -318,14 +82,46 @@ export default function EditMyProfilePage() {
   const [savingField, setSavingField] = useState<string | null>(null);
 
   // Dynamic Master Data Cache initialized with FALLBACK_MASTERS so options ALWAYS bind instantly!
-  const [masterData, setMasterData] = useState<{ [key: string]: MasterOption[] }>(FALLBACK_MASTERS);
+  const [masterData, setMasterData] = useState<{ [key: string]: MasterOption[] }>(() => ({
+    PROFILE_CREATED_FOR: getCachedMasterOptions('PROFILE_CREATED_FOR'),
+    MARITAL_STATUS: getCachedMasterOptions('MARITAL_STATUS'),
+    RELIGIONS: getCachedMasterOptions('RELIGIONS'),
+    SECTS: getCachedMasterOptions('SECTS'),
+    MASLAKS: getCachedMasterOptions('MASLAKS'),
+    CASTES: getCachedMasterOptions('CASTES'),
+    MOTHER_TONGUES: getCachedMasterOptions('MOTHER_TONGUES'),
+    EDUCATIONS: getCachedMasterOptions('EDUCATIONS'),
+    EMPLOYMENT_SECTORS: getCachedMasterOptions('EMPLOYMENT_SECTORS'),
+    OCCUPATIONS: getCachedMasterOptions('OCCUPATIONS'),
+    STATES: getCachedMasterOptions('STATES'),
+    FAMILY_TYPES: getCachedMasterOptions('FAMILY_TYPES'),
+    FAMILY_STATUS: getCachedMasterOptions('FAMILY_STATUS'),
+    COMPLEXION: getCachedMasterOptions('COMPLEXION'),
+    HOBBIES: getCachedMasterOptions('HOBBIES'),
+    INTERESTS: getCachedMasterOptions('INTERESTS'),
+    SPORTS: getCachedMasterOptions('SPORTS'),
+    LANGUAGES: getCachedMasterOptions('LANGUAGES'),
+    NAMAZ_HABITS: getCachedMasterOptions('NAMAZ_HABITS'),
+    QURAN_READING: getCachedMasterOptions('QURAN_READING'),
+    ROZA_HABITS: getCachedMasterOptions('ROZA_HABITS'),
+    HIJAB_BEARD: getCachedMasterOptions('HIJAB_BEARD'),
+    ZAKAT_HABITS: getCachedMasterOptions('ZAKAT_HABITS'),
+    HAJJ_UMRAH: getCachedMasterOptions('HAJJ_UMRAH'),
+    DIET_TYPES: getCachedMasterOptions('DIET_TYPES'),
+    SMOKE_HABITS: getCachedMasterOptions('SMOKE_HABITS'),
+    COOKING_SKILLS: getCachedMasterOptions('COOKING_SKILLS'),
+    DISABILITIES: getCachedMasterOptions('DISABILITIES'),
+    INCOME_RANGES: getCachedMasterOptions('INCOME_RANGES'),
+    DRINK_HABITS: getCachedMasterOptions('DRINK_HABITS'),
+    PROFILE_SECTIONS: getCachedMasterOptions('PROFILE_SECTIONS')
+  }));
   const [stateCities, setStateCities] = useState<MasterOption[]>([]);
 
   // 🌟 GUARANTEED TEXT RESOLVER: NEVER SHOW A NUMERIC ID ON SCREEN!
   const getMasterLabel = useCallback((type: string, val: any): string => {
     if (val === null || val === undefined || val === '') return '';
     const strVal = String(val).trim();
-    const list = masterData[type] || FALLBACK_MASTERS[type] || [];
+    const list = masterData[type] || [] || [];
     
     // 1. Try finding by numeric id
     const byId = list.find(item => String(item.id) === strVal);
@@ -363,52 +159,60 @@ export default function EditMyProfilePage() {
     return '';
   };
 
+  // Helper to render label or clean placeholder
+  const renderLabel = (val: any, placeholder: string = "Not specified") => {
+    if (val !== null && val !== undefined && val !== '' && val !== 0 && val !== '0') {
+      return <span className="text-slate-500 font-medium">{String(val)}</span>;
+    }
+    return <span className="text-slate-400 italic font-normal">{placeholder}</span>;
+  };
+
   // Profile Data State
   const [formData, setFormData] = useState<any>({
     UserId: 0,
     FullName: '',
-    ProfileCreatedFor: 1,
-    Age: 25,
-    Gender: 'Female',
+    ProfileCreatedFor: 0,
+    Age: null,
+    Gender: '',
     DateOfBirth: '',
-    MaritalStatus: 1,
-    Sect: 1,
-    Height: `5ft 7in (170 cm)`,
-    Weight: '60 kg',
-    Complexion: 2,
-    Caste: 4,
-    Maslak: 1,
-    MotherTongue: 1,
-    Location: 'Bareilly, Uttar Pradesh, India',
-    CurrentStateId: 14,
-    CurrentCityId: 1,
-    StateName: 'Uttar Pradesh',
-    CityName: 'Bareilly',
-    Disability: 'No',
+    MaritalStatus: 0,
+    Sect: 0,
+    Height: '',
+    Weight: '',
+    Complexion: 0,
+    Caste: 0,
+    Maslak: 0,
+    MotherTongue: 0,
+    Location: '',
+    CurrentStateId: 0,
+    CurrentCityId: 0,
+    StateName: '',
+    CityName: '',
+    Disability: '',
 
     // Education & Career
-    Education: 5,
-    CollegeName: 'Regional College Of Professional Studies & Research',
-    EmployedIn: 1,
-    Occupation: 1,
+    Education: 0,
+    CollegeName: '',
+    EmployedIn: 0,
+    Occupation: 0,
     OccupationDetails: '',
-    AnnualIncome: '₹5 - 7 Lakhs',
+    AnnualIncome: '',
 
     // Family Details
-    FamilyLocation: 'Bareilly, Uttar Pradesh, India',
-    FamilyType: 1,
-    FamilyStatus: 2,
-    NativeLocation: 'Bareilly, Uttar Pradesh, India',
-    NativePlaceStateId: 14,
-    NativePlaceCityId: 1,
+    FamilyLocation: '',
+    FamilyType: 0,
+    FamilyStatus: 0,
+    NativeLocation: '',
+    NativePlaceStateId: 0,
+    NativePlaceCityId: 0,
     FatherName: '',
-    FatherOccupation: 4,
+    FatherOccupation: 0,
     MotherName: '',
-    MotherOccupation: 18,
-    TotalBrothers: 1,
+    MotherOccupation: 0,
+    TotalBrothers: 0,
     MarriedBrothers: 0,
-    TotalSisters: 2,
-    MarriedSisters: 1,
+    TotalSisters: 0,
+    MarriedSisters: 0,
     FamilyAbout: '',
 
     // Contact Details
@@ -417,20 +221,20 @@ export default function EditMyProfilePage() {
     WhatsAppNumber: '',
 
     // Religious Details
-    NamazHabit: 'Always (5 Times Daily)',
-    QuranReading: 'Daily Recitation',
-    RozaHabit: 'All 30 Days in Ramadan',
-    HijabOrBeard: 'Hijab',
-    ZakatHabit: 'Pay Regularly Every Year',
-    HajjUmrah: 'Planning Soon Insha\'Allah',
+    NamazHabit: '',
+    QuranReading: '',
+    RozaHabit: '',
+    HijabOrBeard: '',
+    ZakatHabit: '',
+    HajjUmrah: '',
 
     // Lifestyle & Interest
-    DietType: 'Halal Only',
-    SmokeHabit: 'Never',
-    DrinkHabit: 'Never',
-    LanguagesKnown: 'Urdu, English, Hindi',
-    CanCook: 'Yes',
-    Sports: 'Badminton, Swimming',
+    DietType: '',
+    SmokeHabit: '',
+    DrinkHabit: '',
+    LanguagesKnown: '',
+    CanCook: '',
+    Sports: '',
     Hobbies: '',
     Interests: '',
 
@@ -550,7 +354,21 @@ export default function EditMyProfilePage() {
           'HOBBIES',
           'INTERESTS',
           'SPORTS',
-          'LANGUAGES'
+          'LANGUAGES',
+          'NAMAZ_HABITS',
+          'QURAN_READING',
+          'ROZA_HABITS',
+          'HIJAB_BEARD',
+          'ZAKAT_HABITS',
+          'HAJJ_UMRAH',
+          'DIET_TYPES',
+          'SMOKE_HABITS',
+          'COOKING_SKILLS',
+          'DISABILITIES',
+          'INCOME_RANGES',
+          'PHOTO_PRIVACY',
+          'DRINK_HABITS',
+          'PROFILE_SECTIONS'
         ];
 
         // Fetch all master data in parallel with profile details
@@ -574,7 +392,7 @@ export default function EditMyProfilePage() {
         });
 
         setMasterData(prev => ({
-          ...FALLBACK_MASTERS,
+          
           ...prev,
           ...newMasters
         }));
@@ -601,86 +419,88 @@ export default function EditMyProfilePage() {
           }
 
           // Income Index resolver
-          const incStr = p.annualIncome || p.AnnualIncome || '₹5 - 7 Lakhs';
-          const matchedIncIdx = INCOME_BRACKETS.findIndex(b => b.toLowerCase().replace(/[^a-z0-9]/g, '') === incStr.toLowerCase().replace(/[^a-z0-9]/g, ''));
-          if (matchedIncIdx >= 0) {
-            setIncomeIndex(matchedIncIdx);
+          const incStr = p.annualIncome || p.AnnualIncome || '';
+          if (incStr) {
+            const matchedIncIdx = INCOME_BRACKETS.findIndex(b => b.toLowerCase().replace(/[^a-z0-9]/g, '') === incStr.toLowerCase().replace(/[^a-z0-9]/g, ''));
+            if (matchedIncIdx >= 0) {
+              setIncomeIndex(matchedIncIdx);
+            }
           }
 
           setFormData((prev: any) => ({
             ...prev,
             UserId: p.userId || p.UserId || 0,
             FullName: resolvedName,
-            ProfileCreatedFor: p.profileCreatedForId || p.profileCreatedFor || prev.ProfileCreatedFor,
-            Age: p.age || prev.Age,
-            Gender: p.gender || p.Gender || prev.Gender,
-            DateOfBirth: p.dateOfBirth || prev.DateOfBirth,
-            MaritalStatus: p.maritalStatusId || p.maritalStatus || prev.MaritalStatus,
-            Sect: p.sectId || p.sect || prev.Sect,
-            Height: p.height || p.Height || prev.Height,
-            Weight: p.weight || p.Weight || prev.Weight,
-            Complexion: p.complexionId || p.complexion || prev.Complexion,
-            Caste: p.casteId || p.caste || prev.Caste,
-            Maslak: p.maslakId || p.maslak || prev.Maslak,
-            MotherTongue: p.motherTongueId || p.motherTongue || prev.MotherTongue,
-            Location: `${p.currentCityName || p.cityName || 'Bareilly'}, ${p.currentStateName || p.stateName || 'Uttar Pradesh'}, India`,
-            CurrentStateId: p.currentStateId || prev.CurrentStateId,
-            CurrentCityId: p.currentCityId || prev.CurrentCityId,
-            StateName: p.currentStateName || p.stateName || prev.StateName,
-            CityName: p.currentCityName || p.cityName || prev.CityName,
-            Disability: p.disability || prev.Disability || 'No',
+            ProfileCreatedFor: p.profileCreatedForId || p.profileCreatedFor || 0,
+            Age: p.age || null,
+            Gender: p.gender || p.Gender || '',
+            DateOfBirth: p.dateOfBirth || '',
+            MaritalStatus: p.maritalStatusId || p.maritalStatus || 0,
+            Sect: p.sectId || p.sect || 0,
+            Height: p.height || p.Height || '',
+            Weight: p.weight || p.Weight || '',
+            Complexion: p.complexionId || p.complexion || 0,
+            Caste: p.casteId || p.caste || 0,
+            Maslak: p.maslakId || p.maslak || 0,
+            MotherTongue: p.motherTongueId || p.motherTongue || 0,
+            Location: (p.currentCityName || p.cityName) ? `${p.currentCityName || p.cityName}, ${p.currentStateName || p.stateName || ''}, India` : '',
+            CurrentStateId: p.currentStateId || 0,
+            CurrentCityId: p.currentCityId || 0,
+            StateName: p.currentStateName || p.stateName || '',
+            CityName: p.currentCityName || p.cityName || '',
+            Disability: p.disability || '',
 
             // Education & Career
-            Education: p.highestDegreeId || p.highestDegree || prev.Education,
-            CollegeName: p.collegeName || prev.CollegeName,
-            EmployedIn: p.employmentSectorId || p.employmentSector || prev.EmployedIn,
-            Occupation: p.designationId || p.designation || prev.Occupation,
-            OccupationDetails: p.occupationDetails || prev.OccupationDetails,
+            Education: p.highestDegreeId || p.highestDegree || 0,
+            CollegeName: p.collegeName || '',
+            EmployedIn: p.employmentSectorId || p.employmentSector || 0,
+            Occupation: p.designationId || p.designation || 0,
+            OccupationDetails: p.occupationDetails || '',
             AnnualIncome: incStr,
 
             // Family
-            FamilyLocation: p.familyCityName ? `${p.familyCityName}, ${p.familyStateName || ''}, India` : prev.FamilyLocation,
-            FamilyType: p.familyTypeId || p.familyType || prev.FamilyType,
-            FamilyStatus: p.familyStatusId || p.familyStatus || prev.FamilyStatus,
-            NativeLocation: p.nativeCityName ? `${p.nativeCityName}, ${p.nativeStateName || ''}, India` : (p.familyCityName ? `${p.familyCityName}, ${p.familyStateName || ''}, India` : prev.NativeLocation),
-            NativePlaceStateId: p.nativePlaceStateId || prev.NativePlaceStateId,
-            NativePlaceCityId: p.nativePlaceCityId || prev.NativePlaceCityId,
-            FatherName: p.fatherName || p.FatherName || prev.FatherName,
-            FatherOccupation: p.fatherOccupationId || p.fatherOccupation || prev.FatherOccupation,
-            MotherName: p.motherName || p.MotherName || prev.MotherName,
-            MotherOccupation: p.motherOccupationId || p.motherOccupation || prev.MotherOccupation,
-            TotalBrothers: p.totalBrothers !== undefined ? Number(p.totalBrothers) : prev.TotalBrothers,
-            MarriedBrothers: p.marriedBrothers !== undefined ? Number(p.marriedBrothers) : prev.MarriedBrothers,
-            TotalSisters: p.totalSisters !== undefined ? Number(p.totalSisters) : prev.TotalSisters,
-            MarriedSisters: p.marriedSisters !== undefined ? Number(p.marriedSisters) : prev.MarriedSisters,
-            FamilyAbout: p.familyAbout || prev.FamilyAbout,
+            FamilyLocation: p.familyCityName ? `${p.familyCityName}, ${p.familyStateName || ''}, India` : '',
+            FamilyType: p.familyTypeId || p.familyType || 0,
+            FamilyStatus: p.familyStatusId || p.familyStatus || 0,
+            NativeLocation: p.nativeCityName ? `${p.nativeCityName}, ${p.nativeStateName || ''}, India` : (p.familyCityName ? `${p.familyCityName}, ${p.familyStateName || ''}, India` : ''),
+            NativePlaceStateId: p.nativePlaceStateId || 0,
+            NativePlaceCityId: p.nativePlaceCityId || 0,
+            FatherName: p.fatherName || p.FatherName || '',
+            FatherOccupation: p.fatherOccupationId || p.fatherOccupation || '',
+            MotherName: p.motherName || p.MotherName || '',
+            MotherOccupation: p.motherOccupationId || p.motherOccupation || '',
+            TotalBrothers: p.totalBrothers !== undefined && p.totalBrothers !== null ? Number(p.totalBrothers) : 0,
+            MarriedBrothers: p.marriedBrothers !== undefined && p.marriedBrothers !== null ? Number(p.marriedBrothers) : 0,
+            TotalSisters: p.totalSisters !== undefined && p.totalSisters !== null ? Number(p.totalSisters) : 0,
+            MarriedSisters: p.marriedSisters !== undefined && p.marriedSisters !== null ? Number(p.marriedSisters) : 0,
+            FamilyAbout: p.familyAbout || '',
 
             // Contact Details
-            MobileNumber: p.mobileNumber || p.MobileNumber || prev.MobileNumber || '',
-            Email: p.email || p.Email || prev.Email || '',
-            WhatsAppNumber: p.whatsAppNumber || p.WhatsAppNumber || p.waliContactNumber || p.WaliContactNumber || prev.WhatsAppNumber || '',
+            MobileNumber: p.mobileNumber || p.MobileNumber || '',
+            Email: p.email || p.Email || '',
+            WhatsAppNumber: p.whatsAppNumber || p.WhatsAppNumber || p.waliContactNumber || p.WaliContactNumber || '',
 
             // Religious Details
-            NamazHabit: p.namazHabit || p.NamazHabit || prev.NamazHabit,
-            QuranReading: p.quranReading || p.QuranReading || prev.QuranReading,
-            RozaHabit: p.rozaHabit || p.RozaHabit || prev.RozaHabit,
-            HijabOrBeard: p.hijabOrBeard || p.HijabOrBeard || prev.HijabOrBeard,
-            ZakatHabit: p.zakatHabit || p.ZakatHabit || prev.ZakatHabit,
-            HajjUmrah: p.hajjUmrah || p.HajjUmrah || prev.HajjUmrah,
+            NamazHabit: p.namazHabit || p.NamazHabit || '',
+            QuranReading: p.quranReading || p.QuranReading || '',
+            RozaHabit: p.rozaHabit || p.RozaHabit || '',
+            HijabOrBeard: p.hijabOrBeard || p.HijabOrBeard || '',
+            ZakatHabit: p.zakatHabit || p.ZakatHabit || '',
+            HajjUmrah: p.hajjUmrah || p.HajjUmrah || '',
 
             // Lifestyle & Interest
-            DietType: p.dietType || prev.DietType,
-            SmokeHabit: p.smokeHabit || prev.SmokeHabit,
-            DrinkHabit: p.drinkHabit || prev.DrinkHabit,
-            LanguagesKnown: p.languagesKnown || p.LanguagesKnown || prev.LanguagesKnown,
-            CanCook: p.canCook ? 'Yes' : (p.canCook === false ? 'No' : prev.CanCook),
-            Sports: p.sports || p.Sports || prev.Sports,
-            Hobbies: p.hobbies || prev.Hobbies,
-            Interests: p.interests || prev.Interests,
+            DietType: p.dietType || '',
+            SmokeHabit: p.smokeHabit || '',
+            DrinkHabit: p.drinkHabit || '',
+            LanguagesKnown: p.languagesKnown || p.LanguagesKnown || '',
+            CanCook: p.canCook === true ? 'Yes' : (p.canCook === false ? 'No' : (p.canCook || '')),
+            Sports: p.sports || p.Sports || '',
+            Hobbies: p.hobbies || '',
+            Interests: p.interests || '',
 
             // Bio & Trust
             AboutMe: p.aboutMe || p.bio || '',
-            PartnerExpectations: p.partnerExpectations || prev.PartnerExpectations,
+            PartnerExpectations: p.partnerExpectations || '',
             IsGovtIdVerified: Boolean(p.isGovtIdVerified || p.isVerified),
             GovtIdDocUrl: p.govtIdDocUrl || '',
             PhotoPrivacy: p.photoPrivacy || 'All Members',
@@ -689,14 +509,14 @@ export default function EditMyProfilePage() {
           // Photos
           if (Array.isArray(g) && g.length > 0) {
             setPhotos(g.map((item: any, idx: number) => ({
-              photoId: item.photoId || item.PhotoId || idx + 1,
+              photoId: Number(item.photoId || item.PhotoId || 0),
               photoUrl: item.photoUrl || item.PhotoUrl,
               isMain: Boolean(item.isMain ?? item.IsMain ?? (idx === 0)),
               privacy: item.privacy || item.Privacy || 'All Members',
             })));
           } else if (p.photoUrl || p.mainPhotoUrl) {
             setPhotos([{
-              photoId: 1,
+              photoId: 0,
               photoUrl: p.photoUrl || p.mainPhotoUrl,
               isMain: true,
               privacy: 'All Members',
@@ -719,7 +539,7 @@ export default function EditMyProfilePage() {
       fetchCitiesApi(selectedStateId).then(list => {
         setStateCities(list);
         if (list.length > 0 && !list.some(c => c.id === selectedCityId)) {
-          setSelectedCityId(list[0].id);
+          setSelectedCityId(Number(list[0].id));
         }
       });
     }
@@ -752,7 +572,7 @@ export default function EditMyProfilePage() {
       }
 
       const res = await updateProfileApi(fd, token);
-      if (res.success || res.Success === 1) {
+      if (res.success || (res as any).Success === 1) {
         setFormData((prev: any) => ({
           ...prev,
           [field]: value,
@@ -1000,20 +820,20 @@ export default function EditMyProfilePage() {
     setMultiSelectKey(key);
     let title = 'Select Hobbies';
     let subtitle = 'Choose all pastimes you enjoy';
-    let available: MasterOption[] = masterData.HOBBIES || FALLBACK_MASTERS.HOBBIES;
+    let available: MasterOption[] = masterData.HOBBIES || [];
 
     if (key === 'Interests') {
       title = 'Select Music & Interests';
       subtitle = 'Pick genres, melodies, and personal passions';
-      available = masterData.INTERESTS || FALLBACK_MASTERS.INTERESTS;
+      available = masterData.INTERESTS || [];
     } else if (key === 'Sports') {
       title = 'Select Sports & Fitness';
       subtitle = 'Choose sports and physical activities you participate in';
-      available = masterData.SPORTS || FALLBACK_MASTERS.SPORTS;
+      available = masterData.SPORTS || [];
     } else if (key === 'LanguagesKnown') {
       title = 'Languages You Know';
       subtitle = 'Select all languages you speak or understand fluently';
-      available = masterData.LANGUAGES || FALLBACK_MASTERS.LANGUAGES;
+      available = masterData.LANGUAGES || [];
     }
 
     const currentVal = formData[key] || '';
@@ -1143,7 +963,7 @@ export default function EditMyProfilePage() {
 
     try {
       const res = await updatePhotoPrivacyApi(privacyValue, token);
-      if (res.success || res.Success === 1) {
+      if (res.success || (res as any).Success === 1) {
         setFormData((prev: any) => ({ ...prev, PhotoPrivacy: privacyValue }));
         setActiveSheet(null);
       } else {
@@ -1191,7 +1011,10 @@ export default function EditMyProfilePage() {
 
       // Slot 0 is Main Profile Photo
       const isMainSlot = slotIdx === 0;
-      const res = await uploadGalleryPhotoApi(file, isMainSlot, token);
+      const gfd = new FormData();
+      gfd.append("Photo", file);
+      gfd.append("IsMain", String(isMainSlot));
+      const res = await uploadGalleryPhotoApi(gfd, token);
 
       if (res.success) {
         const newPhotoUrl = res.data?.photoUrl || res.data?.url || dataUrl;
@@ -1232,41 +1055,32 @@ export default function EditMyProfilePage() {
       const remaining = photos.filter((_, i) => i !== index);
 
       if (photoId > 0) {
-        if (index === 0 && remaining.length > 0) {
-          const nextPhotoId = Number(remaining[0].photoId || remaining[0].PhotoId || 0);
+        await deleteGalleryPhotoApi(photoId, token);
+      }
+
+      if (remaining.length === 0) {
+        // 🔒 Complete removal: user removed their only/last photo
+        const fd = new FormData();
+        fd.append("UserId", String(formData.UserId || 0));
+        fd.append("PhotoUrl", "");
+        await updateProfileApi(fd, token);
+        syncUserProfilePhoto('');
+        setFormData((prev: any) => ({ ...prev, PhotoUrl: '' }));
+      } else {
+        // More photos remain: auto promote first photo if slot 0 was deleted
+        if (index === 0) {
+          const nextPhotoId = Number(remaining[0].photoId || (remaining[0] as any).PhotoId || 0);
           if (nextPhotoId > 0) {
             await setMainPhotoApi(nextPhotoId, token);
           }
         }
-        const delRes = await deleteGalleryPhotoApi(photoId, token);
-        if (!delRes.success && remaining.length === 0) {
-          const fd = new FormData();
-          fd.append("UserId", String(formData.UserId || 0));
-          fd.append("PhotoUrl", "");
-          await updateProfileApi(fd, token);
-        }
-      } else {
-        if (remaining.length === 0) {
-          const fd = new FormData();
-          fd.append("UserId", String(formData.UserId || 0));
-          fd.append("PhotoUrl", "");
-          await updateProfileApi(fd, token);
-        }
+        const firstPhotoUrl = remaining[0].photoUrl || (remaining[0] as any).PhotoUrl || '';
+        syncUserProfilePhoto(firstPhotoUrl);
+        setFormData((prev: any) => ({ ...prev, PhotoUrl: firstPhotoUrl }));
       }
 
       setPhotos(remaining);
-
-      // Sync user session photo: first photo (slot 1) is always the main/avatar photo!
-      if (remaining.length > 0) {
-        const firstPhotoUrl = remaining[0].photoUrl || remaining[0].PhotoUrl || '';
-        if (firstPhotoUrl) {
-          syncUserProfilePhoto(firstPhotoUrl);
-          setFormData(prev => ({ ...prev, PhotoUrl: firstPhotoUrl }));
-        }
-      } else {
-        syncUserProfilePhoto('');
-        setFormData(prev => ({ ...prev, PhotoUrl: '' }));
-      }
+      toast.success("Photo removed successfully.");
     } catch {
       toast.error("Failed to remove photo.");
     }
@@ -1286,7 +1100,7 @@ export default function EditMyProfilePage() {
       const fd = new FormData();
       fd.append("Document", govtDocFile);
       const res = await uploadGovtDocumentApi(fd, token);
-      if (res.success || res.Success === 1) {
+      if (res.success || (res as any).Success === 1) {
         toast.success("Identity document submitted! Our team will verify it.");
         setFormData((prev: any) => ({ ...prev, GovtIdDocUrl: govtDocPreview, IsGovtIdVerified: false }));
         setActiveSheet(null);
@@ -1313,88 +1127,32 @@ export default function EditMyProfilePage() {
   }, [multiSelectAvailable, multiSelectSearch]);
 
   // Master Options Mappers
-  const educationOpts = masterData.EDUCATIONS || FALLBACK_MASTERS.EDUCATIONS;
-  const casteOpts = masterData.CASTES || FALLBACK_MASTERS.CASTES;
-  const maslakOpts = masterData.MASLAKS || FALLBACK_MASTERS.MASLAKS;
-  const languageOpts = masterData.MOTHER_TONGUES || FALLBACK_MASTERS.MOTHER_TONGUES;
-  const occupationOpts = masterData.OCCUPATIONS || FALLBACK_MASTERS.OCCUPATIONS;
-  const employedInOpts = masterData.EMPLOYMENT_SECTORS || FALLBACK_MASTERS.EMPLOYMENT_SECTORS;
-  const familyTypeOpts = masterData.FAMILY_TYPES || FALLBACK_MASTERS.FAMILY_TYPES;
-  const familyStatusOpts = masterData.FAMILY_STATUS || FALLBACK_MASTERS.FAMILY_STATUS;
-  const profileCreatedForOpts = masterData.PROFILE_CREATED_FOR || FALLBACK_MASTERS.PROFILE_CREATED_FOR;
-  const maritalStatusOpts = masterData.MARITAL_STATUS || FALLBACK_MASTERS.MARITAL_STATUS;
-  const sectOpts = masterData.SECTS || FALLBACK_MASTERS.SECTS;
+  const educationOpts = masterData.EDUCATIONS || [];
+  const casteOpts = masterData.CASTES || [];
+  const maslakOpts = masterData.MASLAKS || [];
+  const languageOpts = masterData.MOTHER_TONGUES || [];
+  const occupationOpts = masterData.OCCUPATIONS || [];
+  const employedInOpts = masterData.EMPLOYMENT_SECTORS || [];
+  const familyTypeOpts = masterData.FAMILY_TYPES || [];
+  const familyStatusOpts = masterData.FAMILY_STATUS || [];
+  const profileCreatedForOpts = masterData.PROFILE_CREATED_FOR || [];
+  const maritalStatusOpts = masterData.MARITAL_STATUS || [];
+  const sectOpts = masterData.SECTS || [];
 
-  const disabilityOpts = [
-    { id: 'No', value: 'No' },
-    { id: 'Yes', value: 'Yes' },
-    { id: 'Physically Challenged', value: 'Physically Challenged' }
-  ];
-
-  const namazOpts = [
-    { id: 'Always (5 Times Daily)', value: 'Always (5 Times Daily)' },
-    { id: 'During Ramadan / Friday Only', value: 'During Ramadan / Friday Only' },
-    { id: 'Sometimes', value: 'Sometimes' },
-    { id: 'Trying to be Regular', value: 'Trying to be Regular' }
-  ];
-
-  const quranOpts = [
-    { id: 'Daily Recitation', value: 'Daily Recitation' },
-    { id: 'Learning / Reciting with Translation', value: 'Learning / Reciting with Translation' },
-    { id: 'Frequently', value: 'Frequently' },
-    { id: 'During Ramadan', value: 'During Ramadan' },
-    { id: 'Completed Hafiz / Qari', value: 'Completed Hafiz / Qari' }
-  ];
-
-  const rozaOpts = [
-    { id: 'All 30 Days in Ramadan', value: 'All 30 Days in Ramadan' },
-    { id: 'Most Days in Ramadan', value: 'Most Days in Ramadan' },
-    { id: 'Only Fridays / Special Days', value: 'Only Fridays / Special Days' },
-    { id: 'Medical Exemption', value: 'Medical Exemption' }
-  ];
-
-  const hijabOpts = [
-    { id: 'Hijab', value: 'Hijab' },
-    { id: 'Niqab', value: 'Niqab' },
-    { id: 'Sunnah Beard', value: 'Sunnah Beard' },
-    { id: 'Modest Dress / Clean Shaved', value: 'Modest Dress / Clean Shaved' }
-  ];
-
-  const zakatOpts = [
-    { id: 'Pay Regularly Every Year', value: 'Pay Regularly Every Year' },
-    { id: 'Not Eligible / Dependent', value: 'Not Eligible / Dependent' },
-    { id: 'Pay Voluntarily / Charity', value: 'Pay Voluntarily / Charity' }
-  ];
-
-  const hajjOpts = [
-    { id: 'Performed Hajj & Umrah', value: 'Performed Hajj & Umrah' },
-    { id: 'Performed Umrah', value: 'Performed Umrah' },
-    { id: 'Planning Soon Insha\'Allah', value: 'Planning Soon Insha\'Allah' },
-    { id: 'Not Yet Performed', value: 'Not Yet Performed' }
-  ];
-
-  const dietOpts = [
-    { id: 'Halal Only', value: 'Halal Only' },
-    { id: 'Non-Vegetarian', value: 'Non-Vegetarian' },
-    { id: 'Vegetarian', value: 'Vegetarian' },
-    { id: 'Eggetarian', value: 'Eggetarian' }
-  ];
-
-  const habitOpts = [
-    { id: 'Never', value: 'Never' },
-    { id: 'Occasionally', value: 'Occasionally' },
-    { id: 'No', value: 'No' }
-  ];
-
-  const cookOpts = [
-    { id: 'Yes', value: 'Yes' },
-    { id: 'No', value: 'No' },
-    { id: 'Learning', value: 'Learning' }
-  ];
+  const disabilityOpts = masterData.DISABILITIES && masterData.DISABILITIES.length > 0 ? masterData.DISABILITIES : [{ id: 'Normal / None', value: 'Normal / None' }, { id: 'Physically Challenged', value: 'Physically Challenged' }];
+  const namazOpts = masterData.NAMAZ_HABITS && masterData.NAMAZ_HABITS.length > 0 ? masterData.NAMAZ_HABITS : [{ id: 'Always (5 Times Daily)', value: 'Always (5 Times Daily)' }, { id: 'Regularly (Most Times)', value: 'Regularly (Most Times)' }];
+  const quranOpts = masterData.QURAN_READING && masterData.QURAN_READING.length > 0 ? masterData.QURAN_READING : [{ id: 'Daily Recitation', value: 'Daily Recitation' }, { id: 'Daily with Translation / Tafseer', value: 'Daily with Translation / Tafseer' }];
+  const rozaOpts = masterData.ROZA_HABITS && masterData.ROZA_HABITS.length > 0 ? masterData.ROZA_HABITS : [{ id: 'All 30 Days of Ramadan', value: 'All 30 Days of Ramadan' }, { id: 'Most Days of Ramadan', value: 'Most Days of Ramadan' }];
+  const hijabOpts = masterData.HIJAB_BEARD && masterData.HIJAB_BEARD.length > 0 ? masterData.HIJAB_BEARD : [{ id: 'Always Hijab / Niqab', value: 'Always Hijab / Niqab' }, { id: 'Full Sunnah Beard', value: 'Full Sunnah Beard' }];
+  const zakatOpts = masterData.ZAKAT_HABITS && masterData.ZAKAT_HABITS.length > 0 ? masterData.ZAKAT_HABITS : [{ id: 'Pay Regularly Every Year', value: 'Pay Regularly Every Year' }, { id: 'Pay Voluntarily / Generous Charity', value: 'Pay Voluntarily / Generous Charity' }];
+  const hajjOpts = masterData.HAJJ_UMRAH && masterData.HAJJ_UMRAH.length > 0 ? masterData.HAJJ_UMRAH : [{ id: 'Performed Both Hajj & Umrah', value: 'Performed Both Hajj & Umrah' }, { id: 'Planning Soon (Insha\'Allah)', value: 'Planning Soon (Insha\'Allah)' }];
+  const dietOpts = masterData.DIET_TYPES && masterData.DIET_TYPES.length > 0 ? masterData.DIET_TYPES : [{ id: 'Strictly Halal Always', value: 'Strictly Halal Always' }, { id: 'Halal Non-Veg & Veg', value: 'Halal Non-Veg & Veg' }];
+  const habitOpts = masterData.SMOKE_HABITS && masterData.SMOKE_HABITS.length > 0 ? masterData.SMOKE_HABITS : [{ id: 'Non-Smoker / Never', value: 'Non-Smoker / Never' }, { id: 'Occasionally / Socially', value: 'Occasionally / Socially' }];
+  const cookOpts = masterData.COOKING_SKILLS && masterData.COOKING_SKILLS.length > 0 ? masterData.COOKING_SKILLS : [{ id: 'Can Cook Daily / Basic Meals', value: 'Can Cook Daily / Basic Meals' }, { id: 'Expert / Passionate Cook', value: 'Expert / Passionate Cook' }];
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#FAF8F5] flex flex-col items-center justify-center space-y-3">
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center space-y-3">
         <Loader2 size={32} className="text-[#d91b5c] animate-spin" />
         <p className="text-sm font-semibold text-slate-600">Loading your profile portfolio...</p>
       </div>
@@ -1407,7 +1165,7 @@ export default function EditMyProfilePage() {
   const showTopLifestylePrompt = !(hasHobbies && hasMusicInterests);
 
   return (
-    <div className="min-h-screen bg-[#FBF9F7] text-slate-900 pb-28 font-sans selection:bg-[#d91b5c] selection:text-white">
+    <div className="min-h-screen bg-white text-slate-900 pb-28 font-sans selection:bg-[#d91b5c] selection:text-white">
       <Toaster position="top-center" richColors />
 
       {/* 🌟 1. ELEVATED FLOATING APP BAR */}
@@ -1442,7 +1200,7 @@ export default function EditMyProfilePage() {
       <main className="max-w-lg mx-auto px-4 pt-3 space-y-4">
 
         {/* 🌟 100% COMPLETE PROFILE BADGE PROMPT (Matching Screenshot) */}
-        <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-[#FFF9F2] border border-amber-200/60 shadow-xs">
+        <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-white border border-amber-200/60 shadow-xs">
           <div className="w-6 h-6 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center shrink-0">
             <Star size={13} className="fill-amber-400" />
           </div>
@@ -1463,7 +1221,7 @@ export default function EditMyProfilePage() {
                 <span className="text-xs font-bold text-slate-900">
                   Lifestyle & Interest
                 </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#FFF3D6] text-[#8C6000]">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-[#8C6000]">
                   +10% Score
                 </span>
               </div>
@@ -1606,8 +1364,8 @@ export default function EditMyProfilePage() {
             onClick={openBioSheet}
             className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-rose-300 transition-all cursor-pointer relative"
           >
-            <p className="text-xs text-slate-700 leading-relaxed font-normal line-clamp-3">
-              {formData.AboutMe || "Alhamdulillah, we are a well-established and educated family rooted in strong moral values. We prefer a simple, meaningful, and dignified Nikah ceremony built on mutual understanding and respect, rather than customary demands. We seek a compatible and understanding partner from a similar cultural background."}
+            <p className={`text-xs leading-relaxed ${formData.AboutMe ? 'text-slate-700 font-normal line-clamp-3' : 'text-slate-400 italic'}`}>
+              {formData.AboutMe || "Write a brief description about yourself, your values, and background... (Click to add bio)"}
             </p>
             <div className="mt-2 text-right">
               <span className="text-xs font-bold text-slate-900 hover:text-[#d91b5c] transition-colors">
@@ -1709,7 +1467,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Height</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.Height}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(formData.Height, "Select Height")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -1721,7 +1479,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Caste</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('CASTES', formData.Caste)}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('CASTES', formData.Caste), "Select Caste")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -1733,7 +1491,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Maslak</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('MASLAKS', formData.Maslak)}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('MASLAKS', formData.Maslak), "Select Maslak")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -1745,7 +1503,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Mother Tongue</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('MOTHER_TONGUES', formData.MotherTongue)}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('MOTHER_TONGUES', formData.MotherTongue), "Select Mother Tongue")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -1757,7 +1515,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Location</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.Location}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(formData.Location, "Select Location")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -1769,7 +1527,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Disability</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.Disability}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(formData.Disability, "Select Disability Status")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -1793,7 +1551,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Education</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('EDUCATIONS', formData.Education)}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('EDUCATIONS', formData.Education), "Select Education")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -1812,7 +1570,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">College Name</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.CollegeName || "Add College Name"}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(formData.CollegeName, "Add College Name")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -1824,7 +1582,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Employed In</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('EMPLOYMENT_SECTORS', formData.EmployedIn)}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('EMPLOYMENT_SECTORS', formData.EmployedIn), "Select Employed In")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -1836,7 +1594,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Occupation</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('OCCUPATIONS', formData.Occupation)}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('OCCUPATIONS', formData.Occupation), "Select Occupation")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -1848,7 +1606,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Annual Income</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.AnnualIncome}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(formData.AnnualIncome, "Select Annual Income")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -1872,7 +1630,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Family Location</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.FamilyLocation}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(formData.FamilyLocation, "Select Family Location")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -1884,7 +1642,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Family Type</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('FAMILY_TYPES', formData.FamilyType)}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('FAMILY_TYPES', formData.FamilyType), "Select Family Type")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -1896,7 +1654,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Family Status</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('FAMILY_STATUS', formData.FamilyStatus)}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('FAMILY_STATUS', formData.FamilyStatus), "Select Family Status")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -1908,7 +1666,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Native Location</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.NativeLocation}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(formData.NativeLocation, "Select Native Location")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -1920,7 +1678,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Father's Occupation</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('OCCUPATIONS', formData.FatherOccupation) || "Select Occupation"}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('OCCUPATIONS', formData.FatherOccupation) || formData.FatherOccupation, "Select Occupation")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -1932,7 +1690,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Mother's Occupation</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('OCCUPATIONS', formData.MotherOccupation) || "Select Occupation"}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('OCCUPATIONS', formData.MotherOccupation) || formData.MotherOccupation, "Select Occupation")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -2047,7 +1805,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Namaz</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.NamazHabit}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(formData.NamazHabit, "Select Namaz Habit")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -2059,7 +1817,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Quran Reading</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.QuranReading || "Select Reading Routine"}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(formData.QuranReading, "Select Reading Routine")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -2071,7 +1829,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Do you keep Roza (Fasting)</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.RozaHabit || "Select Fasting Routine"}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(formData.RozaHabit, "Select Fasting Routine")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -2083,7 +1841,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Hijab / Beard</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.HijabOrBeard}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(formData.HijabOrBeard, "Select Hijab / Beard Routine")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -2095,7 +1853,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Zakat</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.ZakatHabit || "Select Zakat Practice"}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(formData.ZakatHabit, "Select Zakat Practice")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -2107,7 +1865,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Hajj / Umrah</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.HajjUmrah || "Select Pilgrimage Status"}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(formData.HajjUmrah, "Select Pilgrimage Status")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -2131,7 +1889,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Diet Preference</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.DietType}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(formData.DietType, "Select Diet Preference")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -2143,7 +1901,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Smoke</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.SmokeHabit}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(formData.SmokeHabit, "Select Smoking Habit")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -2155,7 +1913,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Drink</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.DrinkHabit}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(formData.DrinkHabit, "Select Drinking Habit")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -2167,8 +1925,8 @@ export default function EditMyProfilePage() {
             >
               <div className="min-w-0 pr-3">
                 <span className="text-[13px] font-bold text-slate-900 block">Languages you know</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block truncate">
-                  {formData.LanguagesKnown || "Select languages"}
+                <span className="text-xs mt-0.5 block truncate">
+                  {renderLabel(formData.LanguagesKnown, "Select languages")}
                 </span>
               </div>
               <ChevronRight size={16} className="text-slate-400 shrink-0" />
@@ -2181,7 +1939,7 @@ export default function EditMyProfilePage() {
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Cook Food</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.CanCook}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(formData.CanCook, "Select Cooking Skill")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -2193,8 +1951,8 @@ export default function EditMyProfilePage() {
             >
               <div className="min-w-0 pr-3">
                 <span className="text-[13px] font-bold text-slate-900 block">Sports</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block truncate">
-                  {formData.Sports || "Select sports"}
+                <span className="text-xs mt-0.5 block truncate">
+                  {renderLabel(formData.Sports, "Select sports")}
                 </span>
               </div>
               <ChevronRight size={16} className="text-slate-400 shrink-0" />
@@ -2207,8 +1965,8 @@ export default function EditMyProfilePage() {
             >
               <div className="min-w-0 pr-3">
                 <span className="text-[13px] font-bold text-slate-900 block">Hobbies</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block truncate">
-                  {formData.Hobbies || "Select hobbies"}
+                <span className="text-xs mt-0.5 block truncate">
+                  {renderLabel(formData.Hobbies, "Select hobbies")}
                 </span>
               </div>
               <ChevronRight size={16} className="text-slate-400 shrink-0" />
@@ -2221,8 +1979,8 @@ export default function EditMyProfilePage() {
             >
               <div className="min-w-0 pr-3">
                 <span className="text-[13px] font-bold text-slate-900 block">Musics</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block truncate">
-                  {formData.Interests || "Select music & interests"}
+                <span className="text-xs mt-0.5 block truncate">
+                  {renderLabel(formData.Interests, "Select music & interests")}
                 </span>
               </div>
               <ChevronRight size={16} className="text-slate-400 shrink-0" />
@@ -2448,9 +2206,15 @@ export default function EditMyProfilePage() {
                       onChange={(e) => setDobYear(Number(e.target.value))}
                       className="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 bg-white text-center focus:outline-none focus:border-[#d91b5c]"
                     >
-                      {Array.from({ length: 48 }, (_, i) => 2008 - i).map(yr => (
-                        <option key={yr} value={yr}>{yr}</option>
-                      ))}
+                      {(() => {
+                        const minLegalAge = String(formData.Gender || '').toLowerCase() === 'female' ? 18 : 21;
+                        const currentYr = new Date().getFullYear();
+                        const latestBirthYear = currentYr - minLegalAge;
+                        const earliestBirthYear = currentYr - 75;
+                        return Array.from({ length: latestBirthYear - earliestBirthYear + 1 }, (_, i) => latestBirthYear - i).map(yr => (
+                          <option key={yr} value={yr}>{yr}</option>
+                        ));
+                      })()}
                     </select>
                   </div>
                 </div>
@@ -3000,30 +2764,33 @@ export default function EditMyProfilePage() {
                 </div>
 
                 <div className="space-y-3 pt-1">
-                  {[
-                    { id: 'All Members', title: 'All Members', desc: 'Visible to everyone' },
-                    { id: 'Premium Members', title: 'Premium Members', desc: 'Blurred for free users' },
-                    { id: 'Members I Approve', title: 'Members I Approve', desc: 'Blurred until you approve' },
-                  ].map((item) => {
-                    const isSelected = formData.PhotoPrivacy === item.id;
+                  {(masterData.PHOTO_PRIVACY && masterData.PHOTO_PRIVACY.length > 0 ? masterData.PHOTO_PRIVACY : [
+                    { id: 1, value: 'All Members', displayName: 'All Members', description: 'Visible to everyone' },
+                    { id: 2, value: 'Premium Only', displayName: 'Premium Members', description: 'Blurred for free users' },
+                    { id: 3, value: 'Only Approved', displayName: 'Members I Approve', description: 'Blurred until you approve' },
+                  ]).map((item: any) => {
+                    const itemVal = item.value || item.Value || item.displayName || item.DisplayName;
+                    const itemTitle = item.displayName || item.DisplayName || item.title || itemVal;
+                    const itemDesc = item.description || item.Description || item.desc || 'Photo privacy option';
+                    const isSelected = (selectedSheetValue || formData.PhotoPrivacy) === itemVal || (selectedSheetValue || formData.PhotoPrivacy) === itemTitle;
                     return (
                       <div
-                        key={item.id}
-                        onClick={() => setSelectedSheetValue(item.id)}
+                        key={item.id || itemVal}
+                        onClick={() => setSelectedSheetValue(itemVal)}
                         className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
-                          isSelected ? 'border-[#d91b5c]' : 'border-slate-200 hover:border-slate-300'
+                          isSelected ? 'border-[#d91b5c] bg-rose-50/40' : 'border-slate-200 hover:border-slate-300'
                         }`}
                       >
                         <div>
-                          <div className="text-xs font-black text-slate-900">
-                            {item.title}
+                          <div className={`text-xs font-black ${isSelected ? 'text-[#d91b5c]' : 'text-slate-900'}`}>
+                            {itemTitle}
                           </div>
-                          <div className="text-[11px] text-slate-400 mt-0.5">{item.desc}</div>
+                          <div className="text-[11px] text-slate-400 mt-0.5">{itemDesc}</div>
                         </div>
                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                          isSelected ? 'border-[#d91b5c]' : 'border-slate-300'
+                          isSelected ? 'border-[#d91b5c] bg-[#d91b5c]' : 'border-slate-300'
                         }`}>
-                          {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-[#d91b5c]" />}
+                          {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-white" />}
                         </div>
                       </div>
                     );

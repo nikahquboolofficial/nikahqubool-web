@@ -1,5 +1,5 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.nikahqubool.in/api"; 
-//export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://localhost:7204/api";
+//export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.nikahqubool.in/api"; 
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://localhost:7204/api";
 // ⚡ Dynamic SignalR Hub URL
 export const SIGNALR_HUB_URL = API_BASE_URL.replace(/\/api\/?$/, '') + "/chatHub";
 
@@ -103,6 +103,31 @@ export const fetchProfileCreatedForOptions = async (): Promise<MasterOption[]> =
     }
   } catch (error) {}
   return [];
+};
+
+// 🔓 Public: Master Data Synchronous Cache Getter (0ms Instant Load)
+export const getCachedMasterOptions = (type: string): MasterOption[] => {
+  const cacheKey = `cache_master_${type.toUpperCase()}`;
+  if (masterCategoryCache[cacheKey] && masterCategoryCache[cacheKey].length > 0) {
+    return masterCategoryCache[cacheKey];
+  }
+  if (typeof window !== "undefined") {
+    const local = sessionStorage.getItem(cacheKey) || localStorage.getItem(cacheKey);
+    if (local) {
+      try {
+        const parsed = JSON.parse(local);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          masterCategoryCache[cacheKey] = parsed;
+          return parsed;
+        }
+      } catch (e) {}
+    }
+  }
+  return [];
+};
+
+export const getCachedMasterValues = (type: string): string[] => {
+  return getCachedMasterOptions(type).map(o => o.value).filter(Boolean);
 };
 
 // 🔓 Public: Master Data Fetcher (No Token Needed, Instant Cached)

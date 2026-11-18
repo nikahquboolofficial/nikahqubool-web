@@ -13,52 +13,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { toast, Toaster } from 'sonner';
 import { filterMinAge, filterMaxAge, MIN_HEIGHT_FT, MAX_HEIGHT_FT } from '@/lib/utils/ageHeightRules';
-import { searchMatchesApi, handleInteractionApiCall, fetchMasterDataApi, fetchDashboardApi } from '@/lib/api';
+import { searchMatchesApi, handleInteractionApiCall, fetchMasterDataApi, getCachedMasterValues, fetchDashboardApi } from '@/lib/api';
 import { checkDailyViewLimit, formatTimeRemaining } from '@/lib/limitUtils';
 import ProfileCard from '@/components/dashboard/ProfileCard';
 import ProfileCardSkeleton from '@/components/dashboard/ProfileCardSkeleton';
 import { getAuthToken } from '@/lib/auth';
-
-// COMPREHENSIVE MASTER FALLBACK DATA
-const MASTER_FALLBACKS: Record<string, string[]> = {
-  MARITAL_STATUS: ["Never Married", "Divorced", "Widowed", "Awaiting Divorce", "Annulled"],
-  SECT: ["Sunni", "Shia", "Deobandi", "Barelvi", "Ahle Hadith", "Salafi", "Jamaat-e-Islami", "Other"],
-  CASTE: [
-    "Shaikh / Sheikh", "Syed", "Pathan / Khan", "Ansari / Momin", "Qureshi / Baig", "Siddiqui", 
-    "Farooqui", "Usmani", "Alvi", "Abbasi", "Hashmi", "Mirza", "Mughal", "Malik", 
-    "Choudhary / Jat Muslim", "Mansoori / Dhunia", "Rayeen / Kunjra", "Idrisi / Darzi", 
-    "Saifi / Lohar / Najjari", "Rangrez", "Ghosi", "Meo / Mewati", "Other"
-  ],
-  STATE: [
-    "Uttar Pradesh", "Delhi", "Maharashtra", "Bihar", "Karnataka", "Telangana", 
-    "West Bengal", "Madhya Pradesh", "Rajasthan", "Gujarat", "Punjab", "Haryana", 
-    "Jharkhand", "Uttarakhand", "Jammu and Kashmir", "Andhra Pradesh", "Tamil Nadu", "Kerala"
-  ],
-  CITY: [
-    "Bareilly", "Lucknow", "Delhi", "Mumbai", "Kanpur", "Agra", "Varanasi", 
-    "Meerut", "Aligarh", "Moradabad", "Rampur", "Saharanpur", "Gorakhpur", 
-    "Hyderabad", "Bengaluru", "Patna", "Kolkata", "Pune", "Ahmedabad", "Jaipur", "Bhopal", "Indore"
-  ],
-  EDUCATION: [
-    "B.Tech / B.E.", "B.Sc", "B.Com", "B.A.", "B.CA", "M.Tech / M.E.", "M.Sc", 
-    "M.Com", "M.A.", "MCA", "MBA", "MBBS / MD", "BDS", "LL.B / LL.M", "High School / Diploma", "Ph.D / Doctorate"
-  ],
-  PROFESSION: [
-    "Software Engineer / IT Professional", "Doctor / Healthcare", "Teacher / Professor", 
-    "Chartered Accountant / Finance", "Businessperson / Entrepreneur", "Government / Public Sector", 
-    "Private Sector", "Civil Engineer", "Defense / Civil Services", "Banking Professional", "Homemaker", "Other"
-  ]
-};
-
-
-// 🎯 SHADI.COM HYBRID FILTER LOGIC (MULTI-SELECT 'OR' WITHIN CATEGORY, 'AND' ACROSS CATEGORIES, 'ANY' = MATCH ALL)
-const MARITAL_MAP: Record<string, string> = {
-  "Never Married": "1",
-  "Divorced": "2",
-  "Widowed": "3",
-  "Awaiting Divorce": "4",
-  "Annulled": "5"
-};
 
 function parseHeightValue(h: any): number {
   if (!h) return 5.4;
@@ -94,12 +53,9 @@ function matchesShaadiFilter(p: any, f: typeof DEFAULT_FILTERS): boolean {
     const pMarital = String(p.maritalStatus ?? p.MaritalStatus ?? '').toLowerCase().trim();
     const match = f.maritalStatus.some(item => {
       const target = item.toLowerCase().trim();
-      const mappedId = MARITAL_MAP[item] || '';
       return pMarital === target || 
-             pMarital === mappedId || 
-             (target.includes('never') && (pMarital.includes('never') || pMarital === '1')) ||
-             (target.includes('divorce') && (pMarital.includes('divorce') || pMarital === '2')) ||
-             (target.includes('widow') && (pMarital.includes('widow') || pMarital === '3'));
+             pMarital.includes(target) || 
+             target.includes(pMarital);
     });
     if (!match) return false;
   }
@@ -207,8 +163,16 @@ export default function FindMatchesPage() {
   const [sheetSearch, setSheetSearch] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
-  // DYNAMIC MASTER OPTIONS STATE
-  const [masterOptions, setMasterOptions] = useState<Record<string, string[]>>(MASTER_FALLBACKS);
+  // DYNAMIC MASTER OPTIONS STATE (Hydrated instantly from local cache, then updated from DB)
+  const [masterOptions, setMasterOptions] = useState<Record<string, string[]>>(() => ({
+    MARITAL_STATUS: getCachedMasterValues('MARITAL_STATUS'),
+    SECT: getCachedMasterValues('SECTS'),
+    CASTE: getCachedMasterValues('CASTES'),
+    STATE: getCachedMasterValues('STATES'),
+    CITY: getCachedMasterValues('CITIES'),
+    EDUCATION: getCachedMasterValues('EDUCATIONS'),
+    PROFESSION: getCachedMasterValues('OCCUPATIONS')
+  }));
 
   // FILTERS STATE
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
@@ -239,32 +203,33 @@ export default function FindMatchesPage() {
   useEffect(() => {
     const loadMasters = async () => {
       try {
-        const [marital, sects, castes, states, educations, occupations] = await Promise.all([
+        const [marital, sects, castes, states, cities, educations, occupations] = await Promise.all([
           fetchMasterDataApi('MARITAL_STATUS').catch(() => []),
           fetchMasterDataApi('SECTS').catch(() => []),
           fetchMasterDataApi('CASTES').catch(() => []),
           fetchMasterDataApi('STATES').catch(() => []),
+          fetchMasterDataApi('CITIES').catch(() => []),
           fetchMasterDataApi('EDUCATIONS').catch(() => []),
           fetchMasterDataApi('OCCUPATIONS').catch(() => [])
         ]);
 
-        const extractValues = (list: any[], fallback: string[]) => {
+        const extractValues = (list: any[]) => {
           if (Array.isArray(list) && list.length > 0) {
             const vals = list.map((item: any) => String(item.value || item.Value || item.name || item.Name || '').trim()).filter(Boolean);
-            if (vals.length > 0) return Array.from(new Set([...vals, ...fallback]));
+            if (vals.length > 0) return Array.from(new Set(vals));
           }
-          return fallback;
+          return [];
         };
 
-        setMasterOptions({
-          MARITAL_STATUS: extractValues(marital, MASTER_FALLBACKS.MARITAL_STATUS),
-          SECT: extractValues(sects, MASTER_FALLBACKS.SECT),
-          CASTE: extractValues(castes, MASTER_FALLBACKS.CASTE),
-          STATE: extractValues(states, MASTER_FALLBACKS.STATE),
-          CITY: MASTER_FALLBACKS.CITY,
-          EDUCATION: extractValues(educations, MASTER_FALLBACKS.EDUCATION),
-          PROFESSION: extractValues(occupations, MASTER_FALLBACKS.PROFESSION)
-        });
+        setMasterOptions(prev => ({
+          MARITAL_STATUS: extractValues(marital).length > 0 ? extractValues(marital) : prev.MARITAL_STATUS,
+          SECT: extractValues(sects).length > 0 ? extractValues(sects) : prev.SECT,
+          CASTE: extractValues(castes).length > 0 ? extractValues(castes) : prev.CASTE,
+          STATE: extractValues(states).length > 0 ? extractValues(states) : prev.STATE,
+          CITY: extractValues(cities).length > 0 ? extractValues(cities) : prev.CITY,
+          EDUCATION: extractValues(educations).length > 0 ? extractValues(educations) : prev.EDUCATION,
+          PROFESSION: extractValues(occupations).length > 0 ? extractValues(occupations) : prev.PROFESSION
+        }));
       } catch (e) {}
     };
     loadMasters();
@@ -282,14 +247,11 @@ export default function FindMatchesPage() {
 
     const activeFilters = overrideFilters || filters;
 
-    // Expand marital status to include both name and numeric ID so SQL procedure matches
-    const expandedMarital = activeFilters.maritalStatus.flatMap(m => [m, MARITAL_MAP[m] || '']).filter(Boolean);
-
     const payload = {
       searchText: "",
       ageMin: activeFilters.ageMin || 18,
       ageMax: activeFilters.ageMax || 60,
-      maritalStatus: expandedMarital.length > 0 ? expandedMarital : [],
+      maritalStatus: activeFilters.maritalStatus.length > 0 ? activeFilters.maritalStatus : [],
       sect: activeFilters.sect.length > 0 ? activeFilters.sect : [],
       caste: activeFilters.caste.length > 0 ? activeFilters.caste : [],
       states: activeFilters.states.length > 0 ? activeFilters.states : [],
@@ -449,7 +411,7 @@ export default function FindMatchesPage() {
   };
 
   function getOptionsForSheet(sheetKey: string) {
-    const list = masterOptions[sheetKey] || MASTER_FALLBACKS[sheetKey] || [];
+    const list = masterOptions[sheetKey] || [];
     if (!sheetSearch.trim()) return list;
     return list.filter(item => item.toLowerCase().includes(sheetSearch.toLowerCase().trim()));
   }

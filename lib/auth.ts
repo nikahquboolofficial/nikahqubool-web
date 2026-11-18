@@ -185,21 +185,23 @@ export const getStoredUserPhoto = (): string => {
  * 2. Triggers window event 'user_photo_updated' so DashboardBottomNav, DashboardHeader, EditProfile, and MyProfile update in real-time
  */
 export const syncUserProfilePhoto = (photoUrl: string) => {
-  if (!photoUrl || typeof window === "undefined") return;
+  if (typeof window === "undefined") return;
+  const safeUrl = photoUrl || '';
   try {
     ['user_details', 'user_session', 'cached_profile_details'].forEach(key => {
       const stored = localStorage.getItem(key);
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
-          parsed.mainPhotoUrl = photoUrl;
-          parsed.photoUrl = photoUrl;
-          parsed.PhotoUrl = photoUrl;
-          parsed.mainPhoto = photoUrl;
-          parsed.photo = photoUrl;
+          parsed.mainPhotoUrl = safeUrl;
+          parsed.photoUrl = safeUrl;
+          parsed.PhotoUrl = safeUrl;
+          parsed.mainPhoto = safeUrl;
+          parsed.photo = safeUrl;
           if (parsed.profile && typeof parsed.profile === 'object') {
-            parsed.profile.mainPhotoUrl = photoUrl;
-            parsed.profile.photoUrl = photoUrl;
+            parsed.profile.mainPhotoUrl = safeUrl;
+            parsed.profile.photoUrl = safeUrl;
+            parsed.profile.PhotoUrl = safeUrl;
           }
           localStorage.setItem(key, JSON.stringify(parsed));
         } catch (e) {}
@@ -207,7 +209,7 @@ export const syncUserProfilePhoto = (photoUrl: string) => {
     });
 
     // Broadcast standard event and detail event for listeners
-    window.dispatchEvent(new CustomEvent("user_photo_updated", { detail: { photoUrl } }));
+    window.dispatchEvent(new CustomEvent("user_photo_updated", { detail: { photoUrl: safeUrl } }));
     window.dispatchEvent(new Event("user_photo_updated"));
   } catch (err) {}
 };

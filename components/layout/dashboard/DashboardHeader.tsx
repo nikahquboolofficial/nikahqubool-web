@@ -145,16 +145,20 @@ export default function DashboardHeader({
       }
     };
 
+    const handleSubUpdated = () => {
+      checkSubscriptionStatus();
+    };
+
     if (typeof window !== "undefined") {
       window.addEventListener("user_photo_updated", updatePhotoFromStorage);
       window.addEventListener("boost_updated", handleBoostUpdated);
-      window.addEventListener("user_details_updated", checkSubscriptionStatus);
-      window.addEventListener("subscription_updated", checkSubscriptionStatus);
+      window.addEventListener("user_details_updated", handleSubUpdated);
+      window.addEventListener("subscription_updated", handleSubUpdated);
       return () => {
         window.removeEventListener("user_photo_updated", updatePhotoFromStorage);
         window.removeEventListener("boost_updated", handleBoostUpdated);
-        window.removeEventListener("user_details_updated", checkSubscriptionStatus);
-        window.removeEventListener("subscription_updated", checkSubscriptionStatus);
+        window.removeEventListener("user_details_updated", handleSubUpdated);
+        window.removeEventListener("subscription_updated", handleSubUpdated);
       };
     }
   }, [pathname]);

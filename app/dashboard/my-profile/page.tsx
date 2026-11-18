@@ -161,22 +161,31 @@ export default function MyProfilePage() {
 
   useEffect(() => {
     const handlePhotoUpdated = (e: any) => {
-      const newPhoto = e?.detail?.photoUrl || getStoredUserPhoto();
-      if (newPhoto) {
-        setProfileData((prev: any) => ({
-          ...prev,
-          mainPhotoUrl: newPhoto,
-          photoUrl: newPhoto,
-          PhotoUrl: newPhoto,
-          mainPhoto: newPhoto,
-          photo: newPhoto
-        }));
-      }
+      const newPhoto = e?.detail?.photoUrl !== undefined ? e.detail.photoUrl : getStoredUserPhoto();
+      setProfileData((prev: any) => ({
+        ...prev,
+        mainPhotoUrl: newPhoto,
+        photoUrl: newPhoto,
+        PhotoUrl: newPhoto,
+        mainPhoto: newPhoto,
+        photo: newPhoto
+      }));
       loadMyProfile();
     };
+
+    const handleSubUpdated = () => {
+      loadMyProfile();
+    };
+
     if (typeof window !== "undefined") {
       window.addEventListener("user_photo_updated", handlePhotoUpdated);
-      return () => window.removeEventListener("user_photo_updated", handlePhotoUpdated);
+      window.addEventListener("subscription_updated", handleSubUpdated);
+      window.addEventListener("user_details_updated", handleSubUpdated);
+      return () => {
+        window.removeEventListener("user_photo_updated", handlePhotoUpdated);
+        window.removeEventListener("subscription_updated", handleSubUpdated);
+        window.removeEventListener("user_details_updated", handleSubUpdated);
+      };
     }
   }, [loadMyProfile]);
 
@@ -223,29 +232,38 @@ export default function MyProfilePage() {
   const memberId = profileData?.memberId || profileData?.MemberId || `NQ${(8800000 + userIdNum).toString()}`;
 
   // Plan & Expiry
-  const isPaid = Boolean(
+  const rawExpiry = activePlan?.expiresAt || activePlan?.ExpiresAt || activePlan?.expiryDate || activePlan?.ExpiryDate || profileData?.planExpiryDate || profileData?.PlanExpiryDate;
+  
+  const isExpired = Boolean(
+    activePlan?.isExpired ?? activePlan?.IsExpired ?? profileData?.isPlanExpired ?? profileData?.IsPlanExpired ??
+    (rawExpiry ? new Date(rawExpiry).getTime() < Date.now() : false)
+  );
+
+  const rawPlanName = activePlan?.planName || activePlan?.PlanName || profileData?.planName || profileData?.PlanName || '';
+  const isPaid = !isExpired && Boolean(
+    activePlan?.isPaid ?? activePlan?.IsPaid ?? 
     activePlan?.isActive ?? activePlan?.IsActive ?? 
     profileData?.isPaid ?? profileData?.IsPaid ?? 
-    profileData?.isPremium ?? profileData?.IsPremium
+    profileData?.isPremium ?? profileData?.IsPremium ??
+    (rawPlanName && !rawPlanName.toLowerCase().includes('free'))
   );
-  const planName = activePlan?.planName || activePlan?.PlanName || profileData?.planName || profileData?.PlanName || "Silver Plan";
-  const rawExpiry = activePlan?.expiresAt || activePlan?.ExpiresAt || profileData?.planExpiryDate || profileData?.PlanExpiryDate;
+  const planName = rawPlanName || (isPaid ? "VIP Member" : "Free Member");
   
   const formatExpiry = (exp: any) => {
-    if (!exp) return "Valid till 2027";
+    if (!exp) return "";
     try {
       const d = new Date(exp);
-      if (isNaN(d.getTime())) return "Valid till 2027";
+      if (isNaN(d.getTime())) return "";
       return `Valid till ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`;
     } catch {
-      return "Valid till 2027";
+      return "";
     }
   };
   const displayExpiry = formatExpiry(rawExpiry);
 
   if (loading && !profileData) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] text-slate-900 pb-28 pt-4 sm:pt-6">
+      <div className="min-h-screen bg-white text-slate-900 pb-28 pt-4 sm:pt-6">
         <div className="max-w-xl mx-auto px-4 sm:px-6 space-y-4">
           <div className="flex items-center justify-between py-1">
             <div className="w-36 h-7 bg-slate-200 rounded-lg shimmer-luxury" />
@@ -273,7 +291,7 @@ export default function MyProfilePage() {
   const strokeDashoffset = circumference - (profileCompletion / 100) * circumference;
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] text-slate-900 pb-28 pt-4 sm:pt-6 selection:bg-[#E21E5B] selection:text-white">
+    <div className="min-h-screen bg-white text-slate-900 pb-28 pt-4 sm:pt-6 selection:bg-[#E21E5B] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
       <div className="max-w-xl mx-auto px-4 sm:px-6 space-y-4">
@@ -396,13 +414,27 @@ export default function MyProfilePage() {
             </h2>
 
             {/* ACTIVE PLAN & EXPIRY DETAILS */}
-            <p className="text-xs sm:text-sm font-semibold text-slate-700 flex items-center justify-center gap-1.5 pt-0.5">
+            <div className="text-xs sm:text-sm font-semibold text-slate-700 flex items-center justify-center gap-1.5 pt-0.5">
               {isPaid ? (
                 <>
                   <Crown size={15} className="fill-amber-400 text-amber-500" />
                   <span className="font-bold text-slate-900">{planName}</span>
-                  <span className="text-slate-400">•</span>
-                  <span className="text-slate-500 font-medium">{displayExpiry}</span>
+                  {displayExpiry && (
+                    <>
+                      <span className="text-slate-400">•</span>
+                      <span className="text-slate-500 font-medium">{displayExpiry}</span>
+                    </>
+                  )}
+                </>
+              ) : isExpired ? (
+                <>
+                  <span className="text-rose-600 font-bold">
+                    Plan Expired {displayExpiry ? `(${displayExpiry})` : ''}
+                  </span>
+                  <span className="text-slate-300">•</span>
+                  <Link prefetch={false} href="/dashboard/membership" className="text-[#E21E5B] font-extrabold hover:underline">
+                    Renew Plan
+                  </Link>
                 </>
               ) : (
                 <>
@@ -413,7 +445,7 @@ export default function MyProfilePage() {
                   </Link>
                 </>
               )}
-            </p>
+            </div>
           </div>
 
         </div>
