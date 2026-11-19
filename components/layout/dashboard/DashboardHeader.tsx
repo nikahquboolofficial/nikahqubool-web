@@ -30,29 +30,20 @@ export default function DashboardHeader({
   const pathname = usePathname();
   const router = useRouter();
 
-  const [userPhoto, setUserPhoto] = useState<string>(() => getStoredUserPhoto());
+  const [mounted, setMounted] = useState<boolean>(false);
+  const [userPhoto, setUserPhoto] = useState<string>(DEFAULT_FEMALE_AVATAR);
   const [isPhotoLoaded, setIsPhotoLoaded] = useState<boolean>(false);
-  const [userName, setUserName] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const stored = localStorage.getItem("user_details") || localStorage.getItem("user_session");
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          return parsed.fullName || parsed.FullName || 'My Account';
-        }
-      } catch (e) {}
-    }
-    return 'My Account';
-  });
+  const [userName, setUserName] = useState<string>('My Account');
   const [isVerified, setIsVerified] = useState<boolean>(false);
-  const [isPaid, setIsPaid] = useState<boolean>(() => getClientSubscriptionStatus().isPaid);
-  const [planName, setPlanName] = useState<string>(() => getClientSubscriptionStatus().planName || 'Free Member');
+  const [isPaid, setIsPaid] = useState<boolean>(false);
+  const [planName, setPlanName] = useState<string>('Free Member');
   const [isBoostModalOpen, setIsBoostModalOpen] = useState<boolean>(false);
   const [isBoosted, setIsBoosted] = useState<boolean>(false);
   const lastSubCheckRef = useRef<number>(0);
   const lastBoostCheckRef = useRef<number>(0);
 
   useEffect(() => {
+    setMounted(true);
     const updatePhotoFromStorage = async () => {
       if (typeof window !== "undefined") {
         const stored = localStorage.getItem("user_details") || localStorage.getItem("user_session");
@@ -232,7 +223,7 @@ export default function DashboardHeader({
       {/* RIGHT SIDE ACTIONS: VIP UPGRADE & USER AVATAR */}
       <div className="flex items-center gap-3 sm:gap-4">
         
-        {isPaid ? (
+        {mounted && isPaid ? (
           <Link prefetch={false} href="/dashboard/payment-info"
             className="hidden sm:inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:brightness-110 text-slate-950 px-4 py-2 rounded-full font-black text-xs shadow-[0_4px_14px_rgba(245,158,11,0.35)] transition-all transform hover:-translate-y-0.5 border border-amber-300"
           >
@@ -292,8 +283,8 @@ export default function DashboardHeader({
                   <div className="absolute inset-0 bg-slate-200 animate-pulse" />
                 )}
                 <img 
-                  src={userPhoto} 
-                  alt={userName} 
+                  src={mounted ? userPhoto : DEFAULT_FEMALE_AVATAR} 
+                  alt={mounted ? userName : 'My Account'} 
                   onLoad={() => setIsPhotoLoaded(true)}
                   className={`w-full h-full object-cover object-top transition-opacity duration-200 ${isPhotoLoaded ? 'opacity-100' : 'opacity-0'}`}
                   onError={(e) => { 
@@ -308,12 +299,12 @@ export default function DashboardHeader({
             <div className="hidden md:block text-left">
               <div className="flex items-center gap-1">
                 <p className="text-xs font-black text-slate-900 leading-tight truncate max-w-[110px]">
-                  {userName}
+                  {mounted ? userName : 'My Account'}
                 </p>
-                {isVerified && <CheckCircle2 size={12} className="fill-emerald-500 text-white shrink-0" />}
+                {mounted && isVerified && <CheckCircle2 size={12} className="fill-emerald-500 text-white shrink-0" />}
               </div>
               <p className="text-[10px] text-[#d91b5c] font-bold flex items-center gap-0.5">
-                {isPaid ? (
+                {mounted && isPaid ? (
                   <span className="flex items-center gap-1 text-amber-600 font-extrabold uppercase"><Crown size={10} className="fill-amber-500" /> {planName || 'VIP'}</span>
                 ) : (
                   <span>Free Member</span>

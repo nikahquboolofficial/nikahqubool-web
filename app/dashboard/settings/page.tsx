@@ -5,9 +5,9 @@ export const dynamic = 'force-dynamic';
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { 
   Bell, Heart, ArrowLeft, Check, Save, 
-  PauseCircle, Trash2, Power, Loader2, Sliders, ChevronRight, 
-  LogOut, ShieldAlert, CheckCircle2, UserCheck, AlertTriangle,
-  Crown, Eye, ShieldCheck, UserX, Lock, Unlock, Shield
+  PauseCircle, Trash2, Power, Loader2, ChevronRight, 
+  LogOut, AlertTriangle, Eye, UserX, Unlock, Shield,
+  SlidersHorizontal, CheckCircle2, Info, Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -17,7 +17,7 @@ import {
   deactivateAccountApi, deleteAccountApi, fetchBlockedUsersApi,
   unblockUserApiCall, updatePhotoPrivacyApiCall, MasterOption 
 } from '@/lib/api';
-import { CompactSelect, MultiSelectDropdown } from '@/components/profile/CompactSelect';
+import { MultiSelectDropdown } from '@/components/profile/CompactSelect';
 import { getAuthToken, clearAuthCookies } from '@/lib/auth';
 
 const PREF_NAMAZ_OPTIONS: MasterOption[] = [
@@ -38,6 +38,50 @@ const PREF_HIJAB_BEARD_OPTIONS: MasterOption[] = [
   { id: 'Any / Open Minded', value: 'Any / Open Minded' }
 ];
 
+// 🌟 LUXURY APP-STYLE TOGGLE SWITCH COMPONENT
+function LuxuryToggle({ 
+  checked, 
+  onChange, 
+  label, 
+  description 
+}: { 
+  checked: boolean; 
+  onChange: (val: boolean) => void; 
+  label: string; 
+  description: string; 
+}) {
+  return (
+    <div 
+      onClick={() => onChange(!checked)}
+      className="flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-100 hover:border-rose-200/80 shadow-xs cursor-pointer transition-all group"
+    >
+      <div className="space-y-0.5 pr-3">
+        <h4 className="text-xs font-bold text-slate-900 group-hover:text-[#d91b5c] transition-colors">{label}</h4>
+        <p className="text-[11px] text-slate-500 font-medium leading-relaxed">{description}</p>
+      </div>
+
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={(e) => {
+          e.stopPropagation();
+          onChange(!checked);
+        }}
+        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+          checked ? 'bg-[#d91b5c]' : 'bg-slate-200'
+        }`}
+      >
+        <span
+          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+            checked ? 'translate-x-5' : 'translate-x-0'
+          }`}
+        />
+      </button>
+    </div>
+  );
+}
+
 function SettingsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -47,10 +91,25 @@ function SettingsContent() {
   const [loading, setLoading] = useState(false);
   const [savingPref, setSavingPref] = useState(false);
 
-  // 1. Notification Settings State
+  // 1. Notification Settings State (Stored in localStorage for persistence)
   const [emailNotif, setEmailNotif] = useState(true);
   const [appNotif, setAppNotif] = useState(true);
   const [matchAlerts, setMatchAlerts] = useState(true);
+
+  // Load notification state
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("user_notif_prefs");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed.emailNotif !== undefined) setEmailNotif(parsed.emailNotif);
+          if (parsed.appNotif !== undefined) setAppNotif(parsed.appNotif);
+          if (parsed.matchAlerts !== undefined) setMatchAlerts(parsed.matchAlerts);
+        } catch {}
+      }
+    }
+  }, []);
 
   // 2. Partner Preferences State
   const [prefData, setPrefData] = useState<any>({
@@ -80,25 +139,27 @@ function SettingsContent() {
 
   // 4. Pause / Deactivate Modal State
   const [showPauseModal, setShowPauseModal] = useState(false);
-  const [pauseReason, setPauseReason] = useState("Found my partner on Nikah Qubool");
-  const [customReason, setCustomReason] = useState("");
+  const [pauseReason, setPauseReason] = useState("Found my life partner on Nikah Qubool 💖");
+  const [pauseRemark, setPauseRemark] = useState("");
   const [isAccountPaused, setIsAccountPaused] = useState(false);
   const [pausingLoading, setPausingLoading] = useState(false);
 
-  // 5. Delete Account Modal State
+  // 5. Delete Account Modal State (VIP Multi-Step)
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<1 | 2>(1);
+  const [deleteReason, setDeleteReason] = useState("Found my life partner on Nikah Qubool 💖");
+  const [deleteRemark, setDeleteRemark] = useState("");
+  const [deleteConfirmedCheck, setDeleteConfirmedCheck] = useState(false);
+  const [deleteKeyword, setDeleteKeyword] = useState("");
   const [deletingLoading, setDeletingLoading] = useState(false);
 
   const getToken = useCallback((): string | null => getAuthToken(), []);
 
-  const handleLogout = useCallback((showToast: boolean = true) => {
+  const handleLogout = useCallback(() => {
     clearAuthCookies();
-    if (showToast) {
-      // Logged out quietly without toast
-    }
     setTimeout(() => {
       router.push('/');
-    }, 600);
+    }, 400);
   }, [router]);
 
   useEffect(() => {
@@ -130,6 +191,12 @@ function SettingsContent() {
         if (token) {
           const profileRes = await fetchProfileDetailsApi(0, token);
           if (profileRes.success && profileRes.data) {
+            const p = profileRes.data.profile || profileRes.data.Profile || profileRes.data;
+            if (p) {
+              setPhotoPrivacy(p.photoPrivacy || p.PhotoPrivacy || 'All Members');
+              setIsAccountPaused(p.accountState === 'Paused' || p.accountState === 'Deactivated');
+            }
+
             const pref = profileRes.data.preferences || profileRes.data.Preferences;
             if (pref && typeof pref === 'object') {
               const parseList = (val: any) => {
@@ -206,10 +273,13 @@ function SettingsContent() {
 
   const handleSaveNotifications = async () => {
     setLoading(true);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("user_notif_prefs", JSON.stringify({ emailNotif, appNotif, matchAlerts }));
+    }
     setTimeout(() => {
       setLoading(false);
-      toast.success("Notification preferences saved successfully!");
-    }, 600);
+      toast.success("Notification preferences updated successfully!");
+    }, 400);
   };
 
   const handleSavePartnerPreferences = async () => {
@@ -291,14 +361,15 @@ function SettingsContent() {
 
   const handleConfirmPauseAccount = async () => {
     const token = getToken();
-    const finalReason = pauseReason === "Other" ? customReason : pauseReason;
+    const finalReason = pauseRemark.trim() ? `${pauseReason} - ${pauseRemark.trim()}` : pauseReason;
     setPausingLoading(true);
     const res = await deactivateAccountApi(finalReason, true, token);
     setPausingLoading(false);
     if (res.success) {
       setIsAccountPaused(true);
       setShowPauseModal(false);
-      handleLogout(false);
+      toast.success("Your profile is now paused. You can log back in anytime to reactivate.");
+      handleLogout();
     } else {
       toast.error(res.message || "Failed to pause account.");
     }
@@ -318,15 +389,21 @@ function SettingsContent() {
   };
 
   const handleConfirmDeleteAccount = async () => {
+    if (deleteKeyword.trim().toUpperCase() !== 'DELETE') {
+      toast.error("Please type DELETE to confirm permanent deletion.");
+      return;
+    }
     const token = getToken();
+    const finalReason = deleteRemark.trim() ? `${deleteReason} - ${deleteRemark.trim()}` : deleteReason;
     setDeletingLoading(true);
-    const res = await deleteAccountApi("User requested deletion", token);
+    const res = await deleteAccountApi(finalReason, token);
     setDeletingLoading(false);
     if (res.success) {
       toast.success("Account deleted permanently.");
+      setShowDeleteModal(false);
       setTimeout(() => {
         handleLogout();
-      }, 1000);
+      }, 800);
     } else {
       toast.error(res.message || "Failed to delete account.");
     }
@@ -334,22 +411,22 @@ function SettingsContent() {
 
   const getSubTitle = () => {
     switch (activeTab) {
-      case 'notifications': return "Notification Settings";
+      case 'notifications': return "Notification Preferences";
       case 'preferences': return "Partner Preferences";
-      case 'privacy': return "Profile & Photo Privacy";
-      case 'manage': return "Manage Account";
-      default: return "Settings";
+      case 'privacy': return "Privacy & Blocked Users";
+      case 'manage': return "Account Visibility & Security";
+      default: return "Account Settings";
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#FAF8F5] via-white to-[#FAF8F5] font-sans text-slate-900 pb-32 pt-4 selection:bg-[#d91b5c] selection:text-white">
+    <div className="min-h-screen bg-[#FAF8F5] font-sans text-slate-900 pb-28 pt-3 sm:pt-5 selection:bg-[#d91b5c] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+      <div className="max-w-xl mx-auto px-4 sm:px-6 space-y-4">
         
-        {/* 📌 TOP INLINE HEADER */}
-        <div className="flex items-center gap-3 py-2 border-b border-rose-100">
+        {/* 🏷️ TOP NAVIGATION BAR */}
+        <div className="flex items-center gap-3 py-1 border-b border-rose-100/70">
           <button 
             type="button" 
             onClick={() => {
@@ -363,163 +440,142 @@ function SettingsContent() {
             aria-label="Back"
             title="Go Back"
           >
-            <ArrowLeft size={22} className="stroke-[2.5]" />
+            <ArrowLeft size={20} className="stroke-[2.5]" />
           </button>
           <div>
-            <h1 className="text-xl sm:text-2xl font-serif font-extrabold tracking-tight text-slate-900">
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900">
               {getSubTitle()}
             </h1>
-            <p className="text-xs font-semibold text-slate-500">
-              Personalize notifications, partner preferences and security controls
+            <p className="text-[11px] font-semibold text-slate-500">
+              Manage your notifications, match preferences and account privacy
             </p>
           </div>
         </div>
 
         {/* 📱 1. MAIN MENU SCREEN */}
         {activeTab === 'menu' && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-3 pt-1">
             
             {/* PAUSED WARNING BANNER IF PAUSED */}
             {isAccountPaused && (
-              <div className="p-5 bg-amber-50 rounded-3xl border-2 border-amber-200 space-y-3 shadow-md">
-                <div className="flex items-center gap-2.5 text-amber-800">
-                  <PauseCircle size={22} className="text-amber-600 shrink-0" />
-                  <h3 className="font-extrabold text-sm uppercase">Your Account is Currently Paused</h3>
+              <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200/80 space-y-2 shadow-xs">
+                <div className="flex items-center gap-2 text-amber-800">
+                  <PauseCircle size={18} className="text-amber-600 shrink-0" />
+                  <h3 className="font-bold text-xs uppercase tracking-wide">Your Profile is Currently Paused</h3>
                 </div>
-                <p className="text-xs text-amber-700 font-semibold leading-relaxed">
-                  Your profile is hidden from all members, searches, and recommendations. You can reactivate anytime!
+                <p className="text-[11px] text-amber-700 font-medium leading-relaxed">
+                  Your profile is hidden from searches and recommendations. You can reactivate anytime!
                 </p>
                 <button
                   type="button"
                   onClick={handleReactivateAccount}
                   disabled={pausingLoading}
-                  className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-sm cursor-pointer flex items-center gap-2"
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-xs cursor-pointer flex items-center gap-2"
                 >
-                  {pausingLoading ? <Loader2 size={16} className="animate-spin" /> : <UserCheck size={16} />}
-                  Reactivate Profile Now
+                  {pausingLoading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                  <span>Reactivate Profile Now</span>
                 </button>
               </div>
             )}
 
-            {/* MAIN SETTINGS OPTIONS GRID (RESPONSIVE 2-COLUMNS ON DESKTOP) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* VIP ELEGANT MENU OPTIONS LIST */}
+            <div className="bg-white rounded-3xl p-2 sm:p-3 border border-slate-100 shadow-sm space-y-1">
               
               {/* OPTION 1: NOTIFICATION SETTINGS */}
               <div 
                 onClick={() => setActiveTab('notifications')}
-                className="p-5 bg-white rounded-3xl border border-rose-100 shadow-md flex items-center justify-between cursor-pointer hover:border-[#d91b5c] hover:shadow-xl transition-all group"
+                className="p-3.5 hover:bg-rose-50/40 rounded-2xl flex items-center justify-between cursor-pointer transition-all group"
               >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-rose-50 text-[#d91b5c] border border-rose-200 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
-                    <Bell size={22} />
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-rose-50 text-[#d91b5c] border border-rose-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <Bell size={18} />
                   </div>
                   <div>
-                    <h3 className="font-black text-sm uppercase text-slate-900 tracking-tight group-hover:text-[#d91b5c] transition-colors">
-                      Notification Settings
+                    <h3 className="font-bold text-xs text-slate-900 group-hover:text-[#d91b5c] transition-colors">
+                      Notification Preferences
                     </h3>
-                    <p className="text-xs font-semibold text-slate-500 mt-0.5">
-                      Control push notifications & email alerts
+                    <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                      Configure instant push alerts and email updates
                     </p>
                   </div>
                 </div>
-                <ChevronRight size={20} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-1 transition-all shrink-0" />
+                <ChevronRight size={18} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-1 transition-all shrink-0" />
               </div>
 
               {/* OPTION 2: PARTNER PREFERENCES */}
               <div 
                 onClick={() => setActiveTab('preferences')}
-                className="p-5 bg-white rounded-3xl border border-rose-100 shadow-md flex items-center justify-between cursor-pointer hover:border-[#d91b5c] hover:shadow-xl transition-all group"
+                className="p-3.5 hover:bg-rose-50/40 rounded-2xl flex items-center justify-between cursor-pointer transition-all group"
               >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-rose-50 text-[#d91b5c] border border-rose-200 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
-                    <Heart size={22} />
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-rose-50 text-[#d91b5c] border border-rose-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <Heart size={18} />
                   </div>
                   <div>
-                    <h3 className="font-black text-sm uppercase text-slate-900 tracking-tight group-hover:text-[#d91b5c] transition-colors">
+                    <h3 className="font-bold text-xs text-slate-900 group-hover:text-[#d91b5c] transition-colors">
                       Partner Preferences
                     </h3>
-                    <p className="text-xs font-semibold text-slate-500 mt-0.5">
-                      Set expectations & criteria for life partner
+                    <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                      Set criteria for your ideal life partner
                     </p>
                   </div>
                 </div>
-                <ChevronRight size={20} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-1 transition-all shrink-0" />
+                <ChevronRight size={18} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-1 transition-all shrink-0" />
               </div>
 
-              {/* OPTION 3: PROFILE PRIVACY & BLOCKED USERS */}
+              {/* OPTION 3: PRIVACY & BLOCKED USERS */}
               <div 
                 onClick={() => setActiveTab('privacy')}
-                className="p-5 bg-white rounded-3xl border border-rose-100 shadow-md flex items-center justify-between cursor-pointer hover:border-[#d91b5c] hover:shadow-xl transition-all group"
+                className="p-3.5 hover:bg-rose-50/40 rounded-2xl flex items-center justify-between cursor-pointer transition-all group"
               >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-rose-50 text-[#d91b5c] border border-rose-200 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
-                    <Shield size={22} />
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-rose-50 text-[#d91b5c] border border-rose-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <Shield size={18} />
                   </div>
                   <div>
-                    <h3 className="font-black text-sm uppercase text-slate-900 tracking-tight flex items-center gap-2 group-hover:text-[#d91b5c] transition-colors">
-                      <span>Profile & Photo Privacy</span>
+                    <h3 className="font-bold text-xs text-slate-900 group-hover:text-[#d91b5c] transition-colors">
+                      Privacy & Blocked Users
                     </h3>
-                    <p className="text-xs font-semibold text-slate-500 mt-0.5">
-                      Manage photo visibility & blocked members
+                    <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                      Control photo visibility & unblock members
                     </p>
                   </div>
                 </div>
-                <ChevronRight size={20} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-1 transition-all shrink-0" />
+                <ChevronRight size={18} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-1 transition-all shrink-0" />
               </div>
 
-              {/* OPTION 4: PAYMENT & SUBSCRIPTION INFO */}
-              <div 
-                onClick={() => router.push('/dashboard/payment-info')}
-                className="p-5 bg-white rounded-3xl border border-rose-100 shadow-md flex items-center justify-between cursor-pointer hover:border-[#d91b5c] hover:shadow-xl transition-all group"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
-                    <Crown size={22} className="fill-amber-500 text-amber-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-black text-sm uppercase text-slate-900 tracking-tight flex items-center gap-1.5 group-hover:text-[#d91b5c] transition-colors">
-                      <span>Payment & VIP Subscription</span>
-                    </h3>
-                    <p className="text-xs font-semibold text-slate-500 mt-0.5">
-                      View active plan details, validity & transactions
-                    </p>
-                  </div>
-                </div>
-                <ChevronRight size={20} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-1 transition-all shrink-0" />
-              </div>
-
-              {/* OPTION 5: MANAGE ACCOUNT */}
+              {/* OPTION 4: MANAGE ACCOUNT (PAUSE / DELETE) */}
               <div 
                 onClick={() => setActiveTab('manage')}
-                className="p-5 bg-white rounded-3xl border border-rose-100 shadow-md flex items-center justify-between cursor-pointer hover:border-[#d91b5c] hover:shadow-xl transition-all group md:col-span-2"
+                className="p-3.5 hover:bg-rose-50/40 rounded-2xl flex items-center justify-between cursor-pointer transition-all group"
               >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-rose-50 text-[#d91b5c] border border-rose-200 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
-                    <Power size={22} />
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <Power size={18} />
                   </div>
                   <div>
-                    <h3 className="font-black text-sm uppercase text-slate-900 tracking-tight group-hover:text-[#d91b5c] transition-colors">
-                      Manage Account
+                    <h3 className="font-bold text-xs text-slate-900 group-hover:text-[#d91b5c] transition-colors">
+                      Account Visibility & Security
                     </h3>
-                    <p className="text-xs font-semibold text-slate-500 mt-0.5">
-                      Pause profile visibility or delete account
+                    <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                      Temporarily pause visibility or delete account
                     </p>
                   </div>
                 </div>
-                <ChevronRight size={20} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-1 transition-all shrink-0" />
+                <ChevronRight size={18} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-1 transition-all shrink-0" />
               </div>
 
             </div>
 
-            {/* 🚪 BOTTOM CENTER LOGOUT BUTTON */}
-            <div className="pt-4 text-center">
+            {/* 🚪 BOTTOM CLEAN LOGOUT BUTTON */}
+            <div className="pt-2 text-center">
               <button
                 type="button"
-                onClick={() => handleLogout()}
-                className="w-full max-w-xs mx-auto py-3.5 px-6 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-black text-xs uppercase tracking-wider border-2 border-rose-200 shadow-sm active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
+                onClick={handleLogout}
+                className="w-full py-3 px-5 rounded-2xl bg-white hover:bg-rose-50 text-rose-700 font-bold text-xs uppercase tracking-wider border border-rose-200/80 shadow-xs active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
               >
-                <LogOut size={18} className="text-rose-600" />
-                <span>Sign Out from Account</span>
+                <LogOut size={16} className="text-rose-600" />
+                <span>Sign Out</span>
               </button>
             </div>
 
@@ -528,115 +584,78 @@ function SettingsContent() {
 
         {/* 🔔 2. NOTIFICATION SETTINGS SUB-SCREEN */}
         {activeTab === 'notifications' && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-6 md:p-8 border-2 border-rose-100 shadow-xl space-y-6">
-            <div className="flex items-center gap-3 border-b-2 border-slate-100 pb-4">
-              <div className="p-2.5 bg-rose-50 rounded-2xl text-[#d91b5c] border border-rose-200">
-                <Bell size={22} />
-              </div>
-              <div>
-                <h2 className="text-base font-serif font-extrabold uppercase text-slate-900">Notification Preferences</h2>
-                <p className="text-xs font-semibold text-slate-500">Manage instant push notifications & email alerts</p>
-              </div>
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-3 pt-1">
+            
+            <div className="space-y-2.5">
+              <LuxuryToggle 
+                label="Email Notifications" 
+                description="Receive interest alerts and proposal messages on your email"
+                checked={emailNotif} 
+                onChange={setEmailNotif} 
+              />
+
+              <LuxuryToggle 
+                label="App Push & Chat Alerts" 
+                description="Get instant alerts on real-time messages and profile views"
+                checked={appNotif} 
+                onChange={setAppNotif} 
+              />
+
+              <LuxuryToggle 
+                label="Daily Match Recommendations" 
+                description="Receive curated daily profiles matching your religious & lifestyle criteria"
+                checked={matchAlerts} 
+                onChange={setMatchAlerts} 
+              />
             </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border-2 border-slate-200">
-                <div>
-                  <h4 className="text-xs font-black uppercase text-slate-900">Email Notifications</h4>
-                  <p className="text-[11px] font-semibold text-slate-500">Receive new proposal interest alerts via Email</p>
-                </div>
-                <input 
-                  type="checkbox" 
-                  checked={emailNotif} 
-                  onChange={(e) => setEmailNotif(e.target.checked)} 
-                  className="w-5 h-5 accent-[#d91b5c] cursor-pointer" 
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border-2 border-slate-200">
-                <div>
-                  <h4 className="text-xs font-black uppercase text-slate-900">App Interest & Chat Alerts</h4>
-                  <p className="text-[11px] font-semibold text-slate-500">Receive instant push notifications for proposal activity</p>
-                </div>
-                <input 
-                  type="checkbox" 
-                  checked={appNotif} 
-                  onChange={(e) => setAppNotif(e.target.checked)} 
-                  className="w-5 h-5 accent-[#d91b5c] cursor-pointer" 
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border-2 border-slate-200">
-                <div>
-                  <h4 className="text-xs font-black uppercase text-slate-900">Daily Match Recommendations</h4>
-                  <p className="text-[11px] font-semibold text-slate-500">Receive curated life partner profiles matching your criteria</p>
-                </div>
-                <input 
-                  type="checkbox" 
-                  checked={matchAlerts} 
-                  onChange={(e) => setMatchAlerts(e.target.checked)} 
-                  className="w-5 h-5 accent-[#d91b5c] cursor-pointer" 
-                />
-              </div>
-
-              <button 
-                type="button" 
-                onClick={handleSaveNotifications}
-                disabled={loading}
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 cursor-pointer border border-rose-300/30 flex items-center justify-center gap-2"
-              >
-                {loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                <span>Save Notification Settings</span>
-              </button>
-            </div>
+            <button 
+              type="button" 
+              onClick={handleSaveNotifications}
+              disabled={loading}
+              className="w-full py-3 rounded-2xl bg-[#d91b5c] hover:bg-[#c21852] text-white font-bold text-xs uppercase tracking-wider shadow-sm cursor-pointer flex items-center justify-center gap-2 transition-colors"
+            >
+              {loading ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+              <span>Save Preferences</span>
+            </button>
           </motion.div>
         )}
 
         {/* 💖 3. PARTNER PREFERENCES SUB-SCREEN */}
         {activeTab === 'preferences' && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-6 md:p-8 border-2 border-rose-100 shadow-xl space-y-6">
-            <div className="flex items-center gap-3 border-b-2 border-slate-100 pb-4">
-              <div className="p-2.5 bg-rose-50 rounded-2xl text-[#d91b5c] border border-rose-200">
-                <Heart size={22} />
-              </div>
-              <div>
-                <h2 className="text-base font-serif font-extrabold uppercase text-slate-900">Partner Preferences</h2>
-                <p className="text-xs font-semibold text-slate-500">Set criteria for ideal matches using multi-select dropdowns</p>
-              </div>
-            </div>
-
-            <div className="space-y-5">
-              
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-4 sm:p-6 border border-slate-100 shadow-sm space-y-4">
+            
+            <div className="space-y-3.5">
               {/* Age Range */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5 text-left">
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 block">Min Age (Yrs)</label>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Min Age (Years)</label>
                   <input
                     type="number"
                     min={18}
                     max={prefData.maxAge || 60}
                     value={prefData.minAge || 18}
                     onChange={(e) => updatePrefField('minAge', Number(e.target.value))}
-                    className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
                   />
                 </div>
-                <div className="space-y-1.5 text-left">
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 block">Max Age (Yrs)</label>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Max Age (Years)</label>
                   <input
                     type="number"
                     min={prefData.minAge || 18}
                     max={75}
                     value={prefData.maxAge || 60}
                     onChange={(e) => updatePrefField('maxAge', Number(e.target.value))}
-                    className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
                   />
                 </div>
               </div>
 
               {/* Height Range */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5 text-left">
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 block">Min Height (ft)</label>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Min Height (ft)</label>
                   <input
                     type="number"
                     step="0.1"
@@ -644,180 +663,204 @@ function SettingsContent() {
                     max={prefData.maxHeight || '7.0'}
                     value={prefData.minHeight || '4.5'}
                     onChange={(e) => updatePrefField('minHeight', e.target.value)}
-                    className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
                   />
                 </div>
-                <div className="space-y-1.5 text-left">
-                  <label className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 block">Max Height (ft)</label>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Max Height (ft)</label>
                   <input
                     type="number"
                     step="0.1"
                     min={prefData.minHeight || '4.0'}
                     max="7.5"
-                    value={prefData.maxHeight || '6.8'}
+                    value={prefData.maxHeight || '6.5'}
                     onChange={(e) => updatePrefField('maxHeight', e.target.value)}
-                    className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
                   />
                 </div>
               </div>
 
-              <MultiSelectDropdown 
-                label="Preferred Marital Status" 
-                options={masterData.MARITAL_STATUS || []} 
-                selectedIds={prefData.maritalStatusList} 
-                onChange={(ids) => updatePrefField('maritalStatusList', ids)} 
+              {/* Marital Status Multi-Select */}
+              <MultiSelectDropdown
+                label="Preferred Marital Status"
+                options={masterData.MARITAL_STATUS || []}
+                selectedIds={prefData.maritalStatusList || []}
+                onChange={(ids) => updatePrefField('maritalStatusList', ids)}
+                placeholder="Any Marital Status"
               />
 
-              <MultiSelectDropdown 
-                label="Preferred Education" 
-                options={masterData.EDUCATIONS || []} 
-                selectedIds={prefData.educationIds} 
-                onChange={(ids) => updatePrefField('educationIds', ids)} 
+              {/* Sect / Maslak Multi-Select */}
+              <MultiSelectDropdown
+                label="Preferred Sect / Maslak"
+                options={masterData.SECTS || []}
+                selectedIds={prefData.sectIds || []}
+                onChange={(ids) => updatePrefField('sectIds', ids)}
+                placeholder="Any Sect / Maslak"
               />
 
-              <MultiSelectDropdown 
-                label="Preferred Occupation" 
-                options={masterData.OCCUPATIONS || []} 
-                selectedIds={prefData.occupationIds} 
-                onChange={(ids) => updatePrefField('occupationIds', ids)} 
+              {/* Caste Multi-Select */}
+              <MultiSelectDropdown
+                label="Preferred Caste / Community"
+                options={masterData.CASTES || []}
+                selectedIds={prefData.casteIds || []}
+                onChange={(ids) => updatePrefField('casteIds', ids)}
+                placeholder="Any Caste (Caste No Bar)"
               />
 
-              <MultiSelectDropdown 
-                label="Preferred Caste" 
-                options={masterData.CASTES || []} 
-                selectedIds={prefData.casteIds} 
-                onChange={(ids) => updatePrefField('casteIds', ids)} 
+              {/* Mother Tongue Multi-Select */}
+              <MultiSelectDropdown
+                label="Preferred Mother Tongue"
+                options={masterData.MOTHER_TONGUES || []}
+                selectedIds={prefData.languageIds || []}
+                onChange={(ids) => updatePrefField('languageIds', ids)}
+                placeholder="Any Language"
               />
 
-              <MultiSelectDropdown 
-                label="Preferred Mother Tongue" 
-                options={masterData.MOTHER_TONGUES || []} 
-                selectedIds={prefData.languageIds} 
-                onChange={(ids) => updatePrefField('languageIds', ids)} 
+              {/* Education Multi-Select */}
+              <MultiSelectDropdown
+                label="Preferred Education"
+                options={masterData.EDUCATIONS || []}
+                selectedIds={prefData.educationIds || []}
+                onChange={(ids) => updatePrefField('educationIds', ids)}
+                placeholder="Any Education Level"
               />
 
-              <MultiSelectDropdown 
-                label="Preferred Sect / Maslak" 
-                options={masterData.SECTS || []} 
-                selectedIds={prefData.sectIds || []} 
-                onChange={(ids) => updatePrefField('sectIds', ids)} 
+              {/* Occupation Multi-Select */}
+              <MultiSelectDropdown
+                label="Preferred Occupation"
+                options={masterData.OCCUPATIONS || []}
+                selectedIds={prefData.occupationIds || []}
+                onChange={(ids) => updatePrefField('occupationIds', ids)}
+                placeholder="Any Profession"
               />
 
-              <MultiSelectDropdown 
-                label="Preferred Namaz Habit" 
-                options={PREF_NAMAZ_OPTIONS} 
-                selectedIds={prefData.namazHabits || []} 
-                onChange={(ids) => updatePrefField('namazHabits', ids)} 
-              />
+              {/* State & City Filter */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Preferred State</label>
+                  <select
+                    value={prefData.stateId || 0}
+                    onChange={(e) => {
+                      updatePrefField('stateId', Number(e.target.value));
+                      updatePrefField('cityId', 0);
+                    }}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[#d91b5c]"
+                  >
+                    <option value={0}>Any State / Pan India</option>
+                    {(masterData.STATES || []).map((s) => (
+                      <option key={s.id} value={s.id}>{s.value}</option>
+                    ))}
+                  </select>
+                </div>
 
-              <MultiSelectDropdown 
-                label="Preferred Hijab / Beard" 
-                options={PREF_HIJAB_BEARD_OPTIONS} 
-                selectedIds={prefData.hijabOrBeard || []} 
-                onChange={(ids) => updatePrefField('hijabOrBeard', ids)} 
-              />
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <CompactSelect 
-                  label="Preferred State" 
-                  options={masterData.STATES || []} 
-                  value={prefData.stateId} 
-                  onChange={(val) => updatePrefField('stateId', Number(val))} 
-                />
-
-                <CompactSelect 
-                  label="Preferred City" 
-                  options={masterData.CITIES || []} 
-                  value={prefData.cityId} 
-                  onChange={(val) => updatePrefField('cityId', Number(val))} 
-                />
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Preferred City</label>
+                  <select
+                    value={prefData.cityId || 0}
+                    disabled={!prefData.stateId}
+                    onChange={(e) => updatePrefField('cityId', Number(e.target.value))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[#d91b5c] disabled:opacity-50"
+                  >
+                    <option value={0}>Any City</option>
+                    {(masterData.CITIES || []).map((c) => (
+                      <option key={c.id} value={c.id}>{c.value}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              <button 
-                type="button" 
-                onClick={handleSavePartnerPreferences}
-                disabled={savingPref}
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 cursor-pointer border border-rose-300/30 flex items-center justify-center gap-2"
-              >
-                {savingPref ? <Loader2 size={16} className="animate-spin text-amber-300" /> : <Save size={16} className="text-amber-300" />}
-                <span>Save Partner Preferences</span>
-              </button>
+              {/* Religious Expectations: Namaz Habits */}
+              <MultiSelectDropdown
+                label="Preferred Namaz Habit"
+                options={PREF_NAMAZ_OPTIONS}
+                selectedIds={prefData.namazHabits || []}
+                onChange={(vals) => updatePrefField('namazHabits', vals)}
+                placeholder="Any / Flexible"
+              />
 
+              {/* Religious Expectations: Hijab / Beard */}
+              <MultiSelectDropdown
+                label="Preferred Hijab / Beard"
+                options={PREF_HIJAB_BEARD_OPTIONS}
+                selectedIds={prefData.hijabOrBeard || []}
+                onChange={(vals) => updatePrefField('hijabOrBeard', vals)}
+                placeholder="Any / Open Minded"
+              />
             </div>
+
+            <button 
+              type="button" 
+              onClick={handleSavePartnerPreferences}
+              disabled={savingPref}
+              className="w-full py-3 rounded-2xl bg-[#d91b5c] hover:bg-[#c21852] text-white font-bold text-xs uppercase tracking-wider shadow-sm cursor-pointer flex items-center justify-center gap-2 transition-colors"
+            >
+              {savingPref ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+              <span>Save Partner Preferences</span>
+            </button>
           </motion.div>
         )}
 
-        {/* 🛡️ 4. PROFILE PRIVACY & BLOCKED USERS SUB-SCREEN */}
+        {/* 🛡️ 4. PRIVACY & BLOCKED USERS SUB-SCREEN */}
         {activeTab === 'privacy' && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-6 md:p-8 border-2 border-rose-100 shadow-xl space-y-6">
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-3 pt-1">
             
             {/* SUB-TABS PILLS: PHOTO PRIVACY / BLOCKED USERS */}
-            <div className="flex items-center bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+            <div className="flex items-center bg-slate-200/70 p-1 rounded-2xl">
               <button
                 type="button"
                 onClick={() => setPrivacySubTab('photo')}
-                className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   privacySubTab === 'photo'
-                    ? 'bg-white text-[#d91b5c] shadow-sm border border-rose-100'
+                    ? 'bg-white text-[#d91b5c] shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <Eye size={16} />
+                <Eye size={15} />
                 <span>Photo Privacy</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setPrivacySubTab('blocked')}
-                className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                   privacySubTab === 'blocked'
-                    ? 'bg-white text-[#d91b5c] shadow-sm border border-rose-100'
+                    ? 'bg-white text-[#d91b5c] shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <UserX size={16} />
-                <span>Blocked Users</span>
+                <UserX size={15} />
+                <span>Blocked ({blockedUsers.length})</span>
               </button>
             </div>
 
             {/* 📸 SUB-TAB 1: PHOTO PRIVACY */}
             {privacySubTab === 'photo' && (
-              <div className="space-y-6 pt-2">
-                <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
-                  <div className="p-2.5 bg-rose-50 rounded-2xl text-[#d91b5c] border border-rose-200">
-                    <Eye size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-serif font-extrabold uppercase text-slate-900">Photo Visibility Control</h3>
-                    <p className="text-xs font-semibold text-slate-500">Choose who can view your uploaded photos</p>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
+              <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm space-y-3">
+                <div className="space-y-2.5">
                   {[
                     {
                       id: "All Members",
                       title: "All Members",
-                      desc: "All registered candidates can view your photos (Recommended for higher proposal responses)."
+                      desc: "All verified candidates can view your photos (Recommended for 3x higher responses)."
                     },
                     {
                       id: "Premium Only",
-                      title: "Premium Only",
-                      desc: "Only active VIP & Premium paid members can view your full profile photos."
+                      title: "VIP / Premium Only",
+                      desc: "Only active paid members can view your full profile photos."
                     },
                     {
                       id: "Only Approved",
-                      title: "Only Approved",
-                      desc: "Photos remain protected and require your explicit approval per request."
+                      title: "Only Approved Members",
+                      desc: "Photos remain protected and require your explicit consent per member."
                     }
                   ].map((option) => (
-                    <label 
+                    <div 
                       key={option.id}
                       onClick={() => setPhotoPrivacy(option.id)}
-                      className={`flex items-start gap-3.5 p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                      className={`flex items-start gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
                         photoPrivacy === option.id 
-                          ? 'bg-rose-50/60 border-[#d91b5c] ring-2 ring-rose-500/10' 
-                          : 'bg-slate-50 border-slate-200 hover:border-rose-200'
+                          ? 'bg-rose-50/50 border-[#d91b5c] ring-1 ring-[#d91b5c]' 
+                          : 'bg-white border-slate-200 hover:border-rose-200'
                       }`}
                     >
                       <input 
@@ -829,10 +872,10 @@ function SettingsContent() {
                         className="mt-0.5 w-4 h-4 accent-[#d91b5c] cursor-pointer shrink-0" 
                       />
                       <div>
-                        <h4 className="text-xs font-black uppercase text-slate-900">{option.title}</h4>
-                        <p className="text-[11px] font-semibold text-slate-500 mt-0.5 leading-relaxed">{option.desc}</p>
+                        <h4 className="text-xs font-bold text-slate-900">{option.title}</h4>
+                        <p className="text-[11px] font-medium text-slate-500 mt-0.5 leading-relaxed">{option.desc}</p>
                       </div>
-                    </label>
+                    </div>
                   ))}
                 </div>
 
@@ -840,54 +883,35 @@ function SettingsContent() {
                   type="button" 
                   onClick={handleSavePhotoPrivacy}
                   disabled={savingPhotoPrivacy}
-                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 cursor-pointer border border-rose-300/30 flex items-center justify-center gap-2"
+                  className="w-full py-3 rounded-2xl bg-[#d91b5c] hover:bg-[#c21852] text-white font-bold text-xs uppercase tracking-wider shadow-sm cursor-pointer flex items-center justify-center gap-2 transition-colors"
                 >
-                  {savingPhotoPrivacy ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                  <span>Save Photo Privacy Settings</span>
+                  {savingPhotoPrivacy ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                  <span>Save Photo Privacy</span>
                 </button>
               </div>
             )}
 
-            {/* 🚫 SUB-TAB 2: BLOCKED USERS LIST */}
+            {/* 🚫 SUB-TAB 2: BLOCKED USERS */}
             {privacySubTab === 'blocked' && (
-              <div className="space-y-6 pt-2">
-                <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
-                  <div className="p-2.5 bg-rose-50 rounded-2xl text-[#d91b5c] border border-rose-200">
-                    <UserX size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-serif font-extrabold uppercase text-slate-900">Blocked Members</h3>
-                    <p className="text-xs font-semibold text-slate-500">Unblock members to restore profile visibility & messaging</p>
-                  </div>
-                </div>
-
+              <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm space-y-3">
                 {loadingBlockedUsers ? (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {[1, 2].map((i) => (
-                      <div key={i} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between animate-pulse">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-slate-300 rounded-full" />
-                          <div className="space-y-2">
-                            <div className="w-32 h-4 bg-slate-300 rounded-md" />
-                            <div className="w-20 h-3 bg-slate-200 rounded-md" />
-                          </div>
-                        </div>
-                        <div className="w-20 h-8 bg-slate-300 rounded-xl" />
-                      </div>
+                      <div key={i} className="p-3 bg-slate-50 rounded-2xl shimmer-luxury h-16" />
                     ))}
                   </div>
                 ) : blockedUsers.length === 0 ? (
-                  <div className="p-8 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 space-y-3">
-                    <div className="w-14 h-14 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto border border-rose-200">
-                      <UserX size={28} />
+                  <div className="p-6 text-center space-y-2">
+                    <div className="w-12 h-12 bg-rose-50 text-[#d91b5c] rounded-full flex items-center justify-center mx-auto border border-rose-100">
+                      <UserX size={22} />
                     </div>
-                    <h4 className="font-serif font-extrabold text-sm uppercase text-slate-800">No Blocked Members</h4>
-                    <p className="text-xs font-semibold text-slate-500 max-w-xs mx-auto leading-relaxed">
-                      You haven't blocked any members yet. Users you block from profile views or chat windows will appear here.
+                    <h4 className="font-bold text-xs text-slate-800">No Blocked Members</h4>
+                    <p className="text-[11px] font-medium text-slate-500 max-w-xs mx-auto">
+                      You haven't blocked any members. Users you block in chats or profiles appear here.
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {blockedUsers.map((user) => {
                       const uId = user.userId ?? user.UserId;
                       const uName = user.fullName ?? user.FullName ?? `Member #${uId}`;
@@ -897,21 +921,21 @@ function SettingsContent() {
                       return (
                         <div 
                           key={uId} 
-                          className="p-4 bg-white rounded-2xl border-2 border-slate-100 hover:border-rose-200 shadow-sm flex items-center justify-between gap-3 transition-all"
+                          className="p-3 bg-slate-50/60 rounded-2xl border border-slate-200 flex items-center justify-between gap-3"
                         >
-                          <div className="flex items-center gap-3">
-                            <div className="w-11 h-11 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center overflow-hidden shrink-0 border border-slate-200">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-9 h-9 rounded-full bg-slate-200 overflow-hidden shrink-0">
                               {uPhoto ? (
                                 <img src={uPhoto} alt={uName} className="w-full h-full object-cover" />
                               ) : (
-                                <span className="text-xs uppercase">{uName.substring(0, 2)}</span>
+                                <div className="w-full h-full flex items-center justify-center text-xs font-bold text-slate-600">
+                                  {uName.charAt(0)}
+                                </div>
                               )}
                             </div>
                             <div>
-                              <h4 className="text-xs font-extrabold text-slate-900">{uName}</h4>
-                              <span className="text-[10px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full inline-block mt-0.5">
-                                Status: Blocked
-                              </span>
+                              <h4 className="text-xs font-bold text-slate-900">{uName}</h4>
+                              <span className="text-[10px] text-rose-600 font-semibold block">Blocked</span>
                             </div>
                           </div>
 
@@ -919,13 +943,9 @@ function SettingsContent() {
                             type="button"
                             onClick={() => handleUnblockUser(uId)}
                             disabled={isUnblocking}
-                            className="px-4 py-2 bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-700 font-extrabold text-xs uppercase tracking-wider rounded-xl border border-slate-200 cursor-pointer flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
+                            className="px-3 py-1.5 bg-white hover:bg-rose-50 hover:text-rose-700 text-slate-700 font-bold text-[11px] rounded-xl border border-slate-200 cursor-pointer flex items-center gap-1 transition-all active:scale-95 disabled:opacity-50"
                           >
-                            {isUnblocking ? (
-                              <Loader2 size={14} className="animate-spin text-rose-600" />
-                            ) : (
-                              <Unlock size={14} className="text-rose-600" />
-                            )}
+                            {isUnblocking ? <Loader2 size={12} className="animate-spin" /> : <Unlock size={12} />}
                             <span>Unblock</span>
                           </button>
                         </div>
@@ -933,43 +953,35 @@ function SettingsContent() {
                     })}
                   </div>
                 )}
-
               </div>
             )}
 
           </motion.div>
         )}
 
-        {/* ⚙️ 5. MANAGE ACCOUNT SUB-SCREEN (CLEAN SOBER DESIGN) */}
+        {/* ⚙️ 5. MANAGE ACCOUNT SUB-SCREEN (VIP HIGH-LEVEL) */}
         {activeTab === 'manage' && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-6 md:p-8 border-2 border-slate-100 shadow-xl space-y-6">
-            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-              <div className="p-2.5 bg-slate-100 rounded-2xl text-slate-700 border border-slate-200">
-                <Power size={22} />
-              </div>
-              <div>
-                <h2 className="text-base font-serif font-extrabold uppercase text-slate-900">Manage Account Status</h2>
-                <p className="text-xs font-semibold text-slate-500">Control your account visibility and permanent account settings</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              
-              {/* PAUSE ACCOUNT CARD - SOBER ELEGANT */}
-              <div className="p-5 bg-amber-50/50 rounded-2xl border border-amber-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-                      <PauseCircle size={18} />
-                    </div>
-                    <h4 className="font-extrabold text-xs uppercase text-slate-900">
-                      Pause Profile Visibility
-                    </h4>
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-3 pt-1">
+            
+            {/* PAUSE ACCOUNT CARD - SOBER ELEGANT */}
+            <div className="p-4 bg-white rounded-3xl border border-slate-100 shadow-sm space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center shrink-0">
+                    <PauseCircle size={18} />
                   </div>
-                  <p className="text-[11px] font-semibold text-slate-600 pl-10 leading-relaxed">
-                    Temporarily hide profile from search results. Logging in anytime restores full access automatically.
-                  </p>
+                  <div>
+                    <h4 className="font-bold text-xs text-slate-900">
+                      Temporarily Pause Profile
+                    </h4>
+                    <p className="text-[11px] font-medium text-slate-500 mt-0.5">
+                      Hide your profile from searches and daily recommendations.
+                    </p>
+                  </div>
                 </div>
+              </div>
+
+              <div className="pt-2 flex justify-end">
                 <button 
                   type="button" 
                   onClick={() => {
@@ -979,114 +991,129 @@ function SettingsContent() {
                       setShowPauseModal(true);
                     }
                   }} 
-                  className={`px-4 py-2.5 rounded-xl font-extrabold text-xs uppercase tracking-wider cursor-pointer shadow-xs shrink-0 transition-all ${
+                  disabled={pausingLoading}
+                  className={`px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-wider cursor-pointer shadow-xs transition-all ${
                     isAccountPaused
                       ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                       : 'bg-amber-600 hover:bg-amber-700 text-white'
                   }`}
                 >
-                  {isAccountPaused ? 'Reactivate Profile' : 'Deactivate Profile'}
+                  {pausingLoading ? <Loader2 size={13} className="animate-spin" /> : null}
+                  <span>{isAccountPaused ? 'Reactivate Profile' : 'Pause Profile'}</span>
                 </button>
               </div>
+            </div>
 
-              {/* DELETE ACCOUNT CARD - SOBER ELEGANT */}
-              <div className="p-5 bg-rose-50/50 rounded-2xl border border-rose-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
-                      <Trash2 size={18} />
-                    </div>
-                    <h4 className="font-extrabold text-xs uppercase text-rose-950">
-                      Delete Account Permanently
-                    </h4>
+            {/* DELETE ACCOUNT CARD - SOBER ELEGANT */}
+            <div className="p-4 bg-white rounded-3xl border border-rose-100 shadow-sm space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 flex items-center justify-center shrink-0">
+                    <Trash2 size={18} />
                   </div>
-                  <p className="text-[11px] font-semibold text-slate-600 pl-10 leading-relaxed">
-                    Permanently delete your profile data, photos, and match history. This action cannot be undone.
-                  </p>
+                  <div>
+                    <h4 className="font-bold text-xs text-rose-950">
+                      Permanently Delete Account
+                    </h4>
+                    <p className="text-[11px] font-medium text-slate-500 mt-0.5">
+                      Permanently delete your profile data, verified photos, and match history.
+                    </p>
+                  </div>
                 </div>
+              </div>
+
+              <div className="pt-2 flex justify-end">
                 <button 
                   type="button" 
-                  onClick={() => setShowDeleteModal(true)} 
-                  className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl uppercase tracking-wider cursor-pointer shadow-xs shrink-0 transition-all"
+                  onClick={() => {
+                    setDeleteStep(1);
+                    setDeleteConfirmedCheck(false);
+                    setDeleteKeyword("");
+                    setShowDeleteModal(true);
+                  }} 
+                  className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl uppercase tracking-wider cursor-pointer border border-rose-200 transition-all"
                 >
-                  Delete Account
+                  Request Account Deletion
                 </button>
               </div>
-
             </div>
+
           </motion.div>
         )}
 
       </div>
 
-      {/* ⏸️ PAUSE ACCOUNT MODAL */}
+      {/* ⏸️ VIP DEACTIVATE / PAUSE PROFILE MODAL */}
       <AnimatePresence>
         {showPauseModal && (
-          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }} 
+              initial={{ scale: 0.95, opacity: 0 }} 
               animate={{ scale: 1, opacity: 1 }} 
-              exit={{ scale: 0.9, opacity: 0 }} 
-              className="bg-white rounded-3xl max-w-md w-full p-7 shadow-2xl border-2 border-rose-100 text-slate-800 space-y-5"
+              exit={{ scale: 0.95, opacity: 0 }} 
+              className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-slate-100 text-slate-800 space-y-4"
             >
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-2.5 text-amber-600 font-serif font-extrabold text-base uppercase">
-                  <PauseCircle size={22} />
-                  <span>Pause My Account</span>
+                <div className="flex items-center gap-2 text-amber-700 font-bold text-sm">
+                  <PauseCircle size={18} />
+                  <span>Pause Profile Visibility</span>
                 </div>
-                <button onClick={() => setShowPauseModal(false)} className="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
+                <button onClick={() => setShowPauseModal(false)} className="text-slate-400 hover:text-slate-600 text-sm font-bold cursor-pointer">✕</button>
               </div>
 
-              <p className="text-xs font-semibold text-slate-600 leading-relaxed">
-                Please let us know why you are pausing your profile. Your profile will be completely hidden from all search results and recommendations until you log back in and reactivate.
+              <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                Your profile will be hidden from all candidate searches and daily recommendations. Your data and photos remain safe, and you can log back in anytime to reactivate instantly.
               </p>
 
               <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Select Reason</label>
                 {[
-                  "Found my partner on Nikah Qubool",
-                  "Taking a temporary break",
-                  "Privacy & security concerns",
-                  "Other"
+                  "Found my life partner on Nikah Qubool 💖",
+                  "Found partner through family / friends",
+                  "Taking a temporary break / busy",
+                  "Privacy or personal reasons",
+                  "Other reason"
                 ].map((reason) => (
-                  <label key={reason} className="flex items-center gap-3 p-3 bg-slate-50 hover:bg-rose-50/50 rounded-2xl border border-slate-200 cursor-pointer transition-colors text-xs font-bold text-slate-800">
+                  <label key={reason} className="flex items-center gap-2.5 p-2.5 bg-slate-50 hover:bg-rose-50/40 rounded-xl border border-slate-200 cursor-pointer transition-colors text-xs font-semibold text-slate-800">
                     <input 
                       type="radio" 
                       name="pauseReason" 
                       value={reason} 
                       checked={pauseReason === reason} 
                       onChange={(e) => setPauseReason(e.target.value)} 
-                      className="w-4 h-4 accent-[#d91b5c]"
+                      className="w-3.5 h-3.5 accent-[#d91b5c]"
                     />
                     <span>{reason}</span>
                   </label>
                 ))}
               </div>
 
-              {pauseReason === "Other" && (
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Remarks / Feedback (Optional)</label>
                 <textarea
-                  value={customReason}
-                  onChange={(e) => setCustomReason(e.target.value)}
-                  placeholder="Tell us more about your reason..."
-                  className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-[#d91b5c]"
+                  value={pauseRemark}
+                  onChange={(e) => setPauseRemark(e.target.value)}
+                  placeholder="Share a thought, blessing or suggestion..."
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-[#d91b5c]"
                   rows={2}
                 />
-              )}
+              </div>
 
-              <div className="flex gap-2.5 pt-2">
+              <div className="flex gap-2 pt-1">
                 <button
                   type="button"
                   onClick={() => setShowPauseModal(false)}
-                  className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-2xl uppercase cursor-pointer"
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
                 >
-                  Cancel
+                  Keep Profile Active
                 </button>
                 <button
                   type="button"
                   onClick={handleConfirmPauseAccount}
                   disabled={pausingLoading}
-                  className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs rounded-2xl uppercase cursor-pointer flex items-center justify-center gap-2 shadow-md"
+                  className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
                 >
-                  {pausingLoading ? <Loader2 size={16} className="animate-spin" /> : null}
+                  {pausingLoading ? <Loader2 size={14} className="animate-spin" /> : null}
                   <span>Confirm Pause</span>
                 </button>
               </div>
@@ -1095,45 +1122,149 @@ function SettingsContent() {
         )}
       </AnimatePresence>
 
-      {/* 🗑️ DELETE ACCOUNT MODAL */}
+      {/* 🗑️ VIP MULTI-STEP ACCOUNT DELETION MODAL */}
       <AnimatePresence>
         {showDeleteModal && (
-          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }} 
+              initial={{ scale: 0.95, opacity: 0 }} 
               animate={{ scale: 1, opacity: 1 }} 
-              exit={{ scale: 0.9, opacity: 0 }} 
-              className="bg-white rounded-3xl max-w-md w-full p-7 shadow-2xl border-2 border-rose-100 text-slate-800 space-y-5 text-center"
+              exit={{ scale: 0.95, opacity: 0 }} 
+              className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-rose-100 text-slate-800 space-y-4"
             >
-              <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto border-2 border-rose-200 shadow-xs">
-                <AlertTriangle size={32} />
-              </div>
+              {/* STEP 1: REASON & WARNING */}
+              {deleteStep === 1 && (
+                <>
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2 text-rose-700 font-bold text-sm">
+                      <AlertTriangle size={18} />
+                      <span>Permanent Account Deletion (Step 1/2)</span>
+                    </div>
+                    <button onClick={() => setShowDeleteModal(false)} className="text-slate-400 hover:text-slate-600 text-sm font-bold cursor-pointer">✕</button>
+                  </div>
 
-              <div>
-                <h3 className="text-lg font-serif font-extrabold uppercase text-slate-900">Delete Account Permanently?</h3>
-                <p className="text-slate-500 text-xs font-semibold mt-1 leading-relaxed">
-                  This action cannot be undone. All your profile information, photos, shortlists, and chat history will be permanently deleted.
-                </p>
-              </div>
+                  <div className="p-3 bg-rose-50/70 border border-rose-200 rounded-xl space-y-1">
+                    <h5 className="text-[11px] font-bold text-rose-900">What happens when you delete:</h5>
+                    <p className="text-[10px] text-rose-700 font-medium leading-relaxed">
+                      All your photos, matches, proposal interests, and chat records will be permanently erased. This cannot be undone.
+                    </p>
+                  </div>
 
-              <div className="flex flex-col gap-2.5 pt-2">
-                <button
-                  type="button"
-                  onClick={handleConfirmDeleteAccount}
-                  disabled={deletingLoading}
-                  className="w-full bg-rose-600 hover:bg-rose-700 text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg cursor-pointer border border-rose-400 flex items-center justify-center gap-2"
-                >
-                  {deletingLoading ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                  <span>Permanently Delete My Account</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowDeleteModal(false)}
-                  className="w-full bg-slate-100 text-slate-600 hover:bg-slate-200 py-3 rounded-2xl font-bold text-xs uppercase cursor-pointer"
-                >
-                  Keep My Account
-                </button>
-              </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Why are you leaving?</label>
+                    {[
+                      "Found my life partner on Nikah Qubool 💖",
+                      "Found partner through family / other sources",
+                      "Not getting relevant matches in my area",
+                      "Privacy or security concerns",
+                      "Other feedback"
+                    ].map((reason) => (
+                      <label key={reason} className="flex items-center gap-2.5 p-2.5 bg-slate-50 hover:bg-rose-50/40 rounded-xl border border-slate-200 cursor-pointer transition-colors text-xs font-semibold text-slate-800">
+                        <input 
+                          type="radio" 
+                          name="deleteReason" 
+                          value={reason} 
+                          checked={deleteReason === reason} 
+                          onChange={(e) => setDeleteReason(e.target.value)} 
+                          className="w-3.5 h-3.5 accent-[#d91b5c]"
+                        />
+                        <span>{reason}</span>
+                      </label>
+                    ))}
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Remarks / Suggestions (Optional)</label>
+                    <textarea
+                      value={deleteRemark}
+                      onChange={(e) => setDeleteRemark(e.target.value)}
+                      placeholder="Tell us what we could improve..."
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-[#d91b5c]"
+                      rows={2}
+                    />
+                  </div>
+
+                  <label className="flex items-start gap-2.5 p-2 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={deleteConfirmedCheck}
+                      onChange={(e) => setDeleteConfirmedCheck(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 accent-[#d91b5c] cursor-pointer"
+                    />
+                    <span className="text-[11px] font-medium text-slate-600">
+                      I understand that this action is irreversible and all my matrimonial data will be permanently deleted.
+                    </span>
+                  </label>
+
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteModal(false)}
+                      className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!deleteConfirmedCheck}
+                      onClick={() => setDeleteStep(2)}
+                      className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5 shadow-xs disabled:opacity-40"
+                    >
+                      <span>Proceed to Confirm</span>
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* STEP 2: SECURITY CONFIRMATION GUARD */}
+              {deleteStep === 2 && (
+                <>
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2 text-rose-700 font-bold text-sm">
+                      <AlertTriangle size={18} />
+                      <span>Final Security Confirmation (Step 2/2)</span>
+                    </div>
+                    <button onClick={() => setShowDeleteModal(false)} className="text-slate-400 hover:text-slate-600 text-sm font-bold cursor-pointer">✕</button>
+                  </div>
+
+                  <div className="text-center space-y-2 py-2">
+                    <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto border border-rose-200">
+                      <Trash2 size={22} />
+                    </div>
+                    <h4 className="text-xs font-bold text-slate-900">Are you absolutely sure?</h4>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      To permanently delete your Nikah Qubool account, please type <strong className="text-rose-600 font-bold">DELETE</strong> below:
+                    </p>
+                  </div>
+
+                  <input
+                    type="text"
+                    value={deleteKeyword}
+                    onChange={(e) => setDeleteKeyword(e.target.value)}
+                    placeholder="Type DELETE"
+                    className="w-full text-center tracking-widest font-bold uppercase p-2.5 bg-slate-50 border-2 border-rose-200 rounded-xl text-xs text-rose-700 focus:outline-none focus:border-rose-500"
+                  />
+
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setDeleteStep(1)}
+                      className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      disabled={deleteKeyword.trim().toUpperCase() !== 'DELETE' || deletingLoading}
+                      onClick={handleConfirmDeleteAccount}
+                      className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl cursor-pointer flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-40"
+                    >
+                      {deletingLoading ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                      <span>Delete Account Forever</span>
+                    </button>
+                  </div>
+                </>
+              )}
             </motion.div>
           </div>
         )}
@@ -1143,16 +1274,11 @@ function SettingsContent() {
   );
 }
 
-export default function AccountSettingsPage() {
+export default function SettingsPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-slate-50 p-4 sm:p-6 max-w-xl mx-auto space-y-4 animate-pulse pt-6">
-        <div className="w-44 h-7 bg-slate-300 rounded-md" />
-        <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
-          <div className="w-36 h-5 bg-slate-300 rounded-md" />
-          <div className="w-full h-11 bg-slate-200 rounded-2xl" />
-          <div className="w-full h-11 bg-slate-200 rounded-2xl" />
-        </div>
+      <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
+        <Loader2 size={28} className="animate-spin text-[#d91b5c]" />
       </div>
     }>
       <SettingsContent />

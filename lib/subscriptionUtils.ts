@@ -98,6 +98,7 @@ export const syncSubscriptionToStorage = (rawActive: any) => {
     };
     syncUserObj("user_details");
     syncUserObj("user_session");
+    syncUserObj("cached_profile_details");
 
     // 3. Dispatch global reactive events
     window.dispatchEvent(new Event("subscription_updated"));

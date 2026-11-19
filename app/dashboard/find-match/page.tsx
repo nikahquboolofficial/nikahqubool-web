@@ -1,190 +1,153 @@
 "use client";
 
-import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
-
-import { getClientSubscriptionStatus } from '@/lib/subscriptionUtils';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { 
-  Search, SlidersHorizontal, X, ChevronRight,
-  MapPin, Briefcase, GraduationCap, Users2, Star, Check, Heart, Loader2,
-  Crown, Lock, RotateCcw, CheckCircle2, Eye, Sparkles, ArrowLeft
+  Search, SlidersHorizontal, X, ChevronRight, ChevronDown, ChevronLeft,
+  MapPin, Briefcase, GraduationCap, Heart, Loader2,
+  Crown, Lock, RotateCcw, CheckCircle2, Eye, Sparkles, ArrowLeft,
+  Globe, Moon, Languages, DollarSign, Star, MessageCircle, Check, Building2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useRouter } from 'next/navigation';
 import { toast, Toaster } from 'sonner';
-import { filterMinAge, filterMaxAge, MIN_HEIGHT_FT, MAX_HEIGHT_FT } from '@/lib/utils/ageHeightRules';
-import { searchMatchesApi, handleInteractionApiCall, fetchMasterDataApi, getCachedMasterValues, fetchDashboardApi } from '@/lib/api';
-import { checkDailyViewLimit, formatTimeRemaining } from '@/lib/limitUtils';
-import ProfileCard from '@/components/dashboard/ProfileCard';
-import ProfileCardSkeleton from '@/components/dashboard/ProfileCardSkeleton';
+import { 
+  searchMatchesApi, handleInteractionApiCall, fetchMasterDataApi, 
+  fetchCitiesApi, getCachedMasterValues, fetchDashboardApi, fetchProfileDetailsApi 
+} from '@/lib/api';
 import { getAuthToken } from '@/lib/auth';
+import { getClientSubscriptionStatus } from '@/lib/subscriptionUtils';
+import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
+import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
 
-function parseHeightValue(h: any): number {
-  if (!h) return 5.4;
-  if (typeof h === 'number') return h;
-  const str = String(h).trim();
+// --- Height Conversion Utilities ---
+function cmToFtIn(cm: number): string {
+  const totalInches = Math.round(cm / 2.54);
+  const ft = Math.floor(totalInches / 12);
+  const inch = totalInches % 12;
+  return `${ft}ft ${inch}in`;
+}
+
+function parseHeightToFeet(val: any): number {
+  if (!val) return 5.3;
+  if (typeof val === 'number') return val;
+  const str = String(val).trim();
   const match = str.match(/(\d+)\s*(?:ft|')(?:\s*(\d+)\s*(?:in|"))?/i);
   if (match) {
-    const feet = parseInt(match[1], 10) || 5;
-    const inches = parseInt(match[2], 10) || 0;
-    return feet + inches / 12;
+    const ft = parseInt(match[1], 10) || 5;
+    const inch = parseInt(match[2], 10) || 0;
+    return ft + inch / 12;
+  }
+  const cmMatch = str.match(/(\d{2,3})\s*cm/i);
+  if (cmMatch) {
+    return (parseInt(cmMatch[1], 10) / 2.54) / 12;
   }
   const num = parseFloat(str);
-  return isNaN(num) ? 5.4 : num;
+  return isNaN(num) ? 5.3 : num;
 }
 
-function matchesShaadiFilter(p: any, f: typeof DEFAULT_FILTERS): boolean {
-  if (!p) return false;
+const INCOME_STEPS = [
+  "No Income",
+  "Under ₹3 Lakhs",
+  "₹3 - 5 Lakhs",
+  "₹5 - 7 Lakhs",
+  "₹7 - 10 Lakhs",
+  "₹10 - 15 Lakhs",
+  "₹15 - 25 Lakhs",
+  "₹25 - 50 Lakhs",
+  "₹50 Lakhs - 1 Crore",
+  "Rs. 1 Crore & Above"
+];
 
-  // 1. Age Range
-  const age = Number(p.age ?? p.Age ?? 24);
-  if (f.ageMin && age < f.ageMin) return false;
-  if (f.ageMax && age > f.ageMax) return false;
-
-  // 2. Height Range (allow slight grace boundary)
-  if (f.heightMin > 4.1 || f.heightMax < 6.9) {
-    const hVal = parseHeightValue(p.height ?? p.Height);
-    if (f.heightMin && hVal < f.heightMin - 0.25) return false;
-    if (f.heightMax && hVal > f.heightMax + 0.25) return false;
-  }
-
-  // 3. Marital Status (Any = all allowed; Multi-select = OR match)
-  if (f.maritalStatus && f.maritalStatus.length > 0) {
-    const pMarital = String(p.maritalStatus ?? p.MaritalStatus ?? '').toLowerCase().trim();
-    const match = f.maritalStatus.some(item => {
-      const target = item.toLowerCase().trim();
-      return pMarital === target || 
-             pMarital.includes(target) || 
-             target.includes(pMarital);
-    });
-    if (!match) return false;
-  }
-
-  // 4. Sect / Maslak (Any = all allowed; Multi-select = OR match across Sect and Maslak)
-  if (f.sect && f.sect.length > 0) {
-    const pSect = String(p.sect ?? p.Sect ?? '').toLowerCase().trim();
-    const pMaslak = String(p.maslak ?? p.Maslak ?? '').toLowerCase().trim();
-    const match = f.sect.some(item => {
-      const target = item.toLowerCase().trim();
-      return pSect.includes(target) || target.includes(pSect) ||
-             pMaslak.includes(target) || target.includes(pMaslak);
-    });
-    if (!match) return false;
-  }
-
-  // 5. Caste / Community (Any = all allowed; Multi-select = OR match with flexible token matching)
-  if (f.caste && f.caste.length > 0) {
-    const pCaste = String(p.caste ?? p.Caste ?? '').toLowerCase().trim();
-    const match = f.caste.some(item => {
-      const target = item.toLowerCase().trim();
-      const tokens = target.split(/[\/\s,]+/).filter(w => w.length > 2);
-      if (pCaste.includes(target) || target.includes(pCaste)) return true;
-      return tokens.some(tok => pCaste.includes(tok));
-    });
-    if (!match) return false;
-  }
-
-  // 6. States Location (Any = all allowed; Multi-select = OR match)
-  if (f.states && f.states.length > 0) {
-    const pState = String(p.stateName ?? p.StateName ?? p.state ?? p.State ?? '').toLowerCase().trim();
-    const match = f.states.some(item => {
-      const target = item.toLowerCase().trim();
-      return pState.includes(target) || target.includes(pState);
-    });
-    if (!match) return false;
-  }
-
-  // 7. Cities Location (Any = all allowed; Multi-select = OR match)
-  if (f.cities && f.cities.length > 0) {
-    const pCity = String(p.cityName ?? p.CityName ?? p.city ?? p.City ?? '').toLowerCase().trim();
-    const match = f.cities.some(item => {
-      const target = item.toLowerCase().trim();
-      return pCity.includes(target) || target.includes(pCity);
-    });
-    if (!match) return false;
-  }
-
-  // 8. Education (Any = all allowed; Multi-select = OR match)
-  if (f.education && f.education.length > 0) {
-    const pEdu = String(p.education ?? p.Education ?? p.highestDegree ?? p.HighestDegree ?? '').toLowerCase().trim();
-    const match = f.education.some(item => {
-      const target = item.toLowerCase().trim();
-      return pEdu.includes(target) || target.includes(pEdu);
-    });
-    if (!match) return false;
-  }
-
-  // 9. Profession (Any = all allowed; Multi-select = OR match)
-  if (f.employedIn && f.employedIn.length > 0) {
-    const pOcc = String(p.profession ?? p.Profession ?? p.designation ?? p.Designation ?? '').toLowerCase().trim();
-    const match = f.employedIn.some(item => {
-      const target = item.toLowerCase().trim();
-      return pOcc.includes(target) || target.includes(pOcc);
-    });
-    if (!match) return false;
-  }
-
-  return true;
-}
-
-const DEFAULT_FILTERS = {
-  ageMin: 18,
-  ageMax: 70,
-  heightMin: MIN_HEIGHT_FT,
-  heightMax: MAX_HEIGHT_FT,
+// Default Filters Model
+const INITIAL_SEARCH_FILTERS = {
+  ageMin: 21,
+  ageMax: 59,
+  heightMin: 4.58, // 4ft 7in
+  heightMax: 6.0,  // 6ft 0in
   maritalStatus: [] as string[],
+  motherTongue: [] as string[],
   sect: [] as string[],
   caste: [] as string[],
+  country: [] as string[],
   states: [] as string[],
-  cities: [] as string[], // 🔒 Paid
-  education: [] as string[], // 🔒 Paid
-  employedIn: [] as string[], // 🔒 Paid
+  cities: [] as string[],
+  education: [] as string[],
+  employedIn: [] as string[],
+  incomeIndexMin: 0,
+  incomeIndexMax: 9,
+  profileCreatedFor: [] as string[],
+  // Quick Chips
+  verifiedOnly: false,
+  withPhotoOnly: false,
+  onlineOnly: false,
+  premiumOnly: false,
 };
 
-const STORAGE_KEY = "nikah_find_match_saved_filters";
+const STORAGE_KEY = "nikah_find_match_saved_filters_v2";
 
-// ⚡ GLOBAL IN-MEMORY MATCH CACHE (0MS MATCH RENDERING)
-let globalMatchCache: { profiles: any[], hasMore: boolean, timestamp: number } | null = null;
-
-export default function FindMatchesPage() {
+export default function FindMatchPage() {
   const router = useRouter();
-  const [allCandidates, setAllCandidates] = useState<any[]>(() => globalMatchCache?.profiles || []);
-  const allCandidatesRef = React.useRef<any[]>(globalMatchCache?.profiles || []);
-  const [loading, setLoading] = useState<boolean>(() => !globalMatchCache || globalMatchCache.profiles.length === 0);
+  const searchParams = useSearchParams();
+
+  // Mode: 'form' (Search Profiles form) or 'results' (Search Results card feed)
+  const [viewMode, setViewMode] = useState<'form' | 'results'>('form');
+
+  // Filters State
+  const [filters, setFilters] = useState(INITIAL_SEARCH_FILTERS);
+
+  // Active Bottom Sheet in Form Mode (e.g. 'maritalStatus', 'caste', 'states', etc.)
+  const [activeSheet, setActiveSheet] = useState<string | null>(null);
+  const [sheetSearch, setSheetSearch] = useState("");
+
+  // User Gender & Minimum Legal Marriage Age (Male searches Female -> min 18, Female searches Male -> min 21)
+  const [currentUserGender, setCurrentUserGender] = useState<'Male' | 'Female' | null>(null);
+
+  const targetMinAge = useMemo(() => {
+    if (currentUserGender?.toLowerCase() === 'female') {
+      return 21; // Female user seeks Groom (Male) -> Indian Legal Marriage Age is 21
+    }
+    return 18; // Male user seeks Bride (Female) -> Indian Legal Marriage Age is 18
+  }, [currentUserGender]);
+
+  // 2-Column Filters Modal in Results Mode (Screenshots 6-9)
+  const [showFiltersModal, setShowFiltersModal] = useState(false);
+  const [modalActiveTab, setModalActiveTab] = useState<string>("Age");
+  const [modalCasteSearch, setModalCasteSearch] = useState("");
+
+  // Results & Profiles State
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const [fetchingMore, setFetchingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [dailyLimitReached, setDailyLimitReached] = useState(false);
   const [isUserPaid, setIsUserPaid] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  
-  const [activeBottomSheet, setActiveBottomSheet] = useState<string | null>(null);
-  const [sheetSearch, setSheetSearch] = useState("");
-  const [actionLoading, setActionLoading] = useState(false);
+  const [upgradeFeatureName, setUpgradeFeatureName] = useState("Advanced Filters");
 
-  // DYNAMIC MASTER OPTIONS STATE (Hydrated instantly from local cache, then updated from DB)
-  const [masterOptions, setMasterOptions] = useState<Record<string, string[]>>(() => ({
-    MARITAL_STATUS: getCachedMasterValues('MARITAL_STATUS'),
-    SECT: getCachedMasterValues('SECTS'),
-    CASTE: getCachedMasterValues('CASTES'),
-    STATE: getCachedMasterValues('STATES'),
-    CITY: getCachedMasterValues('CITIES'),
-    EDUCATION: getCachedMasterValues('EDUCATIONS'),
-    PROFESSION: getCachedMasterValues('OCCUPATIONS')
-  }));
+  // Dynamic Masters from DB
+  const [masterOptions, setMasterOptions] = useState<Record<string, string[]>>({
+    MARITAL_STATUS: ["Never Married", "Divorced", "Separated", "Widowed", "Annulled"],
+    SECTS: ["Sunni", "Shia", "Ahl-e-Hadith", "Other"],
+    CASTES: getCachedMasterValues('CASTES').length > 0 ? getCachedMasterValues('CASTES') : [
+      "Ansari", "Qureshi", "Syed", "Sheikh or Shaikh", "Khan / Pathan", "Siddiqui",
+      "Malik", "Choudhary", "Mansoori", "Saifi", "Abbasi", "Farooqui", "Usmani", "Alvi"
+    ],
+    MOTHER_TONGUES: ["Urdu", "Hindi", "English", "Bengali", "Telugu", "Marathi", "Tamil", "Gujarati", "Malayalam", "Kannada", "Kashmiri", "Punjabi"],
+    COUNTRIES: ["India", "United Arab Emirates", "Saudi Arabia", "United Kingdom", "United States", "Canada", "Qatar", "Kuwait", "Oman"],
+    STATES: getCachedMasterValues('STATES').length > 0 ? getCachedMasterValues('STATES') : [
+      "Uttar Pradesh", "Delhi", "Maharashtra", "Bihar", "Karnataka", "Telangana", "West Bengal", "Gujarat", "Madhya Pradesh", "Rajasthan"
+    ],
+    CITIES: [] as string[],
+    EDUCATIONS: ["B.Tech / B.E.", "MBA / PGDM", "BCA / MCA", "MBBS / MD / Medical", "B.Sc / M.Sc", "B.Com / M.Com", "B.A. / M.A.", "Islamic Scholar / Aalim", "Chartered Accountant (CA)", "Law / LLB / LLM", "Diploma / High School"],
+    EMPLOYED_IN: ["Private Sector", "Government / Public Sector", "Business / Self Employed", "Civil Services", "Defense / Police", "Not Working / Homemaker"]
+  });
 
-  // FILTERS STATE
-  const [filters, setFilters] = useState(DEFAULT_FILTERS);
-
-  // 🎯 Instant Shaadi.com Client-side filter over candidate pool
-  const displayedProfiles = React.useMemo(() => {
-    return allCandidates.filter(p => matchesShaadiFilter(p, filters));
-  }, [allCandidates, filters]);
+  const [availableCities, setAvailableCities] = useState<string[]>([]);
+  const [loadingCities, setLoadingCities] = useState(false);
 
   const getToken = useCallback(() => getAuthToken(), []);
 
-  // 1. Load saved filters from localStorage on mount
+  // 1. Load Saved Filters from localStorage on Mount
   useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -194,673 +157,1402 @@ export default function FindMatchesPage() {
           if (parsed && typeof parsed === 'object') {
             setFilters(prev => ({ ...prev, ...parsed }));
           }
-        } catch (e) {}
+        } catch {}
       }
-    }
-  }, []);
 
-  // 2. Load dynamic master options from API on mount
+      // Check URL query parameters (e.g. if arriving directly with ?view=results)
+      if (searchParams.get('view') === 'results') {
+        setViewMode('results');
+      }
+
+      // Check localStorage for gender
+      try {
+        const detailsStr = localStorage.getItem("user_details");
+        if (detailsStr) {
+          const u = JSON.parse(detailsStr);
+          const g = u?.gender || u?.Gender;
+          if (g && (String(g).toLowerCase() === 'male' || String(g).toLowerCase() === 'female')) {
+            setCurrentUserGender(String(g).toLowerCase() === 'female' ? 'Female' : 'Male');
+          }
+        }
+      } catch {}
+    }
+  }, [searchParams]);
+
+  // 1b. Fetch User Profile to accurately detect Gender & enforce Legal Marriage Age
+  useEffect(() => {
+    const fetchUserGender = async () => {
+      const token = getToken();
+      if (!token) return;
+      try {
+        const res = await fetchProfileDetailsApi(0, token);
+        if (res.success && res.data) {
+          const p = res.data.profile || res.data.Profile || res.data;
+          const g = p?.gender || p?.Gender;
+          if (g && (String(g).toLowerCase() === 'male' || String(g).toLowerCase() === 'female')) {
+            setCurrentUserGender(String(g).toLowerCase() === 'female' ? 'Female' : 'Male');
+          }
+        }
+      } catch {}
+    };
+    fetchUserGender();
+  }, [getToken]);
+
+  // 1c. Automatically ensure ageMin satisfies targetMinAge constraint
+  useEffect(() => {
+    setFilters(prev => {
+      if (prev.ageMin < targetMinAge) {
+        return { ...prev, ageMin: targetMinAge };
+      }
+      return prev;
+    });
+  }, [targetMinAge]);
+
+  // 2. Fetch Master Data from Backend
   useEffect(() => {
     const loadMasters = async () => {
       try {
-        const [marital, sects, castes, states, cities, educations, occupations] = await Promise.all([
+        const [marital, sects, castes, tongues, states, educations, occupations] = await Promise.all([
           fetchMasterDataApi('MARITAL_STATUS').catch(() => []),
           fetchMasterDataApi('SECTS').catch(() => []),
           fetchMasterDataApi('CASTES').catch(() => []),
+          fetchMasterDataApi('MOTHER_TONGUES').catch(() => []),
           fetchMasterDataApi('STATES').catch(() => []),
-          fetchMasterDataApi('CITIES').catch(() => []),
           fetchMasterDataApi('EDUCATIONS').catch(() => []),
-          fetchMasterDataApi('OCCUPATIONS').catch(() => [])
+          fetchMasterDataApi('EMPLOYMENT_SECTORS').catch(() => [])
         ]);
 
-        const extractValues = (list: any[]) => {
+        const extractVals = (list: any[]) => {
           if (Array.isArray(list) && list.length > 0) {
-            const vals = list.map((item: any) => String(item.value || item.Value || item.name || item.Name || '').trim()).filter(Boolean);
-            if (vals.length > 0) return Array.from(new Set(vals));
+            return list.map(item => String(item.value || item.Value || item.name || item.Name || '').trim()).filter(Boolean);
           }
           return [];
         };
 
         setMasterOptions(prev => ({
-          MARITAL_STATUS: extractValues(marital).length > 0 ? extractValues(marital) : prev.MARITAL_STATUS,
-          SECT: extractValues(sects).length > 0 ? extractValues(sects) : prev.SECT,
-          CASTE: extractValues(castes).length > 0 ? extractValues(castes) : prev.CASTE,
-          STATE: extractValues(states).length > 0 ? extractValues(states) : prev.STATE,
-          CITY: extractValues(cities).length > 0 ? extractValues(cities) : prev.CITY,
-          EDUCATION: extractValues(educations).length > 0 ? extractValues(educations) : prev.EDUCATION,
-          PROFESSION: extractValues(occupations).length > 0 ? extractValues(occupations) : prev.PROFESSION
+          ...prev,
+          MARITAL_STATUS: extractVals(marital).length > 0 ? extractVals(marital) : prev.MARITAL_STATUS,
+          SECTS: extractVals(sects).length > 0 ? extractVals(sects) : prev.SECTS,
+          CASTES: extractVals(castes).length > 0 ? extractVals(castes) : prev.CASTES,
+          MOTHER_TONGUES: extractVals(tongues).length > 0 ? extractVals(tongues) : prev.MOTHER_TONGUES,
+          STATES: extractVals(states).length > 0 ? extractVals(states) : prev.STATES,
+          EDUCATIONS: extractVals(educations).length > 0 ? extractVals(educations) : prev.EDUCATIONS,
+          EMPLOYED_IN: extractVals(occupations).length > 0 ? extractVals(occupations) : prev.EMPLOYED_IN,
         }));
-      } catch (e) {}
+      } catch {}
     };
     loadMasters();
+
+    // Check user subscription status
+    const status = getClientSubscriptionStatus();
+    setIsUserPaid(Boolean(status?.isPaid));
   }, []);
 
-  const loadMatches = useCallback(async (pageNum: number = 1, append: boolean = false, overrideFilters?: typeof filters) => {
-    const token = getToken();
-    if (!token) {
-      router.push('/');
+  // 3. Load Cities dynamically when States change
+  useEffect(() => {
+    if (filters.states.length === 0) {
+      setAvailableCities([]);
       return;
     }
+    const loadCities = async () => {
+      setLoadingCities(true);
+      try {
+        // Fetch cities for first selected state
+        const stateRes = await fetchMasterDataApi('STATES');
+        const matchedState = stateRes.find((s: any) => filters.states.includes(s.value || s.Value));
+        if (matchedState && (matchedState.id || (matchedState as any).Id)) {
+          const cities = await fetchCitiesApi(Number(matchedState.id || (matchedState as any).Id));
+          setAvailableCities(cities.map((c: any) => c.value || c.Value));
+        }
+      } catch {
+        setAvailableCities([]);
+      } finally {
+        setLoadingCities(false);
+      }
+    };
+    loadCities();
+  }, [filters.states]);
 
-    if (pageNum === 1 && allCandidatesRef.current.length === 0) setLoading(true);
-    else if (pageNum > 1) setFetchingMore(true);
+  // 4. Load Matches API Call
+  const loadMatches = useCallback(async (pageNum: number = 1, append: boolean = false, customFilters?: typeof filters) => {
+    const token = getToken();
+    if (!token) return;
 
-    const activeFilters = overrideFilters || filters;
+    if (pageNum === 1) setLoading(true);
+    else setFetchingMore(true);
+
+    const f = customFilters || filters;
 
     const payload = {
       searchText: "",
-      ageMin: activeFilters.ageMin || 18,
-      ageMax: activeFilters.ageMax || 60,
-      maritalStatus: activeFilters.maritalStatus.length > 0 ? activeFilters.maritalStatus : [],
-      sect: activeFilters.sect.length > 0 ? activeFilters.sect : [],
-      caste: activeFilters.caste.length > 0 ? activeFilters.caste : [],
-      states: activeFilters.states.length > 0 ? activeFilters.states : [],
-      cities: isUserPaid && activeFilters.cities.length > 0 ? activeFilters.cities : [],
-      education: isUserPaid && activeFilters.education.length > 0 ? activeFilters.education : [],
-      employedIn: isUserPaid && activeFilters.employedIn.length > 0 ? activeFilters.employedIn : [],
+      ageMin: Math.max(f.ageMin || targetMinAge, targetMinAge),
+      ageMax: f.ageMax || 70,
+      heightMin: f.heightMin || null,
+      heightMax: f.heightMax || null,
+      maritalStatus: f.maritalStatus.length > 0 ? f.maritalStatus : null,
+      motherTongue: f.motherTongue.length > 0 ? f.motherTongue : null,
+      sect: f.sect.length > 0 ? f.sect : null,
+      caste: f.caste.length > 0 ? f.caste : null,
+      states: f.states.length > 0 ? f.states : null,
+      cities: isUserPaid && f.cities.length > 0 ? f.cities : null,
+      education: isUserPaid && f.education.length > 0 ? f.education : null,
+      employedIn: isUserPaid && f.employedIn.length > 0 ? f.employedIn : null,
+      withPhotoOnly: Boolean(f.withPhotoOnly),
+      verifiedOnly: Boolean(f.verifiedOnly),
+      onlineOnly: Boolean(f.onlineOnly),
+      premiumOnly: Boolean(f.premiumOnly),
       pageNumber: pageNum,
-      pageSize: 24
+      pageSize: 20
     };
 
     try {
       const res = await searchMatchesApi(payload, token);
       let list = (res && res.success && Array.isArray(res.data)) ? res.data : [];
 
-      // Fallback: If search returned 0 and candidate pool is empty, fetch general feed to populate pool
-      if (list.length === 0 && allCandidatesRef.current.length === 0) {
+      // Fallback: If 0 returned and page 1, fetch general recommendation feed
+      if (list.length === 0 && pageNum === 1) {
         try {
           const feedRes = await fetchDashboardApi('best-matches', 1, token);
           if (feedRes && feedRes.success && Array.isArray(feedRes.data)) {
             list = feedRes.data;
           }
-        } catch (e) {}
+        } catch {}
       }
 
-      const userPaid = Boolean(res?.isUserPaid ?? isUserPaid);
-      setIsUserPaid(userPaid);
+      setIsUserPaid(Boolean(res?.isUserPaid ?? isUserPaid));
 
-      const limitState = checkDailyViewLimit(list.length, userPaid);
-      setDailyLimitReached(limitState.isLimitReached && !userPaid);
+      setProfiles(prev => {
+        if (!append) return list;
+        const existingIds = new Set(prev.map(p => Number(p.userId || p.UserId)));
+        const newAdditions = list.filter((p: any) => !existingIds.has(Number(p.userId || p.UserId)));
+        return [...prev, ...newAdditions];
+      });
 
-      const existingIds = new Set(append ? allCandidatesRef.current.map(p => Number(p.userId || p.UserId)) : []);
-      const newItems: any[] = [];
-      for (const item of list) {
-        const id = Number(item.userId || item.UserId);
-        if (id && !existingIds.has(id)) {
-          existingIds.add(id);
-          newItems.push(item);
-        }
-      }
-
-      const combined = append ? [...allCandidatesRef.current, ...newItems] : (newItems.length > 0 ? newItems : allCandidatesRef.current);
-      allCandidatesRef.current = combined;
-      setAllCandidates(combined);
-
-      globalMatchCache = {
-        profiles: combined,
-        hasMore: list.length >= 12,
-        timestamp: Date.now()
-      };
-
-      setHasMore(list.length >= 12 && (!limitState.isLimitReached || userPaid));
-    } catch {
-      // keep existing candidate pool
+      setHasMore(list.length >= 10);
+    } catch (err) {
+      console.error("Error searching matches:", err);
     } finally {
       setLoading(false);
       setFetchingMore(false);
     }
-  }, [getToken, filters, isUserPaid, router]);
+  }, [getToken, filters, isUserPaid]);
 
-  useEffect(() => {
-    setPage(1);
-    loadMatches(1, false);
-  }, [filters]);
-
-  // 🚀 AUTOMATIC INFINITE SCROLL PAGING
-  useEffect(() => {
-    const handleScroll = () => {
-      if (loading || fetchingMore || !hasMore) return;
-      if (dailyLimitReached && !isUserPaid) return;
-
-      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 400) {
-        setPage((prevPage) => {
-          const nextPage = prevPage + 1;
-          loadMatches(nextPage, true);
-          return nextPage;
-        });
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [loading, fetchingMore, hasMore, dailyLimitReached, isUserPaid, loadMatches]);
-
-  const handleApplyFilters = () => {
+  // Execute Search from Form
+  const handleExecuteSearch = () => {
     if (typeof window !== "undefined") {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(filters));
     }
-    setShowFilters(false);
-    loadMatches(1, false);
+    setViewMode('results');
+    setPage(1);
+    loadMatches(1, false, filters);
   };
 
-  const handleReset = () => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem(STORAGE_KEY);
-    }
-    setFilters(DEFAULT_FILTERS);
-    loadMatches(1, false, DEFAULT_FILTERS);
-    setShowFilters(false);
-  };
-
-  const openCategorySheet = (categoryKey: string, isLocked: boolean = false) => {
-    if (isLocked && !isUserPaid) {
-      setShowUpgradeModal(true);
-      return;
-    }
-    setSheetSearch("");
-    setActiveBottomSheet(categoryKey);
-  };
-
-  const toggleOption = (listKey: keyof typeof filters, val: string) => {
+  // Quick Chip Toggles
+  const toggleQuickChip = (chipKey: 'verifiedOnly' | 'withPhotoOnly' | 'onlineOnly' | 'premiumOnly') => {
     setFilters(prev => {
-      const list = prev[listKey] as string[];
-      const exists = list.includes(val);
-      return { ...prev, [listKey]: exists ? list.filter(i => i !== val) : [...list, val] };
+      const updated = { ...prev, [chipKey]: !prev[chipKey] };
+      loadMatches(1, false, updated);
+      if (typeof window !== "undefined") {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      }
+      return updated;
     });
   };
 
-  const handleInteraction = async (receiverId: number, type: string, status: string = 'PENDING') => {
+  // Interaction (Shortlist, Interest, Chat)
+  const handleAction = async (receiverId: number, type: string) => {
     const token = getToken();
     if (!token) return;
 
-    setActionLoading(true);
-    const res = await handleInteractionApiCall(receiverId, type, status, token);
-    setActionLoading(false);
-
-    if (res && (res.success)) {
-      const rId = Number(receiverId);
-      allCandidatesRef.current = allCandidatesRef.current.filter(p => Number(p.userId || p.UserId) !== rId);
-      setAllCandidates(prev => prev.filter(p => Number(p.userId || p.UserId) !== rId));
-    } else {
-      toast.error("Unable to update action. Please try again.");
+    try {
+      const res = await handleInteractionApiCall(receiverId, type, 'PENDING', token);
+      if (res && res.success) {
+        if (type === 'INTEREST') {
+          toast.success("Interest sent successfully!");
+          // Mark interest sent in local state
+          setProfiles(prev => prev.map(p => {
+            if (Number(p.userId || p.UserId) === receiverId) {
+              return { ...p, hasSentInterest: true };
+            }
+            return p;
+          }));
+        } else if (type === 'SHORTLIST') {
+          toast.success("Profile shortlisted!");
+          setProfiles(prev => prev.map(p => {
+            if (Number(p.userId || p.UserId) === receiverId) {
+              return { ...p, isShortlisted: !p.isShortlisted };
+            }
+            return p;
+          }));
+        }
+      } else {
+        toast.error(res?.message || "Action could not be completed.");
+      }
+    } catch {
+      toast.error("Failed to complete action. Please try again.");
     }
   };
 
-  const openProfileView = (user: any) => {
+  const openProfileDetail = (user: any) => {
     const uId = user.userId || user.UserId;
-    if (typeof window !== "undefined") { sessionStorage.setItem("last_browse_page", "/dashboard/find-match"); }
-    const dataToStore = { ...user, userId: uId, targetUserId: uId };
-    sessionStorage.setItem('viewing_profile_target', JSON.stringify(dataToStore));
-    localStorage.setItem('viewing_profile_target', JSON.stringify(dataToStore));
-    router.push('/dashboard/profile?userId=' + uId);
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("last_browse_page", "/dashboard/find-match");
+      sessionStorage.setItem("viewing_profile_target", JSON.stringify(user));
+      localStorage.setItem("viewing_profile_target", JSON.stringify(user));
+    }
+    router.push(`/dashboard/profile?userId=${uId}`);
   };
 
-  const handleInitiateChat = (user: any) => {
+  const handleStartChat = (user: any) => {
     const status = getClientSubscriptionStatus();
-    if (status.isPaid && status.canChat) {
-      if (typeof window !== "undefined") { sessionStorage.setItem("last_browse_page", "/dashboard/find-match"); }
-      sessionStorage.setItem('active_chat_target', JSON.stringify({
-        userId: user.userId || user.UserId,
-        fullName: user.fullName || user.FullName,
-        photoUrl: user.photoUrl || user.mainPhotoUrl || user.PhotoUrl || ''
-      }));
-      router.push('/dashboard/messages');
-    } else {
+    if (!status.isPaid || !status.canChat) {
+      setUpgradeFeatureName("Unlimited Chatting");
       setShowUpgradeModal(true);
+      return;
     }
+    const uId = user.userId || user.UserId;
+    const name = user.fullName || user.FullName || 'Member';
+    const photo = user.photoUrl || user.PhotoUrl || '';
+    router.push(`/dashboard/messages?targetUserId=${uId}&targetName=${encodeURIComponent(name)}&targetPhoto=${encodeURIComponent(photo)}`);
   };
 
-  function getOptionsForSheet(sheetKey: string) {
-    const list = masterOptions[sheetKey] || [];
-    if (!sheetSearch.trim()) return list;
-    return list.filter(item => item.toLowerCase().includes(sheetSearch.toLowerCase().trim()));
-  }
+  // Multi-select Toggle Handler for Form Bottom Sheets
+  const toggleSheetOption = (listKey: keyof typeof filters, val: string) => {
+    setFilters(prev => {
+      const list = (prev[listKey] as string[]) || [];
+      const exists = list.includes(val);
+      const updated = exists ? list.filter(item => item !== val) : [...list, val];
+      return { ...prev, [listKey]: updated };
+    });
+  };
 
-  function getIsSelected(sheetKey: string, opt: string) {
-    switch (sheetKey) {
-      case 'MARITAL_STATUS': return filters.maritalStatus.includes(opt);
-      case 'SECT': return filters.sect.includes(opt);
-      case 'CASTE': return filters.caste.includes(opt);
-      case 'STATE': return filters.states.includes(opt);
-      case 'CITY': return filters.cities.includes(opt);
-      case 'EDUCATION': return filters.education.includes(opt);
-      case 'PROFESSION': return filters.employedIn.includes(opt);
-      default: return false;
-    }
-  }
+  const setAllOrNone = (listKey: keyof typeof filters) => {
+    setFilters(prev => ({ ...prev, [listKey]: [] })); // empty array = "Open to all"
+  };
 
-  function handleToggleOption(sheetKey: string, opt: string) {
-    switch (sheetKey) {
-      case 'MARITAL_STATUS': toggleOption('maritalStatus', opt); break;
-      case 'SECT': toggleOption('sect', opt); break;
-      case 'CASTE': toggleOption('caste', opt); break;
-      case 'STATE': toggleOption('states', opt); break;
-      case 'CITY': toggleOption('cities', opt); break;
-      case 'EDUCATION': toggleOption('education', opt); break;
-      case 'PROFESSION': toggleOption('employedIn', opt); break;
-    }
-  }
+  // Helper formatting for summary text
+  const getSummary = (list: string[], fallback: string = "Open to all") => {
+    if (!list || list.length === 0) return fallback;
+    if (list.length === 1) return list[0];
+    return `${list[0]}, ${list[1]}${list.length > 2 ? ` (+${list.length - 2})` : ''}`;
+  };
 
-  function getSelectedCount(sheetKey: string) {
-    switch (sheetKey) {
-      case 'MARITAL_STATUS': return filters.maritalStatus.length;
-      case 'SECT': return filters.sect.length;
-      case 'CASTE': return filters.caste.length;
-      case 'STATE': return filters.states.length;
-      case 'CITY': return filters.cities.length;
-      case 'EDUCATION': return filters.education.length;
-      case 'PROFESSION': return filters.employedIn.length;
-      default: return 0;
-    }
-  }
+  // Convert decimal feet to label
+  const formatHeightFeet = (ftVal: number) => {
+    const totalInches = Math.round(ftVal * 12);
+    const ft = Math.floor(totalInches / 12);
+    const inch = totalInches % 12;
+    return inch === 0 ? `${ft}ft` : `${ft}ft ${inch}in`;
+  };
+
+  // VIP Feature lock trigger
+  const handleVipLockClick = (featureName: string) => {
+    setUpgradeFeatureName(featureName);
+    setShowUpgradeModal(true);
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#FAF8F5] via-white to-[#FAF8F5] text-slate-900 font-sans pb-32 selection:bg-[#d91b5c] selection:text-white">
-      <Toaster position="top-center" richColors duration={2000} />
+    <div className="min-h-screen bg-[#FDFCFB] font-sans text-slate-900 pb-24 selection:bg-[#E21E5B] selection:text-white">
+      <Toaster position="top-center" richColors />
 
-      <style jsx global>{`
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        input[type='range'] { pointer-events: none; position: absolute; width: 100%; appearance: none; background: none; z-index: 10; }
-        input[type='range']::-webkit-slider-thumb { pointer-events: auto; width: 20px; height: 20px; border-radius: 50%; background: #d91b5c; appearance: none; border: 3px solid white; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); cursor: pointer; }
-      `}</style>
-
-      {/* --- STICKY TOP HEADER --- */}
-      <div className="sticky top-16 md:top-20 z-40 bg-white/90 backdrop-blur-xl border-b border-rose-100/80 px-4 py-3 shadow-[0_4px_12px_rgba(0,0,0,0.03)]">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5">
-            <h1 className="font-serif font-black text-base sm:text-lg text-slate-900 uppercase tracking-tight truncate">
-              Find Matches
+      {/* ========================================================================= */}
+      {/* 🧭 VIEW 1: SEARCH PROFILES (SCREENSHOTS 1, 3, 4)                           */}
+      {/* ========================================================================= */}
+      {viewMode === 'form' && (
+        <div className="max-w-md mx-auto px-4 py-4 space-y-5">
+          {/* Top Bar */}
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => router.back()} 
+              className="w-9 h-9 rounded-full bg-white border border-slate-200/80 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-all shadow-xs"
+            >
+              <ChevronLeft size={20} className="stroke-[2.5]" />
+            </button>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">
+              Search Profiles
             </h1>
-            <span className="text-[11px] font-black bg-rose-50 text-[#d91b5c] px-2.5 py-0.5 rounded-full border border-rose-200/60">
-              {displayedProfiles.length} Profiles
+          </div>
+
+          {/* 🌟 SECTION 1: BASIC DETAILS */}
+          <div className="space-y-3">
+            <h2 className="text-sm font-bold text-slate-900 pl-1">Basic Details</h2>
+
+            {/* AGE DUAL SLIDER CARD */}
+            <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-500">Age</span>
+                <span className="text-[10px] font-medium text-slate-400">
+                  {currentUserGender === 'Female' ? 'Groom legal min: 21 yrs' : 'Bride legal min: 18 yrs'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm font-extrabold text-slate-900">
+                <span>Min {Math.max(filters.ageMin, targetMinAge)} yrs</span>
+                <span>Max {filters.ageMax} yrs</span>
+              </div>
+              <div className="relative pt-2 pb-1">
+                <input 
+                  type="range"
+                  min={targetMinAge}
+                  max={70}
+                  value={Math.max(filters.ageMin, targetMinAge)}
+                  onChange={(e) => {
+                    const val = Math.max(targetMinAge, Number(e.target.value));
+                    if (val <= filters.ageMax - 1) {
+                      setFilters(prev => ({ ...prev, ageMin: val }));
+                    }
+                  }}
+                  className="w-full accent-[#E21E5B] h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer"
+                />
+                <input 
+                  type="range"
+                  min={targetMinAge}
+                  max={70}
+                  value={filters.ageMax}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    if (val >= Math.max(filters.ageMin, targetMinAge) + 1) {
+                      setFilters(prev => ({ ...prev, ageMax: val }));
+                    }
+                  }}
+                  className="w-full accent-[#E21E5B] h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer mt-1"
+                />
+              </div>
+            </div>
+
+            {/* HEIGHT DUAL SLIDER CARD */}
+            <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs space-y-3">
+              <div className="text-xs font-semibold text-slate-500">Height</div>
+              <div className="flex items-center justify-between text-sm font-extrabold text-slate-900">
+                <span>Min {formatHeightFeet(filters.heightMin)}</span>
+                <span>Max {formatHeightFeet(filters.heightMax)}</span>
+              </div>
+              <div className="relative pt-2 pb-1">
+                <input 
+                  type="range"
+                  min={4.0}
+                  max={7.0}
+                  step={0.0833}
+                  value={filters.heightMin}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    if (val <= filters.heightMax - 0.1) {
+                      setFilters(prev => ({ ...prev, heightMin: val }));
+                    }
+                  }}
+                  className="w-full accent-[#E21E5B] h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer"
+                />
+                <input 
+                  type="range"
+                  min={4.0}
+                  max={7.0}
+                  step={0.0833}
+                  value={filters.heightMax}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    if (val >= filters.heightMin + 0.1) {
+                      setFilters(prev => ({ ...prev, heightMax: val }));
+                    }
+                  }}
+                  className="w-full accent-[#E21E5B] h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer mt-1"
+                />
+              </div>
+            </div>
+
+            {/* MARITAL STATUS CARD */}
+            <div 
+              onClick={() => { setSheetSearch(""); setActiveSheet('maritalStatus'); }}
+              className="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-xs flex items-center justify-between cursor-pointer hover:border-[#E21E5B]/40 active:scale-[0.99] transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-slate-50 border border-slate-200/60 flex items-center justify-center text-slate-600">
+                  <Heart size={16} />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900">Marital Status</div>
+                  <div className="text-[11px] font-medium text-slate-500">
+                    {getSummary(filters.maritalStatus)}
+                  </div>
+                </div>
+              </div>
+              <ChevronDown size={18} className="text-slate-400" />
+            </div>
+
+            {/* MOTHER TONGUE CARD */}
+            <div 
+              onClick={() => { setSheetSearch(""); setActiveSheet('motherTongue'); }}
+              className="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-xs flex items-center justify-between cursor-pointer hover:border-[#E21E5B]/40 active:scale-[0.99] transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-slate-50 border border-slate-200/60 flex items-center justify-center text-slate-600">
+                  <Languages size={16} />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900">Mother Tongue</div>
+                  <div className="text-[11px] font-medium text-slate-500">
+                    {getSummary(filters.motherTongue)}
+                  </div>
+                </div>
+              </div>
+              <ChevronDown size={18} className="text-slate-400" />
+            </div>
+          </div>
+
+          {/* 🌙 SECTION 2: COMMUNITY */}
+          <div className="space-y-3 pt-1">
+            <h2 className="text-sm font-bold text-slate-900 pl-1">Community</h2>
+
+            {/* SECT CARD */}
+            <div 
+              onClick={() => { setSheetSearch(""); setActiveSheet('sect'); }}
+              className="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-xs flex items-center justify-between cursor-pointer hover:border-[#E21E5B]/40 active:scale-[0.99] transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-slate-50 border border-slate-200/60 flex items-center justify-center text-slate-600">
+                  <Moon size={16} />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900">Sect</div>
+                  <div className="text-[11px] font-medium text-slate-500">
+                    {getSummary(filters.sect)}
+                  </div>
+                </div>
+              </div>
+              <ChevronDown size={18} className="text-slate-400" />
+            </div>
+
+            {/* CASTE CARD */}
+            <div 
+              onClick={() => { setSheetSearch(""); setActiveSheet('caste'); }}
+              className="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-xs flex items-center justify-between cursor-pointer hover:border-[#E21E5B]/40 active:scale-[0.99] transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-slate-50 border border-slate-200/60 flex items-center justify-center text-slate-600">
+                  <Sparkles size={16} />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900">Caste</div>
+                  <div className="text-[11px] font-medium text-slate-500">
+                    {getSummary(filters.caste)}
+                  </div>
+                </div>
+              </div>
+              <ChevronDown size={18} className="text-slate-400" />
+            </div>
+          </div>
+
+          {/* 📍 SECTION 3: LOCATION */}
+          <div className="space-y-3 pt-1">
+            <h2 className="text-sm font-bold text-slate-900 pl-1">Location</h2>
+
+            {/* COUNTRY */}
+            <div 
+              onClick={() => { setSheetSearch(""); setActiveSheet('country'); }}
+              className="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-xs flex items-center justify-between cursor-pointer hover:border-[#E21E5B]/40 active:scale-[0.99] transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-slate-50 border border-slate-200/60 flex items-center justify-center text-slate-600">
+                  <Globe size={16} />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900">Country</div>
+                  <div className="text-[11px] font-medium text-slate-500">
+                    {getSummary(filters.country)}
+                  </div>
+                </div>
+              </div>
+              <ChevronDown size={18} className="text-slate-400" />
+            </div>
+
+            {/* STATE */}
+            <div 
+              onClick={() => { setSheetSearch(""); setActiveSheet('states'); }}
+              className="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-xs flex items-center justify-between cursor-pointer hover:border-[#E21E5B]/40 active:scale-[0.99] transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-slate-50 border border-slate-200/60 flex items-center justify-center text-slate-600">
+                  <MapPin size={16} />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900">State</div>
+                  <div className="text-[11px] font-medium text-slate-500">
+                    {getSummary(filters.states)}
+                  </div>
+                </div>
+              </div>
+              <ChevronDown size={18} className="text-slate-400" />
+            </div>
+
+            {/* CITY (Dependent on State) */}
+            <div 
+              onClick={() => {
+                if (!isUserPaid) {
+                  handleVipLockClick("City Filter");
+                  return;
+                }
+                if (filters.states.length === 0) {
+                  toast.info("Please select a State first to view cities.");
+                  return;
+                }
+                setSheetSearch("");
+                setActiveSheet('cities');
+              }}
+              className={`bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-xs flex items-center justify-between cursor-pointer transition-all ${
+                filters.states.length === 0 ? 'opacity-80' : 'hover:border-[#E21E5B]/40'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-slate-50 border border-slate-200/60 flex items-center justify-center text-slate-400">
+                  <Building2 size={16} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-slate-900">City</span>
+                    {!isUserPaid && (
+                      <span className="px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 text-[9px] font-bold flex items-center gap-0.5">
+                        <Crown size={9} /> VIP
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[11px] font-medium text-slate-400">
+                    {filters.states.length === 0 
+                      ? "Select a state first" 
+                      : (filters.cities.length > 0 ? getSummary(filters.cities) : "Open to all cities")}
+                  </div>
+                </div>
+              </div>
+              <ChevronDown size={18} className="text-slate-400" />
+            </div>
+          </div>
+
+          {/* 🎓 SECTION 4: EDUCATION & INCOME */}
+          <div className="space-y-3 pt-1">
+            <h2 className="text-sm font-bold text-slate-900 pl-1">Education & Income</h2>
+
+            {/* EDUCATION */}
+            <div 
+              onClick={() => {
+                if (!isUserPaid) {
+                  handleVipLockClick("Education Filter");
+                  return;
+                }
+                setSheetSearch("");
+                setActiveSheet('education');
+              }}
+              className="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-xs flex items-center justify-between cursor-pointer hover:border-[#E21E5B]/40 active:scale-[0.99] transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-slate-50 border border-slate-200/60 flex items-center justify-center text-slate-600">
+                  <GraduationCap size={16} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-slate-900">Education</span>
+                    {!isUserPaid && (
+                      <span className="px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 text-[9px] font-bold flex items-center gap-0.5">
+                        <Crown size={9} /> VIP
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[11px] font-medium text-slate-500">
+                    {getSummary(filters.education)}
+                  </div>
+                </div>
+              </div>
+              <ChevronDown size={18} className="text-slate-400" />
+            </div>
+
+            {/* ANNUAL INCOME SLIDER */}
+            <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-500">Annual Income</span>
+                {!isUserPaid && (
+                  <span className="px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 text-[9px] font-bold flex items-center gap-0.5">
+                    <Crown size={9} /> VIP
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center justify-between text-xs sm:text-sm font-extrabold text-slate-900">
+                <span>{INCOME_STEPS[filters.incomeIndexMin]}</span>
+                <span>{INCOME_STEPS[filters.incomeIndexMax]}</span>
+              </div>
+              <div className="relative pt-2 pb-1">
+                <input 
+                  type="range"
+                  min={0}
+                  max={9}
+                  value={filters.incomeIndexMin}
+                  onChange={(e) => {
+                    if (!isUserPaid) {
+                      handleVipLockClick("Annual Income Filter");
+                      return;
+                    }
+                    const val = Number(e.target.value);
+                    if (val <= filters.incomeIndexMax) {
+                      setFilters(prev => ({ ...prev, incomeIndexMin: val }));
+                    }
+                  }}
+                  className="w-full accent-[#E21E5B] h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer"
+                />
+              </div>
+            </div>
+
+            {/* EMPLOYED IN */}
+            <div 
+              onClick={() => {
+                if (!isUserPaid) {
+                  handleVipLockClick("Employed In Filter");
+                  return;
+                }
+                setSheetSearch("");
+                setActiveSheet('employedIn');
+              }}
+              className="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-xs flex items-center justify-between cursor-pointer hover:border-[#E21E5B]/40 active:scale-[0.99] transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-slate-50 border border-slate-200/60 flex items-center justify-center text-slate-600">
+                  <Briefcase size={16} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-slate-900">Employed In</span>
+                    {!isUserPaid && (
+                      <span className="px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 text-[9px] font-bold flex items-center gap-0.5">
+                        <Crown size={9} /> VIP
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[11px] font-medium text-slate-500">
+                    {getSummary(filters.employedIn)}
+                  </div>
+                </div>
+              </div>
+              <ChevronDown size={18} className="text-slate-400" />
+            </div>
+          </div>
+
+          {/* 🔍 SEARCH PROFILES BOTTOM CTA BUTTON */}
+          <div className="pt-4 sticky bottom-16 z-20">
+            <button
+              onClick={handleExecuteSearch}
+              className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#E21E5B] via-[#E91E63] to-[#C2185B] text-white font-bold text-sm shadow-md hover:shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Search size={18} className="stroke-[2.5]" />
+              <span>Search Profiles</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 📸 VIEW 2: SEARCH RESULTS (SCREENSHOT 5)                                  */}
+      {/* ========================================================================= */}
+      {viewMode === 'results' && (
+        <div className="max-w-md mx-auto px-4 py-3 space-y-4">
+          {/* Results Top Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <button 
+                onClick={() => setViewMode('form')} 
+                className="w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-all shadow-xs"
+              >
+                <ChevronLeft size={20} className="stroke-[2.5]" />
+              </button>
+              <h1 className="text-lg font-bold tracking-tight text-slate-900">
+                Search Results
+              </h1>
+            </div>
+            <span className="text-xs font-semibold text-slate-500">
+              {profiles.length} found
             </span>
           </div>
 
-          <button 
-            type="button"
-            onClick={() => setShowFilters(true)} 
-            className="flex items-center gap-1.5 px-4.5 py-2 bg-gradient-to-r from-[#d91b5c] to-rose-600 hover:brightness-110 text-white rounded-full font-black uppercase text-[11px] tracking-wider active:scale-95 transition-all cursor-pointer shrink-0 shadow-[0_4px_12px_rgba(217,27,92,0.25)] border border-rose-300/30"
-          >
-            <SlidersHorizontal size={14} className="text-amber-300" />
-            <span>Filter</span>
-          </button>
-        </div>
-      </div>
-
-      {/* --- PROFILES GRID --- */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        {loading ? (
-          <div className="py-4">
-            <ProfileCardSkeleton count={4} />
-          </div>
-        ) : displayedProfiles.length === 0 ? (
-          <div className="py-16 px-4 text-center max-w-md mx-auto space-y-4">
-            <div className="w-16 h-16 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center text-[#d91b5c] mx-auto shadow-xs">
-              <Users2 size={28} />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-base font-serif font-extrabold uppercase text-slate-900 tracking-tight">No Matches Found</h3>
-              <p className="text-xs text-slate-500 font-semibold max-w-xs mx-auto leading-relaxed">Try resetting or broadening your search filters to discover more life partners.</p>
-            </div>
-            <button 
-              onClick={handleReset} 
-              className="px-6 py-2.5 bg-slate-950 hover:bg-slate-900 text-white font-black text-xs uppercase tracking-wider rounded-full shadow-sm cursor-pointer transition-all"
+          {/* ⚡ HORIZONTAL QUICK-FILTER CHIPS BAR (SCREENSHOT 5) */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+            {/* 1. All Filters Drawer Button */}
+            <button
+              onClick={() => setShowFiltersModal(true)}
+              className="shrink-0 px-3.5 py-1.5 rounded-full border border-slate-300/80 bg-white text-slate-800 text-xs font-bold flex items-center gap-1.5 shadow-xs hover:border-[#E21E5B] active:scale-95 transition-all"
             >
-              Reset Filters
+              <SlidersHorizontal size={13} className="text-[#E21E5B]" />
+              <span>Filters</span>
+            </button>
+
+            {/* 2. Verified Chip */}
+            <button
+              onClick={() => toggleQuickChip('verifiedOnly')}
+              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shadow-xs flex items-center gap-1 ${
+                filters.verifiedOnly
+                  ? 'bg-[#E21E5B] text-white border border-[#E21E5B]'
+                  : 'bg-white text-slate-700 border border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <span>Verified</span>
+            </button>
+
+            {/* 3. Photos Only Chip */}
+            <button
+              onClick={() => toggleQuickChip('withPhotoOnly')}
+              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shadow-xs flex items-center gap-1 ${
+                filters.withPhotoOnly
+                  ? 'bg-[#E21E5B] text-white border border-[#E21E5B]'
+                  : 'bg-white text-slate-700 border border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <span>Photos</span>
+            </button>
+
+            {/* 4. Online Profiles Chip */}
+            <button
+              onClick={() => toggleQuickChip('onlineOnly')}
+              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shadow-xs flex items-center gap-1 ${
+                filters.onlineOnly
+                  ? 'bg-[#E21E5B] text-white border border-[#E21E5B]'
+                  : 'bg-white text-slate-700 border border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <span>Online</span>
+            </button>
+
+            {/* 5. Premium Profiles Chip */}
+            <button
+              onClick={() => toggleQuickChip('premiumOnly')}
+              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shadow-xs flex items-center gap-1 ${
+                filters.premiumOnly
+                  ? 'bg-[#E21E5B] text-white border border-[#E21E5B]'
+                  : 'bg-white text-slate-700 border border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <span>Premium</span>
             </button>
           </div>
-        ) : (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {displayedProfiles.map((user) => {
-                const uId = user.userId || user.UserId;
+
+          {/* 🌟 PROFILES CARD FEED (SCREENSHOT 5) */}
+          {loading ? (
+            <div className="space-y-4 pt-2">
+              {[1, 2].map((i) => (
+                <div key={i} className="aspect-[4/5] rounded-3xl shimmer-luxury shadow-sm border border-slate-100" />
+              ))}
+            </div>
+          ) : profiles.length === 0 ? (
+            <div className="bg-white rounded-3xl p-8 border border-slate-200/80 text-center space-y-3 mt-4 shadow-xs">
+              <div className="w-14 h-14 rounded-full bg-rose-50 text-[#E21E5B] flex items-center justify-center mx-auto">
+                <Search size={24} />
+              </div>
+              <h3 className="text-base font-bold text-slate-900">No Matching Profiles</h3>
+              <p className="text-xs text-slate-500 max-w-xs mx-auto">
+                No profiles matched your exact search filters. Try broadening your age, sect, or city filters.
+              </p>
+              <button
+                onClick={() => {
+                  setFilters(INITIAL_SEARCH_FILTERS);
+                  loadMatches(1, false, INITIAL_SEARCH_FILTERS);
+                }}
+                className="mt-2 px-5 py-2 rounded-full bg-slate-900 text-white text-xs font-bold hover:bg-slate-800"
+              >
+                Reset All Filters
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4 pt-1">
+              {profiles.map((user, idx) => {
+                const uId = Number(user.userId || user.UserId);
+                const name = user.fullName || user.FullName || 'Member';
+                const age = user.age || user.Age || 24;
+                const isPremium = Boolean(user.isPremium || user.IsPremium);
+                const isVerified = Boolean(user.isVerified || user.IsVerified);
+                const location = `${user.cityName || user.CityName || 'India'}${user.stateName || user.StateName ? `, ${user.stateName || user.StateName}` : ''}`;
+                const community = `${user.sect || user.Sect || 'Muslim'}${user.caste || user.Caste ? ` / ${user.caste || user.Caste}` : ''}`;
+                const profession = user.profession || user.Profession || user.education || user.Education || 'Professional';
+                const photoUrl = getOptimizedImageUrl(user.photoUrl || user.PhotoUrl);
+                const hasSentInterest = Boolean(user.hasSentInterest);
+                const isShortlisted = Boolean(user.isShortlisted);
+
                 return (
-                  <ProfileCard
-                    key={uId}
-                    profile={user}
-                    activeTab="matches"
-                    actionLoading={actionLoading}
-                    onInteraction={handleInteraction}
-                    onViewProfile={() => openProfileView(user)}
-                    onInitiateChat={handleInitiateChat}
-                  />
+                  <div 
+                    key={uId || idx}
+                    className="relative aspect-[4/5] rounded-3xl overflow-hidden shadow-md bg-slate-900 border border-slate-200/60 group"
+                  >
+                    {/* Background Image */}
+                    <img 
+                      src={photoUrl}
+                      alt={name}
+                      onClick={() => openProfileDetail(user)}
+                      className="w-full h-full object-cover object-top cursor-pointer group-hover:scale-102 transition-transform duration-300"
+                      onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_FEMALE_AVATAR; }}
+                    />
+
+                    {/* Gradient Overlay for Text & Buttons */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none" />
+
+                    {/* Top Badges */}
+                    <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-10 pointer-events-none">
+                      {isVerified ? (
+                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/90 text-white text-[10px] font-bold flex items-center gap-1 shadow-sm backdrop-blur-xs">
+                          <CheckCircle2 size={11} className="stroke-[3]" /> Verified
+                        </span>
+                      ) : <span />}
+
+                      {isPremium && (
+                        <span className="px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black flex items-center gap-1 shadow-sm">
+                          <Crown size={11} className="fill-slate-950" /> VIP
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Profile Details Overlay at Bottom */}
+                    <div className="absolute bottom-0 inset-x-0 p-4 space-y-3 z-10">
+                      <div 
+                        onClick={() => openProfileDetail(user)}
+                        className="text-white text-center cursor-pointer space-y-0.5"
+                      >
+                        <div className="flex items-center justify-center gap-1.5 text-base sm:text-lg font-black tracking-tight drop-shadow-xs">
+                          <span>{name}, {age}</span>
+                          {isPremium && <Crown size={15} className="fill-amber-400 text-amber-400" />}
+                        </div>
+                        <div className="text-xs text-white/90 font-medium drop-shadow-xs">
+                          {location} &bull; {community}
+                        </div>
+                        <div className="text-[11px] text-white/80 font-medium drop-shadow-xs">
+                          {profession}
+                        </div>
+                      </div>
+
+                      {/* 3 Circular Action Buttons (Screenshot 5) */}
+                      <div className="flex items-center justify-center gap-6 pt-1">
+                        {/* 1. Shortlist Button */}
+                        <div className="flex flex-col items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleAction(uId, 'SHORTLIST')}
+                            className={`w-11 h-11 rounded-full flex items-center justify-center shadow-md active:scale-90 transition-transform cursor-pointer backdrop-blur-xs ${
+                              isShortlisted 
+                                ? 'bg-amber-400 text-slate-900' 
+                                : 'bg-black/40 text-white border border-white/30 hover:bg-black/60'
+                            }`}
+                          >
+                            <Star size={18} className={isShortlisted ? 'fill-slate-900' : ''} />
+                          </button>
+                          <span className="text-[10px] font-semibold text-white/90">Shortlist</span>
+                        </div>
+
+                        {/* 2. Chat Button */}
+                        <div className="flex flex-col items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleStartChat(user)}
+                            className="w-12 h-12 rounded-full bg-[#E5B54F] text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform cursor-pointer"
+                          >
+                            <MessageCircle size={20} className="fill-white stroke-none" />
+                          </button>
+                          <span className="text-[10px] font-semibold text-white/90">Chat</span>
+                        </div>
+
+                        {/* 3. Send Interest Button */}
+                        <div className="flex flex-col items-center gap-1">
+                          <button
+                            type="button"
+                            disabled={hasSentInterest}
+                            onClick={() => handleAction(uId, 'INTEREST')}
+                            className={`w-11 h-11 rounded-full flex items-center justify-center shadow-md active:scale-90 transition-transform cursor-pointer ${
+                              hasSentInterest 
+                                ? 'bg-emerald-500 text-white' 
+                                : 'bg-[#E21E5B] text-white hover:bg-[#d91b5c]'
+                            }`}
+                          >
+                            {hasSentInterest ? (
+                              <Check size={18} className="stroke-[3]" />
+                            ) : (
+                              <Heart size={18} className="fill-white stroke-none" />
+                            )}
+                          </button>
+                          <span className="text-[10px] font-semibold text-white/90">
+                            {hasSentInterest ? 'Sent' : 'Send Interest'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 );
               })}
             </div>
+          )}
+        </div>
+      )}
 
-            {/* 🔒 24-HOUR DAILY 20 PROFILES VIEW LIMIT CARD (FOR FREE UNPAID USERS) */}
-            {dailyLimitReached && !isUserPaid && (
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-gradient-to-br from-slate-900 via-[#3a051b] to-slate-950 text-white rounded-3xl p-8 border-2 border-amber-400/40 shadow-2xl text-center max-w-xl mx-auto space-y-4 relative overflow-hidden my-8"
-              >
-                <div className="w-16 h-16 rounded-full bg-amber-500/20 text-amber-300 border-2 border-amber-400/50 flex items-center justify-center mx-auto shadow-lg">
-                  <Lock size={32} />
-                </div>
+      {/* ========================================================================= */}
+      {/* 📋 POPUP 1: SINGLE-FIELD BOTTOM SHEET IN FORM MODE (SCREENSHOT 2)          */}
+      {/* ========================================================================= */}
+      <AnimatePresence>
+        {activeSheet && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4">
+            <motion.div
+              initial={{ opacity: 0, y: 100 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 100 }}
+              transition={{ duration: 0.2 }}
+              className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl max-h-[85vh] flex flex-col space-y-4"
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between">
                 <div>
-                  <span className="bg-amber-400 text-slate-950 text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-widest">
-                    24-Hour Limit Reached
-                  </span>
-                  <h3 className="text-xl font-serif font-extrabold uppercase mt-2 text-white tracking-wide">
-                    20 / 20 Free Profiles Viewed Today
+                  <h3 className="text-base font-bold text-slate-900 capitalize">
+                    {activeSheet.replace(/([A-Z])/g, ' $1')}
                   </h3>
-                  <p className="text-rose-100/80 text-xs font-medium max-w-md mx-auto mt-1 leading-relaxed">
-                    Free accounts are restricted to viewing 20 profiles per 24 hours. Upgrade to VIP Premium to unlock unlimited instant profiles or wait for timer reset.
+                  <p className="text-xs text-slate-500 font-medium">
+                    Select one or more options
                   </p>
                 </div>
-                
-                {/* 🕒 LIVE TICKING COUNTDOWN TIMER */}
-                <div className="bg-slate-950/80 p-3 rounded-2xl border border-amber-400/30 max-w-xs mx-auto text-center space-y-1 shadow-inner">
-                  <span className="text-[10px] uppercase font-black tracking-widest text-amber-300">Resetting Daily Limit In</span>
-                  <div className="flex items-center justify-center gap-2 text-amber-300 font-mono font-bold text-xl">
-                    <LiveCountdownDisplay />
-                  </div>
-                </div>
-
-                <div className="pt-2">
-                  <button 
-                    type="button"
-                    onClick={() => router.push('/dashboard/membership')}
-                    className="px-8 py-3.5 rounded-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-xl hover:brightness-110 active:scale-95 transition-all flex items-center gap-2 mx-auto cursor-pointer border border-amber-200"
-                  >
-                    <Crown size={18} className="fill-slate-950" />
-                    <span>Upgrade to VIP Premium</span>
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
-              </motion.div>
-            )}
-
-            {/* INFINITE SCROLL BOTTOM LOADING INDICATOR */}
-            {fetchingMore && (
-              <div className="flex items-center justify-center gap-2 py-6 text-[#d91b5c]">
-                <Loader2 size={24} className="animate-spin text-[#d91b5c]" />
-                <span className="text-xs font-extrabold uppercase tracking-widest text-slate-500">Finding More Matches...</span>
-              </div>
-            )}
-          </div>
-        )}
-      </main>
-
-      {/* --- NATIVE APP STYLE SOBER FILTER DRAWER --- */}
-      <AnimatePresence>
-        {showFilters && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowFilters(false)} className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[60]" />
-            <motion.div 
-              initial={{ x: '100%' }} 
-              animate={{ x: 0 }} 
-              exit={{ x: '100%' }} 
-              transition={{ type: 'spring', damping: 25, stiffness: 220 }} 
-              className="fixed inset-y-0 right-0 h-[100dvh] w-full sm:max-w-md bg-white z-[70] flex flex-col shadow-2xl overflow-hidden border-l border-slate-200 text-slate-900"
-            >
-              
-              {/* Drawer Header */}
-              <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white text-slate-900 shrink-0">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-rose-50 text-[#d91b5c] border border-rose-100 flex items-center justify-center">
-                    <SlidersHorizontal size={16} />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-serif font-extrabold uppercase tracking-tight leading-none text-slate-900">Filter Matches</h3>
-                    <span className="text-[10px] text-slate-500 font-medium">Select criteria for your ideal matches</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button 
-                    type="button"
-                    onClick={handleReset}
-                    className="text-[11px] font-bold uppercase text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded-full transition-all cursor-pointer border border-slate-200"
-                  >
-                    Reset All
-                  </button>
-                  <button onClick={() => setShowFilters(false)} className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 rounded-full transition-all cursor-pointer"><X size={18}/></button>
-                </div>
+                <button
+                  onClick={() => setActiveSheet(null)}
+                  className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200"
+                >
+                  <X size={16} />
+                </button>
               </div>
 
-              {/* FILTER SECTIONS (Scrollable Content Body) */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-24 no-scrollbar bg-slate-50/50">
-                
-                {/* BASIC CRITERIA CARD */}
-                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs space-y-4">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-[#d91b5c] block border-b border-slate-100 pb-2">Basic Criteria</span>
-
-                  <DualRange min={18} max={60} valMin={filters.ageMin} valMax={filters.ageMax} onChangeMin={(v: number)=>setFilters({...filters, ageMin:v})} onChangeMax={(v: number)=>setFilters({...filters, ageMax:v})} title="Age Range" label="yrs" />
-
-                  <DualRange min={4.0} max={7.0} valMin={filters.heightMin} valMax={filters.heightMax} onChangeMin={(v: number)=>setFilters({...filters, heightMin:v})} onChangeMax={(v: number)=>setFilters({...filters, heightMax:v})} title="Height Range" label="ft" step={0.1} />
-
-                  <CategoryRow 
-                    title="Marital Status" 
-                    count={filters.maritalStatus.length} 
-                    onClick={() => openCategorySheet('MARITAL_STATUS')} 
+              {/* Search input for Caste, City, State */}
+              {['caste', 'cities', 'states'].includes(activeSheet) && (
+                <div className="relative">
+                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search..."
+                    value={sheetSearch}
+                    onChange={(e) => setSheetSearch(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-[#E21E5B]"
                   />
                 </div>
+              )}
 
-                {/* RELIGION & COMMUNITY CARD */}
-                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs space-y-3">
-                  <span className="text-[11px] font-black uppercase tracking-wider text-[#d91b5c] block border-b border-slate-100 pb-2">Religion & Community</span>
-                  
-                  <CategoryRow title="Sect / Maslak" count={filters.sect.length} onClick={() => openCategorySheet('SECT')} />
-                  <CategoryRow title="Caste / Community" count={filters.caste.length} onClick={() => openCategorySheet('CASTE')} />
-                  <CategoryRow title="State Location" count={filters.states.length} onClick={() => openCategorySheet('STATE')} />
-                </div>
-
-                {/* PREMIUM ADVANCED FILTERS CARD (VIP PRO 👑) */}
-                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs space-y-3 relative">
-                  <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                    <div className="flex items-center gap-1.5">
-                      <Crown size={15} className="text-amber-500 fill-amber-400" />
-                      <span className="text-[11px] font-black uppercase tracking-wider text-[#d91b5c]">VIP Advanced Filters</span>
-                    </div>
-                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 text-[9px] font-black uppercase shadow-2xs">
-                      PRO ONLY
-                    </span>
+              {/* Options List */}
+              <div className="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[50vh]">
+                {/* 1. Open to All Option */}
+                <div 
+                  onClick={() => setAllOrNone(activeSheet as keyof typeof filters)}
+                  className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors"
+                >
+                  <div className={`w-5 h-5 rounded-md flex items-center justify-center border transition-colors ${
+                    (filters[activeSheet as keyof typeof filters] as string[])?.length === 0
+                      ? 'bg-[#E21E5B] border-[#E21E5B] text-white'
+                      : 'border-slate-300 bg-white'
+                  }`}>
+                    {(filters[activeSheet as keyof typeof filters] as string[])?.length === 0 && <Check size={13} className="stroke-[3]" />}
                   </div>
-
-                  <CategoryRow title="City Location" isLocked={!isUserPaid} count={filters.cities.length} onClick={() => openCategorySheet('CITY', true)} />
-                  <CategoryRow title="Education" isLocked={!isUserPaid} count={filters.education.length} onClick={() => openCategorySheet('EDUCATION', true)} />
-                  <CategoryRow title="Profession" isLocked={!isUserPaid} count={filters.employedIn.length} onClick={() => openCategorySheet('PROFESSION', true)} />
+                  <span className="text-xs font-bold text-slate-900">Open to all</span>
                 </div>
 
+                {/* 2. Specific Options */}
+                {(() => {
+                  let options: string[] = [];
+                  if (activeSheet === 'maritalStatus') options = masterOptions.MARITAL_STATUS;
+                  else if (activeSheet === 'motherTongue') options = masterOptions.MOTHER_TONGUES;
+                  else if (activeSheet === 'sect') options = masterOptions.SECTS;
+                  else if (activeSheet === 'caste') options = masterOptions.CASTES;
+                  else if (activeSheet === 'country') options = masterOptions.COUNTRIES;
+                  else if (activeSheet === 'states') options = masterOptions.STATES;
+                  else if (activeSheet === 'cities') options = availableCities;
+                  else if (activeSheet === 'education') options = masterOptions.EDUCATIONS;
+                  else if (activeSheet === 'employedIn') options = masterOptions.EMPLOYED_IN;
+
+                  const filtered = sheetSearch.trim().length > 0
+                    ? options.filter(o => o.toLowerCase().includes(sheetSearch.toLowerCase()))
+                    : options;
+
+                  const selectedList = (filters[activeSheet as keyof typeof filters] as string[]) || [];
+
+                  return filtered.map((opt) => {
+                    const isChecked = selectedList.includes(opt);
+                    return (
+                      <div
+                        key={opt}
+                        onClick={() => toggleSheetOption(activeSheet as keyof typeof filters, opt)}
+                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors"
+                      >
+                        <div className={`w-5 h-5 rounded-md flex items-center justify-center border transition-colors ${
+                          isChecked 
+                            ? 'bg-[#E21E5B] border-[#E21E5B] text-white' 
+                            : 'border-slate-300 bg-white'
+                        }`}>
+                          {isChecked && <Check size={13} className="stroke-[3]" />}
+                        </div>
+                        <span className="text-xs font-semibold text-slate-800">{opt}</span>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
 
-              {/* ⚡ FIXED ACTION FOOTER */}
-              <div className="p-4 pb-20 sm:pb-4 bg-white border-t border-slate-200 flex items-center gap-2.5 shrink-0 shadow-lg z-30">
-                <button 
+              {/* Done Button */}
+              <div className="pt-2">
+                <button
                   type="button"
-                  onClick={() => setShowFilters(false)} 
-                  className="px-3.5 py-3 rounded-xl border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs uppercase tracking-wider transition-all cursor-pointer shrink-0 active:scale-95 shadow-xs"
-                  title="Close Filters"
+                  onClick={() => setActiveSheet(null)}
+                  className="w-full py-3 rounded-xl bg-[#E21E5B] text-white text-xs font-bold shadow-md hover:bg-[#d91b5c] active:scale-[0.98] transition-all"
                 >
-                  Close
-                </button>
-
-                <button 
-                  type="button"
-                  onClick={handleReset} 
-                  className="w-11 h-11 rounded-xl border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700 flex items-center justify-center transition-all cursor-pointer shrink-0 active:scale-95 shadow-xs"
-                  title="Reset Filters"
-                >
-                  <RotateCcw size={18} />
-                </button>
-
-                <button 
-                  type="button"
-                  onClick={handleApplyFilters} 
-                  className="flex-1 py-3 bg-[#d91b5c] hover:bg-[#b01348] text-white rounded-xl font-black text-xs uppercase tracking-wider shadow-md active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
-                >
-                  <Search size={16} className="text-amber-300" />
-                  <span>Apply & Save</span>
+                  Done
                 </button>
               </div>
-
             </motion.div>
-          </>
+          </div>
         )}
       </AnimatePresence>
 
-      {/* MULTI-SELECT BOTTOM SHEET MODAL WITH SEARCH */}
+      {/* ========================================================================= */}
+      {/* 🧭 POPUP 2: 2-COLUMN FILTERS DRAWER / MODAL (SCREENSHOTS 6 TO 9)            */}
+      {/* ========================================================================= */}
       <AnimatePresence>
-        {activeBottomSheet && (
-          <div className="fixed inset-0 z-[100] flex items-end justify-center">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setActiveBottomSheet(null)} className="absolute inset-0 bg-black/60 backdrop-blur-xs" />
-            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 220 }} className="relative bg-white rounded-t-[36px] max-w-md w-full p-6 space-y-4 z-10 max-h-[80vh] flex flex-col shadow-2xl border-t-2 border-rose-100 text-slate-800">
-              
-              <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto" />
-              
-              <div className="flex justify-between items-center border-b-2 border-slate-100 pb-3">
-                <div>
-                  <h3 className="text-base font-serif font-extrabold uppercase text-[#d91b5c]">
-                    Select {activeBottomSheet.replace('_', ' ')}
-                  </h3>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase">
-                    {getSelectedCount(activeBottomSheet) > 0 ? `${getSelectedCount(activeBottomSheet)} selected` : 'Multi-select allowed'}
-                  </span>
+        {showFiltersModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-0 sm:p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              className="w-full max-w-lg h-full sm:h-[88vh] bg-white sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden"
+            >
+              {/* Modal Top Header */}
+              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <button
+                  onClick={() => setShowFiltersModal(false)}
+                  className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-700 hover:bg-slate-200"
+                >
+                  <X size={16} />
+                </button>
+                <h3 className="text-base font-extrabold text-slate-900">Filters</h3>
+                <button
+                  onClick={() => {
+                    setFilters(INITIAL_SEARCH_FILTERS);
+                    toast.info("All filters cleared.");
+                  }}
+                  className="text-xs font-bold text-[#E21E5B] hover:underline"
+                >
+                  Clear All
+                </button>
+              </div>
+
+              {/* 2-Column Body */}
+              <div className="flex-1 flex overflow-hidden">
+                {/* LEFT COLUMN: CATEGORIES TAB LIST */}
+                <div className="w-[38%] border-r border-slate-100 bg-[#FAF9F8] overflow-y-auto py-2">
+                  {[
+                    "Age", "Height", "Marital Status", "Sect", "Caste", "Country", 
+                    "State", "City", "Verified Profiles", "Education", "Employed In", 
+                    "Mother Tongue", "Annual Income", "Premium Profiles", "Online Profiles", 
+                    "Profiles With Photos"
+                  ].map((tab) => {
+                    const isActive = modalActiveTab === tab;
+                    return (
+                      <div
+                        key={tab}
+                        onClick={() => { setModalCasteSearch(""); setModalActiveTab(tab); }}
+                        className={`px-3.5 py-3 text-xs font-semibold cursor-pointer transition-colors relative flex items-center ${
+                          isActive 
+                            ? 'bg-white font-extrabold text-slate-900 shadow-xs' 
+                            : 'text-slate-600 hover:bg-slate-100/60'
+                        }`}
+                      >
+                        {isActive && (
+                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#E5B54F] rounded-r-md" />
+                        )}
+                        <span className="truncate">{tab}</span>
+                      </div>
+                    );
+                  })}
                 </div>
-                <button onClick={() => setActiveBottomSheet(null)} className="p-1.5 bg-slate-100 rounded-full text-slate-600 hover:bg-slate-200 transition-all cursor-pointer"><X size={18}/></button>
-              </div>
 
-              {/* Search in Options */}
-              <div className="relative">
-                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder={`Search ${activeBottomSheet.replace('_', ' ')}...`}
-                  value={sheetSearch}
-                  onChange={(e) => setSheetSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-xs font-bold outline-none bg-slate-50 rounded-xl border border-slate-200 text-slate-800 focus:border-[#d91b5c] transition-colors"
-                />
-              </div>
-
-              <div className="flex-1 overflow-y-auto space-y-2 py-2 pr-1 no-scrollbar max-h-[45vh]">
-                {getOptionsForSheet(activeBottomSheet).map((opt) => {
-                  const isSelected = getIsSelected(activeBottomSheet, opt);
-                  return (
-                    <div 
-                      key={opt} 
-                      onClick={() => handleToggleOption(activeBottomSheet, opt)}
-                      className={`p-3.5 rounded-2xl border-2 flex items-center justify-between cursor-pointer transition-all ${
-                        isSelected 
-                          ? 'border-[#d91b5c] bg-rose-50 text-[#d91b5c] font-black shadow-2xs' 
-                          : 'border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold'
-                      }`}
-                    >
-                      <span className="text-xs uppercase">{opt}</span>
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
-                        isSelected ? 'bg-[#d91b5c] text-white shadow-xs' : 'border-2 border-slate-300'
-                      }`}>
-                        {isSelected && <Check size={12} strokeWidth={3} />}
+                {/* RIGHT COLUMN: CONTROLS FOR SELECTED TAB */}
+                <div className="w-[62%] p-4 overflow-y-auto flex flex-col">
+                  {/* TAB 1: AGE */}
+                  {modalActiveTab === "Age" && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-slate-500">Filter by Age</span>
+                        <span className="text-[10px] font-medium text-slate-400">
+                          {currentUserGender === 'Female' ? 'Min 21 yrs' : 'Min 18 yrs'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs font-extrabold text-slate-900">
+                        <span>Min {Math.max(filters.ageMin, targetMinAge)} yrs</span>
+                        <span>Max {filters.ageMax} yrs</span>
+                      </div>
+                      <div className="space-y-2 pt-2">
+                        <input
+                          type="range"
+                          min={targetMinAge}
+                          max={70}
+                          value={Math.max(filters.ageMin, targetMinAge)}
+                          onChange={(e) => {
+                            const val = Math.max(targetMinAge, Number(e.target.value));
+                            if (val <= filters.ageMax - 1) setFilters(p => ({ ...p, ageMin: val }));
+                          }}
+                          className="w-full accent-[#E21E5B] h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer"
+                        />
+                        <input
+                          type="range"
+                          min={targetMinAge}
+                          max={70}
+                          value={filters.ageMax}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            if (val >= Math.max(filters.ageMin, targetMinAge) + 1) setFilters(p => ({ ...p, ageMax: val }));
+                          }}
+                          className="w-full accent-[#E21E5B] h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer"
+                        />
                       </div>
                     </div>
-                  );
-                })}
-                {getOptionsForSheet(activeBottomSheet).length === 0 && (
-                  <div className="py-6 text-center text-xs text-slate-400 font-semibold">
-                    No options match your search.
-                  </div>
-                )}
+                  )}
+
+                  {/* TAB 2: HEIGHT */}
+                  {modalActiveTab === "Height" && (
+                    <div className="space-y-4">
+                      <div className="text-xs font-semibold text-slate-500">Filter by Height</div>
+                      <div className="flex items-center justify-between text-xs font-extrabold text-slate-900">
+                        <span>Min {formatHeightFeet(filters.heightMin)}</span>
+                        <span>Max {formatHeightFeet(filters.heightMax)}</span>
+                      </div>
+                      <div className="space-y-2 pt-2">
+                        <input
+                          type="range"
+                          min={4.0}
+                          max={7.0}
+                          step={0.0833}
+                          value={filters.heightMin}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            if (val <= filters.heightMax - 0.1) setFilters(p => ({ ...p, heightMin: val }));
+                          }}
+                          className="w-full accent-[#E21E5B] h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer"
+                        />
+                        <input
+                          type="range"
+                          min={4.0}
+                          max={7.0}
+                          step={0.0833}
+                          value={filters.heightMax}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            if (val >= filters.heightMin + 0.1) setFilters(p => ({ ...p, heightMax: val }));
+                          }}
+                          className="w-full accent-[#E21E5B] h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB: MARITAL STATUS (SCREENSHOT 7) */}
+                  {modalActiveTab === "Marital Status" && (
+                    <div className="space-y-2">
+                      <div 
+                        onClick={() => setAllOrNone('maritalStatus')}
+                        className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer"
+                      >
+                        <div className={`w-4 h-4 rounded-xs border flex items-center justify-center ${
+                          filters.maritalStatus.length === 0 ? 'bg-[#E21E5B] border-[#E21E5B] text-white' : 'border-slate-300'
+                        }`}>
+                          {filters.maritalStatus.length === 0 && <Check size={11} className="stroke-[3]" />}
+                        </div>
+                        <span className="text-xs font-bold text-slate-900">All</span>
+                      </div>
+                      {masterOptions.MARITAL_STATUS.map((opt) => {
+                        const isChecked = filters.maritalStatus.includes(opt);
+                        return (
+                          <div 
+                            key={opt}
+                            onClick={() => toggleSheetOption('maritalStatus', opt)}
+                            className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer"
+                          >
+                            <div className={`w-4 h-4 rounded-xs border flex items-center justify-center ${
+                              isChecked ? 'bg-[#E21E5B] border-[#E21E5B] text-white' : 'border-slate-300'
+                            }`}>
+                              {isChecked && <Check size={11} className="stroke-[3]" />}
+                            </div>
+                            <span className="text-xs font-medium text-slate-800">{opt}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* TAB: CASTE (SCREENSHOT 8) */}
+                  {modalActiveTab === "Caste" && (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        placeholder="Search"
+                        value={modalCasteSearch}
+                        onChange={(e) => setModalCasteSearch(e.target.value)}
+                        className="w-full px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs focus:outline-none focus:border-[#E21E5B]"
+                      />
+                      <div 
+                        onClick={() => setAllOrNone('caste')}
+                        className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer"
+                      >
+                        <div className={`w-4 h-4 rounded-xs border flex items-center justify-center ${
+                          filters.caste.length === 0 ? 'bg-[#E21E5B] border-[#E21E5B] text-white' : 'border-slate-300'
+                        }`}>
+                          {filters.caste.length === 0 && <Check size={11} className="stroke-[3]" />}
+                        </div>
+                        <span className="text-xs font-bold text-slate-900">All</span>
+                      </div>
+                      {masterOptions.CASTES
+                        .filter(c => c.toLowerCase().includes(modalCasteSearch.toLowerCase()))
+                        .map((c) => {
+                          const isChecked = filters.caste.includes(c);
+                          return (
+                            <div 
+                              key={c}
+                              onClick={() => toggleSheetOption('caste', c)}
+                              className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer"
+                            >
+                              <div className={`w-4 h-4 rounded-xs border flex items-center justify-center ${
+                                isChecked ? 'bg-[#E21E5B] border-[#E21E5B] text-white' : 'border-slate-300'
+                              }`}>
+                                {isChecked && <Check size={11} className="stroke-[3]" />}
+                              </div>
+                              <span className="text-xs font-medium text-slate-800">{c}</span>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+
+                  {/* TAB: PROFILES WITH PHOTOS (SCREENSHOT 9) */}
+                  {modalActiveTab === "Profiles With Photos" && (
+                    <div className="space-y-2">
+                      <div 
+                        onClick={() => setFilters(p => ({ ...p, withPhotoOnly: true }))}
+                        className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer"
+                      >
+                        <div className={`w-4 h-4 rounded-xs border flex items-center justify-center ${
+                          filters.withPhotoOnly ? 'bg-[#E21E5B] border-[#E21E5B] text-white' : 'border-slate-300'
+                        }`}>
+                          {filters.withPhotoOnly && <Check size={11} className="stroke-[3]" />}
+                        </div>
+                        <span className="text-xs font-medium text-slate-800">Profiles with photos</span>
+                      </div>
+                      <div 
+                        onClick={() => setFilters(p => ({ ...p, withPhotoOnly: false }))}
+                        className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer"
+                      >
+                        <div className={`w-4 h-4 rounded-xs border flex items-center justify-center ${
+                          !filters.withPhotoOnly ? 'bg-[#E21E5B] border-[#E21E5B] text-white' : 'border-slate-300'
+                        }`}>
+                          {!filters.withPhotoOnly && <Check size={11} className="stroke-[3]" />}
+                        </div>
+                        <span className="text-xs font-medium text-slate-800">All profiles</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB: VERIFIED PROFILES */}
+                  {modalActiveTab === "Verified Profiles" && (
+                    <div className="space-y-2">
+                      <div 
+                        onClick={() => setFilters(p => ({ ...p, verifiedOnly: true }))}
+                        className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer"
+                      >
+                        <div className={`w-4 h-4 rounded-xs border flex items-center justify-center ${
+                          filters.verifiedOnly ? 'bg-[#E21E5B] border-[#E21E5B] text-white' : 'border-slate-300'
+                        }`}>
+                          {filters.verifiedOnly && <Check size={11} className="stroke-[3]" />}
+                        </div>
+                        <span className="text-xs font-medium text-slate-800">Verified profiles only</span>
+                      </div>
+                      <div 
+                        onClick={() => setFilters(p => ({ ...p, verifiedOnly: false }))}
+                        className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer"
+                      >
+                        <div className={`w-4 h-4 rounded-xs border flex items-center justify-center ${
+                          !filters.verifiedOnly ? 'bg-[#E21E5B] border-[#E21E5B] text-white' : 'border-slate-300'
+                        }`}>
+                          {!filters.verifiedOnly && <Check size={11} className="stroke-[3]" />}
+                        </div>
+                        <span className="text-xs font-medium text-slate-800">All profiles</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* OTHER LIST TABS (Sect, States, Cities, Education, Employed In, etc.) */}
+                  {!["Age", "Height", "Marital Status", "Caste", "Profiles With Photos", "Verified Profiles"].includes(modalActiveTab) && (
+                    <div className="space-y-2">
+                      {(() => {
+                        let opts: string[] = [];
+                        let filterKey: keyof typeof filters = 'sect';
+
+                        if (modalActiveTab === "Sect") { opts = masterOptions.SECTS; filterKey = 'sect'; }
+                        else if (modalActiveTab === "Country") { opts = masterOptions.COUNTRIES; filterKey = 'country'; }
+                        else if (modalActiveTab === "State") { opts = masterOptions.STATES; filterKey = 'states'; }
+                        else if (modalActiveTab === "City") { opts = availableCities; filterKey = 'cities'; }
+                        else if (modalActiveTab === "Education") { opts = masterOptions.EDUCATIONS; filterKey = 'education'; }
+                        else if (modalActiveTab === "Employed In") { opts = masterOptions.EMPLOYED_IN; filterKey = 'employedIn'; }
+                        else if (modalActiveTab === "Mother Tongue") { opts = masterOptions.MOTHER_TONGUES; filterKey = 'motherTongue'; }
+
+                        const selectedArr = (filters[filterKey] as string[]) || [];
+
+                        return (
+                          <>
+                            <div 
+                              onClick={() => setAllOrNone(filterKey)}
+                              className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer"
+                            >
+                              <div className={`w-4 h-4 rounded-xs border flex items-center justify-center ${
+                                selectedArr.length === 0 ? 'bg-[#E21E5B] border-[#E21E5B] text-white' : 'border-slate-300'
+                              }`}>
+                                {selectedArr.length === 0 && <Check size={11} className="stroke-[3]" />}
+                              </div>
+                              <span className="text-xs font-bold text-slate-900">All</span>
+                            </div>
+                            {opts.map((opt) => {
+                              const isChecked = selectedArr.includes(opt);
+                              return (
+                                <div 
+                                  key={opt}
+                                  onClick={() => toggleSheetOption(filterKey, opt)}
+                                  className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-50 cursor-pointer"
+                                >
+                                  <div className={`w-4 h-4 rounded-xs border flex items-center justify-center ${
+                                    isChecked ? 'bg-[#E21E5B] border-[#E21E5B] text-white' : 'border-slate-300'
+                                  }`}>
+                                    {isChecked && <Check size={11} className="stroke-[3]" />}
+                                  </div>
+                                  <span className="text-xs font-medium text-slate-800">{opt}</span>
+                                </div>
+                              );
+                            })}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setActiveBottomSheet(null)}
-                className="w-full py-3.5 bg-slate-950 hover:bg-slate-900 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-md transition-all active:scale-95 cursor-pointer text-center"
-              >
-                Done
-              </button>
+              {/* Bottom Sticky Action: Show Profiles */}
+              <div className="p-4 border-t border-slate-100 bg-white">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowFiltersModal(false);
+                    loadMatches(1, false, filters);
+                  }}
+                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#E21E5B] to-[#C2185B] text-white font-bold text-sm shadow-md active:scale-[0.98] transition-all"
+                >
+                  Show Profiles
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* VIP UPGRADE MODAL */}
-      <SubscriptionModal 
-        isOpen={showUpgradeModal} 
-        onClose={() => setShowUpgradeModal(false)} 
-      />
-
+      {/* Subscription Upgrade Modal */}
+      {showUpgradeModal && (
+        <SubscriptionModal
+          isOpen={showUpgradeModal}
+          onClose={() => setShowUpgradeModal(false)}
+          title={`Unlock ${upgradeFeatureName}`}
+          subtitle={`Upgrade to Nikah Qubool VIP to search by specific cities, income brackets, education levels, and more.`}
+        />
+      )}
     </div>
   );
-}
-
-// HELPER COMPONENTS
-function DualRange({ min, max, valMin, valMax, onChangeMin, onChangeMax, label, title, step = 1 }: any) {
-  const minPos = ((valMin - min) / (max - min)) * 100;
-  const maxPos = ((valMax - min) / (max - min)) * 100;
-  return (
-    <div className="space-y-2">
-      <div className="flex justify-between items-center">
-        <label className="text-[11px] font-black uppercase text-slate-700">{title}</label>
-        <span className="text-[11px] font-black text-[#d91b5c] bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200">
-          {valMin} {label} - {valMax} {label}
-        </span>
-      </div>
-      <div className="relative h-2 bg-slate-200 rounded-full mx-1">
-        <div className="absolute h-full bg-[#d91b5c] rounded-full" style={{ left: `${minPos}%`, right: `${100 - maxPos}%` }} />
-        <input type="range" min={min} max={max} step={step} value={valMin} onChange={(e) => onChangeMin(Math.min(Number(e.target.value), valMax - step))} />
-        <input type="range" min={min} max={max} step={step} value={valMax} onChange={(e) => onChangeMax(Math.max(Number(e.target.value), valMin + step))} />
-      </div>
-    </div>
-  );
-}
-
-function CategoryRow({ title, count, onClick, isLocked = false }: { title: string; count: number; onClick: () => void; isLocked?: boolean }) {
-  return (
-    <div 
-      onClick={onClick}
-      className={`rounded-xl p-3.5 flex items-center justify-between cursor-pointer transition-all border shadow-2xs group ${
-        isLocked 
-          ? 'bg-amber-50/40 border-amber-200/80 hover:border-amber-400' 
-          : 'bg-white border-slate-200 hover:border-rose-300 hover:bg-rose-50/20'
-      }`}
-    >
-      <div className="flex items-center gap-2.5">
-        {isLocked ? (
-          <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
-            <Lock size={12} />
-          </div>
-        ) : (
-          <div className="w-1.5 h-1.5 rounded-full bg-[#d91b5c]" />
-        )}
-        <h4 className="text-xs font-bold text-slate-800 uppercase tracking-tight">{title}</h4>
-      </div>
-
-      <div className="flex items-center gap-2">
-        {isLocked ? (
-          <span className="text-[10px] font-extrabold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200 flex items-center gap-1">
-            <Lock size={10} /> Locked (VIP)
-          </span>
-        ) : (
-          <span className={`text-[11px] font-bold ${count > 0 ? 'text-[#d91b5c] bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200 font-black' : 'text-slate-400'}`}>
-            {count === 0 ? 'Any' : `${count} selected`}
-          </span>
-        )}
-        <ChevronRight size={15} className="text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-      </div>
-    </div>
-  );
-}
-
-function LiveCountdownDisplay() {
-  const [timeText, setTimeText] = useState('24h 00m 00s');
-
-  useEffect(() => {
-    const updateTimer = () => {
-      const stored = localStorage.getItem('daily_profile_views_tracker');
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          const remaining = Math.max(0, 86400000 - (Date.now() - parsed.timestamp));
-          setTimeText(formatTimeRemaining(remaining));
-        } catch (e) {}
-      }
-    };
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  return <span>{timeText}</span>;
 }

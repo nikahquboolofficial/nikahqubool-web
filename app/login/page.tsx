@@ -80,7 +80,8 @@ function LoginContent() {
     if (res?.success === true || res?.success === 1) {
       setStep(2);
       setTimer(60);
-      setOtp(new Array(6).fill(''));
+      setOtp(['1', '2', '3', '4', '5', '6']); // Fixed testing OTP 123456
+      setApiMessage('Testing Mode: OTP is fixed to 123456');
       setError('');
     } else {
       setApiMessage(sanitizeErrorMessage(res?.message || 'Failed to send OTP. Please try again.'));

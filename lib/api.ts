@@ -1,5 +1,5 @@
-//export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.nikahqubool.in/api"; 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://localhost:7204/api";
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.nikahqubool.in/api"; 
+//export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://localhost:7204/api";
 // ⚡ Dynamic SignalR Hub URL
 export const SIGNALR_HUB_URL = API_BASE_URL.replace(/\/api\/?$/, '') + "/chatHub";
 
@@ -11,7 +11,7 @@ export interface MasterOption {
 let masterOptionsCache: MasterOption[] | null = null;
 const masterCategoryCache: { [key: string]: MasterOption[] } = {};
 
-// 🕒 Last Seen Formatter Helper
+// 🕒 Last Seen Formatter Helper (Accurate UTC to Local IST)
 export const formatLastSeen = (lastSeenDate?: string | Date | null) => {
   if (!lastSeenDate) return "Active recently";
   let d: Date;
@@ -19,8 +19,17 @@ export const formatLastSeen = (lastSeenDate?: string | Date | null) => {
     d = isNaN(lastSeenDate.getTime()) ? new Date() : lastSeenDate;
   } else {
     try {
-      const str = String(lastSeenDate).trim().replace(/z$/i, '').replace(' ', 'T');
-      d = new Date(str);
+      let str = String(lastSeenDate).trim();
+      if (!str) return "Active recently";
+      if (/^\d{10,13}$/.test(str)) {
+        const num = Number(str);
+        d = new Date(num < 10000000000 ? num * 1000 : num);
+      } else {
+        if (!str.endsWith('Z') && !str.includes('+') && str.includes('T')) {
+          str = `${str}Z`;
+        }
+        d = new Date(str);
+      }
       if (isNaN(d.getTime())) return "Active recently";
     } catch {
       return "Active recently";
@@ -38,6 +47,13 @@ export const formatLastSeen = (lastSeenDate?: string | Date | null) => {
   if (isToday) {
     return `Last seen today at ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
   }
+
+  const yesterday = new Date();
+  yesterday.setDate(now.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) {
+    return `Last seen yesterday at ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`;
+  }
+
   return `Last seen ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
 };
 

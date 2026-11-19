@@ -10,7 +10,7 @@ import {
   GraduationCap, Briefcase, Heart, Home, Moon, User,
   Minus, Award, ShieldCheck, MapPin, Activity, Utensils,
   BookOpen, Smile, Phone, Mail, MessageCircle, Calendar,
-  Dumbbell, Music, Languages, DollarSign, Users, Info
+  Dumbbell, Music, Languages, DollarSign, Users, Info, Edit3
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import { 
@@ -30,6 +30,7 @@ import {
 } from '@/lib/api';
 import { getAuthToken, syncUserProfilePhoto } from '@/lib/auth';
 import { clientValidateSingleFace } from '@/lib/faceDetectionClient';
+import ProfileAvatarLoader from '@/components/ProfileAvatarLoader';
 
 // Helper for Height conversions
 function cmToFtIn(cm: number): string {
@@ -93,12 +94,14 @@ export default function EditMyProfilePage() {
     EDUCATIONS: getCachedMasterOptions('EDUCATIONS'),
     EMPLOYMENT_SECTORS: getCachedMasterOptions('EMPLOYMENT_SECTORS'),
     OCCUPATIONS: getCachedMasterOptions('OCCUPATIONS'),
+    PARENT_OCCUPATIONS: getCachedMasterOptions('PARENT_OCCUPATIONS'),
     STATES: getCachedMasterOptions('STATES'),
     FAMILY_TYPES: getCachedMasterOptions('FAMILY_TYPES'),
     FAMILY_STATUS: getCachedMasterOptions('FAMILY_STATUS'),
     COMPLEXION: getCachedMasterOptions('COMPLEXION'),
     HOBBIES: getCachedMasterOptions('HOBBIES'),
     INTERESTS: getCachedMasterOptions('INTERESTS'),
+    MUSIC: getCachedMasterOptions('MUSIC'),
     SPORTS: getCachedMasterOptions('SPORTS'),
     LANGUAGES: getCachedMasterOptions('LANGUAGES'),
     NAMAZ_HABITS: getCachedMasterOptions('NAMAZ_HABITS'),
@@ -121,7 +124,7 @@ export default function EditMyProfilePage() {
   const getMasterLabel = useCallback((type: string, val: any): string => {
     if (val === null || val === undefined || val === '') return '';
     const strVal = String(val).trim();
-    const list = masterData[type] || [] || [];
+    const list = masterData[type] || [];
     
     // 1. Try finding by numeric id
     const byId = list.find(item => String(item.id) === strVal);
@@ -141,7 +144,7 @@ export default function EditMyProfilePage() {
     return strVal;
   }, [masterData]);
 
-  // Helper to get cached Full Name from localStorage so it never starts empty
+  // Helper to get cached Full Name from localStorage
   const getInitialFullName = (): string => {
     if (typeof window === "undefined") return '';
     try {
@@ -162,7 +165,7 @@ export default function EditMyProfilePage() {
   // Helper to render label or clean placeholder
   const renderLabel = (val: any, placeholder: string = "Not specified") => {
     if (val !== null && val !== undefined && val !== '' && val !== 0 && val !== '0') {
-      return <span className="text-slate-500 font-medium">{String(val)}</span>;
+      return <span className="text-slate-700 font-semibold">{String(val)}</span>;
     }
     return <span className="text-slate-400 italic font-normal">{placeholder}</span>;
   };
@@ -206,9 +209,11 @@ export default function EditMyProfilePage() {
     NativePlaceStateId: 0,
     NativePlaceCityId: 0,
     FatherName: '',
-    FatherOccupation: 0,
+    FatherOccupation: '',
+    FatherOccupationId: 0,
     MotherName: '',
-    MotherOccupation: 0,
+    MotherOccupation: '',
+    MotherOccupationId: 0,
     TotalBrothers: 0,
     MarriedBrothers: 0,
     TotalSisters: 0,
@@ -237,6 +242,7 @@ export default function EditMyProfilePage() {
     Sports: '',
     Hobbies: '',
     Interests: '',
+    Music: '',
 
     // Bio & Trust
     AboutMe: '',
@@ -245,6 +251,18 @@ export default function EditMyProfilePage() {
     GovtIdDocUrl: '',
     PhotoPrivacy: 'All Members',
   });
+
+  // Track completed sections from database
+  const [completedSections, setCompletedSections] = useState<string[]>([]);
+
+  // Celebration Modal state (Screenshot 1)
+  const [celebrationModal, setCelebrationModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    scoreAdded: number;
+    remainingScore: number;
+    nextSection?: string;
+  } | null>(null);
 
   // Photos State: 4 slots max
   const [photos, setPhotos] = useState<Array<{ photoId: number; photoUrl: string; isMain: boolean; privacy?: string }>>([]);
@@ -290,12 +308,12 @@ export default function EditMyProfilePage() {
   // Height Slider Substate
   const [heightCm, setHeightCm] = useState(170);
 
-  // Income Slider Substate (index 0 to 12)
+  // Income Slider Substate
   const [incomeIndex, setIncomeIndex] = useState(4);
 
   // Date of Birth 3-Column Picker Substate
   const [dobDay, setDobDay] = useState<number>(15);
-  const [dobMonth, setDobMonth] = useState<number>(8); // 1-12
+  const [dobMonth, setDobMonth] = useState<number>(8);
   const [dobYear, setDobYear] = useState<number>(1998);
 
   // Bio Substate
@@ -305,6 +323,9 @@ export default function EditMyProfilePage() {
   const [selectedStateId, setSelectedStateId] = useState<number>(14);
   const [selectedCityId, setSelectedCityId] = useState<number>(1);
   const [locationTargetField, setLocationTargetField] = useState<'Location' | 'FamilyLocation' | 'NativeLocation'>('Location');
+  const [locationStep, setLocationStep] = useState<'state' | 'city'>('state');
+  const [locationSearch, setLocationSearch] = useState<string>('');
+  const [openedFromWizard, setOpenedFromWizard] = useState<string | null>(null);
 
   // Mobile Change with OTP Substate
   const [newMobileNumber, setNewMobileNumber] = useState('');
@@ -319,12 +340,52 @@ export default function EditMyProfilePage() {
   const [uploadingGovtDoc, setUploadingGovtDoc] = useState(false);
 
   // Multi-Select Substate
-  const [multiSelectKey, setMultiSelectKey] = useState<'Hobbies' | 'Interests' | 'Sports' | 'LanguagesKnown'>('Hobbies');
+  const [multiSelectKey, setMultiSelectKey] = useState<'Hobbies' | 'Interests' | 'Sports' | 'LanguagesKnown' | 'Music'>('Hobbies');
   const [multiSelectTitle, setMultiSelectTitle] = useState('');
   const [multiSelectSubtitle, setMultiSelectSubtitle] = useState('');
   const [multiSelectItems, setMultiSelectItems] = useState<string[]>([]);
   const [multiSelectAvailable, setMultiSelectAvailable] = useState<MasterOption[]>([]);
   const [multiSelectSearch, setMultiSelectSearch] = useState('');
+
+  // 🌟 DEDICATED WIZARD SUBSTATES (Screenshot 3, 5, 7, 8)
+  const [familyWizardData, setFamilyWizardData] = useState({
+    familyType: 0,
+    familyStatus: 0,
+    nativeStateId: 0,
+    nativeCityId: 0,
+    nativeLocation: '',
+    fatherOccupation: '',
+    motherOccupation: '',
+    totalBrothers: 0,
+    totalSisters: 0,
+  });
+
+  const [religiousWizardData, setReligiousWizardData] = useState({
+    namazHabit: '',
+    quranReading: '',
+    rozaHabit: '',
+    zakatHabit: '',
+    hajjUmrah: '',
+  });
+
+  const [lifestyleWizardData, setLifestyleWizardData] = useState({
+    dietType: '',
+    smokeHabit: '',
+    drinkHabit: '',
+    sports: [] as string[],
+    languages: [] as string[],
+    hobbies: [] as string[],
+    interests: [] as string[],
+    music: [] as string[],
+  });
+
+  const [otherWizardData, setOtherWizardData] = useState({
+    collegeName: '',
+    aboutMe: '',
+    partnerExpectations: '',
+    disability: 'None',
+    whatsAppNumber: '',
+  });
 
   // 🌟 PARALLEL DYNAMIC MASTER & PROFILE INITIALIZATION
   useEffect(() => {
@@ -347,12 +408,14 @@ export default function EditMyProfilePage() {
           'EDUCATIONS',
           'EMPLOYMENT_SECTORS',
           'OCCUPATIONS',
+          'PARENT_OCCUPATIONS',
           'STATES',
           'FAMILY_TYPES',
           'FAMILY_STATUS',
           'COMPLEXION',
           'HOBBIES',
           'INTERESTS',
+          'MUSIC',
           'SPORTS',
           'LANGUAGES',
           'NAMAZ_HABITS',
@@ -392,7 +455,6 @@ export default function EditMyProfilePage() {
         });
 
         setMasterData(prev => ({
-          
           ...prev,
           ...newMasters
         }));
@@ -401,6 +463,10 @@ export default function EditMyProfilePage() {
         if (profileRes?.success && profileRes?.data) {
           const p = profileRes.data.profile || profileRes.data.Profile || profileRes.data;
           const g = profileRes.data.gallery || profileRes.data.Gallery || [];
+          const completedFromApi = profileRes.data.completedSections || profileRes.data.CompletedSections || [];
+          if (Array.isArray(completedFromApi)) {
+            setCompletedSections(completedFromApi.map(s => String(s).toLowerCase().trim()));
+          }
 
           // Robust Name resolver
           let resolvedName = p.fullName || p.FullName || p.name || p.Name;
@@ -466,9 +532,11 @@ export default function EditMyProfilePage() {
             NativePlaceStateId: p.nativePlaceStateId || 0,
             NativePlaceCityId: p.nativePlaceCityId || 0,
             FatherName: p.fatherName || p.FatherName || '',
-            FatherOccupation: p.fatherOccupationId || p.fatherOccupation || '',
+            FatherOccupation: p.fatherOccupation || p.fatherOccupationName || '',
+            FatherOccupationId: p.fatherOccupationId || 0,
             MotherName: p.motherName || p.MotherName || '',
-            MotherOccupation: p.motherOccupationId || p.motherOccupation || '',
+            MotherOccupation: p.motherOccupation || p.motherOccupationName || '',
+            MotherOccupationId: p.motherOccupationId || 0,
             TotalBrothers: p.totalBrothers !== undefined && p.totalBrothers !== null ? Number(p.totalBrothers) : 0,
             MarriedBrothers: p.marriedBrothers !== undefined && p.marriedBrothers !== null ? Number(p.marriedBrothers) : 0,
             TotalSisters: p.totalSisters !== undefined && p.totalSisters !== null ? Number(p.totalSisters) : 0,
@@ -491,7 +559,7 @@ export default function EditMyProfilePage() {
             // Lifestyle & Interest
             DietType: p.dietType || '',
             SmokeHabit: p.smokeHabit || '',
-            DrinkHabit: p.drinkHabit || '',
+            DrinkHabit: p.drinkHabit || p.drinkHabitName || '',
             LanguagesKnown: p.languagesKnown || p.LanguagesKnown || '',
             CanCook: p.canCook === true ? 'Yes' : (p.canCook === false ? 'No' : (p.canCook || '')),
             Sports: p.sports || p.Sports || '',
@@ -545,7 +613,188 @@ export default function EditMyProfilePage() {
     }
   }, [selectedStateId]);
 
-  // 🌟 Save specific field via API (Silent on success, no intrusive toasts!)
+  // 🌟 SECTION COMPLETION STATUS COMPUTATION (Robust checks with database completedSections + field fallbacks)
+  const isPhotosCompleted = useMemo(() => {
+    return (photos.length > 0 && photos.some(p => p && p.photoUrl && p.photoUrl.trim().length > 0)) ||
+           Boolean(formData.MainPhotoUrl && formData.MainPhotoUrl.trim().length > 0 && !formData.MainPhotoUrl.includes('placeholder'));
+  }, [photos, formData.MainPhotoUrl]);
+
+  const isFamilyCompleted = useMemo(() => {
+    return completedSections.includes('family') || 
+           Boolean(Number(formData.FamilyType) > 0 || Number(formData.FatherOccupationId) > 0 || (formData.FatherOccupation && formData.FatherOccupation !== 'None') || formData.NativeLocation || Number(formData.NativePlaceCityId) > 0);
+  }, [completedSections, formData.FamilyType, formData.FatherOccupationId, formData.FatherOccupation, formData.NativeLocation, formData.NativePlaceCityId]);
+
+  const isReligiousCompleted = useMemo(() => {
+    return completedSections.includes('religious') || 
+           Boolean((formData.NamazHabit && formData.NamazHabit !== 'None') || (formData.QuranReading && formData.QuranReading !== 'None') || (formData.RozaHabit && formData.RozaHabit !== 'None'));
+  }, [completedSections, formData.NamazHabit, formData.QuranReading, formData.RozaHabit]);
+
+  const isLifestyleCompleted = useMemo(() => {
+    return completedSections.includes('lifestyle') || 
+           Boolean(formData.DietType || formData.Hobbies || formData.Music || formData.Interests || formData.Sports || formData.LanguagesKnown);
+  }, [completedSections, formData.DietType, formData.Hobbies, formData.Music, formData.Interests, formData.Sports, formData.LanguagesKnown]);
+
+  const isOtherCompleted = useMemo(() => {
+    return completedSections.includes('other') || 
+           Boolean((formData.AboutMe && formData.AboutMe.trim().length > 0) || formData.CollegeName || (formData.Disability && formData.Disability !== 'None') || formData.WhatsAppNumber);
+  }, [completedSections, formData.AboutMe, formData.CollegeName, formData.Disability, formData.WhatsAppNumber]);
+
+  const isVerifiedCompleted = useMemo(() => {
+    return Boolean(formData.IsGovtIdVerified);
+  }, [formData.IsGovtIdVerified]);
+
+  // 🌟 DYNAMIC PROFILE COMPLETION SCORE (50 Base + 20 Photos + 10 Family + 5 Religious + 10 Lifestyle + 5 Other = 100)
+  const profileCompletionScore = useMemo(() => {
+    let score = 50;
+    if (isPhotosCompleted) score += 20;
+    if (isFamilyCompleted) score += 10;
+    if (isReligiousCompleted) score += 5;
+    if (isLifestyleCompleted) score += 10;
+    if (isOtherCompleted) score += 5;
+    return Math.min(100, score);
+  }, [isPhotosCompleted, isFamilyCompleted, isReligiousCompleted, isLifestyleCompleted, isOtherCompleted]);
+
+  // 🌟 UNCOMPLETED TRAY CARDS (Screenshot 6)
+  const incompleteCards = useMemo(() => {
+    const list: Array<{
+      key: string;
+      title: string;
+      scoreBadge: string;
+      scoreVal: number;
+      actionLabel: string;
+      onAction: () => void;
+    }> = [];
+
+    if (!isPhotosCompleted) {
+      list.push({
+        key: 'photos',
+        title: 'Photos',
+        scoreBadge: '+20% Score',
+        scoreVal: 20,
+        actionLabel: 'Add Details',
+        onAction: () => {
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem('gallery_return_url', '/dashboard/edit-profile');
+          }
+          router.push('/dashboard/gallery?returnUrl=/dashboard/edit-profile');
+        }
+      });
+    }
+
+    if (!isFamilyCompleted) {
+      list.push({
+        key: 'family',
+        title: 'Family Details',
+        scoreBadge: '+10% Score',
+        scoreVal: 10,
+        actionLabel: 'Add Details',
+        onAction: () => openFamilyWizard()
+      });
+    }
+
+    if (!isReligiousCompleted) {
+      list.push({
+        key: 'religious',
+        title: 'Religious Details',
+        scoreBadge: '+5% Score',
+        scoreVal: 5,
+        actionLabel: 'Add Details',
+        onAction: () => openReligiousWizard()
+      });
+    }
+
+    if (!isLifestyleCompleted) {
+      list.push({
+        key: 'lifestyle',
+        title: 'Lifestyle & Interest',
+        scoreBadge: '+10% Score',
+        scoreVal: 10,
+        actionLabel: 'Add Details',
+        onAction: () => openLifestyleWizard()
+      });
+    }
+
+    if (!isOtherCompleted) {
+      list.push({
+        key: 'other',
+        title: 'Other Details',
+        scoreBadge: '+5% Score',
+        scoreVal: 5,
+        actionLabel: 'Add Details',
+        onAction: () => openOtherWizard()
+      });
+    }
+
+    if (!isVerifiedCompleted) {
+      list.push({
+        key: 'verify',
+        title: 'Verify Your Profile',
+        scoreBadge: '',
+        scoreVal: 0,
+        actionLabel: formData.GovtIdDocUrl ? 'Under Review ⏳' : 'Verify Profile',
+        onAction: () => setActiveSheet('trustBadge')
+      });
+    }
+
+    return list;
+  }, [isPhotosCompleted, isFamilyCompleted, isReligiousCompleted, isLifestyleCompleted, isOtherCompleted, isVerifiedCompleted, formData.GovtIdDocUrl]);
+
+  // Open Family Wizard
+  const openFamilyWizard = () => {
+    setFamilyWizardData({
+      familyType: formData.FamilyType || 1,
+      familyStatus: formData.FamilyStatus || 2,
+      nativeStateId: formData.NativePlaceStateId || 14,
+      nativeCityId: formData.NativePlaceCityId || 1,
+      nativeLocation: formData.NativeLocation || '',
+      fatherOccupation: formData.FatherOccupation || 'Business/Self Employed',
+      motherOccupation: formData.MotherOccupation || 'Homemaker/Housewife',
+      totalBrothers: formData.TotalBrothers || 0,
+      totalSisters: formData.TotalSisters || 0,
+    });
+    setActiveSheet('familyWizard');
+  };
+
+  // Open Religious Wizard
+  const openReligiousWizard = () => {
+    setReligiousWizardData({
+      namazHabit: formData.NamazHabit || 'Regularly',
+      quranReading: formData.QuranReading || 'Regularly',
+      rozaHabit: formData.RozaHabit || 'Yes',
+      zakatHabit: formData.ZakatHabit || 'Regularly',
+      hajjUmrah: formData.HajjUmrah || 'No',
+    });
+    setActiveSheet('religiousWizard');
+  };
+
+  // Open Lifestyle Wizard
+  const openLifestyleWizard = () => {
+    setLifestyleWizardData({
+      dietType: formData.DietType || 'Veg',
+      smokeHabit: formData.SmokeHabit || 'Non-Smoker / Never',
+      drinkHabit: formData.DrinkHabit || 'Never / Non-Drinker',
+      sports: formData.Sports ? formData.Sports.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
+      languages: formData.LanguagesKnown ? formData.LanguagesKnown.split(',').map((s: string) => s.trim()).filter(Boolean) : ['Hindi', 'English'],
+      hobbies: formData.Hobbies ? formData.Hobbies.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
+      interests: formData.Interests ? formData.Interests.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
+      music: formData.Music ? formData.Music.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
+    });
+    setActiveSheet('lifestyleWizard');
+  };
+
+  // Open Other Wizard
+  const openOtherWizard = () => {
+    setOtherWizardData({
+      collegeName: formData.CollegeName || '',
+      aboutMe: formData.AboutMe || '',
+      partnerExpectations: formData.PartnerExpectations || '',
+      disability: formData.Disability || 'None',
+      whatsAppNumber: formData.WhatsAppNumber || '',
+    });
+    setActiveSheet('otherWizard');
+  };
+
+  // 🌟 Save specific field via API
   const saveFieldValue = async (field: string, value: any, extraData: any = {}) => {
     const token = getAuthToken();
     if (!token) return;
@@ -557,7 +806,6 @@ export default function EditMyProfilePage() {
       fd.append("UserId", String(formData.UserId || 0));
       fd.append(field, String(value));
 
-      // Append companion text names if saving occupation IDs
       if (extraData.FatherOccupation && field === 'FatherOccupationId') {
         fd.append('FatherOccupation', String(extraData.FatherOccupation));
       }
@@ -579,7 +827,6 @@ export default function EditMyProfilePage() {
           ...extraData,
         }));
 
-        // Sync FullName with localStorage if Name is updated
         if (field === 'FullName' && typeof window !== "undefined") {
           ['user_details', 'user_session', 'cached_profile_details'].forEach(k => {
             const stored = localStorage.getItem(k);
@@ -594,13 +841,241 @@ export default function EditMyProfilePage() {
           });
         }
 
-        // Silent close of sheets without intrusive toasts!
         setActiveSheet(null);
       } else {
         toast.error(res.message || "Failed to update detail.");
       }
     } catch {
       toast.error("Failed to connect to server.");
+    } finally {
+      setSavingField(null);
+    }
+  };
+
+  // 🌟 SAVE FAMILY WIZARD HANDLER
+  const handleSaveFamilyWizard = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    setSavingField('familyWizard');
+    try {
+      const fd = new FormData();
+      fd.append("UserId", String(formData.UserId || 0));
+      fd.append("FamilyType", String(familyWizardData.familyType || 1));
+      fd.append("FamilyStatus", String(familyWizardData.familyStatus || 2));
+      fd.append("FatherOccupation", familyWizardData.fatherOccupation || 'Business/Self Employed');
+      fd.append("MotherOccupation", familyWizardData.motherOccupation || 'Homemaker/Housewife');
+      const fOpt = parentOccupationOpts.find(o => o.value.toLowerCase() === (familyWizardData.fatherOccupation || '').toLowerCase());
+      const mOpt = parentOccupationOpts.find(o => o.value.toLowerCase() === (familyWizardData.motherOccupation || '').toLowerCase());
+      if (fOpt?.id) fd.append("FatherOccupationId", String(fOpt.id));
+      if (mOpt?.id) fd.append("MotherOccupationId", String(mOpt.id));
+      fd.append("TotalBrothers", String(familyWizardData.totalBrothers));
+      fd.append("TotalSisters", String(familyWizardData.totalSisters));
+      if (familyWizardData.nativeStateId) {
+        fd.append("NativePlaceStateId", String(familyWizardData.nativeStateId));
+      }
+      if (familyWizardData.nativeCityId) {
+        fd.append("NativePlaceCityId", String(familyWizardData.nativeCityId));
+      }
+      if (familyWizardData.nativeLocation) {
+        fd.append("NativeLocation", familyWizardData.nativeLocation);
+      }
+      fd.append("CompletedSection", "family");
+
+      const res = await updateProfileApi(fd, token);
+      if (res.success || (res as any).Success === 1) {
+        setFormData((prev: any) => ({
+          ...prev,
+          FamilyType: familyWizardData.familyType,
+          FamilyStatus: familyWizardData.familyStatus,
+          FatherOccupation: familyWizardData.fatherOccupation,
+          MotherOccupation: familyWizardData.motherOccupation,
+          TotalBrothers: familyWizardData.totalBrothers,
+          TotalSisters: familyWizardData.totalSisters,
+          NativePlaceStateId: familyWizardData.nativeStateId,
+          NativePlaceCityId: familyWizardData.nativeCityId,
+          NativeLocation: familyWizardData.nativeLocation || prev.NativeLocation,
+        }));
+
+        const nextCompleted = Array.from(new Set([...completedSections, 'family']));
+        setCompletedSections(nextCompleted);
+        setActiveSheet(null);
+
+        const newScore = Math.min(100, profileCompletionScore + 10);
+        setCelebrationModal({
+          isOpen: true,
+          title: "Family Details",
+          scoreAdded: 10,
+          remainingScore: 100 - newScore,
+          nextSection: !isReligiousCompleted ? 'religious' : (!isLifestyleCompleted ? 'lifestyle' : (!isOtherCompleted ? 'other' : undefined))
+        });
+      } else {
+        toast.error(res.message || "Failed to save family details");
+      }
+    } catch {
+      toast.error("Network error saving family details");
+    } finally {
+      setSavingField(null);
+    }
+  };
+
+  // 🌟 SAVE RELIGIOUS WIZARD HANDLER
+  const handleSaveReligiousWizard = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    setSavingField('religiousWizard');
+    try {
+      const fd = new FormData();
+      fd.append("UserId", String(formData.UserId || 0));
+      fd.append("NamazHabit", religiousWizardData.namazHabit || 'Regularly');
+      fd.append("QuranReading", religiousWizardData.quranReading || 'Regularly');
+      fd.append("RozaHabit", religiousWizardData.rozaHabit || 'Yes');
+      fd.append("ZakatHabit", religiousWizardData.zakatHabit || 'Regularly');
+      fd.append("HajjUmrah", religiousWizardData.hajjUmrah || 'No');
+      fd.append("CompletedSection", "religious");
+
+      const res = await updateProfileApi(fd, token);
+      if (res.success || (res as any).Success === 1) {
+        setFormData((prev: any) => ({
+          ...prev,
+          NamazHabit: religiousWizardData.namazHabit,
+          QuranReading: religiousWizardData.quranReading,
+          RozaHabit: religiousWizardData.rozaHabit,
+          ZakatHabit: religiousWizardData.zakatHabit,
+          HajjUmrah: religiousWizardData.hajjUmrah,
+        }));
+
+        const nextCompleted = Array.from(new Set([...completedSections, 'religious']));
+        setCompletedSections(nextCompleted);
+        setActiveSheet(null);
+
+        const newScore = Math.min(100, profileCompletionScore + 5);
+        setCelebrationModal({
+          isOpen: true,
+          title: "Religious Details",
+          scoreAdded: 5,
+          remainingScore: 100 - newScore,
+          nextSection: !isLifestyleCompleted ? 'lifestyle' : (!isOtherCompleted ? 'other' : undefined)
+        });
+      } else {
+        toast.error(res.message || "Failed to save religious details");
+      }
+    } catch {
+      toast.error("Network error saving religious details");
+    } finally {
+      setSavingField(null);
+    }
+  };
+
+  // 🌟 SAVE LIFESTYLE WIZARD HANDLER
+  const handleSaveLifestyleWizard = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    setSavingField('lifestyleWizard');
+    try {
+      const fd = new FormData();
+      fd.append("UserId", String(formData.UserId || 0));
+      fd.append("DietType", lifestyleWizardData.dietType || 'Veg');
+      fd.append("SmokeHabit", lifestyleWizardData.smokeHabit || 'Non-Smoker / Never');
+      fd.append("DrinkHabit", lifestyleWizardData.drinkHabit || 'Never / Non-Drinker');
+      if (lifestyleWizardData.sports.length > 0) {
+        fd.append("Sports", lifestyleWizardData.sports.join(', '));
+      }
+      if (lifestyleWizardData.languages.length > 0) {
+        fd.append("LanguagesKnown", lifestyleWizardData.languages.join(', '));
+      }
+      if (lifestyleWizardData.hobbies.length > 0) {
+        fd.append("Hobbies", lifestyleWizardData.hobbies.join(', '));
+      }
+      if (lifestyleWizardData.interests.length > 0) {
+        fd.append("Interests", lifestyleWizardData.interests.join(', '));
+      }
+      if (lifestyleWizardData.music.length > 0) {
+        fd.append("Music", lifestyleWizardData.music.join(', '));
+      }
+      fd.append("CompletedSection", "lifestyle");
+
+      const res = await updateProfileApi(fd, token);
+      if (res.success || (res as any).Success === 1) {
+        setFormData((prev: any) => ({
+          ...prev,
+          DietType: lifestyleWizardData.dietType,
+          SmokeHabit: lifestyleWizardData.smokeHabit,
+          DrinkHabit: lifestyleWizardData.drinkHabit,
+          Sports: lifestyleWizardData.sports.join(', '),
+          LanguagesKnown: lifestyleWizardData.languages.join(', '),
+          Hobbies: lifestyleWizardData.hobbies.join(', '),
+          Interests: lifestyleWizardData.interests.join(', '),
+          Music: lifestyleWizardData.music.join(', '),
+        }));
+
+        const nextCompleted = Array.from(new Set([...completedSections, 'lifestyle']));
+        setCompletedSections(nextCompleted);
+        setActiveSheet(null);
+
+        const newScore = Math.min(100, profileCompletionScore + 10);
+        setCelebrationModal({
+          isOpen: true,
+          title: "Lifestyle & Interest",
+          scoreAdded: 10,
+          remainingScore: 100 - newScore,
+          nextSection: !isOtherCompleted ? 'other' : undefined
+        });
+      } else {
+        toast.error(res.message || "Failed to save lifestyle details");
+      }
+    } catch {
+      toast.error("Network error saving lifestyle details");
+    } finally {
+      setSavingField(null);
+    }
+  };
+
+  // 🌟 SAVE OTHER WIZARD HANDLER
+  const handleSaveOtherWizard = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    setSavingField('otherWizard');
+    try {
+      const fd = new FormData();
+      fd.append("UserId", String(formData.UserId || 0));
+      fd.append("CollegeName", otherWizardData.collegeName);
+      fd.append("AboutMe", otherWizardData.aboutMe);
+      fd.append("PartnerExpectations", otherWizardData.partnerExpectations);
+      fd.append("Disability", otherWizardData.disability);
+      fd.append("WhatsAppNumber", otherWizardData.whatsAppNumber);
+      fd.append("CompletedSection", "other");
+
+      const res = await updateProfileApi(fd, token);
+      if (res.success || (res as any).Success === 1) {
+        setFormData((prev: any) => ({
+          ...prev,
+          CollegeName: otherWizardData.collegeName,
+          AboutMe: otherWizardData.aboutMe,
+          PartnerExpectations: otherWizardData.partnerExpectations,
+          Disability: otherWizardData.disability,
+          WhatsAppNumber: otherWizardData.whatsAppNumber,
+        }));
+
+        const nextCompleted = Array.from(new Set([...completedSections, 'other']));
+        setCompletedSections(nextCompleted);
+        setActiveSheet(null);
+
+        const newScore = Math.min(100, profileCompletionScore + 5);
+        setCelebrationModal({
+          isOpen: true,
+          title: "Other Details",
+          scoreAdded: 5,
+          remainingScore: 100 - newScore,
+        });
+      } else {
+        toast.error(res.message || "Failed to save details");
+      }
+    } catch {
+      toast.error("Network error saving details");
     } finally {
       setSavingField(null);
     }
@@ -752,12 +1227,10 @@ export default function EditMyProfilePage() {
     setActiveSheet('dobPicker');
   };
 
-  // Dynamic days in selected month & year
   const daysInCurrentMonth = useMemo(() => {
     return new Date(dobYear, dobMonth, 0).getDate();
   }, [dobYear, dobMonth]);
 
-  // Calculated Age live from selected DOB
   const calculatedLiveAge = useMemo(() => {
     const birthDate = new Date(dobYear, dobMonth - 1, Math.min(dobDay, daysInCurrentMonth));
     const today = new Date();
@@ -796,12 +1269,17 @@ export default function EditMyProfilePage() {
     });
   };
 
-  // Open Location Sheet
-  const openLocationSheet = (target: 'Location' | 'FamilyLocation' | 'NativeLocation') => {
+  // Open Location Sheet (State & City)
+  const openLocationSheet = (target: 'Location' | 'FamilyLocation' | 'NativeLocation', fromWizard: string | null = null) => {
     setLocationTargetField(target);
+    setOpenedFromWizard(fromWizard);
+    setLocationStep('state');
+    setLocationSearch('');
     if (target === 'FamilyLocation' || target === 'NativeLocation') {
-      setSelectedStateId(formData.NativePlaceStateId || 14);
-      setSelectedCityId(formData.NativePlaceCityId || 1);
+      const stId = (fromWizard === 'familyWizard' && familyWizardData.nativeStateId) ? familyWizardData.nativeStateId : (formData.NativePlaceStateId || 14);
+      const ctId = (fromWizard === 'familyWizard' && familyWizardData.nativeCityId) ? familyWizardData.nativeCityId : (formData.NativePlaceCityId || 1);
+      setSelectedStateId(stId);
+      setSelectedCityId(ctId);
     } else {
       setSelectedStateId(formData.CurrentStateId || 14);
       setSelectedCityId(formData.CurrentCityId || 1);
@@ -815,17 +1293,22 @@ export default function EditMyProfilePage() {
     setActiveSheet('bio');
   };
 
-  // Open Multi-Select Sheet (Hobbies, Interests, Sports, LanguagesKnown)
-  const openMultiSelectSheet = (key: 'Hobbies' | 'Interests' | 'Sports' | 'LanguagesKnown') => {
+  // Open Multi-Select Sheet
+  const openMultiSelectSheet = (key: 'Hobbies' | 'Interests' | 'Sports' | 'LanguagesKnown' | 'Music', fromWizard: boolean = false) => {
     setMultiSelectKey(key);
+    setOpenedFromWizard(fromWizard ? 'lifestyleWizard' : null);
     let title = 'Select Hobbies';
     let subtitle = 'Choose all pastimes you enjoy';
     let available: MasterOption[] = masterData.HOBBIES || [];
 
     if (key === 'Interests') {
-      title = 'Select Music & Interests';
-      subtitle = 'Pick genres, melodies, and personal passions';
+      title = 'Select Interests';
+      subtitle = 'Pick personal passions, topics and interests';
       available = masterData.INTERESTS || [];
+    } else if (key === 'Music') {
+      title = 'Select Music Preferences';
+      subtitle = 'Choose musical genres, melodies and styles you enjoy';
+      available = masterData.MUSIC || [];
     } else if (key === 'Sports') {
       title = 'Select Sports & Fitness';
       subtitle = 'Choose sports and physical activities you participate in';
@@ -836,8 +1319,17 @@ export default function EditMyProfilePage() {
       available = masterData.LANGUAGES || [];
     }
 
-    const currentVal = formData[key] || '';
-    const currentList = currentVal.split(',').map((s: string) => s.trim()).filter(Boolean);
+    let currentList: string[] = [];
+    if (fromWizard) {
+      if (key === 'LanguagesKnown') currentList = [...lifestyleWizardData.languages];
+      else if (key === 'Hobbies') currentList = [...lifestyleWizardData.hobbies];
+      else if (key === 'Interests') currentList = [...lifestyleWizardData.interests];
+      else if (key === 'Music') currentList = [...lifestyleWizardData.music];
+      else if (key === 'Sports') currentList = [...lifestyleWizardData.sports];
+    } else {
+      const currentVal = formData[key] || '';
+      currentList = currentVal.split(',').map((s: string) => s.trim()).filter(Boolean);
+    }
 
     setMultiSelectTitle(title);
     setMultiSelectSubtitle(subtitle);
@@ -858,16 +1350,30 @@ export default function EditMyProfilePage() {
   };
 
   const handleSaveMultiSelect = () => {
+    if (openedFromWizard === 'lifestyleWizard') {
+      if (multiSelectKey === 'LanguagesKnown') {
+        setLifestyleWizardData(prev => ({ ...prev, languages: multiSelectItems }));
+      } else if (multiSelectKey === 'Hobbies') {
+        setLifestyleWizardData(prev => ({ ...prev, hobbies: multiSelectItems }));
+      } else if (multiSelectKey === 'Interests') {
+        setLifestyleWizardData(prev => ({ ...prev, interests: multiSelectItems }));
+      } else if (multiSelectKey === 'Music') {
+        setLifestyleWizardData(prev => ({ ...prev, music: multiSelectItems }));
+      } else if (multiSelectKey === 'Sports') {
+        setLifestyleWizardData(prev => ({ ...prev, sports: multiSelectItems }));
+      }
+      setOpenedFromWizard(null);
+      setActiveSheet('lifestyleWizard');
+      return;
+    }
     const joined = multiSelectItems.join(', ');
     saveFieldValue(multiSelectKey, joined);
   };
 
-  // Save Bio
   const handleSaveBio = () => {
     saveFieldValue('AboutMe', bioDraft.trim());
   };
 
-  // Save Location
   const handleSaveLocation = () => {
     const stateObj = (masterData.STATES || []).find(s => s.id === selectedStateId);
     const cityObj = stateCities.find(c => c.id === selectedCityId);
@@ -895,7 +1401,6 @@ export default function EditMyProfilePage() {
     }
   };
 
-  // Save Option Selection with Dynamic Master IDs
   const handleSaveOption = () => {
     const selectedObj = sheetOptions.find(o => String(o.id) === String(selectedSheetValue) || o.value === selectedSheetValue);
     if (!selectedObj) {
@@ -956,7 +1461,6 @@ export default function EditMyProfilePage() {
     }
   };
 
-  // Save Photo Privacy
   const handleSavePhotoPrivacy = async (privacyValue: string) => {
     const token = getAuthToken();
     if (!token) return;
@@ -1000,7 +1504,6 @@ export default function EditMyProfilePage() {
         reader.readAsDataURL(file);
       });
 
-      // Solo Human Face Check
       const faceResult = await clientValidateSingleFace(dataUrl);
       toast.dismiss("face-scan");
 
@@ -1009,7 +1512,6 @@ export default function EditMyProfilePage() {
         return;
       }
 
-      // Slot 0 is Main Profile Photo
       const isMainSlot = slotIdx === 0;
       const gfd = new FormData();
       gfd.append("Photo", file);
@@ -1032,7 +1534,20 @@ export default function EditMyProfilePage() {
 
         if (isMainSlot) {
           syncUserProfilePhoto(newPhotoUrl);
-          setFormData((prev: any) => ({ ...prev, PhotoUrl: newPhotoUrl }));
+          setFormData((prev: any) => ({ ...prev, PhotoUrl: newPhotoUrl, mainPhotoUrl: newPhotoUrl }));
+        }
+
+        if (!isPhotosCompleted) {
+          const nextCompleted = Array.from(new Set([...completedSections, 'photos']));
+          setCompletedSections(nextCompleted);
+          const newScore = Math.min(100, profileCompletionScore + 20);
+          setCelebrationModal({
+            isOpen: true,
+            title: "Profile Photos",
+            scoreAdded: 20,
+            remainingScore: 100 - newScore,
+            nextSection: !isFamilyCompleted ? 'family' : (!isReligiousCompleted ? 'religious' : undefined)
+          });
         }
       } else {
         toast.error(res.message || "Failed to upload photo.");
@@ -1046,7 +1561,7 @@ export default function EditMyProfilePage() {
     }
   };
 
-  // Delete Photo - allows deleting any photo, even all photos, auto-promotes slot 1 if main deleted
+  // Delete Photo - Wipes from DB and sets main photo cleanly
   const handleDeletePhoto = async (photoId: number, index: number) => {
     const token = getAuthToken();
     if (!token) return;
@@ -1054,20 +1569,17 @@ export default function EditMyProfilePage() {
     try {
       const remaining = photos.filter((_, i) => i !== index);
 
-      if (photoId > 0) {
-        await deleteGalleryPhotoApi(photoId, token);
-      }
+      // Delete from ProfilePhotos table
+      await deleteGalleryPhotoApi(photoId > 0 ? photoId : 0, token);
 
       if (remaining.length === 0) {
-        // 🔒 Complete removal: user removed their only/last photo
         const fd = new FormData();
         fd.append("UserId", String(formData.UserId || 0));
         fd.append("PhotoUrl", "");
         await updateProfileApi(fd, token);
         syncUserProfilePhoto('');
-        setFormData((prev: any) => ({ ...prev, PhotoUrl: '' }));
+        setFormData((prev: any) => ({ ...prev, PhotoUrl: '', mainPhotoUrl: '' }));
       } else {
-        // More photos remain: auto promote first photo if slot 0 was deleted
         if (index === 0) {
           const nextPhotoId = Number(remaining[0].photoId || (remaining[0] as any).PhotoId || 0);
           if (nextPhotoId > 0) {
@@ -1076,7 +1588,7 @@ export default function EditMyProfilePage() {
         }
         const firstPhotoUrl = remaining[0].photoUrl || (remaining[0] as any).PhotoUrl || '';
         syncUserProfilePhoto(firstPhotoUrl);
-        setFormData((prev: any) => ({ ...prev, PhotoUrl: firstPhotoUrl }));
+        setFormData((prev: any) => ({ ...prev, PhotoUrl: firstPhotoUrl, mainPhotoUrl: firstPhotoUrl }));
       }
 
       setPhotos(remaining);
@@ -1086,7 +1598,7 @@ export default function EditMyProfilePage() {
     }
   };
 
-  // Submit Govt ID Document for Admin Approval
+  // Submit Govt ID Document
   const handleSubmitGovtDoc = async () => {
     if (!govtDocFile) {
       toast.error("Please choose a document image or PDF first.");
@@ -1099,70 +1611,81 @@ export default function EditMyProfilePage() {
     try {
       const fd = new FormData();
       fd.append("Document", govtDocFile);
-      const res = await uploadGovtDocumentApi(fd, token);
-      if (res.success || (res as any).Success === 1) {
-        toast.success("Identity document submitted! Our team will verify it.");
-        setFormData((prev: any) => ({ ...prev, GovtIdDocUrl: govtDocPreview, IsGovtIdVerified: false }));
+      fd.append("DocumentType", "Aadhaar");
+      const res = await uploadGovtDocumentApi(fd, token) as any;
+      if (res?.success || res?.Success === 1) {
+        toast.success("Document uploaded successfully! It is under verification.");
+        setFormData((prev: any) => ({
+          ...prev,
+          GovtIdDocUrl: res?.data?.documentUrl || res?.data?.url || 'uploaded',
+        }));
         setActiveSheet(null);
       } else {
-        toast.error(res.message || "Failed to upload document.");
+        toast.error(res?.message || "Failed to upload document.");
       }
     } catch {
-      toast.error("Upload failed. Please try again.");
+      toast.error("Network error uploading document.");
     } finally {
       setUploadingGovtDoc(false);
     }
   };
 
-  // Search Filter for Options Sheet
+  // Master option arrays
+  const casteOpts = masterData.CASTES || [];
+  const maslakOpts = masterData.MASLAKS || [];
+  const languageOpts = masterData.MOTHER_TONGUES || [];
+  const educationOpts = masterData.EDUCATIONS || [];
+  const sectorOpts = masterData.EMPLOYMENT_SECTORS || [];
+  const occupationOpts = masterData.OCCUPATIONS || [];
+  const parentOccupationOpts = (masterData.PARENT_OCCUPATIONS && masterData.PARENT_OCCUPATIONS.length > 0)
+    ? masterData.PARENT_OCCUPATIONS
+    : [
+        { id: 1, value: 'Homemaker/Housewife' },
+        { id: 2, value: 'Business/Self Employed' },
+        { id: 3, value: 'Private Sector' },
+        { id: 4, value: 'Government/PSU Sector' },
+        { id: 5, value: 'Defence' },
+        { id: 6, value: 'Civil Services' },
+        { id: 7, value: 'Politician' },
+        { id: 8, value: 'Social Workers' },
+        { id: 9, value: 'Not Working' },
+        { id: 10, value: 'Retired' },
+        { id: 11, value: 'Passed Away' },
+      ];
+  const familyTypeOpts = masterData.FAMILY_TYPES || [{ id: 1, value: 'Nuclear Family' }, { id: 2, value: 'Joint Family' }];
+  const familyStatusOpts = masterData.FAMILY_STATUS || [{ id: 1, value: 'Rich/ Affluent' }, { id: 2, value: 'Upper Middle Class' }, { id: 3, value: 'Middle Class' }];
+  const namazOpts = masterData.NAMAZ_HABITS || [{ id: 1, value: 'Regularly' }, { id: 2, value: 'During Ramadan' }, { id: 3, value: 'Sometimes' }, { id: 4, value: 'Never' }];
+  const quranOpts = masterData.QURAN_READING || [{ id: 1, value: 'Regularly' }, { id: 2, value: 'During Ramadan' }, { id: 3, value: 'Sometimes' }, { id: 4, value: 'Never' }];
+  const rozaOpts = masterData.ROZA_HABITS || [{ id: 1, value: 'Yes' }, { id: 2, value: 'No' }];
+  const zakatOpts = masterData.ZAKAT_HABITS || [{ id: 1, value: 'Regularly' }, { id: 2, value: 'During Ramadan' }, { id: 3, value: 'Sometimes' }, { id: 4, value: 'Never' }];
+  const hajjOpts = masterData.HAJJ_UMRAH || [{ id: 1, value: 'Yes' }, { id: 2, value: 'No' }];
+  const dietOpts = masterData.DIET_TYPES || [{ id: 1, value: 'Veg' }, { id: 2, value: 'Non-Veg' }];
+  const smokeOpts = masterData.SMOKE_HABITS || [{ id: 1, value: 'Non-Smoker / Never' }, { id: 2, value: 'Occasionally / Socially' }];
+  const drinkOpts = masterData.DRINK_HABITS || [{ id: 1, value: 'Never / Non-Drinker' }, { id: 2, value: 'Occasionally / Socially' }];
+  const disabilityOpts = masterData.DISABILITIES || [{ id: 1, value: 'None' }, { id: 2, value: 'Physical Disability' }];
+
   const filteredSheetOptions = useMemo(() => {
     if (!sheetSearch.trim()) return sheetOptions;
     return sheetOptions.filter(o => o.value.toLowerCase().includes(sheetSearch.toLowerCase()));
   }, [sheetOptions, sheetSearch]);
 
-  // Search Filter for Multi-Select Sheet
   const filteredMultiSelectOptions = useMemo(() => {
     if (!multiSelectSearch.trim()) return multiSelectAvailable;
     return multiSelectAvailable.filter(o => o.value.toLowerCase().includes(multiSelectSearch.toLowerCase()));
   }, [multiSelectAvailable, multiSelectSearch]);
 
-  // Master Options Mappers
-  const educationOpts = masterData.EDUCATIONS || [];
-  const casteOpts = masterData.CASTES || [];
-  const maslakOpts = masterData.MASLAKS || [];
-  const languageOpts = masterData.MOTHER_TONGUES || [];
-  const occupationOpts = masterData.OCCUPATIONS || [];
-  const employedInOpts = masterData.EMPLOYMENT_SECTORS || [];
-  const familyTypeOpts = masterData.FAMILY_TYPES || [];
-  const familyStatusOpts = masterData.FAMILY_STATUS || [];
-  const profileCreatedForOpts = masterData.PROFILE_CREATED_FOR || [];
-  const maritalStatusOpts = masterData.MARITAL_STATUS || [];
-  const sectOpts = masterData.SECTS || [];
-
-  const disabilityOpts = masterData.DISABILITIES && masterData.DISABILITIES.length > 0 ? masterData.DISABILITIES : [{ id: 'Normal / None', value: 'Normal / None' }, { id: 'Physically Challenged', value: 'Physically Challenged' }];
-  const namazOpts = masterData.NAMAZ_HABITS && masterData.NAMAZ_HABITS.length > 0 ? masterData.NAMAZ_HABITS : [{ id: 'Always (5 Times Daily)', value: 'Always (5 Times Daily)' }, { id: 'Regularly (Most Times)', value: 'Regularly (Most Times)' }];
-  const quranOpts = masterData.QURAN_READING && masterData.QURAN_READING.length > 0 ? masterData.QURAN_READING : [{ id: 'Daily Recitation', value: 'Daily Recitation' }, { id: 'Daily with Translation / Tafseer', value: 'Daily with Translation / Tafseer' }];
-  const rozaOpts = masterData.ROZA_HABITS && masterData.ROZA_HABITS.length > 0 ? masterData.ROZA_HABITS : [{ id: 'All 30 Days of Ramadan', value: 'All 30 Days of Ramadan' }, { id: 'Most Days of Ramadan', value: 'Most Days of Ramadan' }];
-  const hijabOpts = masterData.HIJAB_BEARD && masterData.HIJAB_BEARD.length > 0 ? masterData.HIJAB_BEARD : [{ id: 'Always Hijab / Niqab', value: 'Always Hijab / Niqab' }, { id: 'Full Sunnah Beard', value: 'Full Sunnah Beard' }];
-  const zakatOpts = masterData.ZAKAT_HABITS && masterData.ZAKAT_HABITS.length > 0 ? masterData.ZAKAT_HABITS : [{ id: 'Pay Regularly Every Year', value: 'Pay Regularly Every Year' }, { id: 'Pay Voluntarily / Generous Charity', value: 'Pay Voluntarily / Generous Charity' }];
-  const hajjOpts = masterData.HAJJ_UMRAH && masterData.HAJJ_UMRAH.length > 0 ? masterData.HAJJ_UMRAH : [{ id: 'Performed Both Hajj & Umrah', value: 'Performed Both Hajj & Umrah' }, { id: 'Planning Soon (Insha\'Allah)', value: 'Planning Soon (Insha\'Allah)' }];
-  const dietOpts = masterData.DIET_TYPES && masterData.DIET_TYPES.length > 0 ? masterData.DIET_TYPES : [{ id: 'Strictly Halal Always', value: 'Strictly Halal Always' }, { id: 'Halal Non-Veg & Veg', value: 'Halal Non-Veg & Veg' }];
-  const habitOpts = masterData.SMOKE_HABITS && masterData.SMOKE_HABITS.length > 0 ? masterData.SMOKE_HABITS : [{ id: 'Non-Smoker / Never', value: 'Non-Smoker / Never' }, { id: 'Occasionally / Socially', value: 'Occasionally / Socially' }];
-  const cookOpts = masterData.COOKING_SKILLS && masterData.COOKING_SKILLS.length > 0 ? masterData.COOKING_SKILLS : [{ id: 'Can Cook Daily / Basic Meals', value: 'Can Cook Daily / Basic Meals' }, { id: 'Expert / Passionate Cook', value: 'Expert / Passionate Cook' }];
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center space-y-3">
-        <Loader2 size={32} className="text-[#d91b5c] animate-spin" />
-        <p className="text-sm font-semibold text-slate-600">Loading your profile portfolio...</p>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <ProfileAvatarLoader 
+          message="Loading your profile details..." 
+          subMessage="Fetching verified matrimonial data"
+        />
       </div>
     );
   }
 
   const activePhotosCount = photos.filter(p => p && p.photoUrl).length;
-  const hasHobbies = Boolean(formData.Hobbies && formData.Hobbies.trim().length > 0);
-  const hasMusicInterests = Boolean(formData.Interests && formData.Interests.trim().length > 0);
-  const showTopLifestylePrompt = !(hasHobbies && hasMusicInterests);
 
   return (
     <div className="min-h-screen bg-white text-slate-900 pb-28 font-sans selection:bg-[#d91b5c] selection:text-white">
@@ -1199,157 +1722,50 @@ export default function EditMyProfilePage() {
       {/* 🌟 MAIN CONTAINER */}
       <main className="max-w-lg mx-auto px-4 pt-3 space-y-4">
 
-        {/* 🌟 100% COMPLETE PROFILE BADGE PROMPT (Matching Screenshot) */}
+        {/* 🌟 100% COMPLETE PROFILE BADGE PROMPT (Matching Screenshot 6) */}
         <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-white border border-amber-200/60 shadow-xs">
           <div className="w-6 h-6 rounded-full bg-slate-900 text-amber-400 flex items-center justify-center shrink-0">
             <Star size={13} className="fill-amber-400" />
           </div>
           <span className="text-xs font-bold text-slate-800">
-            Earn the badge on 100% complete profile.
+            Earn the badge on 100% complete profile. ({profileCompletionScore}%)
           </span>
         </div>
 
-        {/* 🌟 TOP QUICK ACTION CARDS */}
-        <div className={`grid ${showTopLifestylePrompt ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
-          {/* Card 1: Lifestyle & Interest Prompt Card */}
-          {showTopLifestylePrompt && (
-            <div 
-              onClick={() => setActiveSheet('lifestyleHub')}
-              className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:border-rose-300 transition-all cursor-pointer flex flex-col justify-between"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-900">
-                  Lifestyle & Interest
-                </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-[#8C6000]">
-                  +10% Score
-                </span>
-              </div>
-              <div className="mt-3">
-                <span className="text-xs font-bold text-[#d91b5c] block">
-                  Add Details
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Card 2: Official Govt ID Trust Verification */}
-          <div 
-            onClick={() => setActiveSheet('trustBadge')}
-            className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:border-rose-300 transition-all cursor-pointer flex flex-col justify-between"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-slate-900">
-                  Verify Your Profile
-                </span>
-                <CheckCircle2 size={14} className="text-sky-500 fill-sky-100 shrink-0" />
-              </div>
-            </div>
-            <div className="mt-3">
-              <span className="text-xs font-bold text-[#d91b5c] block">
-                {formData.IsGovtIdVerified ? "Verified ✓" : (formData.GovtIdDocUrl ? "Under Review ⏳" : "Verify Profile")}
-              </span>
-            </div>
-          </div>
-        </div>
-
         {/* ============================================================== */}
-        {/* 🌟 PHOTOS GALLERY SECTION (COMPACT SQUARE THUMBNAILS!)          */}
+        {/* 🌟 TOP COMPLETION CARDS TRAY (Screenshot 6)                    */}
         {/* ============================================================== */}
-        <section className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-            <div className="flex items-center gap-2">
-              <Camera size={18} className="text-slate-800" />
-              <h2 className="text-sm font-black text-slate-900">Photos</h2>
-            </div>
-            <span className="text-xs text-slate-400 font-medium">
-              {activePhotosCount}/4 Uploaded
-            </span>
-          </div>
-
-          {/* Compact Photo Thumbnails Row */}
-          <div className="flex items-center gap-3 overflow-x-auto pb-1 pt-1">
-            {[0, 1, 2, 3].map((slotIdx) => {
-              const photo = photos[slotIdx];
-              const isUploading = uploadingPhotoSlot === slotIdx;
-
-              if (photo && photo.photoUrl) {
-                return (
-                  <div 
-                    key={slotIdx} 
-                    className="relative w-20 h-24 sm:w-24 sm:h-28 rounded-xl overflow-hidden border border-slate-200 shadow-xs group bg-slate-100 shrink-0"
-                  >
-                    <img 
-                      src={photo.photoUrl} 
-                      alt={`Photo ${slotIdx + 1}`}
-                      className="w-full h-full object-cover" 
-                    />
-                    
-                    {/* Primary Avatar Badge on First Photo */}
-                    {slotIdx === 0 && (
-                      <div className="absolute bottom-0 inset-x-0 bg-black/80 py-0.5 text-center">
-                        <span className="text-[8px] font-black tracking-wider text-white uppercase block">
-                          PROFILE PHOTO
-                        </span>
-                      </div>
+        {incompleteCards.length > 0 && (
+          <div className="space-y-2.5">
+            {incompleteCards.map((card) => (
+              <div 
+                key={card.key}
+                onClick={card.onAction}
+                className="p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs hover:border-[#d91b5c]/40 transition-all cursor-pointer flex items-center justify-between group"
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[13px] font-bold text-slate-900">
+                      {card.title}
+                    </span>
+                    {card.key === 'verify' && (
+                      <CheckCircle2 size={15} className="text-sky-500 fill-sky-100 shrink-0" />
                     )}
-
-                    {/* Delete Photo Button */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeletePhoto(photo.photoId, slotIdx);
-                      }}
-                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 hover:bg-rose-600 text-white flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-95"
-                      title="Delete photo"
-                    >
-                      <Trash2 size={10} />
-                    </button>
                   </div>
-                );
-              }
+                  <span className="text-xs font-bold text-[#d91b5c] block group-hover:underline">
+                    {card.actionLabel}
+                  </span>
+                </div>
 
-              return (
-                <label 
-                  key={slotIdx} 
-                  className="w-20 h-24 sm:w-24 sm:h-28 rounded-xl border-2 border-dashed border-rose-300/80 hover:border-[#d91b5c] bg-white flex flex-col items-center justify-center cursor-pointer transition-all shrink-0 relative group"
-                >
-                  <input 
-                    type="file"
-                    accept="image/*,.jpg,.jpeg,.png,.webp,.avif,.heic,.heif,.jfif,.bmp,.gif,.tiff"
-                    className="hidden"
-                    disabled={isUploading}
-                    onChange={(e) => handlePhotoSelect(e, slotIdx)}
-                  />
-                  {isUploading ? (
-                    <Loader2 size={18} className="text-[#d91b5c] animate-spin" />
-                  ) : (
-                    <div className="w-7 h-7 rounded-full bg-[#d91b5c] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
-                      <Plus size={15} className="stroke-[3]" />
-                    </div>
-                  )}
-                </label>
-              );
-            })}
-          </div>
-
-          {/* Photo privacy option: ONLY appears when at least 1 photo is uploaded */}
-          {activePhotosCount > 0 && (
-            <div 
-              onClick={() => setActiveSheet('photoPrivacy')}
-              className="mt-3 p-3 rounded-2xl bg-rose-50/40 border border-rose-100 flex items-center justify-between cursor-pointer hover:bg-rose-50/70 transition-all"
-            >
-              <div>
-                <span className="text-xs font-bold text-slate-800 block">Control who sees your photo</span>
-                <span className="text-xs font-bold text-[#d91b5c] mt-0.5 flex items-center gap-1">
-                  {formData.PhotoPrivacy} <ChevronRight size={13} className="inline rotate-90" />
-                </span>
+                {card.scoreBadge && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-[#8C6000] border border-amber-200/60 shrink-0">
+                    {card.scoreBadge}
+                  </span>
+                )}
               </div>
-            </div>
-          )}
-        </section>
+            ))}
+          </div>
+        )}
 
         {/* ============================================================== */}
         {/* 🌟 BIO / ABOUT ME SECTION                                      */}
@@ -1376,7 +1792,7 @@ export default function EditMyProfilePage() {
         </section>
 
         {/* ============================================================== */}
-        {/* 🌟 1. PERSONAL DETAILS SECTION                                 */}
+        {/* 🌟 1. PERSONAL DETAILS SECTION (Screenshot 2)                  */}
         {/* ============================================================== */}
         <section className="space-y-2">
           <div className="flex items-center gap-2 px-1">
@@ -1385,29 +1801,26 @@ export default function EditMyProfilePage() {
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
-            {/* 1. Name (Locked - Cannot be edited) */}
+            {/* 1. Name (Editable with text sheet) */}
             <div 
-              onClick={() => toast.info("Name is verified during registration and cannot be edited.", { icon: "🔒" })}
-              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/40 cursor-default"
+              onClick={() => openTextInputSheet("Your Name", "Enter full legal name", "FullName", formData.FullName, "Full Name", 60)}
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Name</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.FullName || "User"}</span>
+                <span className="text-xs text-slate-600 font-medium mt-0.5 block">{formData.FullName || "User"}</span>
               </div>
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold">
-                <Info size={12} className="text-slate-400" />
-                <span>You can not edit this</span>
-              </div>
+              <ChevronRight size={16} className="text-slate-400" />
             </div>
 
-            {/* 2. Profile Created For (Locked - Screenshot 9) */}
+            {/* 2. Profile Created For (Locked - Screenshot 2) */}
             <div 
               onClick={() => toast.info("Profile created for is locked for security.", { icon: "🔒" })}
-              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/40 cursor-default"
+              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/30 cursor-default"
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Profile Created for</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('PROFILE_CREATED_FOR', formData.ProfileCreatedFor)}</span>
+                <span className="text-xs text-slate-600 font-medium mt-0.5 block">{getMasterLabel('PROFILE_CREATED_FOR', formData.ProfileCreatedFor)}</span>
               </div>
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold">
                 <Info size={12} className="text-slate-400" />
@@ -1415,14 +1828,14 @@ export default function EditMyProfilePage() {
               </div>
             </div>
 
-            {/* 3. Age and Gender (Locked - Screenshot 9) */}
+            {/* 3. Age and Gender (Locked - Screenshot 2) */}
             <div 
               onClick={() => toast.info("Age and gender are verified during registration and locked.", { icon: "🔒" })}
-              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/40 cursor-default"
+              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/30 cursor-default"
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Age and Gender</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.Age}, {formData.Gender}</span>
+                <span className="text-xs text-slate-600 font-medium mt-0.5 block">{formData.Age || '25'}, {formData.Gender || 'Male'}</span>
               </div>
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold">
                 <Info size={12} className="text-slate-400" />
@@ -1430,14 +1843,14 @@ export default function EditMyProfilePage() {
               </div>
             </div>
 
-            {/* 4. Marital Status (Locked - Screenshot 9) */}
+            {/* 4. Marital Status (Locked - Screenshot 2) */}
             <div 
               onClick={() => toast.info("Marital status is locked. Contact support if needed.", { icon: "🔒" })}
-              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/40 cursor-default"
+              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/30 cursor-default"
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Marital Status</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('MARITAL_STATUS', formData.MaritalStatus)}</span>
+                <span className="text-xs text-slate-600 font-medium mt-0.5 block">{getMasterLabel('MARITAL_STATUS', formData.MaritalStatus)}</span>
               </div>
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold">
                 <Info size={12} className="text-slate-400" />
@@ -1445,14 +1858,14 @@ export default function EditMyProfilePage() {
               </div>
             </div>
 
-            {/* 5. Sect (Locked - Screenshot 6 & 9) */}
+            {/* 5. Sect (Locked - Screenshot 2) */}
             <div 
               onClick={() => toast.info("Sect cannot be edited directly.", { icon: "🔒" })}
-              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/40 cursor-default"
+              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/30 cursor-default"
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Sect</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{getMasterLabel('SECTS', formData.Sect)}</span>
+                <span className="text-xs text-slate-600 font-medium mt-0.5 block">{getMasterLabel('SECTS', formData.Sect)}</span>
               </div>
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold">
                 <Info size={12} className="text-slate-400" />
@@ -1550,7 +1963,7 @@ export default function EditMyProfilePage() {
               className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
-                <span className="text-[13px] font-bold text-slate-900 block">Education</span>
+                <span className="text-[13px] font-bold text-slate-900 block">Highest Education</span>
                 <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('EDUCATIONS', formData.Education), "Select Education")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
@@ -1558,14 +1971,7 @@ export default function EditMyProfilePage() {
 
             {/* 2. College Name */}
             <div 
-              onClick={() => openTextInputSheet(
-                "College Name",
-                "Enter your college or institute name",
-                "CollegeName",
-                formData.CollegeName,
-                "e.g. Regional College Of Professional Studies...",
-                140
-              )}
+              onClick={() => openTextInputSheet("College / University", "Enter your college or university name", "CollegeName", formData.CollegeName, "e.g. Aligarh Muslim University", 100)}
               className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
@@ -1577,19 +1983,19 @@ export default function EditMyProfilePage() {
 
             {/* 3. Employed In */}
             <div 
-              onClick={() => openOptionSheet('Select Employed In', 'EmployedIn', formData.EmployedIn, employedInOpts)}
+              onClick={() => openOptionSheet('Employed In', 'EmployedIn', formData.EmployedIn, sectorOpts)}
               className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Employed In</span>
-                <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('EMPLOYMENT_SECTORS', formData.EmployedIn), "Select Employed In")}</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('EMPLOYMENT_SECTORS', formData.EmployedIn), "Select Sector")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
 
             {/* 4. Occupation */}
             <div 
-              onClick={() => openOptionSheet('Select Occupation', 'Occupation', formData.Occupation, occupationOpts)}
+              onClick={() => openOptionSheet('Select Profession', 'Occupation', formData.Occupation, occupationOpts)}
               className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
@@ -1614,119 +2020,363 @@ export default function EditMyProfilePage() {
         </section>
 
         {/* ============================================================== */}
-        {/* 🌟 3. FAMILY DETAILS SECTION                                   */}
+        {/* 🌟 3. FAMILY DETAILS SECTION (Shows when completed)            */}
         {/* ============================================================== */}
-        <section className="space-y-2">
-          <div className="flex items-center gap-2 px-1">
-            <Users size={18} className="text-slate-800" />
-            <h2 className="text-sm font-black text-slate-900">Family Details</h2>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
-            {/* 1. Family Location */}
-            <div 
-              onClick={() => openLocationSheet('FamilyLocation')}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[13px] font-bold text-slate-900 block">Family Location</span>
-                <span className="text-xs mt-0.5 block">{renderLabel(formData.FamilyLocation, "Select Family Location")}</span>
+        {isFamilyCompleted && (
+          <section className="space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <Users size={18} className="text-slate-800" />
+                <h2 className="text-sm font-black text-slate-900">Family Details</h2>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              <button 
+                type="button" 
+                onClick={openFamilyWizard}
+                className="text-xs font-bold text-[#d91b5c] hover:underline"
+              >
+                Edit All
+              </button>
             </div>
 
-            {/* 2. Family Type */}
-            <div 
-              onClick={() => openOptionSheet('Family Type', 'FamilyType', formData.FamilyType, familyTypeOpts)}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[13px] font-bold text-slate-900 block">Family Type</span>
-                <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('FAMILY_TYPES', formData.FamilyType), "Select Family Type")}</span>
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
+              {/* Family Type */}
+              <div 
+                onClick={() => openOptionSheet('Family Type', 'FamilyType', formData.FamilyType, familyTypeOpts)}
+                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              >
+                <div>
+                  <span className="text-[13px] font-bold text-slate-900 block">Family Type</span>
+                  <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('FAMILY_TYPES', formData.FamilyType), "Select Family Type")}</span>
+                </div>
+                <ChevronRight size={16} className="text-slate-400" />
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
 
-            {/* 3. Family Status */}
-            <div 
-              onClick={() => openOptionSheet('Family Status', 'FamilyStatus', formData.FamilyStatus, familyStatusOpts)}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[13px] font-bold text-slate-900 block">Family Status</span>
-                <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('FAMILY_STATUS', formData.FamilyStatus), "Select Family Status")}</span>
+              {/* Family Status */}
+              <div 
+                onClick={() => openOptionSheet('Family Status', 'FamilyStatus', formData.FamilyStatus, familyStatusOpts)}
+                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              >
+                <div>
+                  <span className="text-[13px] font-bold text-slate-900 block">Family Status</span>
+                  <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('FAMILY_STATUS', formData.FamilyStatus), "Select Family Status")}</span>
+                </div>
+                <ChevronRight size={16} className="text-slate-400" />
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
 
-            {/* 4. Native Location */}
-            <div 
-              onClick={() => openLocationSheet('NativeLocation')}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[13px] font-bold text-slate-900 block">Native Location</span>
-                <span className="text-xs mt-0.5 block">{renderLabel(formData.NativeLocation, "Select Native Location")}</span>
+              {/* Native Location */}
+              <div 
+                onClick={() => openLocationSheet('NativeLocation')}
+                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              >
+                <div>
+                  <span className="text-[13px] font-bold text-slate-900 block">Native Location</span>
+                  <span className="text-xs mt-0.5 block">{renderLabel(formData.NativeLocation, "Select Native Location")}</span>
+                </div>
+                <ChevronRight size={16} className="text-slate-400" />
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
 
-            {/* 5. Father's Occupation (100% Dynamic Master, NO text box!) */}
-            <div 
-              onClick={() => openOptionSheet("Select Father's Profession", "FatherOccupation", formData.FatherOccupation, occupationOpts)}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[13px] font-bold text-slate-900 block">Father's Occupation</span>
-                <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('OCCUPATIONS', formData.FatherOccupation) || formData.FatherOccupation, "Select Occupation")}</span>
+              {/* Father's Occupation */}
+              <div 
+                onClick={() => openOptionSheet("Select Father's Profession", "FatherOccupation", formData.FatherOccupation, parentOccupationOpts)}
+                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              >
+                <div>
+                  <span className="text-[13px] font-bold text-slate-900 block">Father's Occupation</span>
+                  <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('PARENT_OCCUPATIONS', formData.FatherOccupation) || formData.FatherOccupation, "Select Occupation")}</span>
+                </div>
+                <ChevronRight size={16} className="text-slate-400" />
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
 
-            {/* 6. Mother's Occupation (100% Dynamic Master, NO text box!) */}
-            <div 
-              onClick={() => openOptionSheet("Select Mother's Profession", "MotherOccupation", formData.MotherOccupation, occupationOpts)}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[13px] font-bold text-slate-900 block">Mother's Occupation</span>
-                <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('OCCUPATIONS', formData.MotherOccupation) || formData.MotherOccupation, "Select Occupation")}</span>
+              {/* Mother's Occupation */}
+              <div 
+                onClick={() => openOptionSheet("Select Mother's Profession", "MotherOccupation", formData.MotherOccupation, parentOccupationOpts)}
+                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              >
+                <div>
+                  <span className="text-[13px] font-bold text-slate-900 block">Mother's Occupation</span>
+                  <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('PARENT_OCCUPATIONS', formData.MotherOccupation) || formData.MotherOccupation, "Select Occupation")}</span>
+                </div>
+                <ChevronRight size={16} className="text-slate-400" />
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
 
-            {/* 7. Brothers */}
-            <div 
-              onClick={openCountersSheet}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[13px] font-bold text-slate-900 block">Brother</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">
-                  {formData.TotalBrothers} Brother ({formData.MarriedBrothers} Married)
-                </span>
+              {/* Brothers */}
+              <div 
+                onClick={openCountersSheet}
+                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              >
+                <div>
+                  <span className="text-[13px] font-bold text-slate-900 block">Brother</span>
+                  <span className="text-xs text-slate-600 font-medium mt-0.5 block">
+                    {formData.TotalBrothers} Brother ({formData.MarriedBrothers} Married)
+                  </span>
+                </div>
+                <ChevronRight size={16} className="text-slate-400" />
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
 
-            {/* 8. Sisters */}
-            <div 
-              onClick={openCountersSheet}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[13px] font-bold text-slate-900 block">Sister</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">
-                  {formData.TotalSisters} Sister ({formData.MarriedSisters} Married)
-                </span>
+              {/* Sisters */}
+              <div 
+                onClick={openCountersSheet}
+                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              >
+                <div>
+                  <span className="text-[13px] font-bold text-slate-900 block">Sister</span>
+                  <span className="text-xs text-slate-600 font-medium mt-0.5 block">
+                    {formData.TotalSisters} Sister ({formData.MarriedSisters} Married)
+                  </span>
+                </div>
+                <ChevronRight size={16} className="text-slate-400" />
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* ============================================================== */}
-        {/* 🌟 4. CONTACT DETAILS SECTION                                  */}
+        {/* 🌟 4. RELIGIOUS DETAILS SECTION (Shows when completed)         */}
+        {/* ============================================================== */}
+        {isReligiousCompleted && (
+          <section className="space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <Moon size={18} className="text-slate-800" />
+                <h2 className="text-sm font-black text-slate-900">Religious Details</h2>
+              </div>
+              <button 
+                type="button" 
+                onClick={openReligiousWizard}
+                className="text-xs font-bold text-[#d91b5c] hover:underline"
+              >
+                Edit All
+              </button>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
+              <div 
+                onClick={() => openOptionSheet('Offer Namaz', 'NamazHabit', formData.NamazHabit, namazOpts)}
+                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              >
+                <div>
+                  <span className="text-[13px] font-bold text-slate-900 block">Namaz Habit</span>
+                  <span className="text-xs mt-0.5 block">{renderLabel(formData.NamazHabit, "Select Namaz Frequency")}</span>
+                </div>
+                <ChevronRight size={16} className="text-slate-400" />
+              </div>
+
+              <div 
+                onClick={() => openOptionSheet('Recite Quran', 'QuranReading', formData.QuranReading, quranOpts)}
+                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              >
+                <div>
+                  <span className="text-[13px] font-bold text-slate-900 block">Quran Recitation</span>
+                  <span className="text-xs mt-0.5 block">{renderLabel(formData.QuranReading, "Select Quran Frequency")}</span>
+                </div>
+                <ChevronRight size={16} className="text-slate-400" />
+              </div>
+
+              <div 
+                onClick={() => openOptionSheet('Keep Roza', 'RozaHabit', formData.RozaHabit, rozaOpts)}
+                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              >
+                <div>
+                  <span className="text-[13px] font-bold text-slate-900 block">Keep Roza (Fasts)</span>
+                  <span className="text-xs mt-0.5 block">{renderLabel(formData.RozaHabit, "Select Roza Status")}</span>
+                </div>
+                <ChevronRight size={16} className="text-slate-400" />
+              </div>
+
+              <div 
+                onClick={() => openOptionSheet('Zakat Habit', 'ZakatHabit', formData.ZakatHabit, zakatOpts)}
+                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              >
+                <div>
+                  <span className="text-[13px] font-bold text-slate-900 block">Zakat Habit</span>
+                  <span className="text-xs mt-0.5 block">{renderLabel(formData.ZakatHabit, "Select Zakat Frequency")}</span>
+                </div>
+                <ChevronRight size={16} className="text-slate-400" />
+              </div>
+
+              <div 
+                onClick={() => openOptionSheet('Hajj / Umrah', 'HajjUmrah', formData.HajjUmrah, hajjOpts)}
+                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              >
+                <div>
+                  <span className="text-[13px] font-bold text-slate-900 block">Hajj or Umrah</span>
+                  <span className="text-xs mt-0.5 block">{renderLabel(formData.HajjUmrah, "Select Status")}</span>
+                </div>
+                <ChevronRight size={16} className="text-slate-400" />
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ============================================================== */}
+        {/* 🌟 5. LIFESTYLE & INTERESTS SECTION (Shows when completed)     */}
+        {/* ============================================================== */}
+        {isLifestyleCompleted && (
+          <section className="space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <Activity size={18} className="text-slate-800" />
+                <h2 className="text-sm font-black text-slate-900">Lifestyle & Interests</h2>
+              </div>
+              <button 
+                type="button" 
+                onClick={openLifestyleWizard}
+                className="text-xs font-bold text-[#d91b5c] hover:underline"
+              >
+                Edit All
+              </button>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
+              <div 
+                onClick={() => openOptionSheet('Diet Type', 'DietType', formData.DietType, dietOpts)}
+                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              >
+                <div>
+                  <span className="text-[13px] font-bold text-slate-900 block">Diet Type</span>
+                  <span className="text-xs mt-0.5 block">{renderLabel(formData.DietType, "Select Diet")}</span>
+                </div>
+                <ChevronRight size={16} className="text-slate-400" />
+              </div>
+
+              <div 
+                onClick={() => openOptionSheet('Smoking Habit', 'SmokeHabit', formData.SmokeHabit, smokeOpts)}
+                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              >
+                <div>
+                  <span className="text-[13px] font-bold text-slate-900 block">Smoking Habit</span>
+                  <span className="text-xs mt-0.5 block">{renderLabel(formData.SmokeHabit, "Select Smoke Status")}</span>
+                </div>
+                <ChevronRight size={16} className="text-slate-400" />
+              </div>
+
+              <div 
+                onClick={() => openOptionSheet('Drinking Habit', 'DrinkHabit', formData.DrinkHabit, drinkOpts)}
+                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              >
+                <div>
+                  <span className="text-[13px] font-bold text-slate-900 block">Drinking Habit</span>
+                  <span className="text-xs mt-0.5 block">{renderLabel(formData.DrinkHabit, "Select Drink Status")}</span>
+                </div>
+                <ChevronRight size={16} className="text-slate-400" />
+              </div>
+
+              <div 
+                onClick={() => openMultiSelectSheet('Sports')}
+                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              >
+                <div>
+                  <span className="text-[13px] font-bold text-slate-900 block">Sports & Fitness</span>
+                  <span className="text-xs mt-0.5 block">{renderLabel(formData.Sports, "Choose Sports")}</span>
+                </div>
+                <ChevronRight size={16} className="text-slate-400" />
+              </div>
+
+              <div 
+                onClick={() => openMultiSelectSheet('LanguagesKnown')}
+                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              >
+                <div>
+                  <span className="text-[13px] font-bold text-slate-900 block">Languages Known</span>
+                  <span className="text-xs mt-0.5 block">{renderLabel(formData.LanguagesKnown, "Choose Languages")}</span>
+                </div>
+                <ChevronRight size={16} className="text-slate-400" />
+              </div>
+
+              <div 
+                onClick={() => openMultiSelectSheet('Hobbies')}
+                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              >
+                <div>
+                  <span className="text-[13px] font-bold text-slate-900 block">Hobbies</span>
+                  <span className="text-xs mt-0.5 block">{renderLabel(formData.Hobbies, "Choose Hobbies")}</span>
+                </div>
+                <ChevronRight size={16} className="text-slate-400" />
+              </div>
+
+              <div 
+                onClick={() => openMultiSelectSheet('Music')}
+                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              >
+                <div>
+                  <span className="text-[13px] font-bold text-slate-900 block">Music</span>
+                  <span className="text-xs mt-0.5 block">{renderLabel(formData.Music, "Choose Music")}</span>
+                </div>
+                <ChevronRight size={16} className="text-slate-400" />
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ============================================================== */}
+        {/* 🌟 6. OTHER DETAILS SECTION (Shows when completed)             */}
+        {/* ============================================================== */}
+        {isOtherCompleted && (
+          <section className="space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <FileText size={18} className="text-slate-800" />
+                <h2 className="text-sm font-black text-slate-900">Other Details</h2>
+              </div>
+              <button 
+                type="button" 
+                onClick={openOtherWizard}
+                className="text-xs font-bold text-[#d91b5c] hover:underline cursor-pointer"
+              >
+                Edit All
+              </button>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
+              <div 
+                onClick={() => openTextInputSheet("College / University", "Enter your college or university name", "CollegeName", formData.CollegeName, "e.g. Jamia Millia Islamia", 100)}
+                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              >
+                <div>
+                  <span className="text-[13px] font-bold text-slate-900 block">College / University</span>
+                  <span className="text-xs mt-0.5 block">{renderLabel(formData.CollegeName, "Add College Name")}</span>
+                </div>
+                <ChevronRight size={16} className="text-slate-400" />
+              </div>
+
+              <div 
+                onClick={() => openOptionSheet("Do you have any disability?", "Disability", formData.Disability, disabilityOpts)}
+                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              >
+                <div>
+                  <span className="text-[13px] font-bold text-slate-900 block">Disability</span>
+                  <span className="text-xs mt-0.5 block">{renderLabel(formData.Disability || "None", "Select Disability")}</span>
+                </div>
+                <ChevronRight size={16} className="text-slate-400" />
+              </div>
+
+              <div 
+                onClick={openBioSheet}
+                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              >
+                <div>
+                  <span className="text-[13px] font-bold text-slate-900 block">About Me</span>
+                  <span className="text-xs mt-0.5 block line-clamp-1">{renderLabel(formData.AboutMe, "Write something about yourself")}</span>
+                </div>
+                <ChevronRight size={16} className="text-slate-400" />
+              </div>
+
+              <div 
+                onClick={() => openTextInputSheet("Partner Expectations", "Describe what qualities and values you are looking for in a partner", "PartnerExpectations", formData.PartnerExpectations, "e.g. Looking for a religious, understanding partner...", 1000, true)}
+                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+              >
+                <div>
+                  <span className="text-[13px] font-bold text-slate-900 block">Partner Expectations</span>
+                  <span className="text-xs mt-0.5 block line-clamp-1">{renderLabel(formData.PartnerExpectations, "Add Partner Expectations")}</span>
+                </div>
+                <ChevronRight size={16} className="text-slate-400" />
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* ============================================================== */}
+        {/* 🌟 7. CONTACT DETAILS SECTION                                  */}
         {/* ============================================================== */}
         <section className="space-y-2">
           <div className="flex items-center gap-2 px-1">
@@ -1735,14 +2385,13 @@ export default function EditMyProfilePage() {
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
-            {/* 1. Phone Number (Change via OTP Verification) */}
             <div 
               onClick={openChangeMobileSheet}
               className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Phone Number</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.MobileNumber ? `+91 ${formData.MobileNumber}` : "Add Mobile Number"}</span>
+                <span className="text-xs text-slate-600 font-medium mt-0.5 block">{formData.MobileNumber ? `+91 ${formData.MobileNumber}` : "Add Mobile Number"}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-bold text-[#d91b5c]">Change via OTP</span>
@@ -1750,14 +2399,13 @@ export default function EditMyProfilePage() {
               </div>
             </div>
 
-            {/* 2. Email (Locked - Cannot be edited) */}
             <div 
-              onClick={() => toast.info("Email address is locked for account security and cannot be edited.", { icon: "🔒" })}
-              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/40 cursor-default"
+              onClick={() => toast.info("Email address is locked for account security.", { icon: "🔒" })}
+              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/30 cursor-default"
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Email</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.Email || "Not Provided"}</span>
+                <span className="text-xs text-slate-600 font-medium mt-0.5 block">{formData.Email || "Not Provided"}</span>
               </div>
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold">
                 <Info size={12} className="text-slate-400" />
@@ -1765,520 +2413,822 @@ export default function EditMyProfilePage() {
               </div>
             </div>
 
-            {/* 3. WhatsApp Number */}
             <div 
-              onClick={() => openTextInputSheet(
-                "WhatsApp Number",
-                "Enter direct or Wali's WhatsApp number",
-                "WhatsAppNumber",
-                formData.WhatsAppNumber,
-                "e.g. +91 9876543210",
-                20,
-                false,
-                "tel"
-              )}
+              onClick={() => openTextInputSheet("WhatsApp Number", "Enter WhatsApp number for quick matchmaking contact", "WhatsAppNumber", formData.WhatsAppNumber, "e.g. +91 9876543210", 20, false, "tel")}
               className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">WhatsApp Number</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5 block">{formData.WhatsAppNumber || "Add WhatsApp Number"}</span>
+                <span className="text-xs text-slate-600 font-medium mt-0.5 block">{formData.WhatsAppNumber || "Add WhatsApp Number"}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
           </div>
         </section>
 
-        {/* ============================================================== */}
-        {/* 🌟 5. RELIGIOUS DETAILS SECTION                                */}
-        {/* ============================================================== */}
-        <section className="space-y-2">
-          <div className="flex items-center gap-2 px-1">
-            <Moon size={18} className="text-slate-800" />
-            <h2 className="text-sm font-black text-slate-900">Religious Details</h2>
-          </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
-            {/* 1. Namaz */}
-            <div 
-              onClick={() => openOptionSheet('Daily Salah (Namaz)', 'NamazHabit', formData.NamazHabit, namazOpts)}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[13px] font-bold text-slate-900 block">Namaz</span>
-                <span className="text-xs mt-0.5 block">{renderLabel(formData.NamazHabit, "Select Namaz Habit")}</span>
-              </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
-
-            {/* 2. Quran Reading */}
-            <div 
-              onClick={() => openOptionSheet('Quran Reading & Recitation', 'QuranReading', formData.QuranReading, quranOpts)}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[13px] font-bold text-slate-900 block">Quran Reading</span>
-                <span className="text-xs mt-0.5 block">{renderLabel(formData.QuranReading, "Select Reading Routine")}</span>
-              </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
-
-            {/* 3. Do you keep Roza (Fasting) */}
-            <div 
-              onClick={() => openOptionSheet('Do You Keep Roza (Fasting)?', 'RozaHabit', formData.RozaHabit, rozaOpts)}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[13px] font-bold text-slate-900 block">Do you keep Roza (Fasting)</span>
-                <span className="text-xs mt-0.5 block">{renderLabel(formData.RozaHabit, "Select Fasting Routine")}</span>
-              </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
-
-            {/* 4. Hijab / Beard */}
-            <div 
-              onClick={() => openOptionSheet('Islamic Attire (Hijab / Beard)', 'HijabOrBeard', formData.HijabOrBeard, hijabOpts)}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[13px] font-bold text-slate-900 block">Hijab / Beard</span>
-                <span className="text-xs mt-0.5 block">{renderLabel(formData.HijabOrBeard, "Select Hijab / Beard Routine")}</span>
-              </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
-
-            {/* 5. Zakat */}
-            <div 
-              onClick={() => openOptionSheet('Zakat Practice', 'ZakatHabit', formData.ZakatHabit, zakatOpts)}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[13px] font-bold text-slate-900 block">Zakat</span>
-                <span className="text-xs mt-0.5 block">{renderLabel(formData.ZakatHabit, "Select Zakat Practice")}</span>
-              </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
-
-            {/* 6. Hajj / Umrah */}
-            <div 
-              onClick={() => openOptionSheet('Hajj / Umrah Pilgrimage', 'HajjUmrah', formData.HajjUmrah, hajjOpts)}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[13px] font-bold text-slate-900 block">Hajj / Umrah</span>
-                <span className="text-xs mt-0.5 block">{renderLabel(formData.HajjUmrah, "Select Pilgrimage Status")}</span>
-              </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
-          </div>
-        </section>
-
-        {/* ============================================================== */}
-        {/* 🌟 6. LIFESTYLE & INTEREST SECTION                             */}
-        {/* ============================================================== */}
-        <section className="space-y-2">
-          <div className="flex items-center gap-2 px-1">
-            <Sparkles size={18} className="text-slate-800" />
-            <h2 className="text-sm font-black text-slate-900">Lifestyle & Interest</h2>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
-            {/* 1. Diet Preference */}
-            <div 
-              onClick={() => openOptionSheet('Diet Preference', 'DietType', formData.DietType, dietOpts)}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[13px] font-bold text-slate-900 block">Diet Preference</span>
-                <span className="text-xs mt-0.5 block">{renderLabel(formData.DietType, "Select Diet Preference")}</span>
-              </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
-
-            {/* 2. Smoke */}
-            <div 
-              onClick={() => openOptionSheet('Smoking Habits', 'SmokeHabit', formData.SmokeHabit, habitOpts)}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[13px] font-bold text-slate-900 block">Smoke</span>
-                <span className="text-xs mt-0.5 block">{renderLabel(formData.SmokeHabit, "Select Smoking Habit")}</span>
-              </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
-
-            {/* 3. Drink */}
-            <div 
-              onClick={() => openOptionSheet('Alcohol / Drinking Habits', 'DrinkHabit', formData.DrinkHabit, habitOpts)}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[13px] font-bold text-slate-900 block">Drink</span>
-                <span className="text-xs mt-0.5 block">{renderLabel(formData.DrinkHabit, "Select Drinking Habit")}</span>
-              </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
-
-            {/* 4. Languages You Know (Multi-select) */}
-            <div 
-              onClick={() => openMultiSelectSheet('LanguagesKnown')}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-            >
-              <div className="min-w-0 pr-3">
-                <span className="text-[13px] font-bold text-slate-900 block">Languages you know</span>
-                <span className="text-xs mt-0.5 block truncate">
-                  {renderLabel(formData.LanguagesKnown, "Select languages")}
-                </span>
-              </div>
-              <ChevronRight size={16} className="text-slate-400 shrink-0" />
-            </div>
-
-            {/* 5. Cook Food */}
-            <div 
-              onClick={() => openOptionSheet('Can You Cook Food?', 'CanCook', formData.CanCook, cookOpts)}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[13px] font-bold text-slate-900 block">Cook Food</span>
-                <span className="text-xs mt-0.5 block">{renderLabel(formData.CanCook, "Select Cooking Skill")}</span>
-              </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </div>
-
-            {/* 6. Sports (Multi-select) */}
-            <div 
-              onClick={() => openMultiSelectSheet('Sports')}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-            >
-              <div className="min-w-0 pr-3">
-                <span className="text-[13px] font-bold text-slate-900 block">Sports</span>
-                <span className="text-xs mt-0.5 block truncate">
-                  {renderLabel(formData.Sports, "Select sports")}
-                </span>
-              </div>
-              <ChevronRight size={16} className="text-slate-400 shrink-0" />
-            </div>
-
-            {/* 7. Hobbies (Multi-select) */}
-            <div 
-              onClick={() => openMultiSelectSheet('Hobbies')}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-            >
-              <div className="min-w-0 pr-3">
-                <span className="text-[13px] font-bold text-slate-900 block">Hobbies</span>
-                <span className="text-xs mt-0.5 block truncate">
-                  {renderLabel(formData.Hobbies, "Select hobbies")}
-                </span>
-              </div>
-              <ChevronRight size={16} className="text-slate-400 shrink-0" />
-            </div>
-
-            {/* 8. Musics (Multi-select) */}
-            <div 
-              onClick={() => openMultiSelectSheet('Interests')}
-              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-            >
-              <div className="min-w-0 pr-3">
-                <span className="text-[13px] font-bold text-slate-900 block">Musics</span>
-                <span className="text-xs mt-0.5 block truncate">
-                  {renderLabel(formData.Interests, "Select music & interests")}
-                </span>
-              </div>
-              <ChevronRight size={16} className="text-slate-400 shrink-0" />
-            </div>
-          </div>
-        </section>
 
       </main>
 
       {/* ============================================================== */}
-      {/* 🌟 10. LUXURY BOTTOM SHEETS & DRAWERS                          */}
+      {/* 🌟 CELEBRATION MODAL (Screenshot 1)                            */}
+      {/* ============================================================== */}
+      <AnimatePresence>
+        {celebrationModal && celebrationModal.isOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl relative overflow-hidden"
+            >
+              <div className="absolute -top-24 inset-x-0 h-48 bg-gradient-to-b from-rose-100/60 to-transparent pointer-events-none rounded-t-3xl" />
+
+              {/* Vector Illustration matching Screenshot 1 */}
+              <div className="relative mx-auto w-36 h-36 mb-4 flex items-center justify-center">
+                <div className="absolute inset-0 bg-rose-50 rounded-full scale-110" />
+                
+                <div className="relative z-10 flex flex-col items-center">
+                  <div className="flex items-center justify-center -mb-2 z-20">
+                    <div className="w-8 h-8 rounded-full border-4 border-[#d91b5c] -mr-1 rotate-[-25deg]" />
+                    <div className="w-8 h-8 rounded-full border-4 border-[#d91b5c] -ml-1 rotate-[25deg]" />
+                  </div>
+                  <div className="w-24 h-20 bg-emerald-600 rounded-xl relative shadow-md flex items-center justify-center overflow-hidden border-2 border-emerald-700">
+                    <div className="absolute top-0 inset-x-0 h-4 bg-emerald-700 border-b border-emerald-800" />
+                    <div className="absolute inset-y-0 w-5 bg-[#d91b5c]" />
+                    <div className="absolute inset-x-0 h-5 bg-[#d91b5c]" />
+                    
+                    <div className="relative z-30 px-3 py-1 rounded-full bg-white text-[#d91b5c] font-black text-sm shadow-md border border-rose-200">
+                      +{celebrationModal.scoreAdded}%
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <h3 className="text-lg font-black text-slate-900 leading-snug">
+                MashaAllah, {celebrationModal.title} are completed!
+              </h3>
+
+              <p className="text-xs text-slate-500 font-medium mt-2 leading-relaxed px-2">
+                {celebrationModal.remainingScore > 0 
+                  ? `Complete ${celebrationModal.remainingScore}% more of your profile for 100% score and benefits.`
+                  : `Alhamdulillah! Your profile is now 100% complete and verified for maximum matches!`
+                }
+              </p>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setCelebrationModal(null);
+                }}
+                className="w-full mt-6 py-3.5 rounded-2xl bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-lg shadow-rose-500/25 transition-all cursor-pointer active:scale-98"
+              >
+                {celebrationModal.remainingScore > 0 ? "Got it, Continue" : "Close"}
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ============================================================== */}
+      {/* 🌟 BOTTOM SHEETS SYSTEM                                        */}
       {/* ============================================================== */}
       <AnimatePresence>
         {activeSheet && (
-          <div className="fixed inset-0 z-50 flex flex-col justify-end">
+          <div className="fixed inset-0 z-50 flex items-end justify-center">
             {/* Backdrop */}
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setActiveSheet(null)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-xs"
+              className="absolute inset-0 bg-black/50 backdrop-blur-xs cursor-pointer"
             />
 
-            {/* 🌟 SHEET A: HEIGHT SLIDER BOTTOM SHEET (Matches Screenshot Exactly) */}
-            {activeSheet === 'height' && (
-              <motion.div 
+            {/* 🌟 FAMILY DETAILS WIZARD (Screenshot 8 & 7) */}
+            {activeSheet === 'familyWizard' && (
+              <motion.div
                 initial={{ y: "100%" }}
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 260 }}
-                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pt-5 space-y-5 shadow-2xl text-left"
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}
+                className="relative z-10 w-full max-w-lg bg-white rounded-t-3xl p-5 shadow-2xl max-h-[85vh] flex flex-col space-y-4"
               >
-                <div className="flex justify-center -mt-10 mb-1">
-                  <button
-                    type="button"
-                    onClick={() => setActiveSheet(null)}
-                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                <div className="text-left">
-                  <h3 className="text-lg font-black text-slate-900">Add Height</h3>
-                </div>
-
-                {/* Selected Height Pill */}
-                <div className="flex justify-start">
-                  <div className="px-5 py-2 rounded-full border border-[#d91b5c] text-[#d91b5c] font-black text-xs bg-rose-50/30">
-                    {cmToFtIn(heightCm)}
-                  </div>
-                </div>
-
-                {/* Slider */}
-                <div className="p-4 rounded-2xl border border-slate-200/80 bg-white">
-                  <input 
-                    type="range"
-                    min={135}
-                    max={213}
-                    step={1}
-                    value={heightCm}
-                    onChange={(e) => setHeightCm(Number(e.target.value))}
-                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#d91b5c]"
-                  />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleSaveHeight}
-                  disabled={savingField === 'Height'}
-                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
-                >
-                  {savingField === 'Height' ? <Loader2 size={18} className="animate-spin" /> : "Update"}
-                </button>
-              </motion.div>
-            )}
-
-            {/* 🌟 SHEET B: ANNUAL INCOME SLIDER BOTTOM SHEET */}
-            {activeSheet === 'income' && (
-              <motion.div 
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
-                exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 260 }}
-                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pt-5 space-y-5 shadow-2xl text-left"
-              >
-                <div className="flex justify-center -mt-10 mb-1">
-                  <button
-                    type="button"
-                    onClick={() => setActiveSheet(null)}
-                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                <div className="text-left">
-                  <h3 className="text-lg font-black text-slate-900">Annual Income</h3>
-                  <p className="text-xs text-slate-500 font-medium">Select or slide your estimated annual remuneration</p>
-                </div>
-
-                {/* Selected Income Pill */}
-                <div className="flex justify-start">
-                  <div className="px-5 py-2 rounded-full border border-[#d91b5c] text-[#d91b5c] font-black text-xs bg-rose-50/30">
-                    {INCOME_BRACKETS[incomeIndex]}
-                  </div>
-                </div>
-
-                {/* Slider */}
-                <div className="p-4 rounded-2xl border border-slate-200/80 bg-white space-y-2">
-                  <input 
-                    type="range"
-                    min={0}
-                    max={INCOME_BRACKETS.length - 1}
-                    step={1}
-                    value={incomeIndex}
-                    onChange={(e) => setIncomeIndex(Number(e.target.value))}
-                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#d91b5c]"
-                  />
-                  <div className="flex justify-between text-[10px] text-slate-400 font-bold">
-                    <span>No Income</span>
-                    <span>₹10 - 15L</span>
-                    <span>₹1 Cr+</span>
-                  </div>
-                </div>
-
-                {/* Quick Chips */}
-                <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
-                  {INCOME_BRACKETS.map((bracket, idx) => (
-                    <button
-                      key={bracket}
-                      type="button"
-                      onClick={() => setIncomeIndex(idx)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                        incomeIndex === idx 
-                          ? 'bg-[#d91b5c] text-white shadow-xs' 
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                      }`}
-                    >
-                      {bracket}
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                      <X size={18} />
                     </button>
-                  ))}
+                    <h3 className="text-base font-black text-slate-900">Family Details</h3>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto space-y-5 pr-1 text-slate-900">
+                  {/* Family Type Chips */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-900 block">What is your family type?</label>
+                    <div className="flex flex-wrap gap-2">
+                      {familyTypeOpts.map(opt => {
+                        const isSel = String(familyWizardData.familyType) === String(opt.id) || String(familyWizardData.familyType) === opt.value;
+                        return (
+                          <button
+                            key={String(opt.id)}
+                            type="button"
+                            onClick={() => setFamilyWizardData(prev => ({ ...prev, familyType: Number(opt.id) || 1 }))}
+                            className={`px-4 py-2 rounded-full text-xs font-bold transition-all border ${
+                              isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            {opt.value}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Family Status Chips */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-900 block">What is your family status?</label>
+                    <div className="flex flex-wrap gap-2">
+                      {familyStatusOpts.map(opt => {
+                        const isSel = String(familyWizardData.familyStatus) === String(opt.id) || String(familyWizardData.familyStatus) === opt.value;
+                        return (
+                          <button
+                            key={String(opt.id)}
+                            type="button"
+                            onClick={() => setFamilyWizardData(prev => ({ ...prev, familyStatus: Number(opt.id) || 2 }))}
+                            className={`px-4 py-2 rounded-full text-xs font-bold transition-all border ${
+                              isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            {opt.value}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Native Location Link (Screenshot 3) */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-900 block">What is your native location?</label>
+                    <button
+                      type="button"
+                      onClick={() => openLocationSheet('NativeLocation', 'familyWizard')}
+                      className="text-xs font-bold text-[#d91b5c] hover:underline block"
+                    >
+                      {familyWizardData.nativeLocation || formData.NativeLocation ? `${familyWizardData.nativeLocation || formData.NativeLocation} (Tap to change)` : "+ Add native location"}
+                    </button>
+                  </div>
+
+                  {/* Father's Occupation Chips */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-900 block">What is your father's occupation?</label>
+                    <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto p-1">
+                      {parentOccupationOpts.map(opt => {
+                        const isSel = familyWizardData.fatherOccupation.toLowerCase() === opt.value.toLowerCase();
+                        return (
+                          <button
+                            key={String(opt.id || opt.value)}
+                            type="button"
+                            onClick={() => setFamilyWizardData(prev => ({ ...prev, fatherOccupation: opt.value }))}
+                            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                              isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            {opt.value}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Mother's Occupation Chips */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-900 block">What is your mother's occupation?</label>
+                    <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto p-1">
+                      {parentOccupationOpts.map(opt => {
+                        const isSel = familyWizardData.motherOccupation.toLowerCase() === opt.value.toLowerCase();
+                        return (
+                          <button
+                            key={String(opt.id || opt.value)}
+                            type="button"
+                            onClick={() => setFamilyWizardData(prev => ({ ...prev, motherOccupation: opt.value }))}
+                            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                              isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            {opt.value}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Sibling Circle Counter Chips (0, 1, 2, 3, 4+) */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-900 block">No. of Brothers</label>
+                    <div className="flex items-center gap-2">
+                      {[0, 1, 2, 3, 4].map(num => {
+                        const isSel = familyWizardData.totalBrothers === num;
+                        return (
+                          <button
+                            key={num}
+                            type="button"
+                            onClick={() => setFamilyWizardData(prev => ({ ...prev, totalBrothers: num }))}
+                            className={`w-10 h-10 rounded-full font-bold text-xs flex items-center justify-center border transition-all ${
+                              isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200'
+                            }`}
+                          >
+                            {num === 4 ? '4+' : num}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-900 block">No. of Sisters</label>
+                    <div className="flex items-center gap-2">
+                      {[0, 1, 2, 3, 4].map(num => {
+                        const isSel = familyWizardData.totalSisters === num;
+                        return (
+                          <button
+                            key={num}
+                            type="button"
+                            onClick={() => setFamilyWizardData(prev => ({ ...prev, totalSisters: num }))}
+                            className={`w-10 h-10 rounded-full font-bold text-xs flex items-center justify-center border transition-all ${
+                              isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200'
+                            }`}
+                          >
+                            {num === 4 ? '4+' : num}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
 
                 <button
                   type="button"
-                  onClick={handleSaveIncome}
-                  disabled={savingField === 'AnnualIncome'}
+                  onClick={handleSaveFamilyWizard}
+                  disabled={Boolean(savingField)}
                   className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
                 >
-                  {savingField === 'AnnualIncome' ? <Loader2 size={18} className="animate-spin" /> : "Update"}
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Save Family Details"}
                 </button>
               </motion.div>
             )}
 
-            {/* 🌟 SHEET C: DATE OF BIRTH 3-COLUMN WHEEL / SCROLL PICKER */}
-            {activeSheet === 'dobPicker' && (
-              <motion.div 
+            {/* 🌟 RELIGIOUS DETAILS WIZARD (Screenshot 5) */}
+            {activeSheet === 'religiousWizard' && (
+              <motion.div
                 initial={{ y: "100%" }}
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 260 }}
-                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pt-5 space-y-5 shadow-2xl text-left"
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}
+                className="relative z-10 w-full max-w-lg bg-white rounded-t-3xl p-5 shadow-2xl max-h-[85vh] flex flex-col space-y-4"
               >
-                <div className="flex justify-center -mt-10 mb-1">
-                  <button
-                    type="button"
-                    onClick={() => setActiveSheet(null)}
-                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-black text-slate-900">Select Date of Birth</h3>
-                  <p className="text-xs text-slate-500 font-medium">Scroll and select Day, Month, and Year</p>
-                </div>
-
-                {/* Live Preview Pill */}
-                <div className="flex justify-center">
-                  <div className="px-6 py-2 rounded-full border border-[#d91b5c] text-[#d91b5c] font-black text-sm bg-rose-50/40">
-                    {Math.min(dobDay, daysInCurrentMonth)} {MONTH_NAMES[dobMonth - 1]} {dobYear} &bull; ({calculatedLiveAge} Years)
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                      <X size={18} />
+                    </button>
+                    <h3 className="text-base font-black text-slate-900">Religious Details</h3>
                   </div>
                 </div>
 
-                {/* 3-Column Selectors */}
-                <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 rounded-2xl border border-slate-200">
-                  {/* Day Column */}
-                  <div>
-                    <label className="text-[10px] font-black uppercase text-slate-500 block mb-1 text-center">Day</label>
-                    <select
-                      value={Math.min(dobDay, daysInCurrentMonth)}
-                      onChange={(e) => setDobDay(Number(e.target.value))}
-                      className="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 bg-white text-center focus:outline-none focus:border-[#d91b5c]"
-                    >
-                      {Array.from({ length: daysInCurrentMonth }, (_, i) => i + 1).map(d => (
-                        <option key={d} value={d}>{d}</option>
-                      ))}
-                    </select>
+                <div className="flex-1 overflow-y-auto space-y-5 pr-1 text-slate-900">
+                  {/* Namaz Habit */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-900 block">How often do you offer Namaz (Prayers)?</label>
+                    <div className="flex flex-wrap gap-2">
+                      {namazOpts.map(opt => {
+                        const isSel = religiousWizardData.namazHabit.toLowerCase() === opt.value.toLowerCase();
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setReligiousWizardData(prev => ({ ...prev, namazHabit: opt.value }))}
+                            className={`px-4 py-2 rounded-full text-xs font-bold transition-all border ${
+                              isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            {opt.value}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
-                  {/* Month Column */}
-                  <div>
-                    <label className="text-[10px] font-black uppercase text-slate-500 block mb-1 text-center">Month</label>
-                    <select
-                      value={dobMonth}
-                      onChange={(e) => setDobMonth(Number(e.target.value))}
-                      className="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 bg-white text-center focus:outline-none focus:border-[#d91b5c]"
-                    >
-                      {MONTH_NAMES.map((name, idx) => (
-                        <option key={name} value={idx + 1}>{name.slice(0, 3)}</option>
-                      ))}
-                    </select>
+                  {/* Quran Reading */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-900 block">How often do you recite the Quran?</label>
+                    <div className="flex flex-wrap gap-2">
+                      {quranOpts.map(opt => {
+                        const isSel = religiousWizardData.quranReading.toLowerCase() === opt.value.toLowerCase();
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setReligiousWizardData(prev => ({ ...prev, quranReading: opt.value }))}
+                            className={`px-4 py-2 rounded-full text-xs font-bold transition-all border ${
+                              isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            {opt.value}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
-                  {/* Year Column */}
-                  <div>
-                    <label className="text-[10px] font-black uppercase text-slate-500 block mb-1 text-center">Year</label>
-                    <select
-                      value={dobYear}
-                      onChange={(e) => setDobYear(Number(e.target.value))}
-                      className="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-800 bg-white text-center focus:outline-none focus:border-[#d91b5c]"
-                    >
-                      {(() => {
-                        const minLegalAge = String(formData.Gender || '').toLowerCase() === 'female' ? 18 : 21;
-                        const currentYr = new Date().getFullYear();
-                        const latestBirthYear = currentYr - minLegalAge;
-                        const earliestBirthYear = currentYr - 75;
-                        return Array.from({ length: latestBirthYear - earliestBirthYear + 1 }, (_, i) => latestBirthYear - i).map(yr => (
-                          <option key={yr} value={yr}>{yr}</option>
-                        ));
-                      })()}
-                    </select>
+                  {/* Roza */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-900 block">Do you keep Roza (fasts)?</label>
+                    <div className="flex flex-wrap gap-2">
+                      {['Yes', 'No'].map(val => {
+                        const isSel = religiousWizardData.rozaHabit.toLowerCase() === val.toLowerCase();
+                        return (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => setReligiousWizardData(prev => ({ ...prev, rozaHabit: val }))}
+                            className={`px-5 py-2 rounded-full text-xs font-bold transition-all border ${
+                              isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            {val}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Zakat */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-900 block">When do you give Zakat?</label>
+                    <div className="flex flex-wrap gap-2">
+                      {zakatOpts.map(opt => {
+                        const isSel = religiousWizardData.zakatHabit.toLowerCase() === opt.value.toLowerCase();
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setReligiousWizardData(prev => ({ ...prev, zakatHabit: opt.value }))}
+                            className={`px-4 py-2 rounded-full text-xs font-bold transition-all border ${
+                              isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            {opt.value}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Hajj / Umrah */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-900 block">Have you performed Hajj or Umrah?</label>
+                    <div className="flex flex-wrap gap-2">
+                      {['Yes', 'No'].map(val => {
+                        const isSel = religiousWizardData.hajjUmrah.toLowerCase() === val.toLowerCase();
+                        return (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => setReligiousWizardData(prev => ({ ...prev, hajjUmrah: val }))}
+                            className={`px-5 py-2 rounded-full text-xs font-bold transition-all border ${
+                              isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            {val}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
 
                 <button
                   type="button"
-                  onClick={handleSaveDob}
-                  disabled={savingField === 'DateOfBirth'}
+                  onClick={handleSaveReligiousWizard}
+                  disabled={Boolean(savingField)}
                   className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
                 >
-                  {savingField === 'DateOfBirth' ? <Loader2 size={18} className="animate-spin" /> : "Update Date of Birth"}
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Save Religious Details"}
                 </button>
               </motion.div>
             )}
 
-            {/* 🌟 SHEET D: SEARCHABLE RADIO OPTIONS (Matches Screenshot: Search bar + Radios + Pink Update Button) */}
-            {activeSheet === 'option' && (
-              <motion.div 
+            {/* 🌟 LIFESTYLE & INTEREST WIZARD */}
+            {activeSheet === 'lifestyleWizard' && (
+              <motion.div
                 initial={{ y: "100%" }}
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 260 }}
-                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-5 pt-4 space-y-4 shadow-2xl text-left max-h-[85vh] flex flex-col"
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}
+                className="relative z-10 w-full max-w-lg bg-white rounded-t-3xl p-5 shadow-2xl max-h-[85vh] flex flex-col space-y-4"
               >
-                <div className="flex justify-center -mt-9 mb-1">
-                  <button
-                    type="button"
-                    onClick={() => setActiveSheet(null)}
-                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
-                  >
-                    <X size={18} />
-                  </button>
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                      <X size={18} />
+                    </button>
+                    <h3 className="text-base font-black text-slate-900">Lifestyle & Interests</h3>
+                  </div>
                 </div>
 
-                <div>
-                  <h3 className="text-base font-black text-slate-900">{sheetTitle}</h3>
+                <div className="flex-1 overflow-y-auto space-y-5 pr-1 text-slate-900">
+                  {/* 1. Diet Preference Chips */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-900 block">What is your diet preference?</label>
+                    <div className="flex flex-wrap gap-2">
+                      {dietOpts.map(opt => {
+                        const isSel = lifestyleWizardData.dietType.toLowerCase() === opt.value.toLowerCase();
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setLifestyleWizardData(prev => ({ ...prev, dietType: opt.value }))}
+                            className={`px-4 py-2 rounded-full text-xs font-bold transition-all border ${
+                              isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            {opt.value}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 2. Languages Known */}
+                  <div className="space-y-2 border-t border-slate-100 pt-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-900">Which languages do you know?</label>
+                      {lifestyleWizardData.languages.length > 0 && (
+                        <button 
+                          type="button" 
+                          onClick={() => openMultiSelectSheet('LanguagesKnown', true)}
+                          className="text-[#d91b5c] text-xs font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Edit3 size={12} /> Edit
+                        </button>
+                      )}
+                    </div>
+                    {lifestyleWizardData.languages.length === 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => openMultiSelectSheet('LanguagesKnown', true)}
+                        className="w-full py-2.5 px-4 rounded-xl border border-dashed border-[#d91b5c] text-[#d91b5c] font-bold text-xs bg-rose-50/40 hover:bg-rose-50 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <Plus size={14} /> Add Languages
+                      </button>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {lifestyleWizardData.languages.map(lang => (
+                          <span key={lang} className="px-3 py-1 bg-slate-100 text-slate-800 rounded-full text-xs font-semibold border border-slate-200">
+                            {lang}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 3. Hobbies */}
+                  <div className="space-y-2 border-t border-slate-100 pt-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-900">Hobbies</label>
+                      {lifestyleWizardData.hobbies.length > 0 && (
+                        <button 
+                          type="button" 
+                          onClick={() => openMultiSelectSheet('Hobbies', true)}
+                          className="text-[#d91b5c] text-xs font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Edit3 size={12} /> Edit
+                        </button>
+                      )}
+                    </div>
+                    {lifestyleWizardData.hobbies.length === 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => openMultiSelectSheet('Hobbies', true)}
+                        className="w-full py-2.5 px-4 rounded-xl border border-dashed border-[#d91b5c] text-[#d91b5c] font-bold text-xs bg-rose-50/40 hover:bg-rose-50 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <Plus size={14} /> Add Hobbies
+                      </button>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {lifestyleWizardData.hobbies.map(hob => (
+                          <span key={hob} className="px-3 py-1 bg-slate-100 text-slate-800 rounded-full text-xs font-semibold border border-slate-200">
+                            {hob}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 4. Music Preferences */}
+                  <div className="space-y-2 border-t border-slate-100 pt-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-900">Music</label>
+                      {lifestyleWizardData.music.length > 0 && (
+                        <button 
+                          type="button" 
+                          onClick={() => openMultiSelectSheet('Music', true)}
+                          className="text-[#d91b5c] text-xs font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Edit3 size={12} /> Edit
+                        </button>
+                      )}
+                    </div>
+                    {lifestyleWizardData.music.length === 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => openMultiSelectSheet('Music', true)}
+                        className="w-full py-2.5 px-4 rounded-xl border border-dashed border-[#d91b5c] text-[#d91b5c] font-bold text-xs bg-rose-50/40 hover:bg-rose-50 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <Plus size={14} /> Add Music
+                      </button>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {lifestyleWizardData.music.map(item => (
+                          <span key={item} className="px-3 py-1 bg-slate-100 text-slate-800 rounded-full text-xs font-semibold border border-slate-200">
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Search Bar */}
+                <button
+                  type="button"
+                  onClick={handleSaveLifestyleWizard}
+                  disabled={Boolean(savingField)}
+                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
+                >
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Save Lifestyle Details"}
+                </button>
+              </motion.div>
+            )}
+
+            {/* 🌟 OTHER DETAILS WIZARD */}
+            {activeSheet === 'otherWizard' && (
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}
+                className="relative z-10 w-full max-w-lg bg-white rounded-t-3xl p-5 shadow-2xl max-h-[85vh] flex flex-col space-y-4"
+              >
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                      <X size={18} />
+                    </button>
+                    <h3 className="text-base font-black text-slate-900">Other Details</h3>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto space-y-4 pr-1 text-slate-900">
+                  {/* 1. College Name */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-900 block">College / University Name</label>
+                    <input
+                      type="text"
+                      value={otherWizardData.collegeName}
+                      onChange={(e) => setOtherWizardData(prev => ({ ...prev, collegeName: e.target.value }))}
+                      placeholder="e.g. Aligarh Muslim University, Jamia Millia Islamia..."
+                      className="w-full p-3 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#d91b5c]/20 bg-slate-50/50"
+                    />
+                  </div>
+
+                  {/* 2. Physical Disability */}
+                  <div className="space-y-2 border-t border-slate-100 pt-3">
+                    <label className="text-xs font-bold text-slate-900 block">Do you have any disability?</label>
+                    <div className="flex gap-2">
+                      {['None', 'Physical Disability'].map(val => {
+                        const isSel = otherWizardData.disability.toLowerCase() === val.toLowerCase();
+                        return (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => setOtherWizardData(prev => ({ ...prev, disability: val }))}
+                            className={`px-4 py-2 rounded-full text-xs font-bold border transition-all ${
+                              isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            {val}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSaveOtherWizard}
+                  disabled={Boolean(savingField)}
+                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
+                >
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Save Other Details"}
+                </button>
+              </motion.div>
+            )}
+
+            {/* 🌟 NATIVE / LOCATION SHEET (Screenshot 3) */}
+            {activeSheet === 'location' && (
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}
+                className="relative z-10 w-full max-w-lg bg-white rounded-t-3xl p-5 shadow-2xl max-h-[85vh] flex flex-col space-y-4"
+              >
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    {locationStep === 'city' ? (
+                      <button 
+                        type="button" 
+                        onClick={() => { setLocationStep('state'); setLocationSearch(''); }} 
+                        className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer"
+                        title="Back to States"
+                      >
+                        <ArrowLeft size={18} />
+                      </button>
+                    ) : (
+                      <button 
+                        type="button" 
+                        onClick={() => setActiveSheet(openedFromWizard || null)} 
+                        className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer"
+                      >
+                        <X size={18} />
+                      </button>
+                    )}
+                    <div>
+                      <h3 className="text-base font-black text-slate-900">
+                        {locationStep === 'state' 
+                          ? (locationTargetField === 'NativeLocation' ? "Select Native State" : "Select State")
+                          : (locationTargetField === 'NativeLocation' ? "Select Native City" : "Select City")}
+                      </h3>
+                      {locationStep === 'city' && (
+                        <p className="text-[11px] font-bold text-[#d91b5c]">
+                          State: {(masterData.STATES || []).find(s => s.id === selectedStateId)?.value || 'Selected State'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 🔍 Search Input */}
                 <div className="relative">
                   <Search size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
                   <input 
                     type="text"
-                    placeholder={`Search ${sheetTitle.toLowerCase().replace('select', '').trim()}...`}
-                    value={sheetSearch}
-                    onChange={(e) => setSheetSearch(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 bg-slate-100/80 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#d91b5c]/20"
+                    placeholder={locationStep === 'state' ? "Search state (e.g. Uttar Pradesh, Delhi)..." : "Search city (e.g. Lucknow, Bareilly)..."}
+                    value={locationSearch}
+                    onChange={(e) => setLocationSearch(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#d91b5c]/20"
                   />
                 </div>
 
-                {/* Radio List */}
-                <div className="flex-1 overflow-y-auto space-y-1 pr-1 divide-y divide-slate-100">
+                {/* STEP 1: STATES LIST */}
+                {locationStep === 'state' && (
+                  <div className="flex-1 overflow-y-auto space-y-1 divide-y divide-slate-100 pr-1">
+                    {(masterData.STATES || [])
+                      .filter(s => s.value.toLowerCase().includes(locationSearch.toLowerCase()))
+                      .map(s => {
+                        const isSelected = selectedStateId === Number(s.id);
+                        return (
+                          <div
+                            key={s.id}
+                            onClick={() => {
+                              setSelectedStateId(Number(s.id));
+                              setLocationStep('city');
+                              setLocationSearch('');
+                            }}
+                            className="py-3 px-2 flex items-center justify-between cursor-pointer hover:bg-rose-50/60 rounded-xl transition-colors"
+                          >
+                            <span className={`text-xs ${isSelected ? 'font-black text-[#d91b5c]' : 'font-medium text-slate-800'}`}>
+                              {s.value}
+                            </span>
+                            <div className="flex items-center gap-1.5 text-slate-400">
+                              <span className="text-[10px] text-slate-400 font-bold">Select City</span>
+                              <ChevronRight size={15} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+
+                {/* STEP 2: CITIES LIST */}
+                {locationStep === 'city' && (
+                  <div className="flex-1 overflow-y-auto space-y-1 divide-y divide-slate-100 pr-1">
+                    {stateCities
+                      .filter(c => c.value.toLowerCase().includes(locationSearch.toLowerCase()))
+                      .map(c => {
+                        const isSelected = selectedCityId === Number(c.id);
+                        return (
+                          <div
+                            key={c.id}
+                            onClick={() => setSelectedCityId(Number(c.id))}
+                            className="py-3 px-2 flex items-center justify-between cursor-pointer hover:bg-slate-50 rounded-xl transition-colors"
+                          >
+                            <span className={`text-xs ${isSelected ? 'font-black text-[#d91b5c]' : 'font-medium text-slate-800'}`}>
+                              {c.value}
+                            </span>
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                              isSelected ? 'border-[#d91b5c]' : 'border-slate-300'
+                            }`}>
+                              {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-[#d91b5c]" />}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+
+                {locationStep === 'city' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (openedFromWizard === 'familyWizard') {
+                        const stateObj = (masterData.STATES || []).find(s => s.id === selectedStateId);
+                        const cityObj = stateCities.find(c => c.id === selectedCityId) || stateCities[0];
+                        const sName = stateObj?.value || '';
+                        const cName = cityObj?.value || '';
+                        setFamilyWizardData(prev => ({
+                          ...prev,
+                          nativeStateId: selectedStateId,
+                          nativeCityId: selectedCityId,
+                          nativeLocation: `${cName}, ${sName}`
+                        }));
+                        setOpenedFromWizard(null);
+                        setActiveSheet('familyWizard');
+                      } else {
+                        handleSaveLocation();
+                      }
+                    }}
+                    disabled={Boolean(savingField)}
+                    className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
+                  >
+                    {savingField ? <Loader2 size={18} className="animate-spin" /> : "Update Native Location"}
+                  </button>
+                )}
+              </motion.div>
+            )}
+
+            {/* 🌟 GENERIC OPTION RADIO SHEET */}
+            {activeSheet === 'option' && (
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}
+                className="relative z-10 w-full max-w-lg bg-white rounded-t-3xl p-5 shadow-2xl max-h-[80vh] flex flex-col space-y-4"
+              >
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                      <X size={18} />
+                    </button>
+                    <h3 className="text-base font-black text-slate-900">{sheetTitle}</h3>
+                  </div>
+                </div>
+
+                {sheetOptions.length > 5 && (
+                  <div className="relative">
+                    <Search size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
+                    <input 
+                      type="text"
+                      placeholder="Search option..."
+                      value={sheetSearch}
+                      onChange={(e) => setSheetSearch(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#d91b5c]/20"
+                    />
+                  </div>
+                )}
+
+                <div className="flex-1 overflow-y-auto space-y-1 divide-y divide-slate-100 pr-1">
                   {filteredSheetOptions.map((opt) => {
-                    const isSelected = String(selectedSheetValue) === String(opt.id) || String(selectedSheetValue) === String(opt.value);
+                    const isSelected = String(opt.id) === String(selectedSheetValue) || opt.value === selectedSheetValue;
                     return (
-                      <div 
+                      <div
                         key={String(opt.id || opt.value)}
-                        onClick={() => setSelectedSheetValue(opt.id !== undefined ? opt.id : opt.value)}
-                        className="py-3 px-1 flex items-center justify-between cursor-pointer hover:bg-slate-50 rounded-xl transition-colors"
+                        onClick={() => setSelectedSheetValue(opt.id)}
+                        className="py-3 px-2 flex items-center justify-between cursor-pointer hover:bg-slate-50 rounded-xl"
                       >
-                        <span className={`text-xs ${isSelected ? 'text-slate-900 font-bold' : 'text-slate-800 font-medium'}`}>
-                          {opt.value}
-                        </span>
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                        <div className="space-y-0.5">
+                          <span className={`text-xs block ${isSelected ? 'font-black text-[#d91b5c]' : 'font-semibold text-slate-800'}`}>
+                            {opt.value}
+                          </span>
+                          {opt.desc && (
+                            <span className="text-[11px] text-slate-400 block">{opt.desc}</span>
+                          )}
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
                           isSelected ? 'border-[#d91b5c]' : 'border-slate-300'
                         }`}>
                           {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-[#d91b5c]" />}
@@ -2286,11 +3236,6 @@ export default function EditMyProfilePage() {
                       </div>
                     );
                   })}
-                  {filteredSheetOptions.length === 0 && (
-                    <div className="py-8 text-center text-xs text-slate-400 font-semibold">
-                      No matching options found.
-                    </div>
-                  )}
                 </div>
 
                 <button
@@ -2304,709 +3249,218 @@ export default function EditMyProfilePage() {
               </motion.div>
             )}
 
-            {/* 🌟 SHEET E: IN-APP TEXT / EMAIL / PHONE INPUT SHEET */}
-            {activeSheet === 'textInput' && (
-              <motion.div 
+            {/* 🌟 HEIGHT SLIDER SHEET */}
+            {activeSheet === 'height' && (
+              <motion.div
                 initial={{ y: "100%" }}
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 260 }}
-                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pt-5 space-y-4 shadow-2xl text-left"
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}
+                className="relative z-10 w-full max-w-lg bg-white rounded-t-3xl p-6 shadow-2xl flex flex-col space-y-5"
               >
-                <div className="flex justify-center -mt-10 mb-1">
-                  <button
-                    type="button"
-                    onClick={() => setActiveSheet(null)}
-                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-black text-slate-900">{textInputData.title}</h3>
-                  <p className="text-xs text-slate-500 font-medium">{textInputData.subtitle}</p>
-                </div>
-
-                <div className="space-y-1">
-                  {textInputData.multiline ? (
-                    <textarea
-                      rows={5}
-                      maxLength={textInputData.maxLength || 500}
-                      value={textInputData.value}
-                      onChange={(e) => setTextInputData(prev => ({ ...prev, value: e.target.value }))}
-                      placeholder={textInputData.placeholder}
-                      className="w-full p-3.5 rounded-2xl border border-slate-300 text-xs font-semibold text-slate-900 focus:outline-none focus:border-[#d91b5c] focus:ring-2 focus:ring-[#d91b5c]/20 leading-relaxed resize-none"
-                      autoFocus
-                    />
-                  ) : (
-                    <input
-                      type={textInputData.inputType || 'text'}
-                      maxLength={textInputData.maxLength || 120}
-                      value={textInputData.value}
-                      onChange={(e) => setTextInputData(prev => ({ ...prev, value: e.target.value }))}
-                      placeholder={textInputData.placeholder}
-                      className="w-full p-3.5 rounded-2xl border border-slate-300 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#d91b5c] focus:ring-2 focus:ring-[#d91b5c]/20"
-                      autoFocus
-                    />
-                  )}
-                  <div className="text-right text-[11px] text-slate-400 font-bold">
-                    {textInputData.value.length}/{textInputData.maxLength || 120}
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                      <X size={18} />
+                    </button>
+                    <h3 className="text-base font-black text-slate-900">Select Height</h3>
                   </div>
                 </div>
+
+                <div className="py-4 text-center space-y-2">
+                  <span className="text-2xl font-black text-[#d91b5c] block">
+                    {cmToFtIn(heightCm)}
+                  </span>
+                  <span className="text-xs text-slate-400 font-medium block">
+                    Slide to adjust height accurately
+                  </span>
+                </div>
+
+                <input 
+                  type="range"
+                  min={120}
+                  max={220}
+                  value={heightCm}
+                  onChange={(e) => setHeightCm(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#d91b5c]"
+                />
+
+                <div className="flex justify-between text-[11px] font-bold text-slate-400 px-1">
+                  <span>4ft (120 cm)</span>
+                  <span>5ft 7in (170 cm)</span>
+                  <span>7ft 2in (220 cm)</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSaveHeight}
+                  disabled={Boolean(savingField)}
+                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
+                >
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Save Height"}
+                </button>
+              </motion.div>
+            )}
+
+            {/* 🌟 INCOME SLIDER SHEET */}
+            {activeSheet === 'income' && (
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}
+                className="relative z-10 w-full max-w-lg bg-white rounded-t-3xl p-6 shadow-2xl flex flex-col space-y-5"
+              >
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                      <X size={18} />
+                    </button>
+                    <h3 className="text-base font-black text-slate-900">Select Annual Income</h3>
+                  </div>
+                </div>
+
+                <div className="py-4 text-center space-y-2">
+                  <span className="text-2xl font-black text-[#d91b5c] block">
+                    {INCOME_BRACKETS[incomeIndex]}
+                  </span>
+                  <span className="text-xs text-slate-400 font-medium block">
+                    Select your current approximate annual bracket
+                  </span>
+                </div>
+
+                <input 
+                  type="range"
+                  min={0}
+                  max={INCOME_BRACKETS.length - 1}
+                  value={incomeIndex}
+                  onChange={(e) => setIncomeIndex(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#d91b5c]"
+                />
+
+                <button
+                  type="button"
+                  onClick={handleSaveIncome}
+                  disabled={Boolean(savingField)}
+                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
+                >
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Save Income"}
+                </button>
+              </motion.div>
+            )}
+
+            {/* 🌟 TEXT INPUT SHEET */}
+            {activeSheet === 'textInput' && (
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}
+                className="relative z-10 w-full max-w-lg bg-white rounded-t-3xl p-6 shadow-2xl flex flex-col space-y-4"
+              >
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                      <X size={18} />
+                    </button>
+                    <h3 className="text-base font-black text-slate-900">{textInputData.title}</h3>
+                  </div>
+                </div>
+
+                <p className="text-xs text-slate-500 font-medium">{textInputData.subtitle}</p>
+
+                {textInputData.multiline ? (
+                  <textarea
+                    rows={4}
+                    value={textInputData.value}
+                    onChange={(e) => setTextInputData(prev => ({ ...prev, value: e.target.value }))}
+                    placeholder={textInputData.placeholder}
+                    maxLength={textInputData.maxLength}
+                    className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#d91b5c]/20"
+                  />
+                ) : (
+                  <input
+                    type={textInputData.inputType || 'text'}
+                    value={textInputData.value}
+                    onChange={(e) => setTextInputData(prev => ({ ...prev, value: e.target.value }))}
+                    placeholder={textInputData.placeholder}
+                    maxLength={textInputData.maxLength}
+                    className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#d91b5c]/20"
+                  />
+                )}
 
                 <button
                   type="button"
                   onClick={handleSaveTextInput}
                   disabled={Boolean(savingField)}
-                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
+                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
                 >
-                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Update"}
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Save"}
                 </button>
               </motion.div>
             )}
 
-            {/* 🌟 SHEET M: CHANGE MOBILE NUMBER WITH OTP SHEET */}
-            {activeSheet === 'changeMobile' && (
-              <motion.div 
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
-                exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 260 }}
-                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pt-5 space-y-4 shadow-2xl text-left"
-              >
-                <div className="flex justify-center -mt-10 mb-1">
-                  <button
-                    type="button"
-                    onClick={() => setActiveSheet(null)}
-                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                <div>
-                  <h3 className="text-base font-black text-slate-900">Change Mobile Number</h3>
-                  <p className="text-xs text-slate-500 font-medium mt-0.5">
-                    Enter your new mobile number. We will send a 6-digit OTP to verify ownership.
-                  </p>
-                </div>
-
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-[11px] font-extrabold uppercase text-slate-600 block mb-1">New Mobile Number</label>
-                    <div className="flex gap-2">
-                      <div className="flex items-center px-3.5 bg-slate-100 rounded-2xl border border-slate-200 text-xs font-bold text-slate-700">
-                        +91
-                      </div>
-                      <input 
-                        type="tel"
-                        maxLength={10}
-                        placeholder="10-digit mobile number"
-                        disabled={mobileOtpSent}
-                        value={newMobileNumber}
-                        onChange={(e) => setNewMobileNumber(e.target.value.replace(/\D/g, ''))}
-                        className="flex-1 px-4 py-3 bg-slate-50 rounded-2xl border-2 border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#d91b5c]"
-                      />
-                    </div>
-                  </div>
-
-                  {!mobileOtpSent ? (
-                    <button
-                      type="button"
-                      disabled={sendingMobileOtp || newMobileNumber.length !== 10}
-                      onClick={handleSendMobileOtp}
-                      className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                      {sendingMobileOtp ? <Loader2 size={16} className="animate-spin" /> : <Phone size={16} />}
-                      <span>Send Verification Code</span>
-                    </button>
-                  ) : (
-                    <div className="space-y-3 pt-2">
-                      <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 text-[11px] font-bold text-emerald-800 flex items-center justify-between">
-                        <span>OTP sent to +91 {newMobileNumber}</span>
-                        <button 
-                          type="button" 
-                          onClick={() => setMobileOtpSent(false)} 
-                          className="text-[#d91b5c] underline cursor-pointer"
-                        >
-                          Change
-                        </button>
-                      </div>
-
-                      <div>
-                        <label className="text-[11px] font-extrabold uppercase text-slate-600 block mb-1">Enter 6-Digit OTP</label>
-                        <input 
-                          type="text"
-                          maxLength={6}
-                          placeholder="e.g. 123456"
-                          value={mobileOtpCode}
-                          onChange={(e) => setMobileOtpCode(e.target.value.replace(/\D/g, ''))}
-                          className="w-full px-4 py-3 bg-slate-50 rounded-2xl border-2 border-slate-200 text-center tracking-widest text-lg font-black text-slate-900 focus:outline-none focus:border-[#d91b5c]"
-                        />
-                      </div>
-
-                      <button
-                        type="button"
-                        disabled={verifyingMobileOtp || mobileOtpCode.length < 4}
-                        onClick={handleVerifyAndUpdateMobile}
-                        className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-900/20 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
-                      >
-                        {verifyingMobileOtp ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                        <span>Verify & Update Number</span>
-                      </button>
-
-                      <div className="text-center">
-                        <button
-                          type="button"
-                          disabled={sendingMobileOtp}
-                          onClick={handleSendMobileOtp}
-                          className="text-xs font-bold text-[#d91b5c] hover:underline cursor-pointer"
-                        >
-                          Didn't receive code? Resend OTP
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-
-            {/* 🌟 SHEET F: SIBLING COUNTERS SHEET */}
-            {activeSheet === 'counters' && (
-              <motion.div 
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
-                exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 260 }}
-                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pt-5 space-y-5 shadow-2xl text-left"
-              >
-                <div className="flex justify-center -mt-10 mb-1">
-                  <button
-                    type="button"
-                    onClick={() => setActiveSheet(null)}
-                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-black text-slate-900">Siblings Details</h3>
-                  <p className="text-xs text-slate-500 font-medium">Specify your brothers and sisters overview</p>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Brothers */}
-                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
-                    <span className="text-xs font-black text-slate-800 block">Brothers</span>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Total Brothers</span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setCountersState(prev => ({ 
-                              ...prev, 
-                              totalBrothers: Math.max(0, prev.totalBrothers - 1),
-                              marriedBrothers: Math.min(prev.marriedBrothers, Math.max(0, prev.totalBrothers - 1))
-                            }))}
-                            className="w-8 h-8 rounded-full bg-white border border-slate-300 flex items-center justify-center text-slate-700 font-bold active:scale-95"
-                          >
-                            <Minus size={14} />
-                          </button>
-                          <span className="text-sm font-black text-slate-900 w-6 text-center">{countersState.totalBrothers}</span>
-                          <button
-                            type="button"
-                            onClick={() => setCountersState(prev => ({ ...prev, totalBrothers: prev.totalBrothers + 1 }))}
-                            className="w-8 h-8 rounded-full bg-white border border-slate-300 flex items-center justify-center text-slate-700 font-bold active:scale-95"
-                          >
-                            <Plus size={14} />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Married Brothers</span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setCountersState(prev => ({ ...prev, marriedBrothers: Math.max(0, prev.marriedBrothers - 1) }))}
-                            className="w-8 h-8 rounded-full bg-white border border-slate-300 flex items-center justify-center text-slate-700 font-bold active:scale-95"
-                          >
-                            <Minus size={14} />
-                          </button>
-                          <span className="text-sm font-black text-slate-900 w-6 text-center">{countersState.marriedBrothers}</span>
-                          <button
-                            type="button"
-                            onClick={() => setCountersState(prev => ({ 
-                              ...prev, 
-                              marriedBrothers: Math.min(prev.totalBrothers, prev.marriedBrothers + 1) 
-                            }))}
-                            className="w-8 h-8 rounded-full bg-white border border-slate-300 flex items-center justify-center text-slate-700 font-bold active:scale-95"
-                          >
-                            <Plus size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Sisters */}
-                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
-                    <span className="text-xs font-black text-slate-800 block">Sisters</span>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Total Sisters</span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setCountersState(prev => ({ 
-                              ...prev, 
-                              totalSisters: Math.max(0, prev.totalSisters - 1),
-                              marriedSisters: Math.min(prev.marriedSisters, Math.max(0, prev.totalSisters - 1))
-                            }))}
-                            className="w-8 h-8 rounded-full bg-white border border-slate-300 flex items-center justify-center text-slate-700 font-bold active:scale-95"
-                          >
-                            <Minus size={14} />
-                          </button>
-                          <span className="text-sm font-black text-slate-900 w-6 text-center">{countersState.totalSisters}</span>
-                          <button
-                            type="button"
-                            onClick={() => setCountersState(prev => ({ ...prev, totalSisters: prev.totalSisters + 1 }))}
-                            className="w-8 h-8 rounded-full bg-white border border-slate-300 flex items-center justify-center text-slate-700 font-bold active:scale-95"
-                          >
-                            <Plus size={14} />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Married Sisters</span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setCountersState(prev => ({ ...prev, marriedSisters: Math.max(0, prev.marriedSisters - 1) }))}
-                            className="w-8 h-8 rounded-full bg-white border border-slate-300 flex items-center justify-center text-slate-700 font-bold active:scale-95"
-                          >
-                            <Minus size={14} />
-                          </button>
-                          <span className="text-sm font-black text-slate-900 w-6 text-center">{countersState.marriedSisters}</span>
-                          <button
-                            type="button"
-                            onClick={() => setCountersState(prev => ({ 
-                              ...prev, 
-                              marriedSisters: Math.min(prev.totalSisters, prev.marriedSisters + 1) 
-                            }))}
-                            className="w-8 h-8 rounded-full bg-white border border-slate-300 flex items-center justify-center text-slate-700 font-bold active:scale-95"
-                          >
-                            <Plus size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleSaveCounters}
-                  disabled={Boolean(savingField)}
-                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
-                >
-                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Update"}
-                </button>
-              </motion.div>
-            )}
-
-            {/* 🌟 SHEET G: BIO FULL SLIDE SHEET (Matches Screenshot Exactly: ✕ Bio + Tell us about yourself + Save) */}
+            {/* 🌟 BIO SHEET */}
             {activeSheet === 'bio' && (
-              <motion.div 
+              <motion.div
                 initial={{ y: "100%" }}
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 260 }}
-                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pt-5 space-y-4 shadow-2xl text-left"
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}
+                className="relative z-10 w-full max-w-lg bg-white rounded-t-3xl p-6 shadow-2xl flex flex-col space-y-4 max-h-[85vh]"
               >
-                <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-                  <button
-                    type="button"
-                    onClick={() => setActiveSheet(null)}
-                    className="p-1 rounded-full hover:bg-slate-100 text-slate-800 cursor-pointer"
-                  >
-                    <X size={20} />
-                  </button>
-                  <span className="text-base font-black text-slate-900">Bio</span>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-black text-slate-900">Tell us about yourself</h3>
-                  <p className="text-xs text-slate-500 font-medium mt-1">
-                    Tell them more about your principles, partner expectations, family and hobbies.
-                  </p>
-                </div>
-
-                <div className="relative">
-                  <textarea 
-                    rows={6}
-                    maxLength={1000}
-                    value={bioDraft}
-                    onChange={(e) => setBioDraft(e.target.value)}
-                    placeholder="values. We prefer a simple, meaningful, and dignified Nikah ceremony..."
-                    className="w-full p-4 rounded-2xl border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:border-[#d91b5c] focus:ring-2 focus:ring-[#d91b5c]/20 leading-relaxed resize-none shadow-2xs"
-                  />
-                  <div className="text-right text-[11px] text-slate-400 font-bold mt-1">
-                    {bioDraft.length}/1000
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                      <X size={18} />
+                    </button>
+                    <h3 className="text-base font-black text-slate-900">About Yourself</h3>
                   </div>
                 </div>
+
+                <textarea
+                  rows={6}
+                  value={bioDraft}
+                  onChange={(e) => setBioDraft(e.target.value)}
+                  placeholder="Express your values, Islamic lifestyle, interests, career ambitions, and family expectations..."
+                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#d91b5c]/20 leading-relaxed"
+                />
 
                 <button
                   type="button"
                   onClick={handleSaveBio}
-                  disabled={savingField === 'AboutMe'}
-                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
-                >
-                  {savingField === 'AboutMe' ? <Loader2 size={18} className="animate-spin" /> : "Save"}
-                </button>
-              </motion.div>
-            )}
-
-            {/* 🌟 SHEET H: LOCATION SELECTOR (STATE & CITY) */}
-            {activeSheet === 'location' && (
-              <motion.div 
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
-                exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 260 }}
-                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pt-5 space-y-4 shadow-2xl text-left max-h-[85vh] flex flex-col"
-              >
-                <div className="flex justify-center -mt-10 mb-1">
-                  <button
-                    type="button"
-                    onClick={() => setActiveSheet(null)}
-                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-black text-slate-900">
-                    {locationTargetField === 'FamilyLocation' ? "Family Location" : (locationTargetField === 'NativeLocation' ? "Native Location" : "Current Location")}
-                  </h3>
-                  <p className="text-xs text-slate-500 font-medium">Select state and city in India</p>
-                </div>
-
-                <div className="space-y-3 flex-1 overflow-y-auto pr-1">
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                      State / Province
-                    </label>
-                    <select
-                      value={selectedStateId}
-                      onChange={(e) => setSelectedStateId(Number(e.target.value))}
-                      className="w-full p-3.5 rounded-2xl border border-slate-200 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-[#d91b5c]"
-                    >
-                      {(masterData.STATES || []).map(s => (
-                        <option key={s.id} value={s.id}>{s.value}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                      City / District
-                    </label>
-                    <select
-                      value={selectedCityId}
-                      onChange={(e) => setSelectedCityId(Number(e.target.value))}
-                      className="w-full p-3.5 rounded-2xl border border-slate-200 text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-[#d91b5c]"
-                    >
-                      {stateCities.map(c => (
-                        <option key={c.id} value={c.id}>{c.value}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleSaveLocation}
                   disabled={Boolean(savingField)}
                   className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
                 >
-                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Update"}
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Update Bio"}
                 </button>
               </motion.div>
             )}
 
-            {/* 🌟 SHEET I: PHOTO PRIVACY BOTTOM SHEET (Matches Screenshot Exactly: Who can see my photo + Save) */}
-            {activeSheet === 'photoPrivacy' && (
-              <motion.div 
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
-                exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 260 }}
-                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pt-5 space-y-4 shadow-2xl text-left"
-              >
-                <div className="flex justify-center -mt-10 mb-1">
-                  <button
-                    type="button"
-                    onClick={() => setActiveSheet(null)}
-                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                <div className="text-left">
-                  <h3 className="text-base font-black text-slate-900">Who can see my photo</h3>
-                </div>
-
-                <div className="space-y-3 pt-1">
-                  {(masterData.PHOTO_PRIVACY && masterData.PHOTO_PRIVACY.length > 0 ? masterData.PHOTO_PRIVACY : [
-                    { id: 1, value: 'All Members', displayName: 'All Members', description: 'Visible to everyone' },
-                    { id: 2, value: 'Premium Only', displayName: 'Premium Members', description: 'Blurred for free users' },
-                    { id: 3, value: 'Only Approved', displayName: 'Members I Approve', description: 'Blurred until you approve' },
-                  ]).map((item: any) => {
-                    const itemVal = item.value || item.Value || item.displayName || item.DisplayName;
-                    const itemTitle = item.displayName || item.DisplayName || item.title || itemVal;
-                    const itemDesc = item.description || item.Description || item.desc || 'Photo privacy option';
-                    const isSelected = (selectedSheetValue || formData.PhotoPrivacy) === itemVal || (selectedSheetValue || formData.PhotoPrivacy) === itemTitle;
-                    return (
-                      <div
-                        key={item.id || itemVal}
-                        onClick={() => setSelectedSheetValue(itemVal)}
-                        className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
-                          isSelected ? 'border-[#d91b5c] bg-rose-50/40' : 'border-slate-200 hover:border-slate-300'
-                        }`}
-                      >
-                        <div>
-                          <div className={`text-xs font-black ${isSelected ? 'text-[#d91b5c]' : 'text-slate-900'}`}>
-                            {itemTitle}
-                          </div>
-                          <div className="text-[11px] text-slate-400 mt-0.5">{itemDesc}</div>
-                        </div>
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                          isSelected ? 'border-[#d91b5c] bg-[#d91b5c]' : 'border-slate-300'
-                        }`}>
-                          {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-white" />}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <p className="text-[11px] text-slate-400 text-center font-medium">
-                  You can change this later in your privacy settings
-                </p>
-
-                <button
-                  type="button"
-                  onClick={() => handleSavePhotoPrivacy(selectedSheetValue || formData.PhotoPrivacy)}
-                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center"
-                >
-                  Save
-                </button>
-              </motion.div>
-            )}
-
-            {/* 🌟 SHEET J: TRUST BADGE (Matches Screenshot Exactly: Add Trust Badge + Continue) */}
-            {activeSheet === 'trustBadge' && (
-              <motion.div 
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
-                exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 260 }}
-                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pt-5 space-y-4 shadow-2xl text-left max-h-[90vh] flex flex-col"
-              >
-                <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-                  <button
-                    type="button"
-                    onClick={() => setActiveSheet(null)}
-                    className="p-1 rounded-full hover:bg-slate-100 text-slate-800 cursor-pointer"
-                  >
-                    <ArrowLeft size={20} />
-                  </button>
-                  <span className="text-base font-black text-slate-900 flex items-center gap-1.5">
-                    Add Trust Badge <CheckCircle2 size={16} className="text-sky-500 fill-sky-100" />
-                  </span>
-                </div>
-
-                <div className="flex-1 overflow-y-auto space-y-4 pr-1">
-                  {/* Upload Box */}
-                  <label className="border-2 border-dashed border-[#d91b5c] rounded-3xl p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-rose-50/20 transition-all bg-white">
-                    <input 
-                      type="file"
-                      accept="image/*,.pdf"
-                      className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) {
-                          setGovtDocFile(f);
-                          if (f.type.startsWith('image/')) {
-                            setGovtDocPreview(URL.createObjectURL(f));
-                          } else {
-                            setGovtDocPreview('');
-                          }
-                        }
-                      }}
-                    />
-
-                    {govtDocPreview ? (
-                      <div className="space-y-2">
-                        <img 
-                          src={govtDocPreview} 
-                          alt="ID Preview" 
-                          className="max-h-36 rounded-xl object-contain border border-slate-200 mx-auto"
-                        />
-                        <span className="text-xs font-bold text-[#d91b5c] block">Tap to change document</span>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="relative mb-3">
-                          <div className="w-14 h-14 rounded-2xl border-2 border-slate-300 flex items-center justify-center text-slate-400">
-                            <Upload size={24} />
-                          </div>
-                          <div className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-[#d91b5c] text-white flex items-center justify-center text-xs font-black shadow-xs">
-                            +
-                          </div>
-                        </div>
-                        <span className="text-sm font-black text-slate-900 block">Upload Govt ID</span>
-                        <span className="text-xs text-slate-400 font-medium block mt-0.5">
-                          (Adhaar, PAN, Passport etc)
-                        </span>
-                      </>
-                    )}
-                  </label>
-
-                  {/* Benefits Card */}
-                  <div className="p-4 rounded-2xl border border-slate-200/80 space-y-2 bg-white">
-                    <span className="text-xs font-black text-slate-900 block">Benefits</span>
-                    <ul className="text-xs text-slate-600 space-y-2 font-medium">
-                      <li className="flex items-start gap-2">
-                        <span className="text-slate-400 mt-0.5">&bull;</span>
-                        <span>Upload a Valid Government ID to get the Trust badge.</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-slate-400 mt-0.5">&bull;</span>
-                        <span>Verified member get a Trust Badge for more visibility and trust.</span>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleSubmitGovtDoc}
-                  disabled={uploadingGovtDoc || !govtDocFile}
-                  className="w-full py-3.5 rounded-full bg-slate-200 disabled:opacity-50 enabled:bg-[#d91b5c] enabled:hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
-                >
-                  {uploadingGovtDoc ? <Loader2 size={18} className="animate-spin" /> : "Continue"}
-                </button>
-              </motion.div>
-            )}
-
-            {/* 🌟 SHEET K: LIFESTYLE & INTEREST PROMPT HUB */}
-            {activeSheet === 'lifestyleHub' && (
-              <motion.div 
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
-                exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 260 }}
-                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pt-5 space-y-4 shadow-2xl text-left"
-              >
-                <div className="flex justify-center -mt-10 mb-1">
-                  <button
-                    type="button"
-                    onClick={() => setActiveSheet(null)}
-                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-black text-slate-900">Lifestyle & Interests</h3>
-                  <p className="text-xs text-slate-500 font-medium">Add your hobbies and music tastes to complete your profile</p>
-                </div>
-
-                <div className="space-y-3 pt-1">
-                  {/* Option 1: Hobbies */}
-                  <div
-                    onClick={() => openMultiSelectSheet('Hobbies')}
-                    className="p-4 rounded-2xl border-2 border-rose-100 hover:border-[#d91b5c] bg-rose-50/20 hover:bg-rose-50/50 transition-all cursor-pointer flex items-center justify-between group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-rose-100 text-[#d91b5c] flex items-center justify-center shrink-0">
-                        <Smile size={20} />
-                      </div>
-                      <div>
-                        <div className="text-xs font-black text-slate-900 group-hover:text-[#d91b5c] transition-colors">
-                          Hobbies
-                        </div>
-                        <div className="text-[11px] text-slate-500 font-medium mt-0.5">
-                          {formData.Hobbies ? `${formData.Hobbies.split(',').filter(Boolean).length} Selected: ${formData.Hobbies}` : "Reading, Travelling, Cooking..."}
-                        </div>
-                      </div>
-                    </div>
-                    <ChevronRight size={18} className="text-[#d91b5c] shrink-0" />
-                  </div>
-
-                  {/* Option 2: Musics */}
-                  <div
-                    onClick={() => openMultiSelectSheet('Interests')}
-                    className="p-4 rounded-2xl border-2 border-violet-100 hover:border-violet-600 bg-violet-50/20 hover:bg-violet-50/50 transition-all cursor-pointer flex items-center justify-between group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-violet-100 text-violet-700 flex items-center justify-center shrink-0">
-                        <Music size={20} />
-                      </div>
-                      <div>
-                        <div className="text-xs font-black text-slate-900 group-hover:text-violet-700 transition-colors">
-                          Musics
-                        </div>
-                        <div className="text-[11px] text-slate-500 font-medium mt-0.5">
-                          {formData.Interests ? `${formData.Interests.split(',').filter(Boolean).length} Selected: ${formData.Interests}` : "Sufi, Classical Ghazals, Poetry..."}
-                        </div>
-                      </div>
-                    </div>
-                    <ChevronRight size={18} className="text-violet-700 shrink-0" />
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {/* 🌟 SHEET L: APP-LIKE MULTI-SELECT BOTTOM SHEET (For Languages, Sports, Hobbies, Musics) */}
+            {/* 🌟 MULTI-SELECT SHEET */}
             {activeSheet === 'multiSelect' && (
-              <motion.div 
+              <motion.div
                 initial={{ y: "100%" }}
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 260 }}
-                className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl p-5 pt-4 space-y-4 shadow-2xl text-left max-h-[85vh] flex flex-col"
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}
+                className="relative z-10 w-full max-w-lg bg-white rounded-t-3xl p-5 shadow-2xl max-h-[85vh] flex flex-col space-y-4"
               >
-                <div className="flex justify-center -mt-9 mb-1">
-                  <button
-                    type="button"
-                    onClick={() => setActiveSheet(null)}
-                    className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center shadow-xl hover:bg-black transition-colors cursor-pointer border-2 border-white"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-base font-black text-slate-900">{multiSelectTitle}</h3>
-                    <p className="text-xs text-slate-500 font-medium">{multiSelectSubtitle}</p>
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                      <X size={18} />
+                    </button>
+                    <div>
+                      <h3 className="text-base font-black text-slate-900">{multiSelectTitle}</h3>
+                      <p className="text-[11px] text-slate-500 font-medium">{multiSelectSubtitle}</p>
+                    </div>
                   </div>
                   <span className="text-xs font-bold text-[#d91b5c] bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200">
                     {multiSelectItems.length} Selected
                   </span>
                 </div>
 
-                {/* Selected Removable Chips at Top */}
                 {multiSelectItems.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 p-2 bg-slate-50 rounded-xl border border-slate-100 max-h-20 overflow-y-auto">
                     {multiSelectItems.map((item) => (
@@ -3025,7 +3479,6 @@ export default function EditMyProfilePage() {
                   </div>
                 )}
 
-                {/* Search */}
                 <div className="relative">
                   <Search size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
                   <input 
@@ -3033,11 +3486,10 @@ export default function EditMyProfilePage() {
                     placeholder="Search options..."
                     value={multiSelectSearch}
                     onChange={(e) => setMultiSelectSearch(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 bg-slate-100 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#d91b5c]/20"
+                    className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#d91b5c]/20"
                   />
                 </div>
 
-                {/* App-Style Options List with Checkboxes */}
                 <div className="flex-1 overflow-y-auto pr-1 divide-y divide-slate-100">
                   {filteredMultiSelectOptions.map((opt) => {
                     const isSelected = multiSelectItems.includes(opt.value);
@@ -3058,11 +3510,6 @@ export default function EditMyProfilePage() {
                       </div>
                     );
                   })}
-                  {filteredMultiSelectOptions.length === 0 && (
-                    <div className="py-8 text-center text-xs text-slate-400 font-semibold">
-                      No matching options found.
-                    </div>
-                  )}
                 </div>
 
                 <button
@@ -3072,6 +3519,240 @@ export default function EditMyProfilePage() {
                   className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
                 >
                   {savingField ? <Loader2 size={18} className="animate-spin" /> : "Update"}
+                </button>
+              </motion.div>
+            )}
+
+            {/* 🌟 TRUST BADGE / GOVT ID UPLOAD SHEET */}
+            {activeSheet === 'trustBadge' && (
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}
+                className="relative z-10 w-full max-w-lg bg-white rounded-t-3xl p-6 shadow-2xl flex flex-col space-y-4 max-h-[85vh]"
+              >
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                      <X size={18} />
+                    </button>
+                    <h3 className="text-base font-black text-slate-900">Verify Your Profile</h3>
+                  </div>
+                </div>
+
+                <p className="text-xs text-slate-500 font-medium">
+                  Upload an official document (Aadhaar Card, Passport, Driving License) to earn the blue verification trust badge on your profile.
+                </p>
+
+                <label className="border-2 border-dashed border-slate-200 hover:border-[#d91b5c] rounded-2xl p-6 text-center cursor-pointer transition-colors bg-slate-50/50 flex flex-col items-center justify-center gap-2">
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setGovtDocFile(file);
+                        setGovtDocPreview(file.name);
+                      }
+                    }}
+                  />
+                  <Upload size={28} className="text-slate-400" />
+                  <span className="text-xs font-bold text-slate-700">
+                    {govtDocPreview ? govtDocPreview : "Click to choose Document File (Max 5MB)"}
+                  </span>
+                </label>
+
+                <button
+                  type="button"
+                  onClick={handleSubmitGovtDoc}
+                  disabled={uploadingGovtDoc || !govtDocFile}
+                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0 disabled:opacity-50"
+                >
+                  {uploadingGovtDoc ? <Loader2 size={18} className="animate-spin" /> : "Submit for Verification"}
+                </button>
+              </motion.div>
+            )}
+
+            {/* 🌟 CHANGE MOBILE VIA OTP SHEET */}
+            {activeSheet === 'changeMobile' && (
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}
+                className="relative z-10 w-full max-w-lg bg-white rounded-t-3xl p-6 shadow-2xl flex flex-col space-y-4"
+              >
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                      <X size={18} />
+                    </button>
+                    <h3 className="text-base font-black text-slate-900">Change Mobile Number</h3>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700">New 10-Digit Mobile Number</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="tel"
+                        value={newMobileNumber}
+                        onChange={(e) => setNewMobileNumber(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                        placeholder="e.g. 9876543210"
+                        className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#d91b5c]/20"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSendMobileOtp}
+                        disabled={sendingMobileOtp || newMobileNumber.length !== 10}
+                        className="px-4 py-3 bg-[#d91b5c] text-white rounded-xl text-xs font-bold hover:bg-[#b8144b] transition-all disabled:opacity-50 shrink-0"
+                      >
+                        {sendingMobileOtp ? <Loader2 size={14} className="animate-spin" /> : (mobileOtpSent ? "Resend" : "Send OTP")}
+                      </button>
+                    </div>
+                  </div>
+
+                  {mobileOtpSent && (
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-700">Enter Verification Code</label>
+                      <input
+                        type="text"
+                        value={mobileOtpCode}
+                        onChange={(e) => setMobileOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="6-digit OTP"
+                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-[#d91b5c]/20"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {mobileOtpSent && (
+                  <button
+                    type="button"
+                    onClick={handleVerifyAndUpdateMobile}
+                    disabled={verifyingMobileOtp}
+                    className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
+                  >
+                    {verifyingMobileOtp ? <Loader2 size={18} className="animate-spin" /> : "Verify & Update Number"}
+                  </button>
+                )}
+              </motion.div>
+            )}
+
+            {/* 🌟 SIBLINGS COUNTERS SHEET */}
+            {activeSheet === 'counters' && (
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}
+                className="relative z-10 w-full max-w-lg bg-white rounded-t-3xl p-6 shadow-2xl flex flex-col space-y-5"
+              >
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                      <X size={18} />
+                    </button>
+                    <h3 className="text-base font-black text-slate-900">Siblings Details</h3>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl">
+                    <span className="text-xs font-bold text-slate-800">Total Brothers</span>
+                    <div className="flex items-center gap-3">
+                      <button 
+                        type="button" 
+                        onClick={() => setCountersState(prev => ({ ...prev, totalBrothers: Math.max(0, prev.totalBrothers - 1) }))}
+                        className="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-800 font-bold flex items-center justify-center hover:bg-slate-100"
+                      >
+                        -
+                      </button>
+                      <span className="text-sm font-bold w-4 text-center">{countersState.totalBrothers}</span>
+                      <button 
+                        type="button" 
+                        onClick={() => setCountersState(prev => ({ ...prev, totalBrothers: prev.totalBrothers + 1 }))}
+                        className="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-800 font-bold flex items-center justify-center hover:bg-slate-100"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl">
+                    <span className="text-xs font-bold text-slate-800">Married Brothers</span>
+                    <div className="flex items-center gap-3">
+                      <button 
+                        type="button" 
+                        onClick={() => setCountersState(prev => ({ ...prev, marriedBrothers: Math.max(0, prev.marriedBrothers - 1) }))}
+                        className="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-800 font-bold flex items-center justify-center hover:bg-slate-100"
+                      >
+                        -
+                      </button>
+                      <span className="text-sm font-bold w-4 text-center">{countersState.marriedBrothers}</span>
+                      <button 
+                        type="button" 
+                        onClick={() => setCountersState(prev => ({ ...prev, marriedBrothers: Math.min(prev.totalBrothers, prev.marriedBrothers + 1) }))}
+                        className="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-800 font-bold flex items-center justify-center hover:bg-slate-100"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl">
+                    <span className="text-xs font-bold text-slate-800">Total Sisters</span>
+                    <div className="flex items-center gap-3">
+                      <button 
+                        type="button" 
+                        onClick={() => setCountersState(prev => ({ ...prev, totalSisters: Math.max(0, prev.totalSisters - 1) }))}
+                        className="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-800 font-bold flex items-center justify-center hover:bg-slate-100"
+                      >
+                        -
+                      </button>
+                      <span className="text-sm font-bold w-4 text-center">{countersState.totalSisters}</span>
+                      <button 
+                        type="button" 
+                        onClick={() => setCountersState(prev => ({ ...prev, totalSisters: prev.totalSisters + 1 }))}
+                        className="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-800 font-bold flex items-center justify-center hover:bg-slate-100"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl">
+                    <span className="text-xs font-bold text-slate-800">Married Sisters</span>
+                    <div className="flex items-center gap-3">
+                      <button 
+                        type="button" 
+                        onClick={() => setCountersState(prev => ({ ...prev, marriedSisters: Math.max(0, prev.marriedSisters - 1) }))}
+                        className="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-800 font-bold flex items-center justify-center hover:bg-slate-100"
+                      >
+                        -
+                      </button>
+                      <span className="text-sm font-bold w-4 text-center">{countersState.marriedSisters}</span>
+                      <button 
+                        type="button" 
+                        onClick={() => setCountersState(prev => ({ ...prev, marriedSisters: Math.min(prev.totalSisters, prev.marriedSisters + 1) }))}
+                        className="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-800 font-bold flex items-center justify-center hover:bg-slate-100"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSaveCounters}
+                  disabled={Boolean(savingField)}
+                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
+                >
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Save Siblings"}
                 </button>
               </motion.div>
             )}

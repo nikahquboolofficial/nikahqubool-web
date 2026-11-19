@@ -18,43 +18,67 @@ import {
 import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
 import { getAuthToken, getStoredUserPhoto } from '@/lib/auth';
 
-// 🧮 100% REAL PROFILE COMPLETION CALCULATION
+// 🧮 100% REAL PROFILE COMPLETION CALCULATION (Unified with SQL sp_GetProfileDetails & edit-profile)
 export const calculateRealProfileCompletion = (p: any): number => {
-  if (!p) return 0;
-  let score = 0;
-  const isNonEmpty = (v: any) => v !== null && v !== undefined && String(v).trim() !== '' && String(v).trim() !== '0';
+  if (!p) return 50;
 
-  // 1. Basic Identity (20%)
-  if (isNonEmpty(p.fullName || p.FullName || p.name)) score += 5;
-  if (isNonEmpty(p.gender || p.Gender)) score += 5;
-  if (Number(p.age || p.Age) > 0 || isNonEmpty(p.dateOfBirth || p.dob)) score += 5;
-  if (isNonEmpty(p.maritalStatus || p.MaritalStatus || p.maritalStatusName)) score += 5;
+  // 1. If backend API already calculated ProfileCompletionScore from DB, prioritize it!
+  const apiScore = Number(p.profileCompletionScore ?? p.ProfileCompletionScore ?? 0);
+  if (apiScore > 0) {
+    return Math.min(100, Math.max(50, apiScore));
+  }
 
-  // 2. Cultural & Physical (15%)
-  if (isNonEmpty(p.height || p.Height)) score += 5;
-  if (isNonEmpty(p.motherTongue || p.MotherTongue || p.motherTongueName)) score += 5;
-  if (isNonEmpty(p.sect || p.Sect || p.caste || p.Caste)) score += 5;
+  // 2. Base Onboarding Score = 50% (Name, Age, Gender, Sect, Caste, Height, Education, Occupation, City, State)
+  let score = 50;
 
-  // 3. Location (10%)
-  if (isNonEmpty(p.stateName || p.StateName || p.currentStateName || p.location)) score += 5;
-  if (isNonEmpty(p.cityName || p.CityName || p.currentCityName)) score += 5;
-
-  // 4. Education & Career (20%)
-  if (isNonEmpty(p.highestDegree || p.HighestDegree || p.education || p.highestDegreeName)) score += 10;
-  if (isNonEmpty(p.profession || p.Profession || p.designation || p.employmentSector || p.job)) score += 10;
-
-  // 5. Income & Financial (10%)
-  if (isNonEmpty(p.annualIncome || p.AnnualIncome || p.income) && !String(p.annualIncome).toLowerCase().includes('no income')) score += 10;
-
-  // 6. Family & Bio (15%)
-  if (isNonEmpty(p.fatherName || p.fatherOccupation || p.motherName || p.familyType || p.familyAbout)) score += 10;
-  if (isNonEmpty(p.aboutMe || p.AboutMe)) score += 5;
-
-  // 7. Profile Photo (10%)
+  // 1. Photos (+20%)
   const rawPhoto = p.mainPhotoUrl || p.photoUrl || p.PhotoUrl || p.mainPhoto || p.photo;
-  if (isNonEmpty(rawPhoto) && !String(rawPhoto).includes('placeholder') && !String(rawPhoto).includes('default')) score += 10;
+  const hasPhoto = Boolean(rawPhoto && !String(rawPhoto).includes('placeholder') && !String(rawPhoto).includes('default') && String(rawPhoto).trim().length > 0);
+  if (hasPhoto) score += 20;
 
-  return Math.min(100, Math.max(15, score));
+  // 2. Family Details (+10%)
+  const hasFamily = Boolean(
+    Number(p.familyType || p.FamilyType) > 0 ||
+    Number(p.fatherOccupationId || p.FatherOccupationId) > 0 ||
+    (p.fatherOccupation && String(p.fatherOccupation).trim().length > 0 && String(p.fatherOccupation) !== 'None') ||
+    (p.nativeLocation && String(p.nativeLocation).trim().length > 0) ||
+    (Array.isArray(p.completedSections) && p.completedSections.includes('family'))
+  );
+  if (hasFamily) score += 10;
+
+  // 3. Religious Details (+5%)
+  const hasReligious = Boolean(
+    Number(p.namazHabitId || p.NamazHabitId) > 0 ||
+    (p.namazHabit && String(p.namazHabit).trim().length > 0) ||
+    Number(p.quranReadingId || p.QuranReadingId) > 0 ||
+    (p.quranReading && String(p.quranReading).trim().length > 0) ||
+    (Array.isArray(p.completedSections) && p.completedSections.includes('religious'))
+  );
+  if (hasReligious) score += 5;
+
+  // 4. Lifestyle & Interests (+10%)
+  const hasLifestyle = Boolean(
+    Number(p.dietTypeId || p.DietTypeId) > 0 ||
+    (p.dietType && String(p.dietType).trim().length > 0) ||
+    (p.hobbies && String(p.hobbies).trim().length > 0) ||
+    (p.music && String(p.music).trim().length > 0) ||
+    (p.sports && String(p.sports).trim().length > 0) ||
+    (p.languagesKnown && String(p.languagesKnown).trim().length > 0) ||
+    (Array.isArray(p.completedSections) && p.completedSections.includes('lifestyle'))
+  );
+  if (hasLifestyle) score += 10;
+
+  // 5. Other Details (+5%)
+  const hasOther = Boolean(
+    (p.aboutMe && String(p.aboutMe).trim().length > 0) ||
+    (p.collegeName && String(p.collegeName).trim().length > 0) ||
+    Number(p.disabilityId || p.DisabilityId) > 0 ||
+    (p.whatsAppNumber && String(p.whatsAppNumber).trim().length > 0) ||
+    (Array.isArray(p.completedSections) && p.completedSections.includes('other'))
+  );
+  if (hasOther) score += 5;
+
+  return Math.min(100, Math.max(50, score));
 };
 
 export default function MyProfilePage() {
@@ -69,18 +93,7 @@ export default function MyProfilePage() {
     router.prefetch('/dashboard/support');
   }, [router]);
 
-  const [profileData, setProfileData] = useState<any>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const cached = localStorage.getItem("cached_profile_details") || localStorage.getItem("user_details");
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          return parsed.profile || parsed.Profile || parsed;
-        }
-      } catch (e) {}
-    }
-    return null;
-  });
+  const [profileData, setProfileData] = useState<any>(null);
   const [activePlan, setActivePlan] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [isPhotoLoaded, setIsPhotoLoaded] = useState<boolean>(false);
@@ -103,6 +116,13 @@ export default function MyProfilePage() {
             setProfileData(p);
           }
         } catch (e) {}
+      }
+
+      const storedSub = localStorage.getItem("active_subscription");
+      if (storedSub) {
+        try {
+          setActivePlan(JSON.parse(storedSub));
+        } catch {}
       }
     }
   }, []);
@@ -335,11 +355,16 @@ export default function MyProfilePage() {
               />
             </svg>
 
-            {/* Photo inside Ring */}
+            {/* Photo inside Ring - Opens Gallery Directly */}
             <div 
               className="absolute inset-2 rounded-full overflow-hidden cursor-pointer group bg-slate-100"
-              onClick={() => router.push('/dashboard/edit-profile')}
-              title="Click to edit profile"
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  sessionStorage.setItem('gallery_return_url', '/dashboard/my-profile');
+                }
+                router.push('/dashboard/gallery');
+              }}
+              title="Click to manage photos"
             >
               {hasRealPhoto && !isPhotoLoaded && (
                 <div className="absolute inset-0 bg-slate-200 animate-pulse flex items-center justify-center z-10">
@@ -358,21 +383,34 @@ export default function MyProfilePage() {
               />
             </div>
 
-            {/* Camera Overlay Icon on Avatar */}
+            {/* Camera Overlay Icon on Avatar - Opens Gallery Directly */}
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                router.push('/dashboard/edit-profile');
+                if (typeof window !== "undefined") {
+                  sessionStorage.setItem('gallery_return_url', '/dashboard/my-profile');
+                }
+                router.push('/dashboard/gallery');
               }}
               className="absolute top-1 right-1 w-7 h-7 rounded-full bg-white border border-rose-200 text-[#E21E5B] shadow-sm flex items-center justify-center hover:bg-rose-50 transition-all cursor-pointer z-20"
-              title="Edit Profile"
+              title="Manage Photos"
             >
               <Camera size={13} />
             </button>
 
-            {/* Percentage Badge */}
-            <div className="absolute -bottom-1 inset-x-0 mx-auto w-fit px-3 py-0.5 rounded-full bg-[#E21E5B] text-white text-[11px] font-black shadow-sm border-2 border-white z-20">
+            {/* Percentage Badge - Opens Gallery Directly */}
+            <div 
+              onClick={(e) => {
+                e.stopPropagation();
+                if (typeof window !== "undefined") {
+                  sessionStorage.setItem('gallery_return_url', '/dashboard/my-profile');
+                }
+                router.push('/dashboard/gallery');
+              }}
+              className="absolute -bottom-1 inset-x-0 mx-auto w-fit px-3 py-0.5 rounded-full bg-[#E21E5B] text-white text-[11px] font-black shadow-sm border-2 border-white z-20 cursor-pointer hover:scale-105 transition-transform"
+              title="Click to view photo gallery"
+            >
               {profileCompletion}%
             </div>
           </div>
@@ -387,7 +425,16 @@ export default function MyProfilePage() {
                 Incomplete Profile &bull; Click to Edit
               </span>
             ) : (
-              <span className="inline-flex items-center px-4 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold">
+              <span 
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    sessionStorage.setItem('gallery_return_url', '/dashboard/my-profile');
+                  }
+                  router.push('/dashboard/gallery');
+                }}
+                className="inline-flex items-center px-4 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold cursor-pointer hover:bg-emerald-100 transition-colors"
+                title="Profile Completed • Click to manage photos"
+              >
                 Profile Completed
               </span>
             )}
@@ -497,6 +544,17 @@ export default function MyProfilePage() {
 
 
 
+          {/* 3. Explore Plans */}
+          <Link prefetch={false} href="/dashboard/membership"
+            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer"
+          >
+            <div className="flex items-center gap-3.5">
+              <Crown size={18} className="text-slate-600 group-hover:text-amber-500 transition-colors" />
+              <span className="text-sm font-semibold text-slate-800">Explore Plans</span>
+            </div>
+            <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
+          </Link>
+
           {/* 4. Payment Info */}
           <Link prefetch={false} href="/dashboard/payment-info"
             className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer"
@@ -504,17 +562,6 @@ export default function MyProfilePage() {
             <div className="flex items-center gap-3.5">
               <CreditCard size={18} className="text-slate-600 group-hover:text-[#E21E5B] transition-colors" />
               <span className="text-sm font-semibold text-slate-800">Payment Info</span>
-            </div>
-            <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
-          </Link>
-
-          {/* 5. Explore Plans */}
-          <Link prefetch={false} href="/dashboard/membership"
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer"
-          >
-            <div className="flex items-center gap-3.5">
-              <Crown size={18} className="text-slate-600 group-hover:text-amber-500 transition-colors" />
-              <span className="text-sm font-semibold text-slate-800">Explore Plans</span>
             </div>
             <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
           </Link>

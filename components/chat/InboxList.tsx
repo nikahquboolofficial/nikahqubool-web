@@ -8,6 +8,7 @@ import { useSignalR } from '@/context/SignalRContext';
 import { fetchChatInboxApi, markChatReadApi, blockUserApiCall } from '@/lib/api';
 import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
 import { getAuthToken } from '@/lib/auth';
+import { parseChatUtcDate } from './ChatWindow';
 
 // ⚡ Module-level memory cache to eliminate blank flickers and protect inbox data
 let memoryInboxCache: any[] | null = null;
@@ -81,27 +82,7 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
   const getToken = (): string | null => getAuthToken();
   const processedInboxMsgIdsRef = useRef<Set<string>>(new Set());
 
-  const parseUtcDate = (dateVal: any): Date => {
-    if (!dateVal) return new Date();
-    if (typeof dateVal === 'object' && dateVal instanceof Date) {
-      return isNaN(dateVal.getTime()) ? new Date() : dateVal;
-    }
-    try {
-      let str = String(dateVal).trim();
-      if (!str) return new Date();
-      if (/^\d{10,13}$/.test(str)) {
-        const num = Number(str);
-        const d = new Date(num < 10000000000 ? num * 1000 : num);
-        if (!isNaN(d.getTime())) return d;
-      }
-      // 🛡️ Strip trailing Z and +00:00 because SQL Server stores local Indian Standard Time (IST)
-      str = str.replace(/z$/i, '').replace(/\+00:?00$/, '').replace(' ', 'T');
-      const d = new Date(str);
-      return isNaN(d.getTime()) ? new Date() : d;
-    } catch {
-      return new Date();
-    }
-  };
+  const parseUtcDate = parseChatUtcDate;
 
   const formatChatTime = (dateString: string) => {
     if (!dateString) return "";

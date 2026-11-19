@@ -429,7 +429,22 @@ export default function GalleryManagementPage() {
           <div className="flex items-center gap-3">
             <button 
               type="button" 
-              onClick={() => router.back()} 
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  const params = new URLSearchParams(window.location.search);
+                  const returnUrl = params.get('returnUrl') || sessionStorage.getItem('gallery_return_url');
+                  if (returnUrl) {
+                    sessionStorage.removeItem('gallery_return_url');
+                    router.push(returnUrl);
+                    return;
+                  }
+                }
+                if (typeof window !== "undefined" && window.history.length > 1) {
+                  router.back();
+                } else {
+                  router.push('/dashboard/edit-profile');
+                }
+              }} 
               className="flex p-2 hover:bg-rose-50 text-[#d91b5c] rounded-full transition-colors cursor-pointer"
               aria-label="Back"
               title="Go Back"
@@ -478,88 +493,178 @@ export default function GalleryManagementPage() {
           </div>
         </div>
 
-        {/* 📸 4-SLOT DYNAMIC GALLERY GRID + GUIDELINES TILE */}
+        {/* 📸 4-SLOT DYNAMIC GALLERY GRID (EXACT USER SPEC: 3 IN TOP ROW, 1 IN BOTTOM ROW) */}
         {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-5 pt-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="aspect-[3/4] rounded-2xl sm:rounded-3xl shimmer-luxury shadow-sm border border-rose-100/50" />
-            ))}
+          <div className="space-y-3 pt-1">
+            <div className="grid grid-cols-3 gap-2.5 sm:gap-3.5">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="aspect-[4/5] rounded-2xl shimmer-luxury shadow-xs border border-rose-100/60" />
+              ))}
+            </div>
+            <div className="grid grid-cols-3 gap-2.5 sm:gap-3.5">
+              <div className="aspect-[4/5] rounded-2xl shimmer-luxury shadow-xs border border-rose-100/60" />
+              <div className="col-span-2 rounded-2xl shimmer-luxury shadow-xs border border-rose-100/60" />
+            </div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-5 pt-2">
-            
-            {photos.map((photo, idx) => {
-              const isMain = Boolean(photo.isMain ?? photo.IsMain);
-              const imageUrl = getOptimizedImageUrl(photo.photoUrl || photo.PhotoUrl);
-              return (
-                <div 
-                  key={idx} 
-                  onClick={() => setSelectedPhoto({ ...photo, resolvedUrl: imageUrl })}
-                  className="relative aspect-[3/4] rounded-2xl sm:rounded-3xl overflow-hidden bg-slate-950 shadow-md border-2 border-rose-100/80 cursor-pointer group hover:border-[#d91b5c] hover:shadow-xl transition-all"
-                >
-                  <img 
-                    src={imageUrl} 
-                    alt={`Photo ${idx + 1}`} 
-                    className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300" 
-                    onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_FEMALE_AVATAR; }} 
-                  />
-                  
-                  {isMain ? (
-                    <div className="absolute top-2 left-2 sm:top-3 sm:left-3 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white text-[9px] sm:text-[10px] font-black uppercase px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full shadow-md tracking-wider flex items-center gap-1 border border-white/20">
-                      <Star size={10} className="fill-amber-300 text-amber-300 sm:w-3 sm:h-3" />
-                      <span>Main</span>
+          <div className="space-y-3 pt-1">
+            {/* ROW 1: EXACT 3 PHOTOS */}
+            <div className="grid grid-cols-3 gap-2.5 sm:gap-3.5">
+              {[0, 1, 2].map((slotIdx) => {
+                const photo = photos[slotIdx];
+                if (photo) {
+                  const isMain = Boolean(photo.isMain ?? photo.IsMain);
+                  const imageUrl = getOptimizedImageUrl(photo.photoUrl || photo.PhotoUrl);
+                  return (
+                    <div 
+                      key={`slot-${slotIdx}`} 
+                      onClick={() => setSelectedPhoto({ ...photo, resolvedUrl: imageUrl })}
+                      className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-slate-900 shadow-xs border border-rose-200/80 cursor-pointer group hover:border-[#d91b5c] hover:shadow-md transition-all"
+                    >
+                      <img 
+                        src={imageUrl} 
+                        alt={`Photo ${slotIdx + 1}`} 
+                        className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300" 
+                        onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_FEMALE_AVATAR; }} 
+                      />
+                      {isMain ? (
+                        <div className="absolute top-2 left-2 bg-[#d91b5c] text-white text-[8px] sm:text-[9px] font-bold uppercase px-2 py-0.5 rounded-full shadow-xs flex items-center gap-1 border border-white/20">
+                          <Star size={9} className="fill-amber-300 text-amber-300" />
+                          <span>Main</span>
+                        </div>
+                      ) : (
+                        <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-xs text-white text-[8px] sm:text-[9px] font-semibold uppercase px-2 py-0.5 rounded-full shadow-xs">
+                          #{slotIdx + 1}
+                        </div>
+                      )}
+                      <div className="absolute inset-x-0 bottom-0 p-1.5 sm:p-2 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-white text-[9px] sm:text-[10px] font-bold uppercase bg-white/20 backdrop-blur-xs px-2.5 py-0.5 rounded-full border border-white/30">
+                          Manage
+                        </span>
+                      </div>
                     </div>
-                  ) : (
-                    <div className="absolute top-2 left-2 sm:top-3 sm:left-3 bg-black/60 backdrop-blur-md text-white text-[9px] sm:text-[10px] font-bold uppercase px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full shadow-md tracking-wider">
-                      #{idx + 1}
-                    </div>
-                  )}
+                  );
+                }
 
-                  <div className="absolute inset-x-0 bottom-0 p-2 sm:p-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <span className="text-white text-[10px] sm:text-xs font-black uppercase tracking-wider bg-white/20 backdrop-blur-md px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full border border-white/30 text-center">
-                      Manage
-                    </span>
-                  </div>
+                // Empty upload slot for Row 1
+                return (
+                  <label 
+                    key={`empty-slot-${slotIdx}`} 
+                    onClick={() => setSelectedPhoto(null)}
+                    className="relative aspect-[4/5] rounded-2xl border border-dashed border-rose-300 bg-rose-50/30 hover:bg-rose-50/70 flex flex-col items-center justify-center cursor-pointer transition-all shadow-xs group p-2 text-center"
+                  >
+                    <input 
+                      type="file" 
+                      accept="image/*,.jpg,.jpeg,.png,.webp,.avif,.heic,.heif,.jfif,.bmp,.gif,.tiff" 
+                      onChange={handleFileUpload} 
+                      disabled={uploading} 
+                      className="hidden" 
+                    />
+                    {uploading ? (
+                      <div className="flex flex-col items-center gap-1">
+                        <Loader2 size={18} className="animate-spin text-[#d91b5c]" />
+                        <span className="text-[9px] font-bold text-[#d91b5c]">Verifying...</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#d91b5c] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                          <Plus size={16} className="stroke-[3]" />
+                        </div>
+                        <span className="text-[9px] sm:text-[10px] font-bold text-[#d91b5c] uppercase block">
+                          {slotIdx === 0 ? "Main Photo" : `Photo #${slotIdx + 1}`}
+                        </span>
+                        <span className="text-[8px] text-slate-400 block -mt-0.5">AI Checked</span>
+                      </div>
+                    )}
+                  </label>
+                );
+              })}
+            </div>
+
+            {/* ROW 2: EXACT 1 PHOTO (LEFT) + PRIVACY / QUALITY TIP BANNER (RIGHT) */}
+            <div className="grid grid-cols-3 gap-2.5 sm:gap-3.5 items-stretch">
+              {(() => {
+                const slotIdx = 3;
+                const photo = photos[slotIdx];
+                if (photo) {
+                  const isMain = Boolean(photo.isMain ?? photo.IsMain);
+                  const imageUrl = getOptimizedImageUrl(photo.photoUrl || photo.PhotoUrl);
+                  return (
+                    <div 
+                      key={`slot-${slotIdx}`} 
+                      onClick={() => setSelectedPhoto({ ...photo, resolvedUrl: imageUrl })}
+                      className="relative aspect-[4/5] rounded-2xl overflow-hidden bg-slate-900 shadow-xs border border-rose-200/80 cursor-pointer group hover:border-[#d91b5c] hover:shadow-md transition-all"
+                    >
+                      <img 
+                        src={imageUrl} 
+                        alt={`Photo 4`} 
+                        className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300" 
+                        onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_FEMALE_AVATAR; }} 
+                      />
+                      {isMain ? (
+                        <div className="absolute top-2 left-2 bg-[#d91b5c] text-white text-[8px] sm:text-[9px] font-bold uppercase px-2 py-0.5 rounded-full shadow-xs flex items-center gap-1 border border-white/20">
+                          <Star size={9} className="fill-amber-300 text-amber-300" />
+                          <span>Main</span>
+                        </div>
+                      ) : (
+                        <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-xs text-white text-[8px] sm:text-[9px] font-semibold uppercase px-2 py-0.5 rounded-full shadow-xs">
+                          #4
+                        </div>
+                      )}
+                      <div className="absolute inset-x-0 bottom-0 p-1.5 sm:p-2 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-white text-[9px] sm:text-[10px] font-bold uppercase bg-white/20 backdrop-blur-xs px-2.5 py-0.5 rounded-full border border-white/30">
+                          Manage
+                        </span>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Empty upload slot for Photo 4
+                return (
+                  <label 
+                    key={`empty-slot-${slotIdx}`} 
+                    onClick={() => setSelectedPhoto(null)}
+                    className="relative aspect-[4/5] rounded-2xl border border-dashed border-rose-300 bg-rose-50/30 hover:bg-rose-50/70 flex flex-col items-center justify-center cursor-pointer transition-all shadow-xs group p-2 text-center"
+                  >
+                    <input 
+                      type="file" 
+                      accept="image/*,.jpg,.jpeg,.png,.webp,.avif,.heic,.heif,.jfif,.bmp,.gif,.tiff" 
+                      onChange={handleFileUpload} 
+                      disabled={uploading} 
+                      className="hidden" 
+                    />
+                    {uploading ? (
+                      <div className="flex flex-col items-center gap-1">
+                        <Loader2 size={18} className="animate-spin text-[#d91b5c]" />
+                        <span className="text-[9px] font-bold text-[#d91b5c]">Verifying...</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#d91b5c] text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                          <Plus size={16} className="stroke-[3]" />
+                        </div>
+                        <span className="text-[9px] sm:text-[10px] font-bold text-[#d91b5c] uppercase block">
+                          Photo #4
+                        </span>
+                        <span className="text-[8px] text-slate-400 block -mt-0.5">AI Checked</span>
+                      </div>
+                    )}
+                  </label>
+                );
+              })()}
+
+              {/* Informative Quality & Privacy Card Next to Slot 4 */}
+              <div className="col-span-2 rounded-2xl bg-white border border-rose-100 p-3 sm:p-4 flex flex-col justify-center space-y-1 shadow-xs">
+                <div className="flex items-center gap-1.5 text-[#d91b5c]">
+                  <Sparkles size={13} />
+                  <h4 className="text-[11px] font-bold uppercase tracking-wider">Photo Guidelines</h4>
                 </div>
-              );
-            })}
-
-            {/* UPLOAD SLOTS FOR REMAINING (UP TO 4 MAX PHOTOS) */}
-            {Array.from({ length: Math.max(0, 4 - photos.length) }).map((_, idx) => (
-              <label 
-                key={idx} 
-                onClick={() => setSelectedPhoto(null)}
-                className="relative aspect-[3/4] rounded-2xl sm:rounded-3xl border-2 border-dashed border-rose-300/80 bg-rose-50/40 hover:bg-rose-100/50 flex flex-col items-center justify-center cursor-pointer transition-all shadow-xs group p-2 sm:p-6 text-center"
-              >
-                <input 
-                  type="file" 
-                  accept="image/*,.jpg,.jpeg,.png,.webp,.avif,.heic,.heif,.jfif,.bmp,.gif,.tiff" 
-                  onChange={handleFileUpload} 
-                  disabled={uploading} 
-                  className="hidden" 
-                />
-                
-                {uploading ? (
-                  <div className="flex flex-col items-center gap-1.5">
-                    <Loader2 size={24} className="animate-spin text-[#d91b5c]" />
-                    <span className="text-[10px] font-extrabold text-[#d91b5c]">Verifying...</span>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-1.5 sm:gap-2">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#d91b5c] text-white flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
-                      <Plus size={20} className="stroke-[3]" />
-                    </div>
-                    <div>
-                      <span className="text-[10px] sm:text-xs font-black text-[#d91b5c] uppercase block">
-                        {photos.length === 0 && idx === 0 ? "Add Main Photo" : `Add Photo #${photos.length + idx + 1}`}
-                      </span>
-                      <span className="text-[9px] sm:text-[10px] font-semibold text-slate-500 block mt-0.5">AI Face Checked</span>
-                    </div>
-                  </div>
-                )}
-              </label>
-            ))}
-
+                <p className="text-[10px] sm:text-[11px] text-slate-500 leading-relaxed font-medium">
+                  Upload up to 4 solo photos (1 Main + 3 Gallery). Clear, solo photos with good lighting receive up to <strong>300% more proposals</strong>. Group photos or side angles are automatically rejected.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 

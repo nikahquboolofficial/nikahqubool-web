@@ -19,8 +19,13 @@ export default function DashboardBottomNav({
 }: BottomNavProps) {
   const pathname = usePathname();
   const [activeTabOverride, setActiveTabOverride] = useState<string | null>(null);
-  const [userPhoto, setUserPhoto] = useState<string>(() => getStoredUserPhoto());
+  const [mounted, setMounted] = useState<boolean>(false);
+  const [userPhoto, setUserPhoto] = useState<string>(DEFAULT_FEMALE_AVATAR);
   const [isPhotoLoaded, setIsPhotoLoaded] = useState<boolean>(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     setActiveTabOverride(null);
@@ -64,7 +69,7 @@ export default function DashboardBottomNav({
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[999] bg-[#FAF8F5]/98 backdrop-blur-xl border-t border-rose-100 lg:hidden shadow-[0_-4px_25px_rgba(0,0,0,0.08)] pb-[max(env(safe-area-inset-bottom,0px),4px)] touch-manipulation select-none pointer-events-auto">
+    <div className="fixed bottom-0 left-0 right-0 z-[999] bg-white/98 backdrop-blur-xl border-t border-slate-200/80 lg:hidden shadow-[0_-4px_25px_rgba(0,0,0,0.08)] pb-[max(env(safe-area-inset-bottom,0px),4px)] touch-manipulation select-none pointer-events-auto">
       <div className="grid grid-cols-5 items-center h-16 px-1">
         
         {/* 1. HOME */}
@@ -196,7 +201,7 @@ export default function DashboardBottomNav({
               isProfile ? 'border-[#e21e5b] ring-2 ring-[#e21e5b]/20 scale-105' : 'border-slate-300'
             }`}>
               <img 
-                src={userPhoto} 
+                src={mounted ? userPhoto : DEFAULT_FEMALE_AVATAR} 
                 alt="My Profile" 
                 className="w-full h-full object-cover object-top"
                 onError={(e) => { 
