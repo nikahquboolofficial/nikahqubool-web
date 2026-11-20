@@ -1,20 +1,34 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Camera, Lock, ChevronRight, CheckCircle2, Sparkles, ShieldAlert, Image as ImageIcon, UploadCloud, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { fetchMasterDataApi } from '@/lib/api';
 
 interface CircularPhotoUploadProps {
   photoUrl: string;
   privacyValue: string;
   hasError: boolean;
+  options?: string[];
   onRawSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onPrivacyChange: (val: string) => void;
 }
 
-export default function CircularPhotoUpload({ photoUrl, privacyValue, hasError, onRawSelect, onPrivacyChange }: CircularPhotoUploadProps) {
+export default function CircularPhotoUpload({ photoUrl, privacyValue, hasError, options, onRawSelect, onPrivacyChange }: CircularPhotoUploadProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const privacyOptions = ["All Members", "Premium Only", "Only Approved"];
+  const [privacyOptions, setPrivacyOptions] = useState<string[]>(options && options.length > 0 ? options : []);
+
+  useEffect(() => {
+    if (options && options.length > 0) {
+      setPrivacyOptions(options);
+    } else {
+      fetchMasterDataApi('PHOTO_PRIVACY').then(opts => {
+        if (opts && opts.length > 0) {
+          setPrivacyOptions(opts.map(o => o.value));
+        }
+      });
+    }
+  }, [options]);
 
   return (
     <div className="md:col-span-2 space-y-6 pb-12 md:pb-4">

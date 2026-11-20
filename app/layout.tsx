@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 
 import "./globals.css";
+import NetworkStatusBanner from "@/components/NetworkStatusBanner";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -134,6 +135,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col">
+        <NetworkStatusBanner />
         {children}
       </body>
     </html>

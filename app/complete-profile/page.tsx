@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
-import { fetchMasterDataApi, getCachedMasterOptions, fetchCitiesApi, updateProfileApi, uploadGalleryPhotoApi, fetchProfileDetailsApi, checkEmailAvailabilityApi, MasterOption } from '@/lib/api';
+import { fetchMasterDataApi, getCachedMasterOptions, fetchCitiesApi, updateProfileApi, uploadGalleryPhotoApi, fetchProfileDetailsApi, checkEmailAvailabilityApi, handleSilentSessionExpiry, MasterOption } from '@/lib/api';
 import { generateHeightLabels, MIN_MALE_AGE, MIN_FEMALE_AGE } from '@/lib/utils/ageHeightRules';
 import { getAuthToken, syncUserProfilePhoto } from '@/lib/auth';
 import {
@@ -175,7 +175,7 @@ export default function CompleteProfilePage() {
     maritalStatusText: '',
     dob: '2000-01-01',
     height: "5'5\" (165 cm)",
-    weight: '60 kg',
+    weight: '',
     complexionId: 0,
     complexionText: '',
     religionId: 1,
@@ -735,20 +735,15 @@ export default function CompleteProfilePage() {
     }
   };
 
-  // Final Profile Submit (Direct Save - NO SELFIE VERIFICATION)
+  // Final Profile Submit (Direct Save - Photo is 100% Optional)
   const handleFinalSubmit = async () => {
-    if (!photoSlots[0]) {
-      toast.error("Please upload at least your Main profile photo to complete your profile.");
-      return;
-    }
     await executeFinalProfileSave();
   };
 
   const executeFinalProfileSave = async () => {
     const token = getAuthToken();
     if (!token) {
-      toast.error("Session expired. Please login again.");
-      router.push('/');
+      handleSilentSessionExpiry();
       return;
     }
 
@@ -1942,12 +1937,12 @@ export default function CompleteProfilePage() {
             {step === 17 && (
               <div className="space-y-4">
                 <div className="text-left space-y-0.5">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Final Step • Profile Photos</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#e21e5b]">Final Step • Profile Photos (Optional)</span>
                   <h2 className="text-base sm:text-lg font-bold text-slate-800">
-                    Add your profile photos
+                    Add your profile photos (Optional)
                   </h2>
                   <p className="text-[11px] text-slate-500 font-normal">
-                    Upload up to 4 clear solo photos ({activePhotosList.length} / 4 added). Only genuine photos of yourself are permitted.
+                    Upload up to 4 clear solo photos ({activePhotosList.length} / 4 added), or complete now and upload anytime later. Only genuine photos are permitted.
                   </p>
                 </div>
 
@@ -2074,7 +2069,7 @@ export default function CompleteProfilePage() {
                   <button
                     type="button"
                     onClick={handleFinalSubmit}
-                    disabled={loading || activePhotosList.length === 0}
+                    disabled={loading}
                     className="w-full py-3.5 bg-[#e21e5b] hover:bg-[#ce1b53] disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2"
                   >
                     {loading ? (

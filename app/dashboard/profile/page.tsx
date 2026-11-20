@@ -581,12 +581,12 @@ export default function ProfileDetailPage() {
     );
     if (hasLifestyle) tabs.push({ id: 'section-lifestyle', label: 'Lifestyle' });
 
-    // Preferences: only if partner preferences or expectations exist
+    // Expectations: only if partner preferences or expectations exist
     const hasPreferences = Boolean(
       (preferences && (preferences.minAge || preferences.minHeight || preferences.preferredMaritalStatus || preferences.preferredSect || preferences.preferredEducation || preferences.preferredOccupation || preferences.preferredState)) ||
       (profileData.partnerExpectations || profileData.PartnerExpectations)
     );
-    if (hasPreferences) tabs.push({ id: 'section-preferences', label: 'Preferences' });
+    if (hasPreferences) tabs.push({ id: 'section-preferences', label: 'Expectations' });
 
     return tabs;
   }, [profileData, preferences, sectText, maslakText]);
@@ -1685,10 +1685,10 @@ export default function ProfileDetailPage() {
             </section>
           )}
 
-          {/* 9. 🎯 PARTNER PREFERENCES */}
+          {/* 9. 🎯 PARTNER EXPECTATIONS */}
           {preferences && (preferences.minAge || preferences.minHeight || preferences.preferredMaritalStatus || preferences.preferredSect || preferences.preferredEducation || preferences.preferredOccupation || preferences.preferredState || profileData.partnerExpectations || profileData.PartnerExpectations) && (
             <section id="section-preferences" className="bg-white rounded-3xl p-5 md:p-6 shadow-xs border border-slate-200/80 space-y-4 scroll-mt-20">
-              <h3 className="font-serif font-extrabold text-base md:text-lg text-slate-900">Partner Preferences</h3>
+              <h3 className="font-serif font-extrabold text-base md:text-lg text-slate-900">Partner Expectations</h3>
 
               {(profileData.partnerExpectations || profileData.PartnerExpectations) && (
                 <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3.5 rounded-2xl border border-slate-100 italic">

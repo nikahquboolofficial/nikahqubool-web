@@ -15,13 +15,11 @@ export default function ProfileAvatarLoader({
   message = "Loading your profile...",
   subMessage = "Please wait a moment",
 }: ProfileAvatarLoaderProps) {
-  // ⚡ 0ms Direct Initialization from cached user photo (Eliminates 'NQ' flash completely)
-  const [avatar, setAvatar] = useState<string>(() => {
-    if (photoUrl && photoUrl.trim().length > 0) return photoUrl;
-    return getStoredUserPhoto();
-  });
+  const [mounted, setMounted] = useState(false);
+  const [avatar, setAvatar] = useState<string>(photoUrl && photoUrl.trim().length > 0 ? photoUrl : "");
 
   useEffect(() => {
+    setMounted(true);
     if (!avatar) {
       const stored = getStoredUserPhoto();
       if (stored) setAvatar(stored);
@@ -29,7 +27,7 @@ export default function ProfileAvatarLoader({
   }, [avatar]);
 
   return (
-    <div className="min-h-[60vh] w-full flex flex-col items-center justify-center p-6 bg-white selection:bg-[#d91b5c] selection:text-white">
+    <div className="min-h-[60vh] w-full flex flex-col items-center justify-center p-6 bg-white selection:bg-[#d91b5c] selection:text-white" suppressHydrationWarning>
       {/* 🌟 LUXURY AVATAR PULSE & SPIN RING */}
       <div className="relative flex items-center justify-center">
         {/* Outer Breathing Aura */}
@@ -42,8 +40,8 @@ export default function ProfileAvatarLoader({
         <div className="absolute w-[86px] h-[86px] rounded-full border-2 border-transparent border-t-[#d91b5c] border-r-[#d91b5c]/70 animate-spin pointer-events-none" />
 
         {/* Inner Avatar Image */}
-        <div className="relative w-20 h-20 rounded-full overflow-hidden bg-slate-100 border-2 border-white shadow-md z-10 flex items-center justify-center">
-          {avatar && !avatar.includes('placeholder') && !avatar.includes('default') ? (
+        <div className="relative w-20 h-20 rounded-full overflow-hidden bg-slate-100 border-2 border-white shadow-md z-10 flex items-center justify-center" suppressHydrationWarning>
+          {mounted && avatar && !avatar.includes('placeholder') && !avatar.includes('default') ? (
             <img
               src={avatar}
               alt="Profile loading"

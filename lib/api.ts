@@ -1,7 +1,34 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.nikahqubool.in/api"; 
-//export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://localhost:7204/api";
+export const API_BASE_URL = 
+  (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"))
+    ? "https://nikahqubool.in/api"
+    : (process.env.NEXT_PUBLIC_API_URL || "https://nikahqubool.in/api");
 // ⚡ Dynamic SignalR Hub URL
 export const SIGNALR_HUB_URL = API_BASE_URL.replace(/\/api\/?$/, '') + "/chatHub";
+
+let isRedirectingToLogin = false;
+export const handleSilentSessionExpiry = () => {
+  if (typeof window === "undefined") return;
+  if (isRedirectingToLogin) return;
+  isRedirectingToLogin = true;
+
+  try {
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("user_details");
+    localStorage.removeItem("user_session");
+    sessionStorage.clear();
+    // Clear cookies
+    document.cookie.split(";").forEach((c) => {
+      document.cookie = c
+        .replace(/^ +/, "")
+        .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+    });
+  } catch (e) {
+    console.warn("Session clear error:", e);
+  }
+
+  // Smooth silent redirect to login root without showing intrusive red toasts
+  window.location.href = "/";
+};
 
 export interface MasterOption {
   id: number | string;
@@ -310,7 +337,8 @@ export const updateProfileApi = async (formDataPayload: FormData, token: string 
     });
 
     if (response.status === 401) {
-      return { success: false, message: "Session expired or invalid token. Please login again." };
+      handleSilentSessionExpiry();
+      return { success: false, isUnauthorized: true, message: "" };
     }
 
     const responseText = await response.text();
@@ -358,7 +386,10 @@ export const savePartnerPreferencesApi = async (payload: any, token: string | nu
       body: JSON.stringify(payload)
     });
 
-    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
+    if (res.status === 401) {
+      handleSilentSessionExpiry();
+      return { success: false, isUnauthorized: true, message: "" };
+    }
     
     const responseText = await res.text();
     let data: any = {};
@@ -388,7 +419,10 @@ export const fetchDashboardApi = async (activeTab: string, pageNumber: number, t
       }
     });
 
-    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
+    if (res.status === 401) {
+      handleSilentSessionExpiry();
+      return { success: false, isUnauthorized: true, message: "" };
+    }
     if (!res.ok) return { success: false, message: `Server error (${res.status})` };
 
     const data = await res.json();
@@ -411,7 +445,10 @@ export const fetchNotificationCountsApi = async (token: string | null | undefine
       }
     });
 
-    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
+    if (res.status === 401) {
+      handleSilentSessionExpiry();
+      return { success: false, isUnauthorized: true, message: "" };
+    }
     if (!res.ok) return { success: false, message: `Server error (${res.status})` };
 
     const data = await res.json();
@@ -435,7 +472,10 @@ export const handleInteractionApiCall = async (receiverUserId: number, interacti
       body: JSON.stringify({ receiverUserId, interactionType, actionStatus })
     });
 
-    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
+    if (res.status === 401) {
+      handleSilentSessionExpiry();
+      return { success: false, isUnauthorized: true, message: "" };
+    }
     const data = await res.json();
     return { success: data.success || data.Success, message: data.message || data.Message, details: data.details || data.Details };
   } catch (error) {
@@ -456,7 +496,10 @@ export const fetchProfileDetailsApi = async (targetUserId: number, token: string
       }
     });
 
-    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
+    if (res.status === 401) {
+      handleSilentSessionExpiry();
+      return { success: false, isUnauthorized: true, message: "" };
+    }
     if (!res.ok) return { success: false, message: `Server error (${res.status})` };
 
     const data = await res.json();
@@ -480,7 +523,10 @@ export const viewContactDetailsApi = async (targetUserId: number, token: string 
       body: JSON.stringify({ targetUserId })
     });
 
-    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
+    if (res.status === 401) {
+      handleSilentSessionExpiry();
+      return { success: false, isUnauthorized: true, message: "" };
+    }
     const data = await res.json();
     return { success: data.success || data.Success, message: data.message || data.Message, data: data.data || data.Data || data };
   } catch (error) {
@@ -502,7 +548,10 @@ export const blockUserApiCall = async (targetUserId: number, token: string | nul
       body: JSON.stringify({ targetUserId })
     });
 
-    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
+    if (res.status === 401) {
+      handleSilentSessionExpiry();
+      return { success: false, isUnauthorized: true, message: "" };
+    }
     const data = await res.json();
     return { 
       success: Boolean(data.success ?? data.Success), 
@@ -526,7 +575,10 @@ export const unblockUserApiCall = async (targetUserId: number, token: string | n
       body: JSON.stringify({ targetUserId })
     });
 
-    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
+    if (res.status === 401) {
+      handleSilentSessionExpiry();
+      return { success: false, isUnauthorized: true, message: "" };
+    }
     const data = await res.json();
     return { 
       success: Boolean(data.success ?? data.Success), 
@@ -550,7 +602,10 @@ export const reportUserApiCall = async (targetUserId: number, token: string | nu
       body: JSON.stringify({ targetUserId, reason })
     });
 
-    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
+    if (res.status === 401) {
+      handleSilentSessionExpiry();
+      return { success: false, isUnauthorized: true, message: "" };
+    }
     const data = await res.json();
     return { 
       success: Boolean(data.success ?? data.Success ?? true), 
@@ -577,7 +632,10 @@ export const fetchChatInboxApi = async (page: number = 1, size: number = 20, tok
       }
     });
 
-    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired.", data: [] };
+    if (res.status === 401) {
+      handleSilentSessionExpiry();
+      return { success: false, isUnauthorized: true, message: "", data: [] };
+    }
     if (!res.ok) return { success: false, message: `Server error (${res.status})`, data: [] };
 
     const data = await res.json();
@@ -600,7 +658,10 @@ export const fetchChatHistoryApi = async (receiverId: number, page: number = 1, 
       }
     });
 
-    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired.", data: [] };
+    if (res.status === 401) {
+      handleSilentSessionExpiry();
+      return { success: false, isUnauthorized: true, message: "", data: [] };
+    }
     if (!res.ok) return { success: false, message: `Server error (${res.status})`, data: [] };
 
     const data = await res.json();
@@ -624,7 +685,10 @@ export const sendChatMessageApi = async (receiverId: number, messageText: string
       body: JSON.stringify({ receiverId, messageText, messageType })
     });
 
-    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
+    if (res.status === 401) {
+      handleSilentSessionExpiry();
+      return { success: false, isUnauthorized: true, message: "" };
+    }
     const data = await res.json();
     return { success: Boolean(data.success ?? data.Success), data: data.data ?? data.Data, message: data.message ?? data.Message };
   } catch (error) {
@@ -644,7 +708,10 @@ export const markChatReadApi = async (senderId: number, token: string | null | u
       }
     });
 
-    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
+    if (res.status === 401) {
+      handleSilentSessionExpiry();
+      return { success: false, isUnauthorized: true, message: "" };
+    }
     const data = await res.json();
     return { success: true, data };
   } catch (error) {
@@ -664,7 +731,10 @@ export const fetchBlockStatusApi = async (targetUserId: number, token: string | 
       }
     });
 
-    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
+    if (res.status === 401) {
+      handleSilentSessionExpiry();
+      return { success: false, isUnauthorized: true, message: "" };
+    }
     const data = await res.json();
     return { success: true, data };
   } catch (error) {
@@ -697,7 +767,10 @@ export const validatePromoCodeApi = async (code: string, planId: number, token: 
       },
       body: JSON.stringify({ code, planId })
     });
-    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
+    if (res.status === 401) {
+      handleSilentSessionExpiry();
+      return { success: false, isUnauthorized: true, message: "" };
+    }
     
     const data = await res.json();
     return { 
@@ -725,7 +798,10 @@ export const purchaseSubscriptionApi = async (planId: number, promoCode: string 
       body: JSON.stringify({ planId, promoCode })
     });
 
-    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
+    if (res.status === 401) {
+      handleSilentSessionExpiry();
+      return { success: false, isUnauthorized: true, message: "" };
+    }
     const data = await res.json();
     return { success: Boolean(data.success), message: data.message || "Plan purchased!", data: data.data };
   } catch (error) {
@@ -745,7 +821,10 @@ export const fetchActiveSubscriptionApi = async (token: string | null | undefine
       }
     });
 
-    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
+    if (res.status === 401) {
+      handleSilentSessionExpiry();
+      return { success: false, isUnauthorized: true, message: "" };
+    }
     const json = await res.json();
     const actualData = (json && typeof json === 'object' && 'data' in json) ? json.data : json;
     return { success: true, data: actualData };
@@ -766,7 +845,10 @@ export const fetchSubscriptionHistoryApi = async (token: string | null | undefin
       }
     });
 
-    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
+    if (res.status === 401) {
+      handleSilentSessionExpiry();
+      return { success: false, isUnauthorized: true, message: "" };
+    }
     const json = await res.json();
     const actualData = (json && typeof json === 'object' && 'data' in json) ? json.data : json;
     return { success: true, data: actualData };
@@ -786,7 +868,10 @@ export const searchMatchesApi = async (searchPayload: any, token: string | null 
       },
       body: JSON.stringify(searchPayload)
     });
-    if (res.status === 401) return { success: false, isUnauthorized: true, message: "Session expired." };
+    if (res.status === 401) {
+      handleSilentSessionExpiry();
+      return { success: false, isUnauthorized: true, message: "" };
+    }
     
     const text = await res.text();
     let data: any = {};
@@ -1035,6 +1120,26 @@ export const updatePhotoPrivacyApiCall = async (privacy: string, token: string |
   } catch (e) {
     return { success: false, message: "Failed to update photo privacy." };
   }
+};
+
+// 🚀 Dynamic: Fetch Boost Plans from Database / Admin API
+export const fetchBoostPlansApi = async () => {
+  try {
+    const res = await fetch(`${API_BASE_URL}/Subscription/boost-plans`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.success && Array.isArray(data.data) && data.data.length > 0) {
+        return data.data;
+      }
+    }
+  } catch (e) {
+    console.error("fetchBoostPlansApi error:", e);
+  }
+  return [
+    { id: 'boost-1', title: 'Add 1 Boost', subtext: '99 each', hours: 24, cost: 99, badge: null },
+    { id: 'boost-2', title: 'Add 2 Boosts', subtext: '74.5 each', hours: 48, cost: 149, badge: 'BEST SELLER' },
+    { id: 'boost-3', title: 'Add 3 Boosts', subtext: '66.3 each', hours: 72, cost: 199, badge: null }
+  ];
 };
 
 // 🚀 Protected: Get Profile Boost Status API

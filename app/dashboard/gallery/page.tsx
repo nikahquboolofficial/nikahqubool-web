@@ -12,6 +12,8 @@ import {
   setMainPhotoApi,
   deleteGalleryPhotoApi,
   updatePhotoPrivacyApi,
+  fetchMasterDataApi,
+  MasterOption,
 } from '@/lib/api';
 import { CompactSelect } from '@/components/profile/CompactSelect';
 import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
@@ -64,6 +66,16 @@ export default function GalleryManagementPage() {
   });
   const [verifiedSelfieUrl, setVerifiedSelfieUrl] = useState<string>('');
   const [pendingUpload, setPendingUpload] = useState<any>(null);
+  const [privacyOptions, setPrivacyOptions] = useState<MasterOption[]>([]);
+
+  // ⚡ Load Master Photo Privacy Options Dynamically
+  useEffect(() => {
+    fetchMasterDataApi('PHOTO_PRIVACY').then((opts) => {
+      if (opts && opts.length > 0) {
+        setPrivacyOptions(opts);
+      }
+    });
+  }, []);
 
   // ⚡ 0ms INSTANT HYDRATION FROM LOCAL CACHE
   useEffect(() => {
@@ -409,12 +421,6 @@ export default function GalleryManagementPage() {
       setUploading(false);
     }
   };
-
-  const privacyOptions = [
-    { id: "All Members", value: "All Members" },
-    { id: "Premium Only", value: "Premium Only" },
-    { id: "Only Approved", value: "Only Approved" }
-  ];
 
   const isMainSelected = selectedPhoto ? Boolean(selectedPhoto.isMain ?? selectedPhoto.IsMain) : false;
 

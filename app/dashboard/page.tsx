@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { Loader2, Sparkles, Flame, RefreshCw, Crown, Lock, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
-import { fetchDashboardApi, handleInteractionApiCall, fetchActiveSubscriptionApi } from '@/lib/api';
+import { fetchDashboardApi, handleInteractionApiCall, fetchActiveSubscriptionApi, handleSilentSessionExpiry } from '@/lib/api';
 import { checkDailyViewLimit, formatTimeRemaining, DAILY_FREE_PROFILE_LIMIT } from '@/lib/limitUtils';
 import { getAuthToken } from '@/lib/auth';
 import ProfileCard from '@/components/dashboard/ProfileCard';
@@ -105,8 +105,7 @@ export default function VIPCleanDashboardPage() {
 
     if (res.isUnauthorized) {
       toast.dismiss();
-      toast.error("Session expired.");
-      router.push('/');
+      handleSilentSessionExpiry();
       return;
     }
 
@@ -181,9 +180,7 @@ export default function VIPCleanDashboardPage() {
         }
       }
     } else {
-      if (!globalFeedCache[tabName] || globalFeedCache[tabName].profiles.length === 0) {
-        toast.error("Connecting to server... Please check your internet connection.");
-      }
+      // Graceful fallback - network status handled by NetworkStatusBanner
     }
 
     setLoading(false);

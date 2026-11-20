@@ -79,6 +79,24 @@ function ActivityContent() {
   const [activeMainTab, setActiveMainTab] = useState<MainTab>(initialMainTab);
   const [activeSubTab, setActiveSubTab] = useState<string>(initialSubTab);
 
+  // Tab button refs for smooth auto-scrolling
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const subTabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  useEffect(() => {
+    const mainBtn = tabRefs.current[activeMainTab];
+    if (mainBtn) {
+      mainBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+  }, [activeMainTab]);
+
+  useEffect(() => {
+    const subBtn = subTabRefs.current[activeSubTab];
+    if (subBtn) {
+      subBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+  }, [activeSubTab]);
+
   // Profiles State
   const [profiles, setProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -270,16 +288,9 @@ function ActivityContent() {
     <div className="min-h-screen bg-[#FDFCFB] font-sans text-slate-900 pb-24 selection:bg-[#E21E5B] selection:text-white">
       <Toaster position="top-center" richColors />
 
-      <div className="max-w-md mx-auto px-4 py-3 space-y-4">
-        {/* Top Header */}
-        <div className="pt-1">
-          <h1 className="text-2xl font-black tracking-tight text-slate-900">
-            Activity
-          </h1>
-        </div>
-
-        {/* 🌟 1. MAIN TAB BAR (HORIZONTALLY SCROLLABLE, SCREENSHOT 1 & 2) */}
-        <div className="flex items-center gap-6 overflow-x-auto no-scrollbar border-b border-slate-200/80 pb-1">
+      <div className="max-w-md mx-auto px-4 pt-1 pb-4 space-y-3">
+        {/* 🌟 1. MAIN TAB BAR (HORIZONTALLY SCROLLABLE, ZERO-SCROLLBAR, AUTO-SCROLL TO ACTIVE) */}
+        <div className="flex items-center gap-6 overflow-x-auto border-b border-slate-200/80 pb-1 pt-0.5 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           {[
             { id: 'all' as MainTab, label: 'All' },
             { id: 'interests' as MainTab, label: 'Interests' },
@@ -291,8 +302,12 @@ function ActivityContent() {
             return (
               <button
                 key={tab.id}
-                onClick={() => handleMainTabChange(tab.id)}
-                className={`shrink-0 pb-2 text-sm transition-all relative font-bold cursor-pointer ${
+                ref={(el) => { tabRefs.current[tab.id] = el; }}
+                onClick={(e) => {
+                  e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                  handleMainTabChange(tab.id);
+                }}
+                className={`shrink-0 pb-2 text-sm transition-all relative font-bold cursor-pointer select-none ${
                   isActive ? 'text-slate-950 font-black' : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
@@ -308,16 +323,20 @@ function ActivityContent() {
           })}
         </div>
 
-        {/* 🌟 2. SUB-TAB PILLS BAR (SCREENSHOTS 2 & 3) */}
+        {/* 🌟 2. SUB-TAB PILLS BAR (HORIZONTALLY SCROLLABLE, ZERO-SCROLLBAR) */}
         {SUBTABS_CONFIG[activeMainTab].length > 0 && (
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+          <div className="flex items-center gap-2 overflow-x-auto py-0.5 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {SUBTABS_CONFIG[activeMainTab].map((subTab) => {
               const isSelected = activeSubTab === subTab.id;
               return (
                 <button
                   key={subTab.id}
-                  onClick={() => handleSubTabChange(subTab.id)}
-                  className={`shrink-0 px-4 py-1.5 rounded-full text-xs transition-all shadow-xs font-bold cursor-pointer ${
+                  ref={(el) => { subTabRefs.current[subTab.id] = el; }}
+                  onClick={(e) => {
+                    e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                    handleSubTabChange(subTab.id);
+                  }}
+                  className={`shrink-0 px-4 py-1.5 rounded-full text-xs transition-all shadow-xs font-bold cursor-pointer select-none ${
                     isSelected
                       ? 'bg-[#1e293b] text-white border border-[#1e293b]'
                       : 'bg-white text-slate-700 border border-slate-200/90 hover:border-slate-300'
@@ -379,15 +398,6 @@ function ActivityContent() {
             </div>
           </div>
         )}
-
-        {/* SECTION TITLE: TODAY / OTHER INTERESTS */}
-        <div className="pt-1">
-          <h2 className="text-sm font-black text-slate-900">
-            {activeMainTab === 'interests' && activeSubTab === 'requests' && profiles.length > 0 
-              ? "Other Interests" 
-              : (activeMainTab === 'all' ? "Today" : "Recent Activity")}
-          </h2>
-        </div>
 
         {/* 🌟 4. ACTIVITY PROFILES CARD FEED (SCREENSHOTS 1, 2, 3) */}
         {loading ? (

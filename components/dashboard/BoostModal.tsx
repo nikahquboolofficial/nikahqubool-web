@@ -6,7 +6,7 @@ import {
   X, Loader2, Sparkles, Clock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { fetchBoostStatusApi, applyProfileBoostApi } from '@/lib/api';
+import { fetchBoostStatusApi, applyProfileBoostApi, fetchBoostPlansApi } from '@/lib/api';
 import { getAuthToken } from '@/lib/auth';
 import { toast } from 'sonner';
 
@@ -17,37 +17,11 @@ interface BoostModalProps {
 }
 
 export default function BoostModal({ isOpen, onClose, onBoostSuccess }: BoostModalProps) {
-  // Plans exactly matching the reference screenshot:
-  // Add 1 Boost: ₹99 (99 each)
-  // Add 2 Boosts: ₹149 (74.5 each) with BEST SELLER badge
-  // Add 3 Boosts: ₹199 (66.3 each)
-  const plans = [
-    {
-      id: 'boost-1',
-      title: 'Add 1 Boost',
-      subtext: '99 each',
-      hours: 24,
-      cost: 99,
-      badge: null
-    },
-    {
-      id: 'boost-2',
-      title: 'Add 2 Boosts',
-      subtext: '74.5 each',
-      hours: 48,
-      cost: 149,
-      badge: 'BEST SELLER'
-    },
-    {
-      id: 'boost-3',
-      title: 'Add 3 Boosts',
-      subtext: '66.3 each',
-      hours: 72,
-      cost: 199,
-      badge: null
-    }
-  ];
-
+  const [plans, setPlans] = useState<any[]>([
+    { id: 'boost-1', title: 'Add 1 Boost', subtext: '99 each', hours: 24, cost: 99, badge: null },
+    { id: 'boost-2', title: 'Add 2 Boosts', subtext: '74.5 each', hours: 48, cost: 149, badge: 'BEST SELLER' },
+    { id: 'boost-3', title: 'Add 3 Boosts', subtext: '66.3 each', hours: 72, cost: 199, badge: null }
+  ]);
   const [selectedPlanId, setSelectedPlanId] = useState<string>('boost-2');
   const [loading, setLoading] = useState(false);
   const [boostStatus, setBoostStatus] = useState<{
@@ -56,12 +30,24 @@ export default function BoostModal({ isOpen, onClose, onBoostSuccess }: BoostMod
     expiresAt?: string;
   } | null>(null);
 
-  const selectedPlan = plans.find(p => p.id === selectedPlanId) || plans[1];
-
+  const selectedPlan = plans.find(p => p.id === selectedPlanId) || plans[0] || { hours: 24, cost: 99 };
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    fetchBoostPlansApi().then((data) => {
+      if (Array.isArray(data) && data.length > 0) {
+        setPlans(data);
+        const bestSeller = data.find((p: any) => p.badge?.toLowerCase().includes('best') || p.badge?.toLowerCase().includes('popular'));
+        if (bestSeller) {
+          setSelectedPlanId(bestSeller.id);
+        } else if (data.length > 1) {
+          setSelectedPlanId(data[1].id);
+        } else {
+          setSelectedPlanId(data[0].id);
+        }
+      }
+    });
   }, []);
 
   const loadStatus = async () => {
@@ -172,14 +158,21 @@ export default function BoostModal({ isOpen, onClose, onBoostSuccess }: BoostMod
 
             {/* ACTIVE STATUS NOTIFICATION IF ALREADY BOOSTED */}
             {boostStatus?.isBoosted && (
-              <div className="mb-4 p-3 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-                  <span className="font-bold text-emerald-900">Current Boost Active!</span>
+              <div className="mb-4 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+                    <span className="font-bold text-emerald-900">Current Boost Active!</span>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full bg-emerald-600 text-white font-black text-[11px] flex items-center gap-1">
+                    <Clock size={12} /> {formatRemainingTime(boostStatus.remainingMinutes)}
+                  </span>
                 </div>
-                <span className="px-2.5 py-1 rounded-full bg-emerald-600 text-white font-black text-[11px] flex items-center gap-1">
-                  <Clock size={12} /> {formatRemainingTime(boostStatus.remainingMinutes)}
-                </span>
+                {boostStatus.expiresAt && (
+                  <p className="text-[11px] text-emerald-700 font-medium">
+                    Valid till: {new Date(boostStatus.expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                )}
               </div>
             )}
 

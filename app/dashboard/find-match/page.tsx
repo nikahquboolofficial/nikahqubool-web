@@ -85,6 +85,128 @@ const INITIAL_SEARCH_FILTERS = {
 
 const STORAGE_KEY = "nikah_find_match_saved_filters_v2";
 
+// 🌟 REUSABLE PREMIUM DUAL-THUMB RANGE SLIDER (Single Track with Left & Right Thumbs)
+interface DualRangeSliderProps {
+  min: number;
+  max: number;
+  step?: number;
+  minVal: number;
+  maxVal: number;
+  minGap?: number;
+  onChange: (min: number, max: number) => void;
+}
+
+function DualRangeSlider({
+  min,
+  max,
+  step = 1,
+  minVal,
+  maxVal,
+  minGap = 1,
+  onChange,
+}: DualRangeSliderProps) {
+  const minPercent = Math.max(0, Math.min(100, ((minVal - min) / (max - min)) * 100));
+  const maxPercent = Math.max(0, Math.min(100, ((maxVal - min) / (max - min)) * 100));
+
+  return (
+    <div className="relative w-full h-7 flex items-center select-none touch-none">
+      {/* Background Track */}
+      <div className="absolute inset-x-0 h-1.5 bg-slate-200/90 rounded-full" />
+
+      {/* Active Range Highlight Bar */}
+      <div
+        className="absolute h-1.5 bg-gradient-to-r from-[#E21E5B] to-[#C2185B] rounded-full pointer-events-none transition-[left,width] duration-75"
+        style={{
+          left: `${minPercent}%`,
+          width: `${Math.max(0, maxPercent - minPercent)}%`,
+        }}
+      />
+
+      {/* Left Thumb (Min) */}
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={minVal}
+        onChange={(e) => {
+          const val = Math.min(Number(e.target.value), maxVal - minGap);
+          onChange(val, maxVal);
+        }}
+        className="absolute inset-x-0 w-full h-1.5 appearance-none bg-transparent pointer-events-none cursor-pointer
+          [&::-webkit-slider-runnable-track]:appearance-none
+          [&::-moz-range-track]:appearance-none
+          [&::-webkit-slider-thumb]:pointer-events-auto
+          [&::-webkit-slider-thumb]:appearance-none
+          [&::-webkit-slider-thumb]:w-5
+          [&::-webkit-slider-thumb]:h-5
+          [&::-webkit-slider-thumb]:rounded-full
+          [&::-webkit-slider-thumb]:bg-[#E21E5B]
+          [&::-webkit-slider-thumb]:border-2
+          [&::-webkit-slider-thumb]:border-white
+          [&::-webkit-slider-thumb]:shadow-md
+          [&::-webkit-slider-thumb]:hover:scale-110
+          [&::-webkit-slider-thumb]:active:scale-125
+          [&::-webkit-slider-thumb]:transition-transform
+          [&::-moz-range-thumb]:pointer-events-auto
+          [&::-moz-range-thumb]:appearance-none
+          [&::-moz-range-thumb]:w-5
+          [&::-moz-range-thumb]:h-5
+          [&::-moz-range-thumb]:rounded-full
+          [&::-moz-range-thumb]:bg-[#E21E5B]
+          [&::-moz-range-thumb]:border-2
+          [&::-moz-range-thumb]:border-white
+          [&::-moz-range-thumb]:shadow-md
+          [&::-moz-range-thumb]:hover:scale-110
+          [&::-moz-range-thumb]:active:scale-125
+          [&::-moz-range-thumb]:transition-transform"
+        style={{ zIndex: minVal > max - (max - min) * 0.15 ? 25 : 20 }}
+      />
+
+      {/* Right Thumb (Max) */}
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={maxVal}
+        onChange={(e) => {
+          const val = Math.max(Number(e.target.value), minVal + minGap);
+          onChange(minVal, val);
+        }}
+        className="absolute inset-x-0 w-full h-1.5 appearance-none bg-transparent pointer-events-none cursor-pointer
+          [&::-webkit-slider-runnable-track]:appearance-none
+          [&::-moz-range-track]:appearance-none
+          [&::-webkit-slider-thumb]:pointer-events-auto
+          [&::-webkit-slider-thumb]:appearance-none
+          [&::-webkit-slider-thumb]:w-5
+          [&::-webkit-slider-thumb]:h-5
+          [&::-webkit-slider-thumb]:rounded-full
+          [&::-webkit-slider-thumb]:bg-[#E21E5B]
+          [&::-webkit-slider-thumb]:border-2
+          [&::-webkit-slider-thumb]:border-white
+          [&::-webkit-slider-thumb]:shadow-md
+          [&::-webkit-slider-thumb]:hover:scale-110
+          [&::-webkit-slider-thumb]:active:scale-125
+          [&::-webkit-slider-thumb]:transition-transform
+          [&::-moz-range-thumb]:pointer-events-auto
+          [&::-moz-range-thumb]:appearance-none
+          [&::-moz-range-thumb]:w-5
+          [&::-moz-range-thumb]:h-5
+          [&::-moz-range-thumb]:rounded-full
+          [&::-moz-range-thumb]:bg-[#E21E5B]
+          [&::-moz-range-thumb]:border-2
+          [&::-moz-range-thumb]:border-white
+          [&::-moz-range-thumb]:shadow-md
+          [&::-moz-range-thumb]:hover:scale-110
+          [&::-moz-range-thumb]:active:scale-125
+          [&::-moz-range-thumb]:transition-transform"
+        style={{ zIndex: 21 }}
+      />
+    </div>
+  );
+}
+
 export default function FindMatchPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -489,34 +611,15 @@ export default function FindMatchPage() {
                 <span>Min {Math.max(filters.ageMin, targetMinAge)} yrs</span>
                 <span>Max {filters.ageMax} yrs</span>
               </div>
-              <div className="relative pt-2 pb-1">
-                <input 
-                  type="range"
-                  min={targetMinAge}
-                  max={70}
-                  value={Math.max(filters.ageMin, targetMinAge)}
-                  onChange={(e) => {
-                    const val = Math.max(targetMinAge, Number(e.target.value));
-                    if (val <= filters.ageMax - 1) {
-                      setFilters(prev => ({ ...prev, ageMin: val }));
-                    }
-                  }}
-                  className="w-full accent-[#E21E5B] h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer"
-                />
-                <input 
-                  type="range"
-                  min={targetMinAge}
-                  max={70}
-                  value={filters.ageMax}
-                  onChange={(e) => {
-                    const val = Number(e.target.value);
-                    if (val >= Math.max(filters.ageMin, targetMinAge) + 1) {
-                      setFilters(prev => ({ ...prev, ageMax: val }));
-                    }
-                  }}
-                  className="w-full accent-[#E21E5B] h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer mt-1"
-                />
-              </div>
+              <DualRangeSlider
+                min={targetMinAge}
+                max={70}
+                step={1}
+                minVal={Math.max(filters.ageMin, targetMinAge)}
+                maxVal={filters.ageMax}
+                minGap={1}
+                onChange={(min, max) => setFilters(prev => ({ ...prev, ageMin: min, ageMax: max }))}
+              />
             </div>
 
             {/* HEIGHT DUAL SLIDER CARD */}
@@ -526,36 +629,15 @@ export default function FindMatchPage() {
                 <span>Min {formatHeightFeet(filters.heightMin)}</span>
                 <span>Max {formatHeightFeet(filters.heightMax)}</span>
               </div>
-              <div className="relative pt-2 pb-1">
-                <input 
-                  type="range"
-                  min={4.0}
-                  max={7.0}
-                  step={0.0833}
-                  value={filters.heightMin}
-                  onChange={(e) => {
-                    const val = parseFloat(e.target.value);
-                    if (val <= filters.heightMax - 0.1) {
-                      setFilters(prev => ({ ...prev, heightMin: val }));
-                    }
-                  }}
-                  className="w-full accent-[#E21E5B] h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer"
-                />
-                <input 
-                  type="range"
-                  min={4.0}
-                  max={7.0}
-                  step={0.0833}
-                  value={filters.heightMax}
-                  onChange={(e) => {
-                    const val = parseFloat(e.target.value);
-                    if (val >= filters.heightMin + 0.1) {
-                      setFilters(prev => ({ ...prev, heightMax: val }));
-                    }
-                  }}
-                  className="w-full accent-[#E21E5B] h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer mt-1"
-                />
-              </div>
+              <DualRangeSlider
+                min={4.0}
+                max={7.0}
+                step={0.0833}
+                minVal={filters.heightMin}
+                maxVal={filters.heightMax}
+                minGap={0.0833}
+                onChange={(min, max) => setFilters(prev => ({ ...prev, heightMin: min, heightMax: max }))}
+              />
             </div>
 
             {/* MARITAL STATUS CARD */}
@@ -1274,28 +1356,15 @@ export default function FindMatchPage() {
                         <span>Min {Math.max(filters.ageMin, targetMinAge)} yrs</span>
                         <span>Max {filters.ageMax} yrs</span>
                       </div>
-                      <div className="space-y-2 pt-2">
-                        <input
-                          type="range"
+                      <div className="pt-2">
+                        <DualRangeSlider
                           min={targetMinAge}
                           max={70}
-                          value={Math.max(filters.ageMin, targetMinAge)}
-                          onChange={(e) => {
-                            const val = Math.max(targetMinAge, Number(e.target.value));
-                            if (val <= filters.ageMax - 1) setFilters(p => ({ ...p, ageMin: val }));
-                          }}
-                          className="w-full accent-[#E21E5B] h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer"
-                        />
-                        <input
-                          type="range"
-                          min={targetMinAge}
-                          max={70}
-                          value={filters.ageMax}
-                          onChange={(e) => {
-                            const val = Number(e.target.value);
-                            if (val >= Math.max(filters.ageMin, targetMinAge) + 1) setFilters(p => ({ ...p, ageMax: val }));
-                          }}
-                          className="w-full accent-[#E21E5B] h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer"
+                          step={1}
+                          minVal={Math.max(filters.ageMin, targetMinAge)}
+                          maxVal={filters.ageMax}
+                          minGap={1}
+                          onChange={(min, max) => setFilters(p => ({ ...p, ageMin: min, ageMax: max }))}
                         />
                       </div>
                     </div>
@@ -1309,30 +1378,15 @@ export default function FindMatchPage() {
                         <span>Min {formatHeightFeet(filters.heightMin)}</span>
                         <span>Max {formatHeightFeet(filters.heightMax)}</span>
                       </div>
-                      <div className="space-y-2 pt-2">
-                        <input
-                          type="range"
+                      <div className="pt-2">
+                        <DualRangeSlider
                           min={4.0}
                           max={7.0}
                           step={0.0833}
-                          value={filters.heightMin}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value);
-                            if (val <= filters.heightMax - 0.1) setFilters(p => ({ ...p, heightMin: val }));
-                          }}
-                          className="w-full accent-[#E21E5B] h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer"
-                        />
-                        <input
-                          type="range"
-                          min={4.0}
-                          max={7.0}
-                          step={0.0833}
-                          value={filters.heightMax}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value);
-                            if (val >= filters.heightMin + 0.1) setFilters(p => ({ ...p, heightMax: val }));
-                          }}
-                          className="w-full accent-[#E21E5B] h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer"
+                          minVal={filters.heightMin}
+                          maxVal={filters.heightMax}
+                          minGap={0.0833}
+                          onChange={(min, max) => setFilters(p => ({ ...p, heightMin: min, heightMax: max }))}
                         />
                       </div>
                     </div>

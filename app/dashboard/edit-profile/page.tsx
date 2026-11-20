@@ -31,6 +31,7 @@ import {
 import { getAuthToken, syncUserProfilePhoto } from '@/lib/auth';
 import { clientValidateSingleFace } from '@/lib/faceDetectionClient';
 import ProfileAvatarLoader from '@/components/ProfileAvatarLoader';
+import { resolveMasterText } from '@/lib/masterResolver';
 
 // Helper for Height conversions
 function cmToFtIn(cm: number): string {
@@ -38,6 +39,13 @@ function cmToFtIn(cm: number): string {
   const ft = Math.floor(totalInches / 12);
   const inch = totalInches % 12;
   return `${ft}ft ${inch}in (${cm} cm)`;
+}
+
+function formatHeightShort(cm: number): string {
+  const totalInches = Math.round(cm / 2.54);
+  const ft = Math.floor(totalInches / 12);
+  const inch = totalInches % 12;
+  return `${ft}ft ${inch}in`;
 }
 
 function parseHeightToCm(hStr: string): number {
@@ -75,6 +83,18 @@ const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December"
 ];
 
+const FALLBACK_MUSIC_OPTIONS: MasterOption[] = [
+  { id: 1, value: "Nasheeds & Naats" },
+  { id: 2, value: "Sufi & Qawwali" },
+  { id: 3, value: "Ghazals & Classical" },
+  { id: 4, value: "Instrumental & Ambient" },
+  { id: 5, value: "Folk & Traditional" },
+  { id: 6, value: "Bollywood & Pop" },
+  { id: 7, value: "Acoustic & Melody" },
+  { id: 8, value: "No Music / Nasheeds Only" },
+  { id: 9, value: "Other" }
+];
+
 export default function EditMyProfilePage() {
   const router = useRouter();
 
@@ -101,7 +121,7 @@ export default function EditMyProfilePage() {
     COMPLEXION: getCachedMasterOptions('COMPLEXION'),
     HOBBIES: getCachedMasterOptions('HOBBIES'),
     INTERESTS: getCachedMasterOptions('INTERESTS'),
-    MUSIC: getCachedMasterOptions('MUSIC'),
+    MUSIC: getCachedMasterOptions('MUSIC').length > 0 ? getCachedMasterOptions('MUSIC') : FALLBACK_MUSIC_OPTIONS,
     SPORTS: getCachedMasterOptions('SPORTS'),
     LANGUAGES: getCachedMasterOptions('LANGUAGES'),
     NAMAZ_HABITS: getCachedMasterOptions('NAMAZ_HABITS'),
@@ -122,26 +142,8 @@ export default function EditMyProfilePage() {
 
   // 🌟 GUARANTEED TEXT RESOLVER: NEVER SHOW A NUMERIC ID ON SCREEN!
   const getMasterLabel = useCallback((type: string, val: any): string => {
-    if (val === null || val === undefined || val === '') return '';
-    const strVal = String(val).trim();
     const list = masterData[type] || [];
-    
-    // 1. Try finding by numeric id
-    const byId = list.find(item => String(item.id) === strVal);
-    if (byId) return byId.value;
-
-    // 2. Try finding by case-insensitive value
-    const byVal = list.find(item => item.value.toLowerCase() === strVal.toLowerCase());
-    if (byVal) return byVal.value;
-
-    // 3. Fallback: if it's a numeric string that didn't match, avoid showing raw number if possible
-    if (/^\d+$/.test(strVal)) {
-      const idx = Number(strVal) - 1;
-      if (idx >= 0 && idx < list.length) {
-        return list[idx].value;
-      }
-    }
-    return strVal;
+    return resolveMasterText(type, val, list);
   }, [masterData]);
 
   // Helper to get cached Full Name from localStorage
@@ -165,7 +167,8 @@ export default function EditMyProfilePage() {
   // Helper to render label or clean placeholder
   const renderLabel = (val: any, placeholder: string = "Not specified") => {
     if (val !== null && val !== undefined && val !== '' && val !== 0 && val !== '0') {
-      return <span className="text-slate-700 font-semibold">{String(val)}</span>;
+      const cleanVal = String(val).replace(/^[?â‚¹]\s*/, '₹ ');
+      return <span className="text-slate-700 font-semibold">{cleanVal}</span>;
     }
     return <span className="text-slate-400 italic font-normal">{placeholder}</span>;
   };
@@ -308,6 +311,9 @@ export default function EditMyProfilePage() {
   // Height Slider Substate
   const [heightCm, setHeightCm] = useState(170);
 
+  // Weight Slider Substate
+  const [weightKg, setWeightKg] = useState(60);
+
   // Income Slider Substate
   const [incomeIndex, setIncomeIndex] = useState(4);
 
@@ -347,6 +353,22 @@ export default function EditMyProfilePage() {
   const [multiSelectAvailable, setMultiSelectAvailable] = useState<MasterOption[]>([]);
   const [multiSelectSearch, setMultiSelectSearch] = useState('');
 
+  // 🌟 MODAL / SHEET MANAGEMENT: Guaranteed Clean Close without leaks
+  const closeSheet = useCallback(() => {
+    setActiveSheet(null);
+    setOpenedFromWizard(null);
+  }, []);
+
+  const backToWizardOrClose = useCallback(() => {
+    if (openedFromWizard) {
+      const parent = openedFromWizard;
+      setOpenedFromWizard(null);
+      setActiveSheet(parent);
+    } else {
+      closeSheet();
+    }
+  }, [openedFromWizard, closeSheet]);
+
   // 🌟 DEDICATED WIZARD SUBSTATES (Screenshot 3, 5, 7, 8)
   const [familyWizardData, setFamilyWizardData] = useState({
     familyType: 0,
@@ -357,7 +379,9 @@ export default function EditMyProfilePage() {
     fatherOccupation: '',
     motherOccupation: '',
     totalBrothers: 0,
+    marriedBrothers: 0,
     totalSisters: 0,
+    marriedSisters: 0,
   });
 
   const [religiousWizardData, setReligiousWizardData] = useState({
@@ -485,7 +509,8 @@ export default function EditMyProfilePage() {
           }
 
           // Income Index resolver
-          const incStr = p.annualIncome || p.AnnualIncome || '';
+          const rawIncStr = p.annualIncome || p.AnnualIncome || '';
+          const incStr = rawIncStr ? rawIncStr.replace(/^[?â‚¹\s]+/, '₹ ').trim() : '';
           if (incStr) {
             const matchedIncIdx = INCOME_BRACKETS.findIndex(b => b.toLowerCase().replace(/[^a-z0-9]/g, '') === incStr.toLowerCase().replace(/[^a-z0-9]/g, ''));
             if (matchedIncIdx >= 0) {
@@ -565,6 +590,7 @@ export default function EditMyProfilePage() {
             Sports: p.sports || p.Sports || '',
             Hobbies: p.hobbies || '',
             Interests: p.interests || '',
+            Music: p.music || p.Music || '',
 
             // Bio & Trust
             AboutMe: p.aboutMe || p.bio || '',
@@ -621,23 +647,51 @@ export default function EditMyProfilePage() {
 
   const isFamilyCompleted = useMemo(() => {
     return completedSections.includes('family') || 
-           Boolean(Number(formData.FamilyType) > 0 || Number(formData.FatherOccupationId) > 0 || (formData.FatherOccupation && formData.FatherOccupation !== 'None') || formData.NativeLocation || Number(formData.NativePlaceCityId) > 0);
-  }, [completedSections, formData.FamilyType, formData.FatherOccupationId, formData.FatherOccupation, formData.NativeLocation, formData.NativePlaceCityId]);
+           Boolean(Number(formData.FamilyType) > 0 && 
+                   Number(formData.FamilyStatus) > 0 && 
+                   (formData.NativeLocation || Number(formData.NativePlaceCityId) > 0) && 
+                   (formData.FatherOccupation && formData.FatherOccupation !== 'None') && 
+                   (formData.MotherOccupation && formData.MotherOccupation !== 'None') && 
+                   formData.TotalBrothers !== undefined && formData.TotalBrothers !== null &&
+                   formData.TotalSisters !== undefined && formData.TotalSisters !== null);
+  }, [completedSections, formData.FamilyType, formData.FamilyStatus, formData.FatherOccupation, formData.MotherOccupation, formData.NativeLocation, formData.NativePlaceCityId, formData.TotalBrothers, formData.TotalSisters]);
+
+  const hasAnyFamilyField = useMemo(() => {
+    return Boolean(Number(formData.FamilyType) > 0 || 
+                   Number(formData.FamilyStatus) > 0 || 
+                   (formData.NativeLocation || Number(formData.NativePlaceCityId) > 0) || 
+                   (formData.FatherOccupation && formData.FatherOccupation !== 'None') || 
+                   (formData.MotherOccupation && formData.MotherOccupation !== 'None') || 
+                   (formData.TotalBrothers !== undefined && formData.TotalBrothers !== null && formData.TotalBrothers > 0) || 
+                   (formData.TotalSisters !== undefined && formData.TotalSisters !== null && formData.TotalSisters > 0));
+  }, [formData.FamilyType, formData.FamilyStatus, formData.FatherOccupation, formData.MotherOccupation, formData.NativeLocation, formData.NativePlaceCityId, formData.TotalBrothers, formData.TotalSisters]);
 
   const isReligiousCompleted = useMemo(() => {
     return completedSections.includes('religious') || 
-           Boolean((formData.NamazHabit && formData.NamazHabit !== 'None') || (formData.QuranReading && formData.QuranReading !== 'None') || (formData.RozaHabit && formData.RozaHabit !== 'None'));
-  }, [completedSections, formData.NamazHabit, formData.QuranReading, formData.RozaHabit]);
+           Boolean(formData.NamazHabit && formData.QuranReading && formData.RozaHabit && formData.ZakatHabit && formData.HajjUmrah);
+  }, [completedSections, formData.NamazHabit, formData.QuranReading, formData.RozaHabit, formData.ZakatHabit, formData.HajjUmrah]);
+
+  const hasAnyReligiousField = useMemo(() => {
+    return Boolean(formData.NamazHabit || formData.QuranReading || formData.RozaHabit || formData.ZakatHabit || formData.HajjUmrah);
+  }, [formData.NamazHabit, formData.QuranReading, formData.RozaHabit, formData.ZakatHabit, formData.HajjUmrah]);
 
   const isLifestyleCompleted = useMemo(() => {
     return completedSections.includes('lifestyle') || 
-           Boolean(formData.DietType || formData.Hobbies || formData.Music || formData.Interests || formData.Sports || formData.LanguagesKnown);
-  }, [completedSections, formData.DietType, formData.Hobbies, formData.Music, formData.Interests, formData.Sports, formData.LanguagesKnown]);
+           Boolean(formData.DietType && formData.SmokeHabit && formData.DrinkHabit && formData.Sports && formData.LanguagesKnown && formData.Hobbies && formData.Music);
+  }, [completedSections, formData.DietType, formData.SmokeHabit, formData.DrinkHabit, formData.Sports, formData.LanguagesKnown, formData.Hobbies, formData.Music]);
+
+  const hasAnyLifestyleField = useMemo(() => {
+    return Boolean(formData.DietType || formData.SmokeHabit || formData.DrinkHabit || formData.Sports || formData.LanguagesKnown || formData.Hobbies || formData.Music);
+  }, [formData.DietType, formData.SmokeHabit, formData.DrinkHabit, formData.Sports, formData.LanguagesKnown, formData.Hobbies, formData.Music]);
 
   const isOtherCompleted = useMemo(() => {
     return completedSections.includes('other') || 
-           Boolean((formData.AboutMe && formData.AboutMe.trim().length > 0) || formData.CollegeName || (formData.Disability && formData.Disability !== 'None') || formData.WhatsAppNumber);
-  }, [completedSections, formData.AboutMe, formData.CollegeName, formData.Disability, formData.WhatsAppNumber]);
+           Boolean(formData.CollegeName && formData.Disability && formData.PartnerExpectations);
+  }, [completedSections, formData.CollegeName, formData.Disability, formData.PartnerExpectations]);
+
+  const hasAnyOtherField = useMemo(() => {
+    return Boolean(formData.CollegeName || (formData.Disability && formData.Disability !== 'None') || formData.PartnerExpectations);
+  }, [formData.CollegeName, formData.Disability, formData.PartnerExpectations]);
 
   const isVerifiedCompleted = useMemo(() => {
     return Boolean(formData.IsGovtIdVerified);
@@ -742,15 +796,17 @@ export default function EditMyProfilePage() {
   // Open Family Wizard
   const openFamilyWizard = () => {
     setFamilyWizardData({
-      familyType: formData.FamilyType || 1,
-      familyStatus: formData.FamilyStatus || 2,
-      nativeStateId: formData.NativePlaceStateId || 14,
-      nativeCityId: formData.NativePlaceCityId || 1,
+      familyType: formData.FamilyType || 0,
+      familyStatus: formData.FamilyStatus || 0,
+      nativeStateId: formData.NativePlaceStateId || 0,
+      nativeCityId: formData.NativePlaceCityId || 0,
       nativeLocation: formData.NativeLocation || '',
-      fatherOccupation: formData.FatherOccupation || 'Business/Self Employed',
-      motherOccupation: formData.MotherOccupation || 'Homemaker/Housewife',
-      totalBrothers: formData.TotalBrothers || 0,
-      totalSisters: formData.TotalSisters || 0,
+      fatherOccupation: formData.FatherOccupation || '',
+      motherOccupation: formData.MotherOccupation || '',
+      totalBrothers: formData.TotalBrothers !== undefined && formData.TotalBrothers !== null ? Number(formData.TotalBrothers) : 0,
+      marriedBrothers: formData.MarriedBrothers !== undefined && formData.MarriedBrothers !== null ? Number(formData.MarriedBrothers) : 0,
+      totalSisters: formData.TotalSisters !== undefined && formData.TotalSisters !== null ? Number(formData.TotalSisters) : 0,
+      marriedSisters: formData.MarriedSisters !== undefined && formData.MarriedSisters !== null ? Number(formData.MarriedSisters) : 0,
     });
     setActiveSheet('familyWizard');
   };
@@ -758,11 +814,11 @@ export default function EditMyProfilePage() {
   // Open Religious Wizard
   const openReligiousWizard = () => {
     setReligiousWizardData({
-      namazHabit: formData.NamazHabit || 'Regularly',
-      quranReading: formData.QuranReading || 'Regularly',
-      rozaHabit: formData.RozaHabit || 'Yes',
-      zakatHabit: formData.ZakatHabit || 'Regularly',
-      hajjUmrah: formData.HajjUmrah || 'No',
+      namazHabit: formData.NamazHabit || '',
+      quranReading: formData.QuranReading || '',
+      rozaHabit: formData.RozaHabit || '',
+      zakatHabit: formData.ZakatHabit || '',
+      hajjUmrah: formData.HajjUmrah || '',
     });
     setActiveSheet('religiousWizard');
   };
@@ -770,11 +826,11 @@ export default function EditMyProfilePage() {
   // Open Lifestyle Wizard
   const openLifestyleWizard = () => {
     setLifestyleWizardData({
-      dietType: formData.DietType || 'Veg',
-      smokeHabit: formData.SmokeHabit || 'Non-Smoker / Never',
-      drinkHabit: formData.DrinkHabit || 'Never / Non-Drinker',
+      dietType: formData.DietType || '',
+      smokeHabit: formData.SmokeHabit || '',
+      drinkHabit: formData.DrinkHabit || '',
       sports: formData.Sports ? formData.Sports.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
-      languages: formData.LanguagesKnown ? formData.LanguagesKnown.split(',').map((s: string) => s.trim()).filter(Boolean) : ['Hindi', 'English'],
+      languages: formData.LanguagesKnown ? formData.LanguagesKnown.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
       hobbies: formData.Hobbies ? formData.Hobbies.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
       interests: formData.Interests ? formData.Interests.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
       music: formData.Music ? formData.Music.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
@@ -788,7 +844,7 @@ export default function EditMyProfilePage() {
       collegeName: formData.CollegeName || '',
       aboutMe: formData.AboutMe || '',
       partnerExpectations: formData.PartnerExpectations || '',
-      disability: formData.Disability || 'None',
+      disability: formData.Disability || '',
       whatsAppNumber: formData.WhatsAppNumber || '',
     });
     setActiveSheet('otherWizard');
@@ -806,17 +862,12 @@ export default function EditMyProfilePage() {
       fd.append("UserId", String(formData.UserId || 0));
       fd.append(field, String(value));
 
-      if (extraData.FatherOccupation && field === 'FatherOccupationId') {
-        fd.append('FatherOccupation', String(extraData.FatherOccupation));
-      }
-      if (extraData.MotherOccupation && field === 'MotherOccupationId') {
-        fd.append('MotherOccupation', String(extraData.MotherOccupation));
-      }
-      if (extraData.CurrentCityId && field === 'CurrentStateId') {
-        fd.append('CurrentCityId', String(extraData.CurrentCityId));
-      }
-      if (extraData.NativePlaceCityId && (field === 'NativePlaceStateId' || field === 'NativeLocation' || field === 'FamilyLocation')) {
-        fd.append('NativePlaceCityId', String(extraData.NativePlaceCityId));
+      if (extraData && typeof extraData === 'object') {
+        Object.keys(extraData).forEach(k => {
+          if (extraData[k] !== undefined && extraData[k] !== null) {
+            fd.append(k, String(extraData[k]));
+          }
+        });
       }
 
       const res = await updateProfileApi(fd, token);
@@ -841,7 +892,7 @@ export default function EditMyProfilePage() {
           });
         }
 
-        setActiveSheet(null);
+        closeSheet();
       } else {
         toast.error(res.message || "Failed to update detail.");
       }
@@ -857,20 +908,51 @@ export default function EditMyProfilePage() {
     const token = getAuthToken();
     if (!token) return;
 
+    if (!familyWizardData.familyType) {
+      toast.error("Please select Family Type.");
+      return;
+    }
+    if (!familyWizardData.familyStatus) {
+      toast.error("Please select Family Status.");
+      return;
+    }
+    if (!familyWizardData.nativeLocation && !familyWizardData.nativeStateId) {
+      toast.error("Please select Native Location.");
+      return;
+    }
+    if (!familyWizardData.fatherOccupation) {
+      toast.error("Please select Father's Occupation.");
+      return;
+    }
+    if (!familyWizardData.motherOccupation) {
+      toast.error("Please select Mother's Occupation.");
+      return;
+    }
+    if (familyWizardData.totalBrothers === undefined || familyWizardData.totalBrothers === null) {
+      toast.error("Please select number of Brothers.");
+      return;
+    }
+    if (familyWizardData.totalSisters === undefined || familyWizardData.totalSisters === null) {
+      toast.error("Please select number of Sisters.");
+      return;
+    }
+
     setSavingField('familyWizard');
     try {
       const fd = new FormData();
       fd.append("UserId", String(formData.UserId || 0));
-      fd.append("FamilyType", String(familyWizardData.familyType || 1));
-      fd.append("FamilyStatus", String(familyWizardData.familyStatus || 2));
-      fd.append("FatherOccupation", familyWizardData.fatherOccupation || 'Business/Self Employed');
-      fd.append("MotherOccupation", familyWizardData.motherOccupation || 'Homemaker/Housewife');
+      fd.append("FamilyType", String(familyWizardData.familyType));
+      fd.append("FamilyStatus", String(familyWizardData.familyStatus));
+      fd.append("FatherOccupation", familyWizardData.fatherOccupation);
+      fd.append("MotherOccupation", familyWizardData.motherOccupation);
       const fOpt = parentOccupationOpts.find(o => o.value.toLowerCase() === (familyWizardData.fatherOccupation || '').toLowerCase());
       const mOpt = parentOccupationOpts.find(o => o.value.toLowerCase() === (familyWizardData.motherOccupation || '').toLowerCase());
       if (fOpt?.id) fd.append("FatherOccupationId", String(fOpt.id));
       if (mOpt?.id) fd.append("MotherOccupationId", String(mOpt.id));
       fd.append("TotalBrothers", String(familyWizardData.totalBrothers));
+      fd.append("MarriedBrothers", String(familyWizardData.marriedBrothers || 0));
       fd.append("TotalSisters", String(familyWizardData.totalSisters));
+      fd.append("MarriedSisters", String(familyWizardData.marriedSisters || 0));
       if (familyWizardData.nativeStateId) {
         fd.append("NativePlaceStateId", String(familyWizardData.nativeStateId));
       }
@@ -889,9 +971,13 @@ export default function EditMyProfilePage() {
           FamilyType: familyWizardData.familyType,
           FamilyStatus: familyWizardData.familyStatus,
           FatherOccupation: familyWizardData.fatherOccupation,
+          FatherOccupationId: fOpt?.id || prev.FatherOccupationId,
           MotherOccupation: familyWizardData.motherOccupation,
+          MotherOccupationId: mOpt?.id || prev.MotherOccupationId,
           TotalBrothers: familyWizardData.totalBrothers,
+          MarriedBrothers: familyWizardData.marriedBrothers || 0,
           TotalSisters: familyWizardData.totalSisters,
+          MarriedSisters: familyWizardData.marriedSisters || 0,
           NativePlaceStateId: familyWizardData.nativeStateId,
           NativePlaceCityId: familyWizardData.nativeCityId,
           NativeLocation: familyWizardData.nativeLocation || prev.NativeLocation,
@@ -899,7 +985,7 @@ export default function EditMyProfilePage() {
 
         const nextCompleted = Array.from(new Set([...completedSections, 'family']));
         setCompletedSections(nextCompleted);
-        setActiveSheet(null);
+        closeSheet();
 
         const newScore = Math.min(100, profileCompletionScore + 10);
         setCelebrationModal({
@@ -924,15 +1010,51 @@ export default function EditMyProfilePage() {
     const token = getAuthToken();
     if (!token) return;
 
+    if (!religiousWizardData.namazHabit) {
+      toast.error("Please select Namaz Habit.");
+      return;
+    }
+    if (!religiousWizardData.quranReading) {
+      toast.error("Please select Quran Recitation habit.");
+      return;
+    }
+    if (!religiousWizardData.rozaHabit) {
+      toast.error("Please select Roza (Fasting) habit.");
+      return;
+    }
+    if (!religiousWizardData.zakatHabit) {
+      toast.error("Please select Zakat Habit.");
+      return;
+    }
+    if (!religiousWizardData.hajjUmrah) {
+      toast.error("Please select Hajj or Umrah status.");
+      return;
+    }
+
     setSavingField('religiousWizard');
     try {
       const fd = new FormData();
       fd.append("UserId", String(formData.UserId || 0));
-      fd.append("NamazHabit", religiousWizardData.namazHabit || 'Regularly');
-      fd.append("QuranReading", religiousWizardData.quranReading || 'Regularly');
-      fd.append("RozaHabit", religiousWizardData.rozaHabit || 'Yes');
-      fd.append("ZakatHabit", religiousWizardData.zakatHabit || 'Regularly');
-      fd.append("HajjUmrah", religiousWizardData.hajjUmrah || 'No');
+      fd.append("NamazHabit", religiousWizardData.namazHabit);
+      const nOpt = namazOpts.find(o => o.value.toLowerCase() === religiousWizardData.namazHabit.toLowerCase());
+      if (nOpt?.id) fd.append("NamazHabitId", String(nOpt.id));
+
+      fd.append("QuranReading", religiousWizardData.quranReading);
+      const qOpt = quranOpts.find(o => o.value.toLowerCase() === religiousWizardData.quranReading.toLowerCase());
+      if (qOpt?.id) fd.append("QuranReadingId", String(qOpt.id));
+
+      fd.append("RozaHabit", religiousWizardData.rozaHabit);
+      const rOpt = rozaOpts.find(o => o.value.toLowerCase() === religiousWizardData.rozaHabit.toLowerCase());
+      if (rOpt?.id) fd.append("RozaHabitId", String(rOpt.id));
+
+      fd.append("ZakatHabit", religiousWizardData.zakatHabit);
+      const zOpt = zakatOpts.find(o => o.value.toLowerCase() === religiousWizardData.zakatHabit.toLowerCase());
+      if (zOpt?.id) fd.append("ZakatHabitId", String(zOpt.id));
+
+      fd.append("HajjUmrah", religiousWizardData.hajjUmrah);
+      const hOpt = hajjOpts.find(o => o.value.toLowerCase() === religiousWizardData.hajjUmrah.toLowerCase());
+      if (hOpt?.id) fd.append("HajjUmrahId", String(hOpt.id));
+
       fd.append("CompletedSection", "religious");
 
       const res = await updateProfileApi(fd, token);
@@ -948,7 +1070,7 @@ export default function EditMyProfilePage() {
 
         const nextCompleted = Array.from(new Set([...completedSections, 'religious']));
         setCompletedSections(nextCompleted);
-        setActiveSheet(null);
+        closeSheet();
 
         const newScore = Math.min(100, profileCompletionScore + 5);
         setCelebrationModal({
@@ -973,28 +1095,55 @@ export default function EditMyProfilePage() {
     const token = getAuthToken();
     if (!token) return;
 
+    if (!lifestyleWizardData.dietType) {
+      toast.error("Please select Diet Type.");
+      return;
+    }
+    if (!lifestyleWizardData.smokeHabit) {
+      toast.error("Please select Smoking Habit.");
+      return;
+    }
+    if (!lifestyleWizardData.drinkHabit) {
+      toast.error("Please select Drinking Habit.");
+      return;
+    }
+    if (lifestyleWizardData.sports.length === 0) {
+      toast.error("Please select at least one Sport or Fitness activity.");
+      return;
+    }
+    if (lifestyleWizardData.languages.length === 0) {
+      toast.error("Please select at least one Language.");
+      return;
+    }
+    if (lifestyleWizardData.hobbies.length === 0) {
+      toast.error("Please select at least one Hobby.");
+      return;
+    }
+    if (lifestyleWizardData.music.length === 0) {
+      toast.error("Please select at least one Music preference.");
+      return;
+    }
+
     setSavingField('lifestyleWizard');
     try {
       const fd = new FormData();
       fd.append("UserId", String(formData.UserId || 0));
-      fd.append("DietType", lifestyleWizardData.dietType || 'Veg');
-      fd.append("SmokeHabit", lifestyleWizardData.smokeHabit || 'Non-Smoker / Never');
-      fd.append("DrinkHabit", lifestyleWizardData.drinkHabit || 'Never / Non-Drinker');
-      if (lifestyleWizardData.sports.length > 0) {
-        fd.append("Sports", lifestyleWizardData.sports.join(', '));
-      }
-      if (lifestyleWizardData.languages.length > 0) {
-        fd.append("LanguagesKnown", lifestyleWizardData.languages.join(', '));
-      }
-      if (lifestyleWizardData.hobbies.length > 0) {
-        fd.append("Hobbies", lifestyleWizardData.hobbies.join(', '));
-      }
-      if (lifestyleWizardData.interests.length > 0) {
-        fd.append("Interests", lifestyleWizardData.interests.join(', '));
-      }
-      if (lifestyleWizardData.music.length > 0) {
-        fd.append("Music", lifestyleWizardData.music.join(', '));
-      }
+      fd.append("DietType", lifestyleWizardData.dietType);
+      const dtOpt = dietOpts.find(o => o.value.toLowerCase() === lifestyleWizardData.dietType.toLowerCase());
+      if (dtOpt?.id) fd.append("DietTypeId", String(dtOpt.id));
+
+      fd.append("SmokeHabit", lifestyleWizardData.smokeHabit);
+      const smOpt = smokeOpts.find(o => o.value.toLowerCase() === lifestyleWizardData.smokeHabit.toLowerCase());
+      if (smOpt?.id) fd.append("SmokeHabitId", String(smOpt.id));
+
+      fd.append("DrinkHabit", lifestyleWizardData.drinkHabit);
+      const drOpt = drinkOpts.find(o => o.value.toLowerCase() === lifestyleWizardData.drinkHabit.toLowerCase());
+      if (drOpt?.id) fd.append("DrinkHabitId", String(drOpt.id));
+
+      fd.append("Sports", lifestyleWizardData.sports.join(', '));
+      fd.append("LanguagesKnown", lifestyleWizardData.languages.join(', '));
+      fd.append("Hobbies", lifestyleWizardData.hobbies.join(', '));
+      fd.append("Music", lifestyleWizardData.music.join(', '));
       fd.append("CompletedSection", "lifestyle");
 
       const res = await updateProfileApi(fd, token);
@@ -1013,7 +1162,7 @@ export default function EditMyProfilePage() {
 
         const nextCompleted = Array.from(new Set([...completedSections, 'lifestyle']));
         setCompletedSections(nextCompleted);
-        setActiveSheet(null);
+        closeSheet();
 
         const newScore = Math.min(100, profileCompletionScore + 10);
         setCelebrationModal({
@@ -1038,31 +1187,46 @@ export default function EditMyProfilePage() {
     const token = getAuthToken();
     if (!token) return;
 
+    if (!otherWizardData.collegeName.trim()) {
+      toast.error("Please enter College / University Name.");
+      return;
+    }
+    if (!otherWizardData.disability) {
+      toast.error("Please select Disability status.");
+      return;
+    }
+    if (!otherWizardData.partnerExpectations.trim()) {
+      toast.error("Please enter Partner Expectations.");
+      return;
+    }
+
     setSavingField('otherWizard');
     try {
       const fd = new FormData();
       fd.append("UserId", String(formData.UserId || 0));
-      fd.append("CollegeName", otherWizardData.collegeName);
-      fd.append("AboutMe", otherWizardData.aboutMe);
-      fd.append("PartnerExpectations", otherWizardData.partnerExpectations);
+      fd.append("CollegeName", otherWizardData.collegeName.trim());
       fd.append("Disability", otherWizardData.disability);
-      fd.append("WhatsAppNumber", otherWizardData.whatsAppNumber);
+      const dOpt = disabilityOpts.find(o => o.value.toLowerCase() === otherWizardData.disability.toLowerCase());
+      if (dOpt?.id) fd.append("DisabilityId", String(dOpt.id));
+      fd.append("PartnerExpectations", otherWizardData.partnerExpectations.trim());
+      if (otherWizardData.aboutMe) {
+        fd.append("AboutMe", otherWizardData.aboutMe.trim());
+      }
       fd.append("CompletedSection", "other");
 
       const res = await updateProfileApi(fd, token);
       if (res.success || (res as any).Success === 1) {
         setFormData((prev: any) => ({
           ...prev,
-          CollegeName: otherWizardData.collegeName,
-          AboutMe: otherWizardData.aboutMe,
-          PartnerExpectations: otherWizardData.partnerExpectations,
+          CollegeName: otherWizardData.collegeName.trim(),
           Disability: otherWizardData.disability,
-          WhatsAppNumber: otherWizardData.whatsAppNumber,
+          PartnerExpectations: otherWizardData.partnerExpectations.trim(),
+          ...(otherWizardData.aboutMe ? { AboutMe: otherWizardData.aboutMe.trim() } : {}),
         }));
 
         const nextCompleted = Array.from(new Set([...completedSections, 'other']));
         setCompletedSections(nextCompleted);
-        setActiveSheet(null);
+        closeSheet();
 
         const newScore = Math.min(100, profileCompletionScore + 5);
         setCelebrationModal({
@@ -1122,7 +1286,12 @@ export default function EditMyProfilePage() {
 
   // Save Text Input
   const handleSaveTextInput = () => {
-    saveFieldValue(textInputData.fieldKey, textInputData.value.trim());
+    const cleanVal = textInputData.value.trim();
+    if (!cleanVal) {
+      toast.error(`Please enter a valid ${textInputData.title || 'value'}. It cannot be empty.`);
+      return;
+    }
+    saveFieldValue(textInputData.fieldKey, cleanVal);
   };
 
   // Open Mobile Change Sheet with OTP
@@ -1183,7 +1352,7 @@ export default function EditMyProfilePage() {
           }
         });
       }
-      setActiveSheet(null);
+      closeSheet();
       toast.success("Mobile number updated successfully!");
     } else {
       toast.error(res.message || res.Message || "Invalid OTP code. Please try again.");
@@ -1197,13 +1366,25 @@ export default function EditMyProfilePage() {
   };
 
   const handleSaveHeight = () => {
-    const formatted = cmToFtIn(heightCm);
+    const formatted = formatHeightShort(heightCm);
     saveFieldValue('Height', formatted);
+  };
+
+  // Open Weight Sheet
+  const openWeightSheet = () => {
+    const match = String(formData.Weight || '').match(/(\d+)/);
+    setWeightKg(match ? Number(match[1]) : 60);
+    setActiveSheet('weight');
+  };
+
+  const handleSaveWeight = () => {
+    saveFieldValue('Weight', `${weightKg} kg`);
   };
 
   // Open Income Sheet
   const openIncomeSheet = () => {
-    const current = formData.AnnualIncome || '₹5 - 7 Lakhs';
+    const raw = formData.AnnualIncome || '₹5 - 7 Lakhs';
+    const current = raw.replace(/^[?â‚¹\s]+/, '₹ ').trim();
     const idx = INCOME_BRACKETS.findIndex(b => b.toLowerCase().replace(/[^a-z0-9]/g, '') === current.toLowerCase().replace(/[^a-z0-9]/g, ''));
     setIncomeIndex(idx >= 0 ? idx : 4);
     setActiveSheet('income');
@@ -1211,7 +1392,12 @@ export default function EditMyProfilePage() {
 
   const handleSaveIncome = () => {
     const selectedIncome = INCOME_BRACKETS[incomeIndex] || '₹5 - 7 Lakhs';
-    saveFieldValue('AnnualIncome', selectedIncome);
+    const cleanIncome = selectedIncome.replace(/^[?â‚¹\s]+/, '₹ ').trim();
+    const matched = (masterData.INCOME_RANGES || []).find(r => 
+      r.value.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanIncome.toLowerCase().replace(/[^a-z0-9]/g, '')
+    );
+    const incId = matched ? matched.id : (incomeIndex + 1);
+    saveFieldValue('AnnualIncome', cleanIncome, { AnnualIncomeId: incId });
   };
 
   // Open Date of Birth 3-Column Picker
@@ -1308,7 +1494,7 @@ export default function EditMyProfilePage() {
     } else if (key === 'Music') {
       title = 'Select Music Preferences';
       subtitle = 'Choose musical genres, melodies and styles you enjoy';
-      available = masterData.MUSIC || [];
+      available = (masterData.MUSIC && masterData.MUSIC.length > 0) ? masterData.MUSIC : FALLBACK_MUSIC_OPTIONS;
     } else if (key === 'Sports') {
       title = 'Select Sports & Fitness';
       subtitle = 'Choose sports and physical activities you participate in';
@@ -1317,6 +1503,16 @@ export default function EditMyProfilePage() {
       title = 'Languages You Know';
       subtitle = 'Select all languages you speak or understand fluently';
       available = masterData.LANGUAGES || [];
+    }
+
+    const catKey = key === 'LanguagesKnown' ? 'LANGUAGES' : key.toUpperCase();
+    if (!available || available.length === 0) {
+      fetchMasterDataApi(catKey).then(res => {
+        if (res && res.length > 0) {
+          setMasterData(prev => ({ ...prev, [catKey]: res }));
+          setMultiSelectAvailable(res);
+        }
+      });
     }
 
     let currentList: string[] = [];
@@ -1350,6 +1546,11 @@ export default function EditMyProfilePage() {
   };
 
   const handleSaveMultiSelect = () => {
+    if (multiSelectItems.length === 0) {
+      toast.error(`Please select at least 1 ${multiSelectTitle || 'item'}. You cannot leave it empty.`);
+      return;
+    }
+
     if (openedFromWizard === 'lifestyleWizard') {
       if (multiSelectKey === 'LanguagesKnown') {
         setLifestyleWizardData(prev => ({ ...prev, languages: multiSelectItems }));
@@ -1371,7 +1572,12 @@ export default function EditMyProfilePage() {
   };
 
   const handleSaveBio = () => {
-    saveFieldValue('AboutMe', bioDraft.trim());
+    const cleanBio = bioDraft.trim();
+    if (!cleanBio) {
+      toast.error("Please enter something about yourself. It cannot be empty.");
+      return;
+    }
+    saveFieldValue('AboutMe', cleanBio);
   };
 
   const handleSaveLocation = () => {
@@ -1404,7 +1610,7 @@ export default function EditMyProfilePage() {
   const handleSaveOption = () => {
     const selectedObj = sheetOptions.find(o => String(o.id) === String(selectedSheetValue) || o.value === selectedSheetValue);
     if (!selectedObj) {
-      setActiveSheet(null);
+      toast.error("Please select an option.");
       return;
     }
 
@@ -1469,7 +1675,7 @@ export default function EditMyProfilePage() {
       const res = await updatePhotoPrivacyApi(privacyValue, token);
       if (res.success || (res as any).Success === 1) {
         setFormData((prev: any) => ({ ...prev, PhotoPrivacy: privacyValue }));
-        setActiveSheet(null);
+        closeSheet();
       } else {
         toast.error("Failed to update photo privacy.");
       }
@@ -1619,7 +1825,7 @@ export default function EditMyProfilePage() {
           ...prev,
           GovtIdDocUrl: res?.data?.documentUrl || res?.data?.url || 'uploaded',
         }));
-        setActiveSheet(null);
+        closeSheet();
       } else {
         toast.error(res?.message || "Failed to upload document.");
       }
@@ -1654,15 +1860,82 @@ export default function EditMyProfilePage() {
       ];
   const familyTypeOpts = masterData.FAMILY_TYPES || [{ id: 1, value: 'Nuclear Family' }, { id: 2, value: 'Joint Family' }];
   const familyStatusOpts = masterData.FAMILY_STATUS || [{ id: 1, value: 'Rich/ Affluent' }, { id: 2, value: 'Upper Middle Class' }, { id: 3, value: 'Middle Class' }];
-  const namazOpts = masterData.NAMAZ_HABITS || [{ id: 1, value: 'Regularly' }, { id: 2, value: 'During Ramadan' }, { id: 3, value: 'Sometimes' }, { id: 4, value: 'Never' }];
-  const quranOpts = masterData.QURAN_READING || [{ id: 1, value: 'Regularly' }, { id: 2, value: 'During Ramadan' }, { id: 3, value: 'Sometimes' }, { id: 4, value: 'Never' }];
-  const rozaOpts = masterData.ROZA_HABITS || [{ id: 1, value: 'Yes' }, { id: 2, value: 'No' }];
-  const zakatOpts = masterData.ZAKAT_HABITS || [{ id: 1, value: 'Regularly' }, { id: 2, value: 'During Ramadan' }, { id: 3, value: 'Sometimes' }, { id: 4, value: 'Never' }];
-  const hajjOpts = masterData.HAJJ_UMRAH || [{ id: 1, value: 'Yes' }, { id: 2, value: 'No' }];
-  const dietOpts = masterData.DIET_TYPES || [{ id: 1, value: 'Veg' }, { id: 2, value: 'Non-Veg' }];
-  const smokeOpts = masterData.SMOKE_HABITS || [{ id: 1, value: 'Non-Smoker / Never' }, { id: 2, value: 'Occasionally / Socially' }];
-  const drinkOpts = masterData.DRINK_HABITS || [{ id: 1, value: 'Never / Non-Drinker' }, { id: 2, value: 'Occasionally / Socially' }];
-  const disabilityOpts = masterData.DISABILITIES || [{ id: 1, value: 'None' }, { id: 2, value: 'Physical Disability' }];
+  const namazOpts = (masterData.NAMAZ_HABITS && masterData.NAMAZ_HABITS.length > 0)
+    ? masterData.NAMAZ_HABITS
+    : [
+        { id: 1, value: 'Regularly / 5 Times Daily' },
+        { id: 2, value: 'Only Friday / Jummah Only' },
+        { id: 3, value: 'During Ramadan Only' },
+        { id: 4, value: 'Sometimes' },
+        { id: 5, value: 'Planning to Start' },
+        { id: 6, value: 'Never' }
+      ];
+  const quranOpts = (masterData.QURAN_READING && masterData.QURAN_READING.length > 0)
+    ? masterData.QURAN_READING
+    : [
+        { id: 1, value: 'Daily / Regularly' },
+        { id: 2, value: 'Only during Ramadan' },
+        { id: 3, value: 'Only on Fridays' },
+        { id: 4, value: 'Sometimes' },
+        { id: 5, value: 'Learning to Read' },
+        { id: 6, value: 'Never' }
+      ];
+  const rozaOpts = (masterData.ROZA_HABITS && masterData.ROZA_HABITS.length > 0)
+    ? masterData.ROZA_HABITS
+    : [
+        { id: 1, value: 'Regularly / All 30 Days' },
+        { id: 2, value: 'A Few Days When Possible' },
+        { id: 3, value: 'Only during Ramadan' },
+        { id: 4, value: 'Planning Soon (Insha\'Allah)' },
+        { id: 5, value: 'Not Keeping' }
+      ];
+  const zakatOpts = (masterData.ZAKAT_HABITS && masterData.ZAKAT_HABITS.length > 0)
+    ? masterData.ZAKAT_HABITS
+    : [
+        { id: 1, value: 'Yes, Regularly' },
+        { id: 2, value: 'Planning to Start' },
+        { id: 3, value: 'Not Applicable' }
+      ];
+  const hajjOpts = (masterData.HAJJ_UMRAH && masterData.HAJJ_UMRAH.length > 0)
+    ? masterData.HAJJ_UMRAH
+    : [
+        { id: 1, value: 'Hajj & Umrah Done' },
+        { id: 2, value: 'Umrah Done' },
+        { id: 3, value: 'Planning Soon (Insha\'Allah)' },
+        { id: 4, value: 'Not Yet' }
+      ];
+  const dietOpts = (masterData.DIET_TYPES && masterData.DIET_TYPES.length > 0)
+    ? masterData.DIET_TYPES
+    : [
+        { id: 1, value: 'Strictly Halal Always' },
+        { id: 2, value: 'Halal Non-Veg & Veg' },
+        { id: 3, value: 'Halal at Home, Vegetarian Outside' },
+        { id: 4, value: 'Vegetarian Only' },
+        { id: 5, value: 'Vegan' }
+      ];
+  const smokeOpts = (masterData.SMOKE_HABITS && masterData.SMOKE_HABITS.length > 0)
+    ? masterData.SMOKE_HABITS
+    : [
+        { id: 1, value: 'Non-Smoker / Never' },
+        { id: 2, value: 'Occasionally / Socially' },
+        { id: 3, value: 'Regular Smoker' }
+      ];
+  const drinkOpts = (masterData.DRINK_HABITS && masterData.DRINK_HABITS.length > 0)
+    ? masterData.DRINK_HABITS
+    : [
+        { id: 1, value: 'Never / Non-Drinker' },
+        { id: 2, value: 'Occasionally / Socially' },
+        { id: 3, value: 'Planning to Quit' }
+      ];
+  const disabilityOpts = (masterData.DISABILITIES && masterData.DISABILITIES.length > 0)
+    ? masterData.DISABILITIES
+    : [
+        { id: 1, value: 'None' },
+        { id: 2, value: 'Physically Challenged (Mobility)' },
+        { id: 3, value: 'Visually Impaired' },
+        { id: 4, value: 'Hearing / Speech Impaired' },
+        { id: 5, value: 'Other' }
+      ];
 
   const filteredSheetOptions = useMemo(() => {
     if (!sheetSearch.trim()) return sheetOptions;
@@ -1741,7 +2014,7 @@ export default function EditMyProfilePage() {
               <div 
                 key={card.key}
                 onClick={card.onAction}
-                className="p-3.5 sm:p-4 rounded-2xl bg-white border border-slate-200/90 shadow-2xs hover:border-[#d91b5c]/40 transition-all cursor-pointer flex items-center justify-between group"
+                className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-br from-[#FFF5F8] to-[#FFF0F4] border border-[#f5b8cc] hover:border-[#d91b5c]/60 shadow-2xs hover:shadow-xs transition-all cursor-pointer flex items-center justify-between group"
               >
                 <div className="space-y-1">
                   <div className="flex items-center gap-1.5">
@@ -1758,7 +2031,7 @@ export default function EditMyProfilePage() {
                 </div>
 
                 {card.scoreBadge && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-[#8C6000] border border-amber-200/60 shrink-0">
+                  <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-white text-[#d91b5c] border border-rose-200 shadow-2xs shrink-0">
                     {card.scoreBadge}
                   </span>
                 )}
@@ -1768,12 +2041,12 @@ export default function EditMyProfilePage() {
         )}
 
         {/* ============================================================== */}
-        {/* 🌟 BIO / ABOUT ME SECTION                                      */}
+        {/* 🌟 ABOUT ME SECTION                                            */}
         {/* ============================================================== */}
         <section className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs space-y-2">
           <div className="flex items-center gap-2">
             <User size={18} className="text-slate-800" />
-            <h2 className="text-sm font-black text-slate-900">Bio</h2>
+            <h2 className="text-sm font-black text-slate-900">About Me</h2>
           </div>
 
           <div 
@@ -1815,8 +2088,7 @@ export default function EditMyProfilePage() {
 
             {/* 2. Profile Created For (Locked - Screenshot 2) */}
             <div 
-              onClick={() => toast.info("Profile created for is locked for security.", { icon: "🔒" })}
-              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/30 cursor-default"
+              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/30 cursor-default select-none"
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Profile Created for</span>
@@ -1830,8 +2102,7 @@ export default function EditMyProfilePage() {
 
             {/* 3. Age and Gender (Locked - Screenshot 2) */}
             <div 
-              onClick={() => toast.info("Age and gender are verified during registration and locked.", { icon: "🔒" })}
-              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/30 cursor-default"
+              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/30 cursor-default select-none"
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Age and Gender</span>
@@ -1845,8 +2116,7 @@ export default function EditMyProfilePage() {
 
             {/* 4. Marital Status (Locked - Screenshot 2) */}
             <div 
-              onClick={() => toast.info("Marital status is locked. Contact support if needed.", { icon: "🔒" })}
-              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/30 cursor-default"
+              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/30 cursor-default select-none"
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Marital Status</span>
@@ -1860,8 +2130,7 @@ export default function EditMyProfilePage() {
 
             {/* 5. Sect (Locked - Screenshot 2) */}
             <div 
-              onClick={() => toast.info("Sect cannot be edited directly.", { icon: "🔒" })}
-              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/30 cursor-default"
+              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/30 cursor-default select-none"
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Sect</span>
@@ -1881,6 +2150,18 @@ export default function EditMyProfilePage() {
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Height</span>
                 <span className="text-xs mt-0.5 block">{renderLabel(formData.Height, "Select Height")}</span>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </div>
+
+            {/* Weight (Editable with Slider Sheet) */}
+            <div 
+              onClick={openWeightSheet}
+              className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+            >
+              <div>
+                <span className="text-[13px] font-bold text-slate-900 block">Weight</span>
+                <span className="text-xs mt-0.5 block">{renderLabel(formData.Weight, "Select Weight")}</span>
               </div>
               <ChevronRight size={16} className="text-slate-400" />
             </div>
@@ -2020,357 +2301,358 @@ export default function EditMyProfilePage() {
         </section>
 
         {/* ============================================================== */}
-        {/* 🌟 3. FAMILY DETAILS SECTION (Shows when completed)            */}
+        {/* 🌟 3. FAMILY DETAILS SECTION (Shows when any field is filled)  */}
         {/* ============================================================== */}
-        {isFamilyCompleted && (
+        {hasAnyFamilyField && (
           <section className="space-y-2">
-            <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-2">
-                <Users size={18} className="text-slate-800" />
-                <h2 className="text-sm font-black text-slate-900">Family Details</h2>
-              </div>
-              <button 
-                type="button" 
-                onClick={openFamilyWizard}
-                className="text-xs font-bold text-[#d91b5c] hover:underline"
-              >
-                Edit All
-              </button>
+            <div className="flex items-center gap-2 px-1">
+              <Users size={18} className="text-slate-800" />
+              <h2 className="text-sm font-black text-slate-900">Family Details</h2>
             </div>
 
             <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
               {/* Family Type */}
-              <div 
-                onClick={() => openOptionSheet('Family Type', 'FamilyType', formData.FamilyType, familyTypeOpts)}
-                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-              >
-                <div>
-                  <span className="text-[13px] font-bold text-slate-900 block">Family Type</span>
-                  <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('FAMILY_TYPES', formData.FamilyType), "Select Family Type")}</span>
+              {Boolean(formData.FamilyType) && (
+                <div 
+                  onClick={() => openOptionSheet('Family Type', 'FamilyType', formData.FamilyType, familyTypeOpts)}
+                  className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <span className="text-[13px] font-bold text-slate-900 block">Family Type</span>
+                    <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('FAMILY_TYPES', formData.FamilyType), "Select Family Type")}</span>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-400" />
                 </div>
-                <ChevronRight size={16} className="text-slate-400" />
-              </div>
+              )}
 
               {/* Family Status */}
-              <div 
-                onClick={() => openOptionSheet('Family Status', 'FamilyStatus', formData.FamilyStatus, familyStatusOpts)}
-                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-              >
-                <div>
-                  <span className="text-[13px] font-bold text-slate-900 block">Family Status</span>
-                  <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('FAMILY_STATUS', formData.FamilyStatus), "Select Family Status")}</span>
+              {Boolean(formData.FamilyStatus) && (
+                <div 
+                  onClick={() => openOptionSheet('Family Status', 'FamilyStatus', formData.FamilyStatus, familyStatusOpts)}
+                  className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <span className="text-[13px] font-bold text-slate-900 block">Family Status</span>
+                    <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('FAMILY_STATUS', formData.FamilyStatus), "Select Family Status")}</span>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-400" />
                 </div>
-                <ChevronRight size={16} className="text-slate-400" />
-              </div>
+              )}
 
               {/* Native Location */}
-              <div 
-                onClick={() => openLocationSheet('NativeLocation')}
-                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-              >
-                <div>
-                  <span className="text-[13px] font-bold text-slate-900 block">Native Location</span>
-                  <span className="text-xs mt-0.5 block">{renderLabel(formData.NativeLocation, "Select Native Location")}</span>
+              {Boolean(formData.NativeLocation) && (
+                <div 
+                  onClick={() => openLocationSheet('NativeLocation')}
+                  className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <span className="text-[13px] font-bold text-slate-900 block">Native Location</span>
+                    <span className="text-xs mt-0.5 block">{renderLabel(formData.NativeLocation, "Select Native Location")}</span>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-400" />
                 </div>
-                <ChevronRight size={16} className="text-slate-400" />
-              </div>
+              )}
 
               {/* Father's Occupation */}
-              <div 
-                onClick={() => openOptionSheet("Select Father's Profession", "FatherOccupation", formData.FatherOccupation, parentOccupationOpts)}
-                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-              >
-                <div>
-                  <span className="text-[13px] font-bold text-slate-900 block">Father's Occupation</span>
-                  <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('PARENT_OCCUPATIONS', formData.FatherOccupation) || formData.FatherOccupation, "Select Occupation")}</span>
+              {Boolean(formData.FatherOccupation && formData.FatherOccupation !== 'None') && (
+                <div 
+                  onClick={() => openOptionSheet("Select Father's Profession", "FatherOccupation", formData.FatherOccupation, parentOccupationOpts)}
+                  className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <span className="text-[13px] font-bold text-slate-900 block">Father's Occupation</span>
+                    <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('PARENT_OCCUPATIONS', formData.FatherOccupation) || formData.FatherOccupation, "Select Occupation")}</span>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-400" />
                 </div>
-                <ChevronRight size={16} className="text-slate-400" />
-              </div>
+              )}
 
               {/* Mother's Occupation */}
-              <div 
-                onClick={() => openOptionSheet("Select Mother's Profession", "MotherOccupation", formData.MotherOccupation, parentOccupationOpts)}
-                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-              >
-                <div>
-                  <span className="text-[13px] font-bold text-slate-900 block">Mother's Occupation</span>
-                  <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('PARENT_OCCUPATIONS', formData.MotherOccupation) || formData.MotherOccupation, "Select Occupation")}</span>
+              {Boolean(formData.MotherOccupation && formData.MotherOccupation !== 'None') && (
+                <div 
+                  onClick={() => openOptionSheet("Select Mother's Profession", "MotherOccupation", formData.MotherOccupation, parentOccupationOpts)}
+                  className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <span className="text-[13px] font-bold text-slate-900 block">Mother's Occupation</span>
+                    <span className="text-xs mt-0.5 block">{renderLabel(getMasterLabel('PARENT_OCCUPATIONS', formData.MotherOccupation) || formData.MotherOccupation, "Select Occupation")}</span>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-400" />
                 </div>
-                <ChevronRight size={16} className="text-slate-400" />
-              </div>
+              )}
 
               {/* Brothers */}
-              <div 
-                onClick={openCountersSheet}
-                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-              >
-                <div>
-                  <span className="text-[13px] font-bold text-slate-900 block">Brother</span>
-                  <span className="text-xs text-slate-600 font-medium mt-0.5 block">
-                    {formData.TotalBrothers} Brother ({formData.MarriedBrothers} Married)
-                  </span>
+              {(formData.TotalBrothers !== undefined && formData.TotalBrothers !== null) && (
+                <div 
+                  onClick={openCountersSheet}
+                  className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <span className="text-[13px] font-bold text-slate-900 block">Brother</span>
+                    <span className="text-xs text-slate-600 font-medium mt-0.5 block">
+                      {Number(formData.TotalBrothers) > 0 
+                        ? `${formData.TotalBrothers} Brother (${formData.MarriedBrothers || 0} Married)` 
+                        : '0 Brother'}
+                    </span>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-400" />
                 </div>
-                <ChevronRight size={16} className="text-slate-400" />
-              </div>
+              )}
 
               {/* Sisters */}
-              <div 
-                onClick={openCountersSheet}
-                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-              >
-                <div>
-                  <span className="text-[13px] font-bold text-slate-900 block">Sister</span>
-                  <span className="text-xs text-slate-600 font-medium mt-0.5 block">
-                    {formData.TotalSisters} Sister ({formData.MarriedSisters} Married)
-                  </span>
+              {(formData.TotalSisters !== undefined && formData.TotalSisters !== null) && (
+                <div 
+                  onClick={openCountersSheet}
+                  className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <span className="text-[13px] font-bold text-slate-900 block">Sister</span>
+                    <span className="text-xs text-slate-600 font-medium mt-0.5 block">
+                      {Number(formData.TotalSisters) > 0 
+                        ? `${formData.TotalSisters} Sister (${formData.MarriedSisters || 0} Married)` 
+                        : '0 Sister'}
+                    </span>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-400" />
                 </div>
-                <ChevronRight size={16} className="text-slate-400" />
-              </div>
+              )}
             </div>
           </section>
         )}
 
         {/* ============================================================== */}
-        {/* 🌟 4. RELIGIOUS DETAILS SECTION (Shows when completed)         */}
+        {/* 🌟 4. RELIGIOUS DETAILS SECTION (Shows when any field is filled)*/}
         {/* ============================================================== */}
-        {isReligiousCompleted && (
+        {hasAnyReligiousField && (
           <section className="space-y-2">
-            <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-2">
-                <Moon size={18} className="text-slate-800" />
-                <h2 className="text-sm font-black text-slate-900">Religious Details</h2>
-              </div>
-              <button 
-                type="button" 
-                onClick={openReligiousWizard}
-                className="text-xs font-bold text-[#d91b5c] hover:underline"
-              >
-                Edit All
-              </button>
+            <div className="flex items-center gap-2 px-1">
+              <Moon size={18} className="text-slate-800" />
+              <h2 className="text-sm font-black text-slate-900">Religious Details</h2>
             </div>
 
             <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
-              <div 
-                onClick={() => openOptionSheet('Offer Namaz', 'NamazHabit', formData.NamazHabit, namazOpts)}
-                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-              >
-                <div>
-                  <span className="text-[13px] font-bold text-slate-900 block">Namaz Habit</span>
-                  <span className="text-xs mt-0.5 block">{renderLabel(formData.NamazHabit, "Select Namaz Frequency")}</span>
+              {Boolean(formData.NamazHabit) && (
+                <div 
+                  onClick={() => openOptionSheet('Offer Namaz', 'NamazHabit', formData.NamazHabit, namazOpts)}
+                  className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <span className="text-[13px] font-bold text-slate-900 block">Namaz Habit</span>
+                    <span className="text-xs mt-0.5 block">{renderLabel(formData.NamazHabit, "Select Namaz Frequency")}</span>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-400" />
                 </div>
-                <ChevronRight size={16} className="text-slate-400" />
-              </div>
+              )}
 
-              <div 
-                onClick={() => openOptionSheet('Recite Quran', 'QuranReading', formData.QuranReading, quranOpts)}
-                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-              >
-                <div>
-                  <span className="text-[13px] font-bold text-slate-900 block">Quran Recitation</span>
-                  <span className="text-xs mt-0.5 block">{renderLabel(formData.QuranReading, "Select Quran Frequency")}</span>
+              {Boolean(formData.QuranReading) && (
+                <div 
+                  onClick={() => openOptionSheet('Recite Quran', 'QuranReading', formData.QuranReading, quranOpts)}
+                  className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <span className="text-[13px] font-bold text-slate-900 block">Quran Recitation</span>
+                    <span className="text-xs mt-0.5 block">{renderLabel(formData.QuranReading, "Select Quran Frequency")}</span>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-400" />
                 </div>
-                <ChevronRight size={16} className="text-slate-400" />
-              </div>
+              )}
 
-              <div 
-                onClick={() => openOptionSheet('Keep Roza', 'RozaHabit', formData.RozaHabit, rozaOpts)}
-                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-              >
-                <div>
-                  <span className="text-[13px] font-bold text-slate-900 block">Keep Roza (Fasts)</span>
-                  <span className="text-xs mt-0.5 block">{renderLabel(formData.RozaHabit, "Select Roza Status")}</span>
+              {Boolean(formData.RozaHabit) && (
+                <div 
+                  onClick={() => openOptionSheet('Keep Roza', 'RozaHabit', formData.RozaHabit, rozaOpts)}
+                  className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <span className="text-[13px] font-bold text-slate-900 block">Keep Roza (Fasts)</span>
+                    <span className="text-xs mt-0.5 block">{renderLabel(formData.RozaHabit, "Select Roza Status")}</span>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-400" />
                 </div>
-                <ChevronRight size={16} className="text-slate-400" />
-              </div>
+              )}
 
-              <div 
-                onClick={() => openOptionSheet('Zakat Habit', 'ZakatHabit', formData.ZakatHabit, zakatOpts)}
-                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-              >
-                <div>
-                  <span className="text-[13px] font-bold text-slate-900 block">Zakat Habit</span>
-                  <span className="text-xs mt-0.5 block">{renderLabel(formData.ZakatHabit, "Select Zakat Frequency")}</span>
+              {Boolean(formData.ZakatHabit) && (
+                <div 
+                  onClick={() => openOptionSheet('Zakat Habit', 'ZakatHabit', formData.ZakatHabit, zakatOpts)}
+                  className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <span className="text-[13px] font-bold text-slate-900 block">Zakat Habit</span>
+                    <span className="text-xs mt-0.5 block">{renderLabel(formData.ZakatHabit, "Select Zakat Frequency")}</span>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-400" />
                 </div>
-                <ChevronRight size={16} className="text-slate-400" />
-              </div>
+              )}
 
-              <div 
-                onClick={() => openOptionSheet('Hajj / Umrah', 'HajjUmrah', formData.HajjUmrah, hajjOpts)}
-                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-              >
-                <div>
-                  <span className="text-[13px] font-bold text-slate-900 block">Hajj or Umrah</span>
-                  <span className="text-xs mt-0.5 block">{renderLabel(formData.HajjUmrah, "Select Status")}</span>
+              {Boolean(formData.HajjUmrah) && (
+                <div 
+                  onClick={() => openOptionSheet('Hajj / Umrah', 'HajjUmrah', formData.HajjUmrah, hajjOpts)}
+                  className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <span className="text-[13px] font-bold text-slate-900 block">Hajj or Umrah</span>
+                    <span className="text-xs mt-0.5 block">{renderLabel(formData.HajjUmrah, "Select Status")}</span>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-400" />
                 </div>
-                <ChevronRight size={16} className="text-slate-400" />
-              </div>
+              )}
             </div>
           </section>
         )}
 
         {/* ============================================================== */}
-        {/* 🌟 5. LIFESTYLE & INTERESTS SECTION (Shows when completed)     */}
+        {/* 🌟 5. LIFESTYLE & INTERESTS (Shows when any field is filled)   */}
         {/* ============================================================== */}
-        {isLifestyleCompleted && (
+        {hasAnyLifestyleField && (
           <section className="space-y-2">
-            <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-2">
-                <Activity size={18} className="text-slate-800" />
-                <h2 className="text-sm font-black text-slate-900">Lifestyle & Interests</h2>
-              </div>
-              <button 
-                type="button" 
-                onClick={openLifestyleWizard}
-                className="text-xs font-bold text-[#d91b5c] hover:underline"
-              >
-                Edit All
-              </button>
+            <div className="flex items-center gap-2 px-1">
+              <Activity size={18} className="text-slate-800" />
+              <h2 className="text-sm font-black text-slate-900">Lifestyle & Interests</h2>
             </div>
 
             <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
-              <div 
-                onClick={() => openOptionSheet('Diet Type', 'DietType', formData.DietType, dietOpts)}
-                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-              >
-                <div>
-                  <span className="text-[13px] font-bold text-slate-900 block">Diet Type</span>
-                  <span className="text-xs mt-0.5 block">{renderLabel(formData.DietType, "Select Diet")}</span>
+              {Boolean(formData.DietType) && (
+                <div 
+                  onClick={() => openOptionSheet('Diet Type', 'DietType', formData.DietType, dietOpts)}
+                  className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <span className="text-[13px] font-bold text-slate-900 block">Diet Type</span>
+                    <span className="text-xs mt-0.5 block">{renderLabel(formData.DietType, "Select Diet")}</span>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-400" />
                 </div>
-                <ChevronRight size={16} className="text-slate-400" />
-              </div>
+              )}
 
-              <div 
-                onClick={() => openOptionSheet('Smoking Habit', 'SmokeHabit', formData.SmokeHabit, smokeOpts)}
-                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-              >
-                <div>
-                  <span className="text-[13px] font-bold text-slate-900 block">Smoking Habit</span>
-                  <span className="text-xs mt-0.5 block">{renderLabel(formData.SmokeHabit, "Select Smoke Status")}</span>
+              {Boolean(formData.SmokeHabit) && (
+                <div 
+                  onClick={() => openOptionSheet('Smoking Habit', 'SmokeHabit', formData.SmokeHabit, smokeOpts)}
+                  className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <span className="text-[13px] font-bold text-slate-900 block">Smoking Habit</span>
+                    <span className="text-xs mt-0.5 block">{renderLabel(formData.SmokeHabit, "Select Smoke Status")}</span>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-400" />
                 </div>
-                <ChevronRight size={16} className="text-slate-400" />
-              </div>
+              )}
 
-              <div 
-                onClick={() => openOptionSheet('Drinking Habit', 'DrinkHabit', formData.DrinkHabit, drinkOpts)}
-                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-              >
-                <div>
-                  <span className="text-[13px] font-bold text-slate-900 block">Drinking Habit</span>
-                  <span className="text-xs mt-0.5 block">{renderLabel(formData.DrinkHabit, "Select Drink Status")}</span>
+              {Boolean(formData.DrinkHabit) && (
+                <div 
+                  onClick={() => openOptionSheet('Drinking Habit', 'DrinkHabit', formData.DrinkHabit, drinkOpts)}
+                  className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <span className="text-[13px] font-bold text-slate-900 block">Drinking Habit</span>
+                    <span className="text-xs mt-0.5 block">{renderLabel(formData.DrinkHabit, "Select Drink Status")}</span>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-400" />
                 </div>
-                <ChevronRight size={16} className="text-slate-400" />
-              </div>
+              )}
 
-              <div 
-                onClick={() => openMultiSelectSheet('Sports')}
-                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-              >
-                <div>
-                  <span className="text-[13px] font-bold text-slate-900 block">Sports & Fitness</span>
-                  <span className="text-xs mt-0.5 block">{renderLabel(formData.Sports, "Choose Sports")}</span>
+              {Boolean(formData.Sports) && (
+                <div 
+                  onClick={() => openMultiSelectSheet('Sports')}
+                  className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <span className="text-[13px] font-bold text-slate-900 block">Sports & Fitness</span>
+                    <span className="text-xs mt-0.5 block">{renderLabel(formData.Sports, "Choose Sports")}</span>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-400" />
                 </div>
-                <ChevronRight size={16} className="text-slate-400" />
-              </div>
+              )}
 
-              <div 
-                onClick={() => openMultiSelectSheet('LanguagesKnown')}
-                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-              >
-                <div>
-                  <span className="text-[13px] font-bold text-slate-900 block">Languages Known</span>
-                  <span className="text-xs mt-0.5 block">{renderLabel(formData.LanguagesKnown, "Choose Languages")}</span>
+              {Boolean(formData.LanguagesKnown) && (
+                <div 
+                  onClick={() => openMultiSelectSheet('LanguagesKnown')}
+                  className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <span className="text-[13px] font-bold text-slate-900 block">Languages Known</span>
+                    <span className="text-xs mt-0.5 block">{renderLabel(formData.LanguagesKnown, "Choose Languages")}</span>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-400" />
                 </div>
-                <ChevronRight size={16} className="text-slate-400" />
-              </div>
+              )}
 
-              <div 
-                onClick={() => openMultiSelectSheet('Hobbies')}
-                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-              >
-                <div>
-                  <span className="text-[13px] font-bold text-slate-900 block">Hobbies</span>
-                  <span className="text-xs mt-0.5 block">{renderLabel(formData.Hobbies, "Choose Hobbies")}</span>
+              {Boolean(formData.Hobbies) && (
+                <div 
+                  onClick={() => openMultiSelectSheet('Hobbies')}
+                  className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <span className="text-[13px] font-bold text-slate-900 block">Hobbies</span>
+                    <span className="text-xs mt-0.5 block">{renderLabel(formData.Hobbies, "Choose Hobbies")}</span>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-400" />
                 </div>
-                <ChevronRight size={16} className="text-slate-400" />
-              </div>
+              )}
 
-              <div 
-                onClick={() => openMultiSelectSheet('Music')}
-                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-              >
-                <div>
-                  <span className="text-[13px] font-bold text-slate-900 block">Music</span>
-                  <span className="text-xs mt-0.5 block">{renderLabel(formData.Music, "Choose Music")}</span>
+              {Boolean(formData.Music) && (
+                <div 
+                  onClick={() => openMultiSelectSheet('Music')}
+                  className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <span className="text-[13px] font-bold text-slate-900 block">Music</span>
+                    <span className="text-xs mt-0.5 block">{renderLabel(formData.Music, "Choose Music")}</span>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-400" />
                 </div>
-                <ChevronRight size={16} className="text-slate-400" />
-              </div>
+              )}
             </div>
           </section>
         )}
 
         {/* ============================================================== */}
-        {/* 🌟 6. OTHER DETAILS SECTION (Shows when completed)             */}
+        {/* 🌟 6. OTHER DETAILS SECTION (Shows when any field is filled)   */}
         {/* ============================================================== */}
-        {isOtherCompleted && (
+        {hasAnyOtherField && (
           <section className="space-y-2">
-            <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-2">
-                <FileText size={18} className="text-slate-800" />
-                <h2 className="text-sm font-black text-slate-900">Other Details</h2>
-              </div>
-              <button 
-                type="button" 
-                onClick={openOtherWizard}
-                className="text-xs font-bold text-[#d91b5c] hover:underline cursor-pointer"
-              >
-                Edit All
-              </button>
+            <div className="flex items-center gap-2 px-1">
+              <FileText size={18} className="text-slate-800" />
+              <h2 className="text-sm font-black text-slate-900">Other Details</h2>
             </div>
 
             <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
-              <div 
-                onClick={() => openTextInputSheet("College / University", "Enter your college or university name", "CollegeName", formData.CollegeName, "e.g. Jamia Millia Islamia", 100)}
-                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-              >
-                <div>
-                  <span className="text-[13px] font-bold text-slate-900 block">College / University</span>
-                  <span className="text-xs mt-0.5 block">{renderLabel(formData.CollegeName, "Add College Name")}</span>
+              {Boolean(formData.CollegeName) && (
+                <div 
+                  onClick={() => openTextInputSheet("College / University", "Enter your college or university name", "CollegeName", formData.CollegeName, "e.g. Jamia Millia Islamia", 100)}
+                  className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <span className="text-[13px] font-bold text-slate-900 block">College / University</span>
+                    <span className="text-xs mt-0.5 block">{renderLabel(formData.CollegeName, "Add College Name")}</span>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-400" />
                 </div>
-                <ChevronRight size={16} className="text-slate-400" />
-              </div>
+              )}
 
-              <div 
-                onClick={() => openOptionSheet("Do you have any disability?", "Disability", formData.Disability, disabilityOpts)}
-                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-              >
-                <div>
-                  <span className="text-[13px] font-bold text-slate-900 block">Disability</span>
-                  <span className="text-xs mt-0.5 block">{renderLabel(formData.Disability || "None", "Select Disability")}</span>
+              {Boolean(formData.Disability && formData.Disability !== 'None') && (
+                <div 
+                  onClick={() => openOptionSheet("Do you have any disability?", "Disability", formData.Disability, disabilityOpts)}
+                  className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <span className="text-[13px] font-bold text-slate-900 block">Disability</span>
+                    <span className="text-xs mt-0.5 block">{renderLabel(formData.Disability || "None", "Select Disability")}</span>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-400" />
                 </div>
-                <ChevronRight size={16} className="text-slate-400" />
-              </div>
+              )}
 
-              <div 
-                onClick={openBioSheet}
-                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-              >
-                <div>
-                  <span className="text-[13px] font-bold text-slate-900 block">About Me</span>
-                  <span className="text-xs mt-0.5 block line-clamp-1">{renderLabel(formData.AboutMe, "Write something about yourself")}</span>
+              {Boolean(formData.PartnerExpectations) && (
+                <div 
+                  onClick={() => openTextInputSheet("Partner Expectations", "Describe what qualities and values you are looking for in a partner", "PartnerExpectations", formData.PartnerExpectations, "e.g. Looking for a religious, understanding partner...", 1000, true)}
+                  className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <span className="text-[13px] font-bold text-slate-900 block">Partner Expectations</span>
+                    <span className="text-xs mt-0.5 block line-clamp-1">{renderLabel(formData.PartnerExpectations, "Add Partner Expectations")}</span>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-400" />
                 </div>
-                <ChevronRight size={16} className="text-slate-400" />
-              </div>
-
-              <div 
-                onClick={() => openTextInputSheet("Partner Expectations", "Describe what qualities and values you are looking for in a partner", "PartnerExpectations", formData.PartnerExpectations, "e.g. Looking for a religious, understanding partner...", 1000, true)}
-                className="p-3.5 sm:p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors cursor-pointer"
-              >
-                <div>
-                  <span className="text-[13px] font-bold text-slate-900 block">Partner Expectations</span>
-                  <span className="text-xs mt-0.5 block line-clamp-1">{renderLabel(formData.PartnerExpectations, "Add Partner Expectations")}</span>
-                </div>
-                <ChevronRight size={16} className="text-slate-400" />
-              </div>
+              )}
             </div>
           </section>
         )}
@@ -2400,8 +2682,7 @@ export default function EditMyProfilePage() {
             </div>
 
             <div 
-              onClick={() => toast.info("Email address is locked for account security.", { icon: "🔒" })}
-              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/30 cursor-default"
+              className="p-3.5 sm:p-4 flex items-center justify-between bg-slate-50/30 cursor-default select-none"
             >
               <div>
                 <span className="text-[13px] font-bold text-slate-900 block">Email</span>
@@ -2501,7 +2782,7 @@ export default function EditMyProfilePage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setActiveSheet(null)}
+              onClick={closeSheet}
               className="absolute inset-0 bg-black/50 backdrop-blur-xs cursor-pointer"
             />
 
@@ -2516,7 +2797,7 @@ export default function EditMyProfilePage() {
               >
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                    <button type="button" onClick={closeSheet} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
                       <X size={18} />
                     </button>
                     <h3 className="text-base font-black text-slate-900">Family Details</h3>
@@ -2634,8 +2915,8 @@ export default function EditMyProfilePage() {
                           <button
                             key={num}
                             type="button"
-                            onClick={() => setFamilyWizardData(prev => ({ ...prev, totalBrothers: num }))}
-                            className={`w-10 h-10 rounded-full font-bold text-xs flex items-center justify-center border transition-all ${
+                            onClick={() => setFamilyWizardData(prev => ({ ...prev, totalBrothers: num, marriedBrothers: num === 0 ? 0 : Math.min(prev.marriedBrothers, num) }))}
+                            className={`w-9 h-9 rounded-full font-bold text-xs flex items-center justify-center border transition-all ${
                               isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200'
                             }`}
                           >
@@ -2646,6 +2927,30 @@ export default function EditMyProfilePage() {
                     </div>
                   </div>
 
+                  {/* Married Brothers (Only if Brothers > 0) */}
+                  {familyWizardData.totalBrothers > 0 && (
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-900 block">Married Brothers</label>
+                      <div className="flex items-center gap-2">
+                        {Array.from({ length: familyWizardData.totalBrothers + 1 }, (_, i) => i).map(num => {
+                          const isSel = familyWizardData.marriedBrothers === num;
+                          return (
+                            <button
+                              key={num}
+                              type="button"
+                              onClick={() => setFamilyWizardData(prev => ({ ...prev, marriedBrothers: num }))}
+                              className={`w-9 h-9 rounded-full font-bold text-xs flex items-center justify-center border transition-all ${
+                                isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200'
+                              }`}
+                            >
+                              {num}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-900 block">No. of Sisters</label>
                     <div className="flex items-center gap-2">
@@ -2655,8 +2960,8 @@ export default function EditMyProfilePage() {
                           <button
                             key={num}
                             type="button"
-                            onClick={() => setFamilyWizardData(prev => ({ ...prev, totalSisters: num }))}
-                            className={`w-10 h-10 rounded-full font-bold text-xs flex items-center justify-center border transition-all ${
+                            onClick={() => setFamilyWizardData(prev => ({ ...prev, totalSisters: num, marriedSisters: num === 0 ? 0 : Math.min(prev.marriedSisters, num) }))}
+                            className={`w-9 h-9 rounded-full font-bold text-xs flex items-center justify-center border transition-all ${
                               isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200'
                             }`}
                           >
@@ -2666,6 +2971,30 @@ export default function EditMyProfilePage() {
                       })}
                     </div>
                   </div>
+
+                  {/* Married Sisters (Only if Sisters > 0) */}
+                  {familyWizardData.totalSisters > 0 && (
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-900 block">Married Sisters</label>
+                      <div className="flex items-center gap-2">
+                        {Array.from({ length: familyWizardData.totalSisters + 1 }, (_, i) => i).map(num => {
+                          const isSel = familyWizardData.marriedSisters === num;
+                          return (
+                            <button
+                              key={num}
+                              type="button"
+                              onClick={() => setFamilyWizardData(prev => ({ ...prev, marriedSisters: num }))}
+                              className={`w-9 h-9 rounded-full font-bold text-xs flex items-center justify-center border transition-all ${
+                                isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200'
+                              }`}
+                            >
+                              {num}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <button
@@ -2690,18 +3019,18 @@ export default function EditMyProfilePage() {
               >
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                    <button type="button" onClick={closeSheet} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
                       <X size={18} />
                     </button>
                     <h3 className="text-base font-black text-slate-900">Religious Details</h3>
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto space-y-5 pr-1 text-slate-900">
+                <div className="flex-1 overflow-y-auto space-y-4 pr-1 text-slate-900">
                   {/* Namaz Habit */}
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-900 block">How often do you offer Namaz (Prayers)?</label>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       {namazOpts.map(opt => {
                         const isSel = religiousWizardData.namazHabit.toLowerCase() === opt.value.toLowerCase();
                         return (
@@ -2709,7 +3038,7 @@ export default function EditMyProfilePage() {
                             key={opt.value}
                             type="button"
                             onClick={() => setReligiousWizardData(prev => ({ ...prev, namazHabit: opt.value }))}
-                            className={`px-4 py-2 rounded-full text-xs font-bold transition-all border ${
+                            className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all border ${
                               isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
                             }`}
                           >
@@ -2721,9 +3050,9 @@ export default function EditMyProfilePage() {
                   </div>
 
                   {/* Quran Reading */}
-                  <div className="space-y-2">
+                  <div className="space-y-1.5 border-t border-slate-100 pt-3">
                     <label className="text-xs font-bold text-slate-900 block">How often do you recite the Quran?</label>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       {quranOpts.map(opt => {
                         const isSel = religiousWizardData.quranReading.toLowerCase() === opt.value.toLowerCase();
                         return (
@@ -2731,7 +3060,7 @@ export default function EditMyProfilePage() {
                             key={opt.value}
                             type="button"
                             onClick={() => setReligiousWizardData(prev => ({ ...prev, quranReading: opt.value }))}
-                            className={`px-4 py-2 rounded-full text-xs font-bold transition-all border ${
+                            className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all border ${
                               isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
                             }`}
                           >
@@ -2743,21 +3072,21 @@ export default function EditMyProfilePage() {
                   </div>
 
                   {/* Roza */}
-                  <div className="space-y-2">
+                  <div className="space-y-1.5 border-t border-slate-100 pt-3">
                     <label className="text-xs font-bold text-slate-900 block">Do you keep Roza (fasts)?</label>
-                    <div className="flex flex-wrap gap-2">
-                      {['Yes', 'No'].map(val => {
-                        const isSel = religiousWizardData.rozaHabit.toLowerCase() === val.toLowerCase();
+                    <div className="flex flex-wrap gap-1.5">
+                      {rozaOpts.map(opt => {
+                        const isSel = religiousWizardData.rozaHabit.toLowerCase() === opt.value.toLowerCase();
                         return (
                           <button
-                            key={val}
+                            key={opt.value}
                             type="button"
-                            onClick={() => setReligiousWizardData(prev => ({ ...prev, rozaHabit: val }))}
-                            className={`px-5 py-2 rounded-full text-xs font-bold transition-all border ${
+                            onClick={() => setReligiousWizardData(prev => ({ ...prev, rozaHabit: opt.value }))}
+                            className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all border ${
                               isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
                             }`}
                           >
-                            {val}
+                            {opt.value}
                           </button>
                         );
                       })}
@@ -2765,9 +3094,9 @@ export default function EditMyProfilePage() {
                   </div>
 
                   {/* Zakat */}
-                  <div className="space-y-2">
+                  <div className="space-y-1.5 border-t border-slate-100 pt-3">
                     <label className="text-xs font-bold text-slate-900 block">When do you give Zakat?</label>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       {zakatOpts.map(opt => {
                         const isSel = religiousWizardData.zakatHabit.toLowerCase() === opt.value.toLowerCase();
                         return (
@@ -2775,7 +3104,7 @@ export default function EditMyProfilePage() {
                             key={opt.value}
                             type="button"
                             onClick={() => setReligiousWizardData(prev => ({ ...prev, zakatHabit: opt.value }))}
-                            className={`px-4 py-2 rounded-full text-xs font-bold transition-all border ${
+                            className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all border ${
                               isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
                             }`}
                           >
@@ -2787,21 +3116,21 @@ export default function EditMyProfilePage() {
                   </div>
 
                   {/* Hajj / Umrah */}
-                  <div className="space-y-2">
+                  <div className="space-y-1.5 border-t border-slate-100 pt-3">
                     <label className="text-xs font-bold text-slate-900 block">Have you performed Hajj or Umrah?</label>
-                    <div className="flex flex-wrap gap-2">
-                      {['Yes', 'No'].map(val => {
-                        const isSel = religiousWizardData.hajjUmrah.toLowerCase() === val.toLowerCase();
+                    <div className="flex flex-wrap gap-1.5">
+                      {hajjOpts.map(opt => {
+                        const isSel = religiousWizardData.hajjUmrah.toLowerCase() === opt.value.toLowerCase();
                         return (
                           <button
-                            key={val}
+                            key={opt.value}
                             type="button"
-                            onClick={() => setReligiousWizardData(prev => ({ ...prev, hajjUmrah: val }))}
-                            className={`px-5 py-2 rounded-full text-xs font-bold transition-all border ${
+                            onClick={() => setReligiousWizardData(prev => ({ ...prev, hajjUmrah: opt.value }))}
+                            className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all border ${
                               isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
                             }`}
                           >
-                            {val}
+                            {opt.value}
                           </button>
                         );
                       })}
@@ -2831,18 +3160,18 @@ export default function EditMyProfilePage() {
               >
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                    <button type="button" onClick={closeSheet} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
                       <X size={18} />
                     </button>
                     <h3 className="text-base font-black text-slate-900">Lifestyle & Interests</h3>
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto space-y-5 pr-1 text-slate-900">
+                <div className="flex-1 overflow-y-auto space-y-4 pr-1 text-slate-900">
                   {/* 1. Diet Preference Chips */}
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-900 block">What is your diet preference?</label>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       {dietOpts.map(opt => {
                         const isSel = lifestyleWizardData.dietType.toLowerCase() === opt.value.toLowerCase();
                         return (
@@ -2850,7 +3179,7 @@ export default function EditMyProfilePage() {
                             key={opt.value}
                             type="button"
                             onClick={() => setLifestyleWizardData(prev => ({ ...prev, dietType: opt.value }))}
-                            className={`px-4 py-2 rounded-full text-xs font-bold transition-all border ${
+                            className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all border ${
                               isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
                             }`}
                           >
@@ -2861,8 +3190,85 @@ export default function EditMyProfilePage() {
                     </div>
                   </div>
 
-                  {/* 2. Languages Known */}
-                  <div className="space-y-2 border-t border-slate-100 pt-3">
+                  {/* 2. Smoking Habit */}
+                  <div className="space-y-1.5 border-t border-slate-100 pt-3">
+                    <label className="text-xs font-bold text-slate-900 block">Smoking Habit</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {smokeOpts.map(opt => {
+                        const isSel = lifestyleWizardData.smokeHabit.toLowerCase() === opt.value.toLowerCase();
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setLifestyleWizardData(prev => ({ ...prev, smokeHabit: opt.value }))}
+                            className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all border ${
+                              isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            {opt.value}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 3. Drinking Habit */}
+                  <div className="space-y-1.5 border-t border-slate-100 pt-3">
+                    <label className="text-xs font-bold text-slate-900 block">Drinking Habit</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {drinkOpts.map(opt => {
+                        const isSel = lifestyleWizardData.drinkHabit.toLowerCase() === opt.value.toLowerCase();
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setLifestyleWizardData(prev => ({ ...prev, drinkHabit: opt.value }))}
+                            className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all border ${
+                              isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            {opt.value}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 4. Sports & Fitness */}
+                  <div className="space-y-1.5 border-t border-slate-100 pt-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-900">Sports & Fitness</label>
+                      {lifestyleWizardData.sports.length > 0 && (
+                        <button 
+                          type="button" 
+                          onClick={() => openMultiSelectSheet('Sports', true)}
+                          className="text-[#d91b5c] text-xs font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Edit3 size={12} /> Edit
+                        </button>
+                      )}
+                    </div>
+                    {lifestyleWizardData.sports.length === 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => openMultiSelectSheet('Sports', true)}
+                        className="w-full py-2 px-3 rounded-xl border border-dashed border-[#d91b5c] text-[#d91b5c] font-bold text-xs bg-rose-50/40 hover:bg-rose-50 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <Plus size={14} /> Add Sports & Fitness
+                      </button>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {lifestyleWizardData.sports.map(sp => (
+                          <span key={sp} className="px-3 py-1 bg-slate-100 text-slate-800 rounded-full text-[11px] font-semibold border border-slate-200">
+                            {sp}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 5. Languages Known */}
+                  <div className="space-y-1.5 border-t border-slate-100 pt-3">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold text-slate-900">Which languages do you know?</label>
                       {lifestyleWizardData.languages.length > 0 && (
@@ -2879,14 +3285,14 @@ export default function EditMyProfilePage() {
                       <button
                         type="button"
                         onClick={() => openMultiSelectSheet('LanguagesKnown', true)}
-                        className="w-full py-2.5 px-4 rounded-xl border border-dashed border-[#d91b5c] text-[#d91b5c] font-bold text-xs bg-rose-50/40 hover:bg-rose-50 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                        className="w-full py-2 px-3 rounded-xl border border-dashed border-[#d91b5c] text-[#d91b5c] font-bold text-xs bg-rose-50/40 hover:bg-rose-50 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                       >
                         <Plus size={14} /> Add Languages
                       </button>
                     ) : (
                       <div className="flex flex-wrap gap-1.5">
                         {lifestyleWizardData.languages.map(lang => (
-                          <span key={lang} className="px-3 py-1 bg-slate-100 text-slate-800 rounded-full text-xs font-semibold border border-slate-200">
+                          <span key={lang} className="px-3 py-1 bg-slate-100 text-slate-800 rounded-full text-[11px] font-semibold border border-slate-200">
                             {lang}
                           </span>
                         ))}
@@ -2894,8 +3300,8 @@ export default function EditMyProfilePage() {
                     )}
                   </div>
 
-                  {/* 3. Hobbies */}
-                  <div className="space-y-2 border-t border-slate-100 pt-3">
+                  {/* 6. Hobbies */}
+                  <div className="space-y-1.5 border-t border-slate-100 pt-3">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold text-slate-900">Hobbies</label>
                       {lifestyleWizardData.hobbies.length > 0 && (
@@ -2912,14 +3318,14 @@ export default function EditMyProfilePage() {
                       <button
                         type="button"
                         onClick={() => openMultiSelectSheet('Hobbies', true)}
-                        className="w-full py-2.5 px-4 rounded-xl border border-dashed border-[#d91b5c] text-[#d91b5c] font-bold text-xs bg-rose-50/40 hover:bg-rose-50 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                        className="w-full py-2 px-3 rounded-xl border border-dashed border-[#d91b5c] text-[#d91b5c] font-bold text-xs bg-rose-50/40 hover:bg-rose-50 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                       >
                         <Plus size={14} /> Add Hobbies
                       </button>
                     ) : (
                       <div className="flex flex-wrap gap-1.5">
                         {lifestyleWizardData.hobbies.map(hob => (
-                          <span key={hob} className="px-3 py-1 bg-slate-100 text-slate-800 rounded-full text-xs font-semibold border border-slate-200">
+                          <span key={hob} className="px-3 py-1 bg-slate-100 text-slate-800 rounded-full text-[11px] font-semibold border border-slate-200">
                             {hob}
                           </span>
                         ))}
@@ -2927,8 +3333,8 @@ export default function EditMyProfilePage() {
                     )}
                   </div>
 
-                  {/* 4. Music Preferences */}
-                  <div className="space-y-2 border-t border-slate-100 pt-3">
+                  {/* 7. Music Preferences */}
+                  <div className="space-y-1.5 border-t border-slate-100 pt-3">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold text-slate-900">Music</label>
                       {lifestyleWizardData.music.length > 0 && (
@@ -2945,14 +3351,14 @@ export default function EditMyProfilePage() {
                       <button
                         type="button"
                         onClick={() => openMultiSelectSheet('Music', true)}
-                        className="w-full py-2.5 px-4 rounded-xl border border-dashed border-[#d91b5c] text-[#d91b5c] font-bold text-xs bg-rose-50/40 hover:bg-rose-50 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                        className="w-full py-2 px-3 rounded-xl border border-dashed border-[#d91b5c] text-[#d91b5c] font-bold text-xs bg-rose-50/40 hover:bg-rose-50 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                       >
                         <Plus size={14} /> Add Music
                       </button>
                     ) : (
                       <div className="flex flex-wrap gap-1.5">
                         {lifestyleWizardData.music.map(item => (
-                          <span key={item} className="px-3 py-1 bg-slate-100 text-slate-800 rounded-full text-xs font-semibold border border-slate-200">
+                          <span key={item} className="px-3 py-1 bg-slate-100 text-slate-800 rounded-full text-[11px] font-semibold border border-slate-200">
                             {item}
                           </span>
                         ))}
@@ -2983,7 +3389,7 @@ export default function EditMyProfilePage() {
               >
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                    <button type="button" onClick={closeSheet} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
                       <X size={18} />
                     </button>
                     <h3 className="text-base font-black text-slate-900">Other Details</h3>
@@ -3004,25 +3410,37 @@ export default function EditMyProfilePage() {
                   </div>
 
                   {/* 2. Physical Disability */}
-                  <div className="space-y-2 border-t border-slate-100 pt-3">
+                  <div className="space-y-1.5 border-t border-slate-100 pt-3">
                     <label className="text-xs font-bold text-slate-900 block">Do you have any disability?</label>
-                    <div className="flex gap-2">
-                      {['None', 'Physical Disability'].map(val => {
-                        const isSel = otherWizardData.disability.toLowerCase() === val.toLowerCase();
+                    <div className="flex flex-wrap gap-1.5">
+                      {disabilityOpts.map(opt => {
+                        const isSel = otherWizardData.disability.toLowerCase() === opt.value.toLowerCase();
                         return (
                           <button
-                            key={val}
+                            key={opt.value}
                             type="button"
-                            onClick={() => setOtherWizardData(prev => ({ ...prev, disability: val }))}
-                            className={`px-4 py-2 rounded-full text-xs font-bold border transition-all ${
+                            onClick={() => setOtherWizardData(prev => ({ ...prev, disability: opt.value }))}
+                            className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all ${
                               isSel ? 'bg-[#d91b5c] text-white border-[#d91b5c]' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
                             }`}
                           >
-                            {val}
+                            {opt.value}
                           </button>
                         );
                       })}
                     </div>
+                  </div>
+
+                  {/* 3. Partner Expectations */}
+                  <div className="space-y-1.5 border-t border-slate-100 pt-3">
+                    <label className="text-xs font-bold text-slate-900 block">Partner Expectations</label>
+                    <textarea
+                      rows={3}
+                      value={otherWizardData.partnerExpectations}
+                      onChange={(e) => setOtherWizardData(prev => ({ ...prev, partnerExpectations: e.target.value }))}
+                      placeholder="Describe what qualities, deen, values, and education you are looking for in a partner..."
+                      className="w-full p-3 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#d91b5c]/20 bg-slate-50/50 resize-none leading-relaxed"
+                    />
                   </div>
                 </div>
 
@@ -3060,7 +3478,7 @@ export default function EditMyProfilePage() {
                     ) : (
                       <button 
                         type="button" 
-                        onClick={() => setActiveSheet(openedFromWizard || null)} 
+                        onClick={backToWizardOrClose} 
                         className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer"
                       >
                         <X size={18} />
@@ -3171,10 +3589,10 @@ export default function EditMyProfilePage() {
                         handleSaveLocation();
                       }
                     }}
-                    disabled={Boolean(savingField)}
-                    className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
+                    disabled={Boolean(savingField) || !selectedCityId}
+                    className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#d91b5c]"
                   >
-                    {savingField ? <Loader2 size={18} className="animate-spin" /> : "Update Native Location"}
+                    {savingField ? <Loader2 size={18} className="animate-spin" /> : (!selectedCityId ? "Please select a city" : (locationTargetField === 'NativeLocation' ? "Update Native Location" : "Update Location"))}
                   </button>
                 )}
               </motion.div>
@@ -3191,7 +3609,7 @@ export default function EditMyProfilePage() {
               >
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                    <button type="button" onClick={closeSheet} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
                       <X size={18} />
                     </button>
                     <h3 className="text-base font-black text-slate-900">{sheetTitle}</h3>
@@ -3241,10 +3659,10 @@ export default function EditMyProfilePage() {
                 <button
                   type="button"
                   onClick={handleSaveOption}
-                  disabled={Boolean(savingField)}
-                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
+                  disabled={Boolean(savingField) || !selectedSheetValue}
+                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#d91b5c]"
                 >
-                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Update"}
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : (!selectedSheetValue ? "Select an option" : "Update")}
                 </button>
               </motion.div>
             )}
@@ -3260,7 +3678,7 @@ export default function EditMyProfilePage() {
               >
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                    <button type="button" onClick={closeSheet} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
                       <X size={18} />
                     </button>
                     <h3 className="text-base font-black text-slate-900">Select Height</h3>
@@ -3302,6 +3720,59 @@ export default function EditMyProfilePage() {
               </motion.div>
             )}
 
+            {/* 🌟 WEIGHT SLIDER SHEET */}
+            {activeSheet === 'weight' && (
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 300 }}
+                className="relative z-10 w-full max-w-lg bg-white rounded-t-3xl p-6 shadow-2xl flex flex-col space-y-5"
+              >
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={closeSheet} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                      <X size={18} />
+                    </button>
+                    <h3 className="text-base font-black text-slate-900">Select Weight</h3>
+                  </div>
+                </div>
+
+                <div className="py-4 text-center space-y-2">
+                  <span className="text-2xl font-black text-[#d91b5c] block">
+                    {weightKg} kg
+                  </span>
+                  <span className="text-xs text-slate-400 font-medium block">
+                    Slide to adjust your weight
+                  </span>
+                </div>
+
+                <input 
+                  type="range"
+                  min={40}
+                  max={140}
+                  value={weightKg}
+                  onChange={(e) => setWeightKg(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#d91b5c]"
+                />
+
+                <div className="flex justify-between text-[11px] font-bold text-slate-400 px-1">
+                  <span>40 kg</span>
+                  <span>65 kg</span>
+                  <span>140 kg</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSaveWeight}
+                  disabled={Boolean(savingField)}
+                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
+                >
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Save Weight"}
+                </button>
+              </motion.div>
+            )}
+
             {/* 🌟 INCOME SLIDER SHEET */}
             {activeSheet === 'income' && (
               <motion.div
@@ -3313,7 +3784,7 @@ export default function EditMyProfilePage() {
               >
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                    <button type="button" onClick={closeSheet} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
                       <X size={18} />
                     </button>
                     <h3 className="text-base font-black text-slate-900">Select Annual Income</h3>
@@ -3360,7 +3831,7 @@ export default function EditMyProfilePage() {
               >
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                    <button type="button" onClick={closeSheet} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
                       <X size={18} />
                     </button>
                     <h3 className="text-base font-black text-slate-900">{textInputData.title}</h3>
@@ -3392,10 +3863,10 @@ export default function EditMyProfilePage() {
                 <button
                   type="button"
                   onClick={handleSaveTextInput}
-                  disabled={Boolean(savingField)}
-                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
+                  disabled={Boolean(savingField) || !textInputData.value.trim()}
+                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#d91b5c]"
                 >
-                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Save"}
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : (!textInputData.value.trim() ? "Cannot be empty" : "Save")}
                 </button>
               </motion.div>
             )}
@@ -3411,7 +3882,7 @@ export default function EditMyProfilePage() {
               >
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                    <button type="button" onClick={closeSheet} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
                       <X size={18} />
                     </button>
                     <h3 className="text-base font-black text-slate-900">About Yourself</h3>
@@ -3429,10 +3900,10 @@ export default function EditMyProfilePage() {
                 <button
                   type="button"
                   onClick={handleSaveBio}
-                  disabled={Boolean(savingField)}
-                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
+                  disabled={Boolean(savingField) || !bioDraft.trim()}
+                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#d91b5c]"
                 >
-                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Update Bio"}
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : (!bioDraft.trim() ? "Bio cannot be empty" : "Update Bio")}
                 </button>
               </motion.div>
             )}
@@ -3448,7 +3919,7 @@ export default function EditMyProfilePage() {
               >
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                    <button type="button" onClick={backToWizardOrClose} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
                       <X size={18} />
                     </button>
                     <div>
@@ -3512,13 +3983,20 @@ export default function EditMyProfilePage() {
                   })}
                 </div>
 
+                {multiSelectItems.length === 0 && (
+                  <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-50 text-amber-800 text-xs font-semibold border border-amber-200/70">
+                    <AlertCircle size={15} className="shrink-0 text-amber-600" />
+                    <span>Please select at least 1 option to update.</span>
+                  </div>
+                )}
+
                 <button
                   type="button"
                   onClick={handleSaveMultiSelect}
-                  disabled={Boolean(savingField)}
-                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0"
+                  disabled={Boolean(savingField) || multiSelectItems.length === 0}
+                  className="w-full py-3.5 rounded-full bg-[#d91b5c] hover:bg-[#b8144b] text-white font-black text-sm shadow-md transition-all cursor-pointer active:scale-98 flex items-center justify-center shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#d91b5c]"
                 >
-                  {savingField ? <Loader2 size={18} className="animate-spin" /> : "Update"}
+                  {savingField ? <Loader2 size={18} className="animate-spin" /> : (multiSelectItems.length === 0 ? "Select at least 1 item" : "Update")}
                 </button>
               </motion.div>
             )}
@@ -3534,7 +4012,7 @@ export default function EditMyProfilePage() {
               >
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                    <button type="button" onClick={closeSheet} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
                       <X size={18} />
                     </button>
                     <h3 className="text-base font-black text-slate-900">Verify Your Profile</h3>
@@ -3586,7 +4064,7 @@ export default function EditMyProfilePage() {
               >
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                    <button type="button" onClick={closeSheet} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
                       <X size={18} />
                     </button>
                     <h3 className="text-base font-black text-slate-900">Change Mobile Number</h3>
@@ -3653,7 +4131,7 @@ export default function EditMyProfilePage() {
               >
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => setActiveSheet(openedFromWizard || null)} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
+                    <button type="button" onClick={closeSheet} className="p-1 text-slate-700 hover:bg-slate-100 rounded-full cursor-pointer">
                       <X size={18} />
                     </button>
                     <h3 className="text-base font-black text-slate-900">Siblings Details</h3>
@@ -3666,7 +4144,10 @@ export default function EditMyProfilePage() {
                     <div className="flex items-center gap-3">
                       <button 
                         type="button" 
-                        onClick={() => setCountersState(prev => ({ ...prev, totalBrothers: Math.max(0, prev.totalBrothers - 1) }))}
+                        onClick={() => setCountersState(prev => {
+                          const next = Math.max(0, prev.totalBrothers - 1);
+                          return { ...prev, totalBrothers: next, marriedBrothers: next === 0 ? 0 : Math.min(prev.marriedBrothers, next) };
+                        })}
                         className="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-800 font-bold flex items-center justify-center hover:bg-slate-100"
                       >
                         -
@@ -3682,33 +4163,38 @@ export default function EditMyProfilePage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl">
-                    <span className="text-xs font-bold text-slate-800">Married Brothers</span>
-                    <div className="flex items-center gap-3">
-                      <button 
-                        type="button" 
-                        onClick={() => setCountersState(prev => ({ ...prev, marriedBrothers: Math.max(0, prev.marriedBrothers - 1) }))}
-                        className="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-800 font-bold flex items-center justify-center hover:bg-slate-100"
-                      >
-                        -
-                      </button>
-                      <span className="text-sm font-bold w-4 text-center">{countersState.marriedBrothers}</span>
-                      <button 
-                        type="button" 
-                        onClick={() => setCountersState(prev => ({ ...prev, marriedBrothers: Math.min(prev.totalBrothers, prev.marriedBrothers + 1) }))}
-                        className="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-800 font-bold flex items-center justify-center hover:bg-slate-100"
-                      >
-                        +
-                      </button>
+                  {countersState.totalBrothers > 0 && (
+                    <div className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl">
+                      <span className="text-xs font-bold text-slate-800">Married Brothers</span>
+                      <div className="flex items-center gap-3">
+                        <button 
+                          type="button" 
+                          onClick={() => setCountersState(prev => ({ ...prev, marriedBrothers: Math.max(0, prev.marriedBrothers - 1) }))}
+                          className="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-800 font-bold flex items-center justify-center hover:bg-slate-100"
+                        >
+                          -
+                        </button>
+                        <span className="text-sm font-bold w-4 text-center">{countersState.marriedBrothers}</span>
+                        <button 
+                          type="button" 
+                          onClick={() => setCountersState(prev => ({ ...prev, marriedBrothers: Math.min(prev.totalBrothers, prev.marriedBrothers + 1) }))}
+                          className="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-800 font-bold flex items-center justify-center hover:bg-slate-100"
+                        >
+                          +
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl">
                     <span className="text-xs font-bold text-slate-800">Total Sisters</span>
                     <div className="flex items-center gap-3">
                       <button 
                         type="button" 
-                        onClick={() => setCountersState(prev => ({ ...prev, totalSisters: Math.max(0, prev.totalSisters - 1) }))}
+                        onClick={() => setCountersState(prev => {
+                          const next = Math.max(0, prev.totalSisters - 1);
+                          return { ...prev, totalSisters: next, marriedSisters: next === 0 ? 0 : Math.min(prev.marriedSisters, next) };
+                        })}
                         className="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-800 font-bold flex items-center justify-center hover:bg-slate-100"
                       >
                         -
@@ -3724,26 +4210,28 @@ export default function EditMyProfilePage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl">
-                    <span className="text-xs font-bold text-slate-800">Married Sisters</span>
-                    <div className="flex items-center gap-3">
-                      <button 
-                        type="button" 
-                        onClick={() => setCountersState(prev => ({ ...prev, marriedSisters: Math.max(0, prev.marriedSisters - 1) }))}
-                        className="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-800 font-bold flex items-center justify-center hover:bg-slate-100"
-                      >
-                        -
-                      </button>
-                      <span className="text-sm font-bold w-4 text-center">{countersState.marriedSisters}</span>
-                      <button 
-                        type="button" 
-                        onClick={() => setCountersState(prev => ({ ...prev, marriedSisters: Math.min(prev.totalSisters, prev.marriedSisters + 1) }))}
-                        className="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-800 font-bold flex items-center justify-center hover:bg-slate-100"
-                      >
-                        +
-                      </button>
+                  {countersState.totalSisters > 0 && (
+                    <div className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl">
+                      <span className="text-xs font-bold text-slate-800">Married Sisters</span>
+                      <div className="flex items-center gap-3">
+                        <button 
+                          type="button" 
+                          onClick={() => setCountersState(prev => ({ ...prev, marriedSisters: Math.max(0, prev.marriedSisters - 1) }))}
+                          className="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-800 font-bold flex items-center justify-center hover:bg-slate-100"
+                        >
+                          -
+                        </button>
+                        <span className="text-sm font-bold w-4 text-center">{countersState.marriedSisters}</span>
+                        <button 
+                          type="button" 
+                          onClick={() => setCountersState(prev => ({ ...prev, marriedSisters: Math.min(prev.totalSisters, prev.marriedSisters + 1) }))}
+                          className="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-800 font-bold flex items-center justify-center hover:bg-slate-100"
+                        >
+                          +
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 <button
