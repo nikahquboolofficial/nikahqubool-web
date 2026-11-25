@@ -25,7 +25,9 @@ export const getOptimizedImageUrl = (
     return getFallbackPhoto(userId, gender);
   }
 
-  const cleanPath = path.trim();
+  let cleanPath = path.trim();
+  // Strip duplicate CDN prefix if backend stored procedure prepended it to an absolute URL
+  cleanPath = cleanPath.replace(/^https?:\/\/cdn\.nikahqubool\.in\/(?=https?:\/\/)/, '');
 
   // If already absolute URL or data URI, return as-is immediately!
   if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://') || cleanPath.startsWith('data:image/')) {

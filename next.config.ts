@@ -20,6 +20,11 @@ const nextConfig: any = {
         hostname: '582206580028aa92b54dbf6ec950184e.r2.cloudflarestorage.com',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+        pathname: '/**',
+      },
     ],
   },
 };
