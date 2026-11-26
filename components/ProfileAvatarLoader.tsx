@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { HeartHandshake } from "lucide-react";
 import { getStoredUserPhoto } from "@/lib/auth";
 
 interface ProfileAvatarLoaderProps {
@@ -12,22 +11,41 @@ interface ProfileAvatarLoaderProps {
 
 export default function ProfileAvatarLoader({
   photoUrl,
-  message = "Loading your profile...",
-  subMessage = "Please wait a moment",
+  message = "Finding Best Matches For You",
+  subMessage = "Connecting with verified halal matrimonial profiles...",
 }: ProfileAvatarLoaderProps) {
-  const [mounted, setMounted] = useState(false);
-  const [avatar, setAvatar] = useState<string>(photoUrl && photoUrl.trim().length > 0 ? photoUrl : "");
+  const [avatar, setAvatar] = useState<string>(() => {
+    if (photoUrl && photoUrl.trim().length > 0 && !photoUrl.includes('placeholder') && !photoUrl.includes('default')) {
+      return photoUrl;
+    }
+    if (typeof window !== "undefined") {
+      try {
+        const stored = getStoredUserPhoto();
+        if (stored && stored.trim().length > 0 && !stored.includes('placeholder') && !stored.includes('default')) {
+          return stored;
+        }
+      } catch (e) {}
+    }
+    return "";
+  });
+
+  const [imgFailed, setImgFailed] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-    if (!avatar) {
-      const stored = getStoredUserPhoto();
-      if (stored) setAvatar(stored);
+    if (!avatar && typeof window !== "undefined") {
+      try {
+        const stored = getStoredUserPhoto();
+        if (stored && stored.trim().length > 0 && !stored.includes('placeholder') && !stored.includes('default')) {
+          setAvatar(stored);
+        }
+      } catch (e) {}
     }
   }, [avatar]);
 
+  const hasValidPhoto = Boolean(avatar && !imgFailed && !avatar.includes('placeholder') && !avatar.includes('default'));
+
   return (
-    <div className="min-h-[60vh] w-full flex flex-col items-center justify-center p-6 bg-white selection:bg-[#d91b5c] selection:text-white" suppressHydrationWarning>
+    <div className="min-h-[50vh] w-full flex flex-col items-center justify-center p-6 bg-white selection:bg-[#d91b5c] selection:text-white" suppressHydrationWarning>
       {/* 🌟 LUXURY AVATAR PULSE & SPIN RING */}
       <div className="relative flex items-center justify-center">
         {/* Outer Breathing Aura */}
@@ -39,38 +57,44 @@ export default function ProfileAvatarLoader({
         {/* Spinning Gradient Ring */}
         <div className="absolute w-[86px] h-[86px] rounded-full border-2 border-transparent border-t-[#d91b5c] border-r-[#d91b5c]/70 animate-spin pointer-events-none" />
 
-        {/* Inner Avatar Image */}
-        <div className="relative w-20 h-20 rounded-full overflow-hidden bg-slate-100 border-2 border-white shadow-md z-10 flex items-center justify-center" suppressHydrationWarning>
-          {mounted && avatar && !avatar.includes('placeholder') && !avatar.includes('default') ? (
+        {/* Inner Avatar or Brand Logo */}
+        <div className="relative w-20 h-20 rounded-full overflow-hidden bg-white border-2 border-white shadow-md z-10 flex items-center justify-center" suppressHydrationWarning>
+          {hasValidPhoto ? (
             <img
               src={avatar}
               alt="Profile loading"
               className="w-full h-full object-cover object-top"
-              onError={() => setAvatar("")}
+              onError={() => setImgFailed(true)}
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-tr from-rose-50 via-white to-rose-100 flex flex-col items-center justify-center p-2 text-[#d91b5c]">
-              <HeartHandshake size={30} className="stroke-[2] text-[#d91b5c] animate-pulse" />
-              <span className="text-[8px] font-black uppercase tracking-wider text-[#d91b5c] mt-0.5">Nikah Qubool</span>
+            <div className="w-full h-full bg-white flex items-center justify-center p-2.5">
+              <img
+                src="/nikah-qubool-favicon.png"
+                alt="Nikah Qubool Logo"
+                className="w-12 h-12 object-contain"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "/nikah-qubool-logo.png";
+                }}
+              />
             </div>
           )}
         </div>
       </div>
 
       {/* Brand & Loading Text */}
-      <div className="mt-5 text-center space-y-1 z-10">
-        <h4 className="text-sm font-black text-slate-900 tracking-tight flex items-center justify-center gap-1.5">
+      <div className="mt-5 text-center space-y-1.5 z-10 max-w-xs">
+        <h4 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight flex items-center justify-center gap-1.5">
           <span>{message}</span>
         </h4>
         {subMessage && (
-          <p className="text-xs text-slate-500 font-medium">
+          <p className="text-xs text-slate-500 font-medium leading-relaxed">
             {subMessage}
           </p>
         )}
       </div>
 
-      {/* Subtle bottom dots */}
-      <div className="flex items-center gap-1.5 mt-3">
+      {/* Subtle animated dots */}
+      <div className="flex items-center gap-1.5 mt-3.5">
         <div className="w-1.5 h-1.5 rounded-full bg-[#d91b5c] animate-bounce [animation-delay:-0.3s]" />
         <div className="w-1.5 h-1.5 rounded-full bg-[#d91b5c] animate-bounce [animation-delay:-0.15s]" />
         <div className="w-1.5 h-1.5 rounded-full bg-[#d91b5c] animate-bounce" />

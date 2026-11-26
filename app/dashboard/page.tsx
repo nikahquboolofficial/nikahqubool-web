@@ -12,7 +12,22 @@ import { checkDailyViewLimit, formatTimeRemaining, DAILY_FREE_PROFILE_LIMIT } fr
 import { getAuthToken } from '@/lib/auth';
 import ProfileCard from '@/components/dashboard/ProfileCard';
 import ProfileCardSkeleton from '@/components/dashboard/ProfileCardSkeleton';
+import ProfileAvatarLoader from '@/components/ProfileAvatarLoader';
 import { useSignalR } from '@/context/SignalRContext';
+
+const preloadCardImages = (urls: string[]): Promise<void> => {
+  if (typeof window === "undefined" || !urls || urls.length === 0) return Promise.resolve();
+  const promises = urls.slice(0, 8).map((url) => {
+    if (!url || typeof url !== 'string') return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      const img = new Image();
+      img.src = url;
+      img.onload = () => resolve();
+      img.onerror = () => resolve();
+    });
+  });
+  return Promise.all(promises).then(() => {});
+};
 
 function LiveCountdownDisplay({ tab = 'best-matches' }: { tab?: string }) {
   const [timeText, setTimeText] = useState('24h 00m 00s');
@@ -101,6 +116,7 @@ export default function VIPCleanDashboardPage() {
       setFetchingMore(true);
     }
 
+    const startTime = Date.now();
     const res = await fetchDashboardApi(tabName, pageNum, token);
 
     if (res.isUnauthorized) {
@@ -177,6 +193,17 @@ export default function VIPCleanDashboardPage() {
           try {
             sessionStorage.setItem(`cached_dashboard_feed_${tabName}`, JSON.stringify(cacheObj));
           } catch (e) {}
+        }
+
+        // ⚡ PRELOAD PROFILE CARD IMAGES FOR INSTANT LOAD WITH ZERO BLANK PHOTOS
+        if (finalProfiles.length > 0) {
+          const photoUrls = finalProfiles.map((p: any) => p.photoUrl || p.mainPhotoUrl || p.PhotoUrl).filter(Boolean);
+          await preloadCardImages(photoUrls);
+
+          const elapsed = Date.now() - startTime;
+          if (elapsed < 650) {
+            await new Promise((r) => setTimeout(r, 650 - elapsed));
+          }
         }
       }
     } else {
@@ -372,8 +399,11 @@ export default function VIPCleanDashboardPage() {
 
         {/* PROFILES GRID */}
         {loading ? (
-          <div className="py-4">
-            <ProfileCardSkeleton count={4} />
+          <div className="py-10 sm:py-16 flex items-center justify-center">
+            <ProfileAvatarLoader 
+              message="Finding Best Matches For You" 
+              subMessage="Connecting with verified halal matrimonial profiles..." 
+            />
           </div>
         ) : displayedProfiles.length === 0 ? (
           <div className="py-16 px-4 text-center max-w-md mx-auto space-y-4">
