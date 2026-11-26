@@ -331,11 +331,12 @@ export default function ProfileDetailPage() {
         }));
         if (status !== "ACCEPTED" && status !== "DECLINED") { toast.success("Interest sent successfully!"); }
       } else if (type === 'SHORTLIST') {
+        const nextShort = (status === 'SHORTLISTED' || status === 'ACTIVE');
         setProfileData((prev: any) => ({
           ...prev,
-          isShortlisted: status === 'ACTIVE'
+          isShortlisted: nextShort,
+          IsShortlisted: nextShort
         }));
-        toast.success(status === 'ACTIVE' ? "Added to shortlist" : "Removed from shortlist");
       }
       loadProfileDetails(false);
     } else {
@@ -1740,7 +1741,7 @@ export default function ProfileDetailPage() {
                   type="button"
                   whileHover={{ scale: 1.08 }}
                   whileTap={{ scale: 0.92 }}
-                  onClick={(e) => handleInteraction(e, 'SHORTLIST', isShortlisted ? 'REMOVED' : 'ACTIVE')}
+                  onClick={(e) => handleInteraction(e, 'SHORTLIST', isShortlisted ? 'NONE' : 'SHORTLISTED')}
                   disabled={actionLoading}
                   className={`w-13 h-13 sm:w-14 sm:h-14 rounded-full border flex items-center justify-center shadow-md transition-all cursor-pointer ${
                     isShortlisted
@@ -1755,7 +1756,7 @@ export default function ProfileDetailPage() {
                     <Bookmark size={22} className={isShortlisted ? 'fill-current stroke-[2]' : 'fill-none stroke-[2]'} />
                   )}
                 </motion.button>
-                <span className={`text-xs font-bold ${isShortlisted ? 'text-amber-600' : 'text-slate-600'}`}>
+                <span className={`text-xs font-bold ${isShortlisted ? 'text-amber-500' : 'text-slate-600'}`}>
                   {isShortlisted ? 'Shortlisted' : 'Shortlist'}
                 </span>
               </div>

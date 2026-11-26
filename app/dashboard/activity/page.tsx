@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   Sparkles, Heart, Crown, Send, Inbox, Eye, ArrowLeft, Lock, 
-  Users, CheckCircle2, ChevronRight, X, Check, Star, MessageCircle,
+  Users, CheckCircle2, ChevronRight, X, Check, Star, Bookmark, MessageCircle,
   Building2, MapPin, Loader2, ShieldCheck, Clock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -53,22 +53,48 @@ const SUBTABS_CONFIG: Record<MainTab, SubTabItem[]> = {
 const activityTabCache: Record<string, { profiles: any[]; timestamp: number }> = {};
 
 function formatRelativeTime(dateInput: any): string {
-  if (!dateInput) return "Recently";
-  const now = new Date();
-  const d = new Date(dateInput);
-  if (isNaN(d.getTime())) return "Recently";
+  if (!dateInput) return "Just now";
+  let str = String(dateInput).trim();
+  if (!str) return "Just now";
 
+  let d: Date;
+  if (typeof dateInput === 'object' && dateInput instanceof Date) {
+    d = isNaN(dateInput.getTime()) ? new Date() : dateInput;
+  } else if (/^\d{10,13}$/.test(str)) {
+    const num = Number(str);
+    d = new Date(num < 10000000000 ? num * 1000 : num);
+  } else {
+    if (!str.includes('T') && str.includes(' ')) {
+      str = str.replace(' ', 'T');
+    }
+    if (!str.endsWith('Z') && !str.includes('+') && !/[+-]\d{2}:\d{2}$/.test(str)) {
+      str = `${str}Z`;
+    }
+    d = new Date(str);
+  }
+
+  if (isNaN(d.getTime())) return "Just now";
+
+  const now = new Date();
   const diffMs = now.getTime() - d.getTime();
+  if (diffMs < 90 * 1000) return "Just now";
+
   const diffSec = Math.floor(diffMs / 1000);
   const diffMin = Math.floor(diffSec / 60);
   const diffHours = Math.floor(diffMin / 60);
-  const diffDays = Math.floor(diffHours / 24);
 
-  if (diffMin < 2) return "Just now";
-  if (diffMin < 60) return `${diffMin} mins ago`;
-  if (diffHours < 24) return diffHours === 1 ? "1 hour ago" : `${diffHours} hours ago`;
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+
+  const yesterday = new Date();
+  yesterday.setDate(now.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) {
+    return "Yesterday";
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
 
@@ -224,13 +250,16 @@ function ActivityContent() {
           toast.info("Request declined.");
           setProfiles(prev => prev.filter(p => Number(p.userId || p.UserId) !== receiverId));
         } else if (type === 'SHORTLIST') {
-          toast.success("Profile shortlisted!");
+          // 0ms instant sync without intrusive toast
           setProfiles(prev => prev.map(p => {
             if (Number(p.userId || p.UserId) === receiverId) {
-              return { ...p, isShortlisted: !p.isShortlisted };
+              const nextVal = !Boolean(p.isShortlisted || p.IsShortlisted);
+              return { ...p, isShortlisted: nextVal, IsShortlisted: nextVal };
             }
             return p;
           }));
+          delete activityTabCache['shortlisted-by-me'];
+          delete activityTabCache['shortlist'];
         }
       } else {
         toast.error(res?.message || "Failed to complete action.");
@@ -264,10 +293,14 @@ function ActivityContent() {
     router.push(`/dashboard/messages?targetUserId=${uId}&targetName=${encodeURIComponent(name)}&targetPhoto=${encodeURIComponent(photo)}`);
   };
 
-  // Helper text per tab
+  // Helper text per tab & item
   const getActivityHeadline = (user: any, name: string) => {
+    if (activeMainTab === 'shortlist') {
+      if (activeSubTab === 'shortlisted-by-me') return `You shortlisted ${name}`;
+      if (activeSubTab === 'shortlisted-me') return `${name} shortlisted your profile`;
+    }
     if (activeMainTab === 'interests') {
-      if (activeSubTab === 'requests') return `${name} has sent you an interest request`;
+      if (activeSubTab === 'requests') return `${name} sent you an interest request`;
       if (activeSubTab === 'interests-sent') return `You sent ${name} an interest request`;
       if (activeSubTab === 'accepted') return `You and ${name} are connected`;
       if (activeSubTab === 'declined') return `Declined interest with ${name}`;
@@ -281,16 +314,62 @@ function ActivityContent() {
       if (activeSubTab === 'contact-views') return `You viewed ${name}'s contact details`;
     }
     if (activeMainTab === 'gallery') {
-      if (activeSubTab === 'gallery-requests-received') return `${name} requested photo access`;
+      if (activeSubTab === 'gallery-requests-received') return `${name} requested your photo access`;
       if (activeSubTab === 'gallery-requests') return `You requested photo access from ${name}`;
       if (activeSubTab === 'gallery-requests-accepted') return `Photo access unlocked with ${name}`;
     }
-    if (activeMainTab === 'shortlist') {
-      if (activeSubTab === 'shortlisted-by-me') return `You shortlisted ${name}`;
-      if (activeSubTab === 'shortlisted-me') return `${name} shortlisted your profile`;
+
+    // Dynamic item identification for All Activity tab & mixed feeds
+    const iType = String(user.interactionType || user.activityType || user.type || '').toUpperCase();
+    const iStatus = String(user.interestStatus || user.status || '');
+    
+    if (iType.includes('SHORTLIST') || user.isShortlisted || user.IsShortlisted) {
+      return `You shortlisted ${name}`;
+    }
+    if (iStatus === 'Accepted' || iType.includes('ACCEPT')) {
+      return `You and ${name} are connected`;
+    }
+    if (iStatus === 'ReceivedPending' || user.isInterestReceived) {
+      return `${name} sent you an interest request`;
+    }
+    if (iStatus === 'SentPending' || user.isInterestSent) {
+      return `You sent ${name} an interest request`;
+    }
+    if (iType.includes('PHOTO') || user.hasRequestedPhoto) {
+      return `${name} requested your photo access`;
+    }
+    if (iType.includes('CONTACT')) {
+      return `${name} viewed your contact details`;
+    }
+    if (iType.includes('VISIT') || iType.includes('VIEW') || user.isVisitor) {
+      return `${name} visited your profile`;
+    }
+    if (user.notificationMessage) {
+      return user.notificationMessage;
     }
     return `${name} interacted with your profile`;
   };
+
+  
+  // ⚡ Sync shortlist updates in real-time
+  useEffect(() => {
+    const handleShortlistUpdate = (e: any) => {
+      const { userId, isShortlisted } = e.detail || {};
+      if (!userId) return;
+      delete activityTabCache['shortlisted-by-me'];
+      delete activityTabCache['shortlist'];
+      setProfiles((prev) =>
+        prev.map((p) => {
+          if (Number(p.userId || p.UserId || 0) === Number(userId)) {
+            return { ...p, isShortlisted, IsShortlisted: isShortlisted };
+          }
+          return p;
+        })
+      );
+    };
+    window.addEventListener('shortlist_updated', handleShortlistUpdate);
+    return () => window.removeEventListener('shortlist_updated', handleShortlistUpdate);
+  }, []);
 
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900 pb-24 selection:bg-[#E21E5B] selection:text-white">
@@ -575,16 +654,18 @@ function ActivityContent() {
                             <div className="flex flex-col items-center gap-1">
                               <button
                                 type="button"
-                                onClick={() => handleInteraction(uId, 'SHORTLIST', 'PENDING')}
+                                onClick={() => handleInteraction(uId, 'SHORTLIST', isShortlisted ? 'NONE' : 'SHORTLISTED')}
                                 className={`w-11 h-11 rounded-full flex items-center justify-center shadow-md active:scale-90 transition-transform cursor-pointer backdrop-blur-xs ${
                                   isShortlisted 
-                                    ? 'bg-amber-400 text-slate-900' 
+                                    ? 'bg-amber-400 text-slate-950 border border-amber-300 shadow-amber-400/30' 
                                     : 'bg-black/40 text-white border border-white/30 hover:bg-black/60'
                                 }`}
                               >
-                                <Star size={18} className={isShortlisted ? 'fill-slate-900' : ''} />
+                                <Bookmark size={18} className={isShortlisted ? 'fill-slate-900 stroke-[2]' : 'fill-none stroke-[2]'} />
                               </button>
-                              <span className="text-[10px] font-semibold text-white/90">Shortlist</span>
+                              <span className={`text-[10px] ${isShortlisted ? 'font-bold text-amber-300' : 'font-medium text-white/90'}`}>
+                                {isShortlisted ? 'Shortlisted' : 'Shortlist'}
+                              </span>
                             </div>
 
                             {/* Chat Button (Yellow Message Bubble in Circle) */}

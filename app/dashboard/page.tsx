@@ -270,7 +270,9 @@ export default function VIPCleanDashboardPage() {
               updated.isInterestSent = true;
               updated.interestStatus = 'Sent';
             } else if (type.toUpperCase() === 'SHORTLIST') {
-              updated.isShortlisted = status !== 'NONE';
+              const nextShort = (status === 'SHORTLISTED' || status === 'ACTIVE');
+              updated.isShortlisted = nextShort;
+              updated.IsShortlisted = nextShort;
             }
             return updated;
           }
@@ -345,6 +347,40 @@ export default function VIPCleanDashboardPage() {
     }
     return profiles;
   }, [profiles, activeTab, onlineUsers]);
+
+  
+  // ⚡ Sync shortlist updates in real-time across all tabs & pages
+  useEffect(() => {
+    const handleShortlistUpdate = (e: any) => {
+      const { userId, isShortlisted } = e.detail || {};
+      if (!userId) return;
+      setProfiles((prev) =>
+        prev.map((p) => {
+          if (Number(p.userId || p.UserId || 0) === Number(userId)) {
+            return { ...p, isShortlisted, IsShortlisted: isShortlisted };
+          }
+          return p;
+        })
+      );
+      Object.keys(globalFeedCache).forEach((tabKey) => {
+        if (globalFeedCache[tabKey]?.profiles) {
+          globalFeedCache[tabKey].profiles = globalFeedCache[tabKey].profiles.map((p) => {
+            if (Number(p.userId || p.UserId || 0) === Number(userId)) {
+              return { ...p, isShortlisted, IsShortlisted: isShortlisted };
+            }
+            return p;
+          });
+          if (typeof window !== "undefined") {
+            try {
+              sessionStorage.setItem('cached_dashboard_feed_' + tabKey, JSON.stringify(globalFeedCache[tabKey]));
+            } catch (e) {}
+          }
+        }
+      });
+    };
+    window.addEventListener('shortlist_updated', handleShortlistUpdate);
+    return () => window.removeEventListener('shortlist_updated', handleShortlistUpdate);
+  }, []);
 
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900 pb-28 pt-0 selection:bg-[#e21e5b] selection:text-white">

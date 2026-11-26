@@ -339,7 +339,7 @@ export default function ProfileCard({
                     whileTap={{ scale: 0.92 }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      onInteraction(userIdNum, 'SHORTLIST', isShortlisted ? 'REMOVED' : 'ACTIVE');
+                      onInteraction(userIdNum, 'SHORTLIST', isShortlisted ? 'NONE' : 'SHORTLISTED');
                     }}
                     disabled={actionLoading}
                     className={`w-12 h-12 rounded-full backdrop-blur-md border flex items-center justify-center shadow-lg transition-all cursor-pointer ${

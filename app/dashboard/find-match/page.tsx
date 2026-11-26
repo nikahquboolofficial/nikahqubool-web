@@ -6,7 +6,7 @@ import {
   Search, SlidersHorizontal, X, ChevronRight, ChevronDown, ChevronLeft,
   MapPin, Briefcase, GraduationCap, Heart, Loader2,
   Crown, Lock, RotateCcw, CheckCircle2, Eye, Sparkles, ArrowLeft,
-  Globe, Moon, Languages, DollarSign, Star, MessageCircle, Check, Building2
+  Globe, Moon, Languages, DollarSign, Star, Bookmark, MessageCircle, Check, Building2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
@@ -487,7 +487,10 @@ export default function FindMatchPage() {
     if (!token) return;
 
     try {
-      const res = await handleInteractionApiCall(receiverId, type, 'PENDING', token);
+      const targetUser = profiles.find(p => Number(p.userId || p.UserId) === receiverId);
+      const isCurShort = Boolean(targetUser?.isShortlisted || targetUser?.IsShortlisted);
+      const actionStat = type === 'SHORTLIST' ? (isCurShort ? 'NONE' : 'SHORTLISTED') : 'PENDING';
+      const res = await handleInteractionApiCall(receiverId, type, actionStat, token);
       if (res && res.success) {
         if (type === 'INTEREST') {
           toast.success("Interest sent successfully!");
@@ -499,10 +502,11 @@ export default function FindMatchPage() {
             return p;
           }));
         } else if (type === 'SHORTLIST') {
-          toast.success("Profile shortlisted!");
+          // 0ms instant sync without intrusive toast
           setProfiles(prev => prev.map(p => {
             if (Number(p.userId || p.UserId) === receiverId) {
-              return { ...p, isShortlisted: !p.isShortlisted };
+              const nextVal = !Boolean(p.isShortlisted || p.IsShortlisted);
+              return { ...p, isShortlisted: nextVal, IsShortlisted: nextVal };
             }
             return p;
           }));
@@ -572,6 +576,25 @@ export default function FindMatchPage() {
     setUpgradeFeatureName(featureName);
     setShowUpgradeModal(true);
   };
+
+  
+  // ⚡ Sync shortlist updates in real-time
+  useEffect(() => {
+    const handleShortlistUpdate = (e: any) => {
+      const { userId, isShortlisted } = e.detail || {};
+      if (!userId) return;
+      setProfiles((prev) =>
+        prev.map((p) => {
+          if (Number(p.userId || p.UserId || 0) === Number(userId)) {
+            return { ...p, isShortlisted, IsShortlisted: isShortlisted };
+          }
+          return p;
+        })
+      );
+    };
+    window.addEventListener('shortlist_updated', handleShortlistUpdate);
+    return () => window.removeEventListener('shortlist_updated', handleShortlistUpdate);
+  }, []);
 
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900 pb-24 selection:bg-[#E21E5B] selection:text-white">
@@ -1136,13 +1159,16 @@ export default function FindMatchPage() {
                             onClick={() => handleAction(uId, 'SHORTLIST')}
                             className={`w-11 h-11 rounded-full flex items-center justify-center shadow-md active:scale-90 transition-transform cursor-pointer backdrop-blur-xs ${
                               isShortlisted 
-                                ? 'bg-amber-400 text-slate-900' 
+                                ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-amber-400/30' 
                                 : 'bg-black/40 text-white border border-white/30 hover:bg-black/60'
                             }`}
+                            aria-label={isShortlisted ? 'Shortlisted' : 'Shortlist'}
                           >
-                            <Star size={18} className={isShortlisted ? 'fill-slate-900' : ''} />
+                            <Bookmark size={18} className={isShortlisted ? 'fill-current stroke-[2]' : 'fill-none stroke-[2]'} />
                           </button>
-                          <span className="text-[10px] font-semibold text-white/90">Shortlist</span>
+                          <span className={`text-[10px] ${isShortlisted ? 'font-bold text-amber-300' : 'font-medium text-white/90'}`}>
+                            {isShortlisted ? 'Shortlisted' : 'Shortlist'}
+                          </span>
                         </div>
 
                         {/* 2. Chat Button */}

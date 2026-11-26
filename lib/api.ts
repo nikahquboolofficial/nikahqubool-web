@@ -458,9 +458,75 @@ export const fetchNotificationCountsApi = async (token: string | null | undefine
   }
 };
 
+// 🕒 Accurate Relative Time Formatter (UTC to Local IST with "Just now", "5m ago", "Yesterday", etc.)
+export const formatRelativeTime = (dateInput: any): string => {
+  if (!dateInput) return "Just now";
+  let str = String(dateInput).trim();
+  if (!str) return "Just now";
+
+  let d: Date;
+  if (typeof dateInput === 'object' && dateInput instanceof Date) {
+    d = isNaN(dateInput.getTime()) ? new Date() : dateInput;
+  } else if (/^\d{10,13}$/.test(str)) {
+    const num = Number(str);
+    d = new Date(num < 10000000000 ? num * 1000 : num);
+  } else {
+    // Backend returns UTC timestamps like "2026-11-26T07:10:00" without Z.
+    // Convert space to T and append 'Z' so it correctly parses as UTC in the browser
+    if (!str.includes('T') && str.includes(' ')) {
+      str = str.replace(' ', 'T');
+    }
+    if (!str.endsWith('Z') && !str.includes('+') && !/[+-]\d{2}:\d{2}$/.test(str)) {
+      str = `${str}Z`;
+    }
+    d = new Date(str);
+  }
+
+  if (isNaN(d.getTime())) return "Just now";
+
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+
+  // If created within last 90 seconds (or slight clock skew):
+  if (diffMs < 90 * 1000) return "Just now";
+
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHours = Math.floor(diffMin / 60);
+
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+
+  const yesterday = new Date();
+  yesterday.setDate(now.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) {
+    return "Yesterday";
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+};
+
 // 🔒 Protected: Dashboard Interactions API (Token MANDATORY)
 export const handleInteractionApiCall = async (receiverUserId: number, interactionType: string, actionStatus: string, token: string | null | undefined) => {
   if (!token) return { success: false, isUnauthorized: true, message: "Unauthorized token" };
+
+  // 🎯 Normalize SHORTLIST status to what the backend SP expects ('SHORTLISTED' or 'NONE')
+  let finalType = interactionType;
+  let finalStatus = actionStatus;
+
+  if (interactionType.toUpperCase() === 'SHORTLIST') {
+    finalType = 'SHORTLIST';
+    if (actionStatus === 'ACTIVE' || actionStatus === 'PENDING' || actionStatus === 'SHORTLISTED') {
+      finalStatus = 'SHORTLISTED';
+    } else if (actionStatus === 'REMOVED' || actionStatus === 'NONE' || actionStatus === 'UNSHORTLISTED') {
+      finalStatus = 'NONE';
+    } else {
+      finalStatus = 'SHORTLISTED';
+    }
+  }
 
   try {
     const res = await fetchWithTimeout(`${API_BASE_URL}/Dashboard/handle-interaction`, {
@@ -469,7 +535,7 @@ export const handleInteractionApiCall = async (receiverUserId: number, interacti
         "Authorization": `Bearer ${token}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ receiverUserId, interactionType, actionStatus })
+      body: JSON.stringify({ receiverUserId, interactionType: finalType, actionStatus: finalStatus })
     });
 
     if (res.status === 401) {
@@ -477,7 +543,21 @@ export const handleInteractionApiCall = async (receiverUserId: number, interacti
       return { success: false, isUnauthorized: true, message: "" };
     }
     const data = await res.json();
-    return { success: data.success || data.Success, message: data.message || data.Message, details: data.details || data.Details };
+    const isSuccess = Boolean(data.success || data.Success);
+
+    // ⚡ Dispatch global event so all open views (Dashboard, Activity, Find Match, Profile) sync instantly
+    if (isSuccess && typeof window !== "undefined") {
+      if (finalType === 'SHORTLIST') {
+        window.dispatchEvent(new CustomEvent('shortlist_updated', {
+          detail: {
+            userId: Number(receiverUserId),
+            isShortlisted: finalStatus === 'SHORTLISTED'
+          }
+        }));
+      }
+    }
+
+    return { success: isSuccess, message: data.message || data.Message, details: data.details || data.Details };
   } catch (error) {
     return { success: false, message: "Network error during action execution." };
   }
