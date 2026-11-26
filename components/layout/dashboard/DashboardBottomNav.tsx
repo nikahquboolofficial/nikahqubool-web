@@ -123,7 +123,7 @@ export default function DashboardBottomNav({
             )}
           </div>
           <span className={`text-[10px] mt-1 tracking-tight pointer-events-none ${isActivity ? 'font-bold text-[#e21e5b]' : 'font-medium text-[#534344]'}`}>
-            Activity
+            Proposals
           </span>
         </Link>
 

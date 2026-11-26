@@ -15,7 +15,7 @@ import { getClientSubscriptionStatus } from '@/lib/subscriptionUtils';
 import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
 import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
 
-type MainTab = 'all' | 'interests' | 'visitors' | 'contacts' | 'gallery';
+type MainTab = 'all' | 'interests' | 'visitors' | 'contacts' | 'gallery' | 'shortlist';
 
 interface SubTabItem {
   id: string;
@@ -25,23 +25,27 @@ interface SubTabItem {
 const SUBTABS_CONFIG: Record<MainTab, SubTabItem[]> = {
   all: [],
   interests: [
-    { id: 'requests', label: 'Received' },
-    { id: 'interests-sent', label: 'Sent' },
-    { id: 'accepted', label: 'Accepted' },
-    { id: 'declined', label: 'Restricted' },
+    { id: 'requests', label: 'Incoming' },
+    { id: 'interests-sent', label: 'Outgoing' },
+    { id: 'accepted', label: 'Connected' },
+    { id: 'declined', label: 'Declined' },
   ],
   visitors: [
-    { id: 'visitors', label: 'Visited Me' },
-    { id: 'profiles-viewed', label: 'I Visited' },
+    { id: 'visitors', label: 'Viewed You' },
+    { id: 'profiles-viewed', label: 'You Viewed' },
   ],
   contacts: [
-    { id: 'contact-views-received', label: 'Viewed Mine' },
-    { id: 'contact-views', label: 'I Viewed' },
+    { id: 'contact-views-received', label: 'Viewed Yours' },
+    { id: 'contact-views', label: 'You Viewed' },
   ],
   gallery: [
-    { id: 'gallery-requests-received', label: 'Received' },
-    { id: 'gallery-requests', label: 'Sent' },
-    { id: 'gallery-requests-accepted', label: 'Accepted' },
+    { id: 'gallery-requests-received', label: 'Requests In' },
+    { id: 'gallery-requests', label: 'Requests Out' },
+    { id: 'gallery-requests-accepted', label: 'Unlocked' },
+  ],
+  shortlist: [
+    { id: 'shortlisted-by-me', label: 'My Shortlist' },
+    { id: 'shortlisted-me', label: 'Shortlisted Me' },
   ],
 };
 
@@ -281,11 +285,15 @@ function ActivityContent() {
       if (activeSubTab === 'gallery-requests') return `You requested photo access from ${name}`;
       if (activeSubTab === 'gallery-requests-accepted') return `Photo access unlocked with ${name}`;
     }
+    if (activeMainTab === 'shortlist') {
+      if (activeSubTab === 'shortlisted-by-me') return `You shortlisted ${name}`;
+      if (activeSubTab === 'shortlisted-me') return `${name} shortlisted your profile`;
+    }
     return `${name} interacted with your profile`;
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFCFB] font-sans text-slate-900 pb-24 selection:bg-[#E21E5B] selection:text-white">
+    <div className="min-h-screen bg-white font-sans text-slate-900 pb-24 selection:bg-[#E21E5B] selection:text-white">
       <Toaster position="top-center" richColors />
 
       <div className="max-w-md mx-auto px-4 pt-1 pb-4 space-y-3">
@@ -293,10 +301,11 @@ function ActivityContent() {
         <div className="flex items-center gap-6 overflow-x-auto border-b border-slate-200/80 pb-1 pt-0.5 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           {[
             { id: 'all' as MainTab, label: 'All' },
-            { id: 'interests' as MainTab, label: 'Interests' },
-            { id: 'visitors' as MainTab, label: 'Profile Visits' },
-            { id: 'contacts' as MainTab, label: 'Contact Views' },
-            { id: 'gallery' as MainTab, label: 'Gallery Requests' },
+            { id: 'interests' as MainTab, label: 'Proposals' },
+            { id: 'visitors' as MainTab, label: 'Visitors' },
+            { id: 'contacts' as MainTab, label: 'Contacts' },
+            { id: 'gallery' as MainTab, label: 'Photo Access' },
+            { id: 'shortlist' as MainTab, label: 'Shortlist' },
           ].map((tab) => {
             const isActive = activeMainTab === tab.id;
             return (
@@ -611,7 +620,7 @@ function ActivityContent() {
 export default function ActivityPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-[#FDFCFB]">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <Loader2 size={28} className="animate-spin text-[#E21E5B]" />
       </div>
     }>

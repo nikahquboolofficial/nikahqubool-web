@@ -420,7 +420,7 @@ function SettingsContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] font-sans text-slate-900 pb-28 pt-3 sm:pt-5 selection:bg-[#d91b5c] selection:text-white">
+    <div className="min-h-screen bg-white font-sans text-slate-900 pb-28 pt-3 sm:pt-5 selection:bg-[#d91b5c] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
       <div className="max-w-xl mx-auto px-4 sm:px-6 space-y-4">
@@ -840,18 +840,18 @@ function SettingsContent() {
                   {[
                     {
                       id: "All Members",
-                      title: "All Members",
-                      desc: "All verified candidates can view your photos (Recommended for 3x higher responses)."
+                      title: "Visible to All",
+                      desc: "Sabhi verified members dekh sakte hain (Recommended for faster proposals)."
                     },
                     {
                       id: "Premium Only",
-                      title: "VIP / Premium Only",
-                      desc: "Only active paid members can view your full profile photos."
+                      title: "VIP Only",
+                      desc: "Sirf serious active VIP rishte dekh sakte hain."
                     },
                     {
                       id: "Only Approved",
-                      title: "Only Approved Members",
-                      desc: "Photos remain protected and require your explicit consent per member."
+                      title: "Parda Mode",
+                      desc: "Sirf aapki ijazat ke baad hi photo dikhegi."
                     }
                   ].map((option) => (
                     <div 
@@ -1277,7 +1277,7 @@ function SettingsContent() {
 export default function SettingsPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <Loader2 size={28} className="animate-spin text-[#d91b5c]" />
       </div>
     }>

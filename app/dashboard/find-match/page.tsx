@@ -574,7 +574,7 @@ export default function FindMatchPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFCFB] font-sans text-slate-900 pb-24 selection:bg-[#E21E5B] selection:text-white">
+    <div className="min-h-screen bg-white font-sans text-slate-900 pb-24 selection:bg-[#E21E5B] selection:text-white">
       <Toaster position="top-center" richColors />
 
       {/* ========================================================================= */}
@@ -948,12 +948,12 @@ export default function FindMatchPage() {
             </span>
           </div>
 
-          {/* ⚡ HORIZONTAL QUICK-FILTER CHIPS BAR (SCREENSHOT 5) */}
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+          {/* ⚡ HORIZONTAL QUICK-FILTER CHIPS BAR */}
+          <div className="flex items-center gap-2 overflow-x-auto scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden py-1">
             {/* 1. All Filters Drawer Button */}
             <button
               onClick={() => setShowFiltersModal(true)}
-              className="shrink-0 px-3.5 py-1.5 rounded-full border border-slate-300/80 bg-white text-slate-800 text-xs font-bold flex items-center gap-1.5 shadow-xs hover:border-[#E21E5B] active:scale-95 transition-all"
+              className="shrink-0 px-4 py-1.5 rounded-full border border-slate-200/90 bg-white text-slate-800 text-xs font-bold flex items-center gap-1.5 shadow-xs hover:border-[#E21E5B] active:scale-95 transition-all"
             >
               <SlidersHorizontal size={13} className="text-[#E21E5B]" />
               <span>Filters</span>
@@ -962,10 +962,10 @@ export default function FindMatchPage() {
             {/* 2. Verified Chip */}
             <button
               onClick={() => toggleQuickChip('verifiedOnly')}
-              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shadow-xs flex items-center gap-1 ${
+              className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all shadow-xs flex items-center gap-1 cursor-pointer select-none ${
                 filters.verifiedOnly
-                  ? 'bg-[#E21E5B] text-white border border-[#E21E5B]'
-                  : 'bg-white text-slate-700 border border-slate-200 hover:border-slate-300'
+                  ? 'bg-[#1e293b] text-white border border-[#1e293b]'
+                  : 'bg-white text-slate-700 border border-slate-200/90 hover:border-slate-300'
               }`}
             >
               <span>Verified</span>
@@ -974,37 +974,37 @@ export default function FindMatchPage() {
             {/* 3. Photos Only Chip */}
             <button
               onClick={() => toggleQuickChip('withPhotoOnly')}
-              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shadow-xs flex items-center gap-1 ${
+              className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all shadow-xs flex items-center gap-1 cursor-pointer select-none ${
                 filters.withPhotoOnly
-                  ? 'bg-[#E21E5B] text-white border border-[#E21E5B]'
-                  : 'bg-white text-slate-700 border border-slate-200 hover:border-slate-300'
+                  ? 'bg-[#1e293b] text-white border border-[#1e293b]'
+                  : 'bg-white text-slate-700 border border-slate-200/90 hover:border-slate-300'
               }`}
             >
-              <span>Photos</span>
+              <span>With Photo</span>
             </button>
 
             {/* 4. Online Profiles Chip */}
             <button
               onClick={() => toggleQuickChip('onlineOnly')}
-              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shadow-xs flex items-center gap-1 ${
+              className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all shadow-xs flex items-center gap-1 cursor-pointer select-none ${
                 filters.onlineOnly
-                  ? 'bg-[#E21E5B] text-white border border-[#E21E5B]'
-                  : 'bg-white text-slate-700 border border-slate-200 hover:border-slate-300'
+                  ? 'bg-[#1e293b] text-white border border-[#1e293b]'
+                  : 'bg-white text-slate-700 border border-slate-200/90 hover:border-slate-300'
               }`}
             >
-              <span>Online</span>
+              <span>Online Now</span>
             </button>
 
             {/* 5. Premium Profiles Chip */}
             <button
               onClick={() => toggleQuickChip('premiumOnly')}
-              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shadow-xs flex items-center gap-1 ${
+              className={`shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all shadow-xs flex items-center gap-1 cursor-pointer select-none ${
                 filters.premiumOnly
-                  ? 'bg-[#E21E5B] text-white border border-[#E21E5B]'
-                  : 'bg-white text-slate-700 border border-slate-200 hover:border-slate-300'
+                  ? 'bg-[#1e293b] text-white border border-[#1e293b]'
+                  : 'bg-white text-slate-700 border border-slate-200/90 hover:border-slate-300'
               }`}
             >
-              <span>Premium</span>
+              <span>VIP Members</span>
             </button>
           </div>
 
@@ -1314,7 +1314,7 @@ export default function FindMatchPage() {
               {/* 2-Column Body */}
               <div className="flex-1 flex overflow-hidden">
                 {/* LEFT COLUMN: CATEGORIES TAB LIST */}
-                <div className="w-[38%] border-r border-slate-100 bg-[#FAF9F8] overflow-y-auto py-2">
+                <div className="w-[38%] border-r border-slate-200/80 bg-slate-50 overflow-y-auto py-2">
                   {[
                     "Age", "Height", "Marital Status", "Sect", "Caste", "Country", 
                     "State", "City", "Verified Profiles", "Education", "Employed In", 
@@ -1328,12 +1328,12 @@ export default function FindMatchPage() {
                         onClick={() => { setModalCasteSearch(""); setModalActiveTab(tab); }}
                         className={`px-3.5 py-3 text-xs font-semibold cursor-pointer transition-colors relative flex items-center ${
                           isActive 
-                            ? 'bg-white font-extrabold text-slate-900 shadow-xs' 
+                            ? 'bg-white font-extrabold text-[#e21e5b] shadow-xs' 
                             : 'text-slate-600 hover:bg-slate-100/60'
                         }`}
                       >
                         {isActive && (
-                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#E5B54F] rounded-r-md" />
+                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#e21e5b] rounded-r-md" />
                         )}
                         <span className="truncate">{tab}</span>
                       </div>

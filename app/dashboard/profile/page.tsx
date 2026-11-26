@@ -680,7 +680,7 @@ export default function ProfileDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 p-4 md:p-6 max-w-3xl mx-auto space-y-6 animate-pulse pt-6">
+      <div className="min-h-screen bg-white p-4 md:p-6 max-w-3xl mx-auto space-y-6 animate-pulse pt-6">
         <div className="w-full aspect-[4/5] md:aspect-[16/9] rounded-3xl bg-slate-200" />
         <div className="h-10 bg-slate-200 rounded-xl" />
         <div className="h-40 bg-slate-200 rounded-3xl" />
@@ -691,7 +691,7 @@ export default function ProfileDetailPage() {
 
   if (!profileData) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center">
         <div className="w-16 h-16 rounded-full bg-rose-100 flex items-center justify-center text-[#E21E5B] mb-4 shadow-sm">
           <User size={32} />
         </div>
@@ -841,7 +841,7 @@ export default function ProfileDetailPage() {
   const isShortlisted = Boolean(profileData.isShortlisted || profileData.IsShortlisted);
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] font-sans text-slate-900 w-full relative selection:bg-[#E21E5B] selection:text-white pb-32">
+    <div className="min-h-screen bg-white font-sans text-slate-900 w-full relative selection:bg-[#E21E5B] selection:text-white pb-32">
       <Toaster position="top-center" richColors duration={2000} />
 
       <div className="max-w-3xl mx-auto md:py-6 md:px-4 space-y-4">

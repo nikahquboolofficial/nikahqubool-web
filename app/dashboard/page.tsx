@@ -300,9 +300,9 @@ export default function VIPCleanDashboardPage() {
   };
 
   const tabs = [
-    { id: 'best-matches', label: 'Best Matches' },
-    { id: 'online', label: 'Online' },
-    { id: 'premium', label: 'Premium' },
+    { id: 'best-matches', label: 'Top Matches' },
+    { id: 'online', label: 'Online Now' },
+    { id: 'premium', label: 'VIP Members' },
   ];
 
   // ⚡ PURE REAL-TIME FILTERING: Strict Redis presence verification
@@ -320,7 +320,7 @@ export default function VIPCleanDashboardPage() {
   }, [profiles, activeTab, onlineUsers]);
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] font-sans text-slate-900 pb-28 pt-2 sm:pt-4 selection:bg-[#e21e5b] selection:text-white">
+    <div className="min-h-screen bg-white font-sans text-slate-900 pb-28 pt-2 sm:pt-4 selection:bg-[#e21e5b] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
       <style jsx global>{`

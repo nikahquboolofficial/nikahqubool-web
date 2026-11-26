@@ -161,7 +161,7 @@ export default function ProfileCard({
       style={{ scrollSnapAlign: 'center', scrollSnapStop: 'always' }}
     >
       {/* 🖼️ CARD MEDIA CONTAINER */}
-      <div className="relative w-full h-[530px] sm:h-[500px] md:h-[515px] overflow-hidden select-none">
+      <div className="relative w-full h-[min(540px,calc(100svh-175px))] sm:h-[500px] md:h-[515px] overflow-hidden select-none">
         {/* 🔗 FULL CARD LINK (Opens profile with TopLoader progress bar) */}
         <Link 
           href={`/dashboard/profile?userId=${userIdNum}`}

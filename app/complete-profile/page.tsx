@@ -929,7 +929,7 @@ export default function CompleteProfilePage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] text-slate-900 flex flex-col justify-between selection:bg-[#e21e5b] selection:text-white">
+    <div className="min-h-screen bg-white text-slate-900 flex flex-col justify-between selection:bg-[#e21e5b] selection:text-white">
       <Toaster position="top-center" richColors />
 
       {/* 🌟 TOP NAVIGATION BAR */}
@@ -2120,10 +2120,17 @@ export default function CompleteProfilePage() {
               </div>
 
               <div className="space-y-2.5">
-                {(masterData.PHOTO_PRIVACY && masterData.PHOTO_PRIVACY.length > 0 ? masterData.PHOTO_PRIVACY : [
-                  { id: 1, value: 'All Members', displayName: 'All Members', description: 'Visible to everyone' },
-                  { id: 2, value: 'Premium Only', displayName: 'Premium Members', description: 'Blurred for free users' },
-                  { id: 3, value: 'Only Approved', displayName: 'Members I Approve', description: 'Blurred until you approve' }
+                {(masterData.PHOTO_PRIVACY && masterData.PHOTO_PRIVACY.length > 0 ? masterData.PHOTO_PRIVACY.map((opt: any) => {
+                  let dName = opt.displayName || opt.Value || opt.value || 'Visible to All';
+                  let desc = opt.description || 'Photo privacy setting';
+                  if (opt.value === 'All Members' || opt.id === 1) { dName = 'Visible to All'; desc = 'Sabhi verified members dekh sakte hain'; }
+                  if (opt.value === 'Premium Only' || opt.id === 2) { dName = 'VIP Only'; desc = 'Sirf serious VIP rishte dekh sakte hain'; }
+                  if (opt.value === 'Only Approved' || opt.id === 3) { dName = 'Parda Mode'; desc = 'Sirf aapki ijazat ke baad hi photo dikhegi'; }
+                  return { ...opt, displayName: dName, description: desc };
+                }) : [
+                  { id: 1, value: 'All Members', displayName: 'Visible to All', description: 'Sabhi verified members dekh sakte hain' },
+                  { id: 2, value: 'Premium Only', displayName: 'VIP Only', description: 'Sirf serious VIP rishte dekh sakte hain' },
+                  { id: 3, value: 'Only Approved', displayName: 'Parda Mode', description: 'Sirf aapki ijazat ke baad hi photo dikhegi' }
                 ]).map((opt: any) => {
                   const optVal = opt.value || opt.Value || opt.displayName || opt.DisplayName;
                   const optTitle = opt.displayName || opt.DisplayName || opt.title || optVal;

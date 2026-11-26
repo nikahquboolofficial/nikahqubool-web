@@ -170,7 +170,7 @@ export default function PaymentInfoPage() {
   const remainingViews = activePlan?.remainingContacts ?? activePlan?.RemainingContacts ?? activePlan?.contactViewsAllowed ?? 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#FAF8F5] via-white to-[#FAF8F5] font-sans text-slate-900 pb-28 pt-4 selection:bg-[#d91b5c] selection:text-white">
+    <div className="min-h-screen bg-white font-sans text-slate-900 pb-28 pt-4 selection:bg-[#d91b5c] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">

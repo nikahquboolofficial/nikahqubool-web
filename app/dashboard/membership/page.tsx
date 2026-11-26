@@ -300,7 +300,7 @@ export default function MembershipPage() {
   const totalSavings = Math.max(0, originalPrice - finalPrice);
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] text-slate-900 font-sans pb-36 relative selection:bg-[#E21E5B] selection:text-white">
+    <div className="min-h-screen bg-white text-slate-900 font-sans pb-36 relative selection:bg-[#E21E5B] selection:text-white">
       
       {/* TOAST NOTIFICATION */}
       <AnimatePresence>
