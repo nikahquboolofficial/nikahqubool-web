@@ -182,10 +182,9 @@ export default function ChatWindow({
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Dynamic Presence Status (From Ultra-Fast In-Memory SignalR Store)
-  const currentPresence = onlineUsers[Number(receiverId)];
+  const currentPresence = (onlineUsers && typeof onlineUsers === 'object') ? onlineUsers[Number(receiverId)] : null;
   const isOnline = currentPresence ? Boolean(currentPresence.isOnline) : Boolean(initialIsOnline);
   const lastSeenTime = currentPresence ? currentPresence.lastSeen : (initialLastSeen ?? null);
 
@@ -422,10 +421,20 @@ export default function ChatWindow({
   }, [connection, receiverId]);
 
   const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior, block: 'end' });
-    } else if (scrollRef.current) {
-      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior });
+    try {
+      if (scrollRef.current) {
+        if (typeof scrollRef.current.scrollTo === 'function') {
+          scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior });
+        } else {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+      }
+    } catch {
+      try {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+      } catch {}
     }
   };
 
@@ -435,17 +444,29 @@ export default function ChatWindow({
 
   // 🚀 Ultra-Smooth Auto Scroll when new message arrives or typing changes
   useEffect(() => {
-    scrollToBottom("smooth");
+    if (!scrollRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+    if (scrollHeight - scrollTop - clientHeight < 300) {
+      scrollToBottom("smooth");
+    }
   }, [messages, isUserTyping]);
 
   // 📱 Mobile Viewport auto-scroll when soft keyboard opens
   useEffect(() => {
     if (typeof window !== "undefined" && window.visualViewport) {
-      const handleViewportResize = () => {
-        scrollToBottom("smooth");
-      };
-      window.visualViewport.addEventListener("resize", handleViewportResize);
-      return () => window.visualViewport?.removeEventListener("resize", handleViewportResize);
+      try {
+        const handleViewportResize = () => {
+          scrollToBottom("smooth");
+        };
+        if (typeof window.visualViewport.addEventListener === 'function') {
+          window.visualViewport.addEventListener("resize", handleViewportResize);
+          return () => {
+            try {
+              window.visualViewport?.removeEventListener("resize", handleViewportResize);
+            } catch {}
+          };
+        }
+      } catch {}
     }
   }, []);
 
@@ -700,7 +721,7 @@ export default function ChatWindow({
         ? "User Unavailable" 
         : (resolvedName || 'Member')));
 
-  const isUserTyping = Boolean(typingUsers[Number(receiverId)]);
+  const isUserTyping = Boolean(typingUsers && typeof typingUsers === 'object' && typingUsers[Number(receiverId)]);
 
   const displayStatus = isDeletedUser 
     ? "Account Deleted" 
@@ -924,8 +945,7 @@ export default function ChatWindow({
           </div>
         )}
 
-        {/* Scroll anchor to guarantee perfect bottom view */}
-        <div ref={messagesEndRef} className="h-1" />
+        <div className="h-1" />
       </div>
 
       {showScrollBottom && (
