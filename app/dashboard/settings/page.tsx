@@ -2,12 +2,13 @@
 
 export const dynamic = 'force-dynamic';
 
-import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, useMemo } from 'react';
 import { 
   Bell, Heart, ArrowLeft, ChevronLeft, Check, Save, 
   PauseCircle, Trash2, Power, Loader2, ChevronRight, 
   LogOut, AlertTriangle, Eye, UserX, Unlock, Shield,
-  SlidersHorizontal, CheckCircle2, Info, Sparkles
+  SlidersHorizontal, CheckCircle2, Info, Sparkles,
+  X, Search, MapPin, Briefcase, GraduationCap, Globe
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -19,6 +20,143 @@ import {
 } from '@/lib/api';
 import { MultiSelectDropdown } from '@/components/profile/CompactSelect';
 import { getAuthToken, clearAuthCookies } from '@/lib/auth';
+
+const PREF_INCOME_OPTIONS: MasterOption[] = [
+  { id: 'Any Income', value: 'Any Income' },
+  { id: 'Below ₹2 Lakhs', value: 'Below ₹2 Lakhs' },
+  { id: '₹2 Lakhs - ₹5 Lakhs', value: '₹2 Lakhs - ₹5 Lakhs' },
+  { id: '₹5 Lakhs - ₹10 Lakhs', value: '₹5 Lakhs - ₹10 Lakhs' },
+  { id: '₹10 Lakhs - ₹20 Lakhs', value: '₹10 Lakhs - ₹20 Lakhs' },
+  { id: '₹20 Lakhs - ₹35 Lakhs', value: '₹20 Lakhs - ₹35 Lakhs' },
+  { id: '₹35 Lakhs - ₹50 Lakhs', value: '₹35 Lakhs - ₹50 Lakhs' },
+  { id: '₹50 Lakhs & Above', value: '₹50 Lakhs & Above' }
+];
+
+const PREF_COUNTRY_OPTIONS: MasterOption[] = [
+  { id: 'India', value: 'India' },
+  { id: 'United Arab Emirates', value: 'United Arab Emirates' },
+  { id: 'Saudi Arabia', value: 'Saudi Arabia' },
+  { id: 'United Kingdom', value: 'United Kingdom' },
+  { id: 'United States', value: 'United States' },
+  { id: 'Canada', value: 'Canada' },
+  { id: 'Qatar', value: 'Qatar' },
+  { id: 'Kuwait', value: 'Kuwait' },
+  { id: 'Oman', value: 'Oman' }
+];
+
+interface DualRangeSliderProps {
+  min: number;
+  max: number;
+  step?: number;
+  minVal: number;
+  maxVal: number;
+  minGap?: number;
+  onChange: (min: number, max: number) => void;
+}
+
+function DualRangeSlider({
+  min,
+  max,
+  step = 1,
+  minVal,
+  maxVal,
+  minGap = 1,
+  onChange,
+}: DualRangeSliderProps) {
+  const minPercent = Math.max(0, Math.min(100, ((minVal - min) / (max - min)) * 100));
+  const maxPercent = Math.max(0, Math.min(100, ((maxVal - min) / (max - min)) * 100));
+
+  return (
+    <div className="relative w-full h-7 flex items-center select-none touch-none">
+      <div className="absolute inset-x-0 h-1.5 bg-slate-200/90 rounded-full" />
+      <div
+        className="absolute h-1.5 bg-gradient-to-r from-[#E21E5B] to-[#C2185B] rounded-full pointer-events-none transition-[left,width] duration-75"
+        style={{
+          left: `${minPercent}%`,
+          width: `${Math.max(0, maxPercent - minPercent)}%`,
+        }}
+      />
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={minVal}
+        onChange={(e) => {
+          const val = Math.min(Number(e.target.value), maxVal - minGap);
+          onChange(val, maxVal);
+        }}
+        className="absolute inset-x-0 w-full h-1.5 appearance-none bg-transparent pointer-events-none cursor-pointer
+          [&::-webkit-slider-runnable-track]:appearance-none
+          [&::-moz-range-track]:appearance-none
+          [&::-webkit-slider-thumb]:pointer-events-auto
+          [&::-webkit-slider-thumb]:appearance-none
+          [&::-webkit-slider-thumb]:w-5
+          [&::-webkit-slider-thumb]:h-5
+          [&::-webkit-slider-thumb]:rounded-full
+          [&::-webkit-slider-thumb]:bg-[#E21E5B]
+          [&::-webkit-slider-thumb]:border-2
+          [&::-webkit-slider-thumb]:border-white
+          [&::-webkit-slider-thumb]:shadow-md
+          [&::-webkit-slider-thumb]:hover:scale-110
+          [&::-webkit-slider-thumb]:active:scale-125
+          [&::-webkit-slider-thumb]:transition-transform
+          [&::-moz-range-thumb]:pointer-events-auto
+          [&::-moz-range-thumb]:appearance-none
+          [&::-moz-range-thumb]:w-5
+          [&::-moz-range-thumb]:h-5
+          [&::-moz-range-thumb]:rounded-full
+          [&::-moz-range-thumb]:bg-[#E21E5B]
+          [&::-moz-range-thumb]:border-2
+          [&::-moz-range-thumb]:border-white
+          [&::-moz-range-thumb]:shadow-md
+          [&::-moz-range-thumb]:hover:scale-110
+          [&::-moz-range-thumb]:active:scale-125
+          [&::-moz-range-thumb]:transition-transform"
+        style={{ zIndex: minVal > max - (max - min) * 0.15 ? 25 : 20 }}
+      />
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={maxVal}
+        onChange={(e) => {
+          const val = Math.max(Number(e.target.value), minVal + minGap);
+          onChange(minVal, val);
+        }}
+        className="absolute inset-x-0 w-full h-1.5 appearance-none bg-transparent pointer-events-none cursor-pointer
+          [&::-webkit-slider-runnable-track]:appearance-none
+          [&::-moz-range-track]:appearance-none
+          [&::-webkit-slider-thumb]:pointer-events-auto
+          [&::-webkit-slider-thumb]:appearance-none
+          [&::-webkit-slider-thumb]:w-5
+          [&::-webkit-slider-thumb]:h-5
+          [&::-webkit-slider-thumb]:rounded-full
+          [&::-webkit-slider-thumb]:bg-[#E21E5B]
+          [&::-webkit-slider-thumb]:border-2
+          [&::-webkit-slider-thumb]:border-white
+          [&::-webkit-slider-thumb]:shadow-md
+          [&::-webkit-slider-thumb]:hover:scale-110
+          [&::-webkit-slider-thumb]:active:scale-125
+          [&::-webkit-slider-thumb]:transition-transform
+          [&::-moz-range-thumb]:pointer-events-auto
+          [&::-moz-range-thumb]:appearance-none
+          [&::-moz-range-thumb]:w-5
+          [&::-moz-range-thumb]:h-5
+          [&::-moz-range-thumb]:rounded-full
+          [&::-moz-range-thumb]:bg-[#E21E5B]
+          [&::-moz-range-thumb]:border-2
+          [&::-moz-range-thumb]:border-white
+          [&::-moz-range-thumb]:shadow-md
+          [&::-moz-range-thumb]:hover:scale-110
+          [&::-moz-range-thumb]:active:scale-125
+          [&::-moz-range-thumb]:transition-transform"
+        style={{ zIndex: 22 }}
+      />
+    </div>
+  );
+}
 
 const PREF_NAMAZ_OPTIONS: MasterOption[] = [
   { id: '5 Times Daily', value: '5 Times Daily' },
@@ -123,11 +261,113 @@ function SettingsContent() {
     sectIds: [],
     stateId: 0,
     cityId: 0,
+    incomeLabel: 'Any Income',
+    country: 'India',
     namazHabits: [],
     hijabOrBeard: []
   });
 
   const [masterData, setMasterData] = useState<{ [key: string]: MasterOption[] }>({});
+
+  // 📋 Partner Preference Bottom Sheet State (Matching Screenshots 1, 2, 3, 4)
+  const [activeSheet, setActiveSheet] = useState<string | null>(null);
+  const [sheetSearch, setSheetSearch] = useState<string>('');
+
+  const toggleOption = (fieldKey: string, optId: any) => {
+    setPrefData((prev: any) => {
+      const list = Array.isArray(prev[fieldKey]) ? [...prev[fieldKey]] : [];
+      const exists = list.some((item: any) => String(item) === String(optId));
+      const updated = exists 
+        ? list.filter((item: any) => String(item) !== String(optId))
+        : [...list, optId];
+      return { ...prev, [fieldKey]: updated };
+    });
+  };
+
+  const getSummaryText = (id: string): string => {
+    switch (id) {
+      case 'age':
+        return `${prefData.minAge || 18} - ${prefData.maxAge || 60} yrs`;
+      case 'maritalStatus': {
+        const list = prefData.maritalStatusList || [];
+        if (list.length === 0) return 'Any';
+        const names = (masterData.MARITAL_STATUS || []).filter(m => list.some((x: any) => String(x) === String(m.id))).map(m => m.value);
+        if (names.length === 0) return 'Any';
+        if (names.length <= 2) return names.join(', ');
+        return `${names[0]}, ${names[1]} (+${names.length - 2})`;
+      }
+      case 'income':
+        return prefData.incomeLabel || 'Any Income';
+      case 'education': {
+        const list = prefData.educationIds || [];
+        if (list.length === 0) return 'Any';
+        const names = (masterData.EDUCATIONS || []).filter(m => list.some((x: any) => String(x) === String(m.id))).map(m => m.value);
+        if (names.length === 0) return 'Any';
+        if (names.length <= 2) return names.join(', ');
+        return `${names[0]} (+${names.length - 1})`;
+      }
+      case 'occupation': {
+        const list = prefData.occupationIds || [];
+        if (list.length === 0) return 'Any';
+        const names = (masterData.OCCUPATIONS || []).filter(m => list.some((x: any) => String(x) === String(m.id))).map(m => m.value);
+        if (names.length === 0) return 'Any';
+        if (names.length <= 2) return names.join(', ');
+        return `${names[0]} (+${names.length - 1})`;
+      }
+      case 'motherTongue': {
+        const list = prefData.languageIds || [];
+        if (list.length === 0) return 'Any';
+        const names = (masterData.MOTHER_TONGUES || []).filter(m => list.some((x: any) => String(x) === String(m.id))).map(m => m.value);
+        if (names.length === 0) return 'Any';
+        if (names.length <= 2) return names.join(', ');
+        return `${names[0]} (+${names.length - 1})`;
+      }
+      case 'sect': {
+        const list = prefData.sectIds || [];
+        if (list.length === 0) return 'Any';
+        const names = (masterData.SECTS || []).filter(m => list.some((x: any) => String(x) === String(m.id))).map(m => m.value);
+        if (names.length === 0) return 'Any';
+        if (names.length <= 2) return names.join(', ');
+        return `${names[0]} (+${names.length - 1})`;
+      }
+      case 'caste': {
+        const list = prefData.casteIds || [];
+        if (list.length === 0) return 'Any';
+        const names = (masterData.CASTES || []).filter(m => list.some((x: any) => String(x) === String(m.id))).map(m => m.value);
+        if (names.length === 0) return 'Any';
+        if (names.length <= 2) return names.join(', ');
+        return `${names[0]} (+${names.length - 1})`;
+      }
+      case 'height':
+        return `${prefData.minHeight || '4.5'} - ${prefData.maxHeight || '6.5'} ft`;
+      case 'country':
+        return prefData.country || 'India';
+      case 'state': {
+        if (!prefData.stateId) return 'Any State';
+        const s = (masterData.STATES || []).find(x => Number(x.id) === Number(prefData.stateId));
+        return s ? s.value : 'Any State';
+      }
+      case 'city': {
+        if (!prefData.cityId) return 'Any City';
+        const c = (masterData.CITIES || []).find(x => Number(x.id) === Number(prefData.cityId));
+        return c ? c.value : 'Any City';
+      }
+      case 'namaz': {
+        const list = prefData.namazHabits || [];
+        if (list.length === 0) return 'Any / Flexible';
+        if (list.length <= 2) return list.join(', ');
+        return `${list[0]} (+${list.length - 1})`;
+      }
+      case 'hijab': {
+        const list = prefData.hijabOrBeard || [];
+        if (list.length === 0) return 'Any / Open Minded';
+        if (list.length <= 2) return list.join(', ');
+        return `${list[0]} (+${list.length - 1})`;
+      }
+      default:
+        return '';
+    }
+  };
 
   // 3. Privacy & Blocked Users State
   const [privacySubTab, setPrivacySubTab] = useState<'photo' | 'blocked'>('photo');
@@ -409,10 +649,383 @@ function SettingsContent() {
     }
   };
 
+  const PREFERENCE_ROWS = [
+    { id: 'age', label: 'Age' },
+    { id: 'maritalStatus', label: 'Marital Status' },
+    { id: 'income', label: 'Annual Income' },
+    { id: 'education', label: 'Education' },
+    { id: 'occupation', label: 'Employed In' },
+    { id: 'motherTongue', label: 'Mother Tongue' },
+    { id: 'sect', label: 'Sect' },
+    { id: 'caste', label: 'Caste' },
+    { id: 'height', label: 'Height' },
+    { id: 'country', label: 'Country' },
+    { id: 'state', label: 'State' },
+    { id: 'city', label: 'City' },
+    { id: 'namaz', label: 'Namaz Habit' },
+    { id: 'hijab', label: 'Hijab / Beard' },
+  ];
+
+  const getSheetTitle = (id: string | null) => {
+    switch (id) {
+      case 'age': return 'Select Age';
+      case 'maritalStatus': return 'Select Marital Status';
+      case 'income': return 'Select Annual Income';
+      case 'education': return 'Select Education';
+      case 'occupation': return 'Select Employed In';
+      case 'motherTongue': return 'Select Mother Tongue';
+      case 'sect': return 'Select Sect';
+      case 'caste': return 'Select Caste';
+      case 'height': return 'Select Height';
+      case 'country': return 'Select Country';
+      case 'state': return 'Select State';
+      case 'city': return 'Select City';
+      case 'namaz': return 'Select Namaz Habit';
+      case 'hijab': return 'Select Hijab / Beard Preference';
+      default: return 'Select Option';
+    }
+  };
+
+  const renderMultiSelectSheet = (fieldKey: string, options: MasterOption[], showSearch: boolean = false) => {
+    const selectedList: any[] = Array.isArray(prefData[fieldKey]) ? prefData[fieldKey] : [];
+    const selectedOptions = options.filter((o) => selectedList.some((s) => String(s) === String(o.id || o.value)));
+    const filteredOptions = showSearch && sheetSearch.trim()
+      ? options.filter((o) => o.value.toLowerCase().includes(sheetSearch.toLowerCase().trim()))
+      : options;
+
+    return (
+      <div className="space-y-3">
+        {/* Selected Chips Row (Screenshot 2) */}
+        {selectedOptions.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-slate-100">
+            {selectedOptions.slice(0, 3).map((opt) => (
+              <span
+                key={opt.id || opt.value}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-[#d91b5c] text-slate-800 bg-rose-50/30 text-xs font-semibold"
+              >
+                <span>{opt.value}</span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleOption(fieldKey, opt.id || opt.value);
+                  }}
+                  className="hover:text-[#d91b5c] cursor-pointer"
+                >
+                  <X size={13} strokeWidth={2.5} />
+                </button>
+              </span>
+            ))}
+            {selectedOptions.length > 3 && (
+              <span className="text-xs font-bold text-[#d91b5c]">
+                +{selectedOptions.length - 3} more
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Search Input for long lists */}
+        {showSearch && (
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={sheetSearch}
+              onChange={(e) => setSheetSearch(e.target.value)}
+              placeholder="Search..."
+              className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-[#d91b5c]"
+            />
+          </div>
+        )}
+
+        {/* Checkbox Rows (Screenshots 2 & 3) */}
+        <div className="space-y-0.5 divide-y divide-slate-100 max-h-[46vh] overflow-y-auto px-1">
+          {filteredOptions.map((opt) => {
+            const isChecked = selectedList.some((s) => String(s) === String(opt.id || opt.value));
+            return (
+              <div
+                key={opt.id || opt.value}
+                onClick={() => toggleOption(fieldKey, opt.id || opt.value)}
+                className="flex items-center justify-between py-3.5 px-2 cursor-pointer hover:bg-slate-50 rounded-xl transition"
+              >
+                <span className={`text-sm ${isChecked ? 'font-bold text-slate-900' : 'font-medium text-slate-700'}`}>
+                  {opt.value}
+                </span>
+                <div
+                  className={`w-5 h-5 rounded-md flex items-center justify-center transition ${
+                    isChecked
+                      ? 'bg-[#d91b5c] text-white shadow-xs'
+                      : 'border-2 border-slate-300'
+                  }`}
+                >
+                  {isChecked && <Check size={14} strokeWidth={3} />}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const renderSheetContent = () => {
+    switch (activeSheet) {
+      case 'age': {
+        const minA = prefData.minAge || 18;
+        const maxA = prefData.maxAge || 60;
+        return (
+          <div className="space-y-6 py-2">
+            <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-5 space-y-4">
+              <div className="flex items-center justify-between text-sm font-bold text-slate-900">
+                <span>Min yrs{minA}yrs</span>
+                <span>Max yrs{maxA}yrs</span>
+              </div>
+              <DualRangeSlider
+                min={18}
+                max={70}
+                minVal={minA}
+                maxVal={maxA}
+                minGap={1}
+                onChange={(minVal, maxVal) => {
+                  setPrefData((prev: any) => ({ ...prev, minAge: minVal, maxAge: maxVal }));
+                }}
+              />
+            </div>
+          </div>
+        );
+      }
+
+      case 'height': {
+        const minH = parseFloat(prefData.minHeight || '4.5') || 4.5;
+        const maxH = parseFloat(prefData.maxHeight || '6.5') || 6.5;
+        return (
+          <div className="space-y-6 py-2">
+            <div className="bg-slate-50/80 rounded-2xl border border-slate-200/80 p-5 space-y-4">
+              <div className="flex items-center justify-between text-sm font-bold text-slate-900">
+                <span>Min height {minH.toFixed(1)} ft</span>
+                <span>Max height {maxH.toFixed(1)} ft</span>
+              </div>
+              <DualRangeSlider
+                min={4.0}
+                max={7.5}
+                step={0.1}
+                minVal={minH}
+                maxVal={maxH}
+                minGap={0.1}
+                onChange={(minVal, maxVal) => {
+                  setPrefData((prev: any) => ({
+                    ...prev,
+                    minHeight: minVal.toFixed(1),
+                    maxHeight: maxVal.toFixed(1),
+                  }));
+                }}
+              />
+            </div>
+          </div>
+        );
+      }
+
+      case 'maritalStatus':
+        return renderMultiSelectSheet('maritalStatusList', masterData.MARITAL_STATUS || [], false);
+
+      case 'income': {
+        const currentVal = prefData.incomeLabel || 'Any Income';
+        return (
+          <div className="space-y-0.5 divide-y divide-slate-100 max-h-[50vh] overflow-y-auto px-1">
+            {PREF_INCOME_OPTIONS.map((opt) => {
+              const isSelected = currentVal === opt.value;
+              return (
+                <div
+                  key={opt.id}
+                  onClick={() => updatePrefField('incomeLabel', opt.value)}
+                  className="flex items-center justify-between py-3.5 px-2 cursor-pointer hover:bg-slate-50 rounded-xl transition"
+                >
+                  <span className={`text-sm ${isSelected ? 'font-bold text-slate-900' : 'font-medium text-slate-700'}`}>
+                    {opt.value}
+                  </span>
+                  <div
+                    className={`w-5 h-5 rounded-md flex items-center justify-center transition ${
+                      isSelected
+                        ? 'bg-[#d91b5c] text-white shadow-xs'
+                        : 'border-2 border-slate-300'
+                    }`}
+                  >
+                    {isSelected && <Check size={14} strokeWidth={3} />}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      }
+
+      case 'education':
+        return renderMultiSelectSheet('educationIds', masterData.EDUCATIONS || [], true);
+
+      case 'occupation':
+        return renderMultiSelectSheet('occupationIds', masterData.OCCUPATIONS || [], true);
+
+      case 'motherTongue':
+        return renderMultiSelectSheet('languageIds', masterData.MOTHER_TONGUES || [], true);
+
+      case 'sect':
+        return renderMultiSelectSheet('sectIds', masterData.SECTS || [], false);
+
+      case 'caste':
+        return renderMultiSelectSheet('casteIds', masterData.CASTES || [], true);
+
+      case 'country': {
+        const currentCountry = prefData.country || 'India';
+        return (
+          <div className="space-y-0.5 divide-y divide-slate-100 max-h-[50vh] overflow-y-auto px-1">
+            {PREF_COUNTRY_OPTIONS.map((opt) => {
+              const isSelected = currentCountry === opt.value;
+              return (
+                <div
+                  key={opt.id}
+                  onClick={() => updatePrefField('country', opt.value)}
+                  className="flex items-center justify-between py-3.5 px-2 cursor-pointer hover:bg-slate-50 rounded-xl transition"
+                >
+                  <span className={`text-sm ${isSelected ? 'font-bold text-slate-900' : 'font-medium text-slate-700'}`}>
+                    {opt.value}
+                  </span>
+                  <div
+                    className={`w-5 h-5 rounded-md flex items-center justify-center transition ${
+                      isSelected
+                        ? 'bg-[#d91b5c] text-white shadow-xs'
+                        : 'border-2 border-slate-300'
+                    }`}
+                  >
+                    {isSelected && <Check size={14} strokeWidth={3} />}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      }
+
+      case 'state': {
+        const filteredStates = (masterData.STATES || []).filter((s) =>
+          s.value.toLowerCase().includes(sheetSearch.toLowerCase().trim())
+        );
+        return (
+          <div className="space-y-3">
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={sheetSearch}
+                onChange={(e) => setSheetSearch(e.target.value)}
+                placeholder="Search state..."
+                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-[#d91b5c]"
+              />
+            </div>
+            <div className="space-y-0.5 divide-y divide-slate-100 max-h-[48vh] overflow-y-auto px-1">
+              <div
+                onClick={() => {
+                  updatePrefField('stateId', 0);
+                  updatePrefField('cityId', 0);
+                }}
+                className="flex items-center justify-between py-3 px-2 cursor-pointer hover:bg-slate-50 rounded-xl"
+              >
+                <span className={`text-sm ${!prefData.stateId ? 'font-bold text-slate-900' : 'font-medium text-slate-700'}`}>
+                  Any State / Pan India
+                </span>
+                <div className={`w-5 h-5 rounded-md flex items-center justify-center ${!prefData.stateId ? 'bg-[#d91b5c] text-white' : 'border-2 border-slate-300'}`}>
+                  {!prefData.stateId && <Check size={14} strokeWidth={3} />}
+                </div>
+              </div>
+              {filteredStates.map((s) => {
+                const isSelected = Number(prefData.stateId) === Number(s.id);
+                return (
+                  <div
+                    key={s.id}
+                    onClick={() => {
+                      updatePrefField('stateId', Number(s.id));
+                      updatePrefField('cityId', 0);
+                    }}
+                    className="flex items-center justify-between py-3 px-2 cursor-pointer hover:bg-slate-50 rounded-xl"
+                  >
+                    <span className={`text-sm ${isSelected ? 'font-bold text-slate-900' : 'font-medium text-slate-700'}`}>
+                      {s.value}
+                    </span>
+                    <div className={`w-5 h-5 rounded-md flex items-center justify-center ${isSelected ? 'bg-[#d91b5c] text-white' : 'border-2 border-slate-300'}`}>
+                      {isSelected && <Check size={14} strokeWidth={3} />}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      }
+
+      case 'city': {
+        const availableCities = (masterData.CITIES || []).filter((c) =>
+          c.value.toLowerCase().includes(sheetSearch.toLowerCase().trim())
+        );
+        return (
+          <div className="space-y-3">
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={sheetSearch}
+                onChange={(e) => setSheetSearch(e.target.value)}
+                placeholder="Search city..."
+                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 outline-none focus:border-[#d91b5c]"
+              />
+            </div>
+            <div className="space-y-0.5 divide-y divide-slate-100 max-h-[48vh] overflow-y-auto px-1">
+              <div
+                onClick={() => updatePrefField('cityId', 0)}
+                className="flex items-center justify-between py-3 px-2 cursor-pointer hover:bg-slate-50 rounded-xl"
+              >
+                <span className={`text-sm ${!prefData.cityId ? 'font-bold text-slate-900' : 'font-medium text-slate-700'}`}>
+                  Any City
+                </span>
+                <div className={`w-5 h-5 rounded-md flex items-center justify-center ${!prefData.cityId ? 'bg-[#d91b5c] text-white' : 'border-2 border-slate-300'}`}>
+                  {!prefData.cityId && <Check size={14} strokeWidth={3} />}
+                </div>
+              </div>
+              {availableCities.map((c) => {
+                const isSelected = Number(prefData.cityId) === Number(c.id);
+                return (
+                  <div
+                    key={c.id}
+                    onClick={() => updatePrefField('cityId', Number(c.id))}
+                    className="flex items-center justify-between py-3 px-2 cursor-pointer hover:bg-slate-50 rounded-xl"
+                  >
+                    <span className={`text-sm ${isSelected ? 'font-bold text-slate-900' : 'font-medium text-slate-700'}`}>
+                      {c.value}
+                    </span>
+                    <div className={`w-5 h-5 rounded-md flex items-center justify-center ${isSelected ? 'bg-[#d91b5c] text-white' : 'border-2 border-slate-300'}`}>
+                      {isSelected && <Check size={14} strokeWidth={3} />}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      }
+
+      case 'namaz':
+        return renderMultiSelectSheet('namazHabits', PREF_NAMAZ_OPTIONS, false);
+
+      case 'hijab':
+        return renderMultiSelectSheet('hijabOrBeard', PREF_HIJAB_BEARD_OPTIONS, false);
+
+      default:
+        return null;
+    }
+  };
+
   const getSubTitle = () => {
     switch (activeTab) {
       case 'notifications': return "Notification Preferences";
-      case 'preferences': return "Partner Preferences";
+      case 'preferences': return "Partner Preference";
       case 'privacy': return "Privacy & Blocked Users";
       case 'manage': return "Account Visibility & Security";
       default: return "Account Settings";
@@ -631,180 +1244,45 @@ function SettingsContent() {
           </motion.div>
         )}
 
-        {/* 💖 3. PARTNER PREFERENCES SUB-SCREEN */}
+        {/* 💖 3. PARTNER PREFERENCES SUB-SCREEN (Matching App Screenshots 1, 2, 3, 4, 5) */}
         {activeTab === 'preferences' && (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl p-4 sm:p-6 border border-slate-100 shadow-sm space-y-4">
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
             
-            <div className="space-y-3.5">
-              {/* Age Range */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Min Age (Years)</label>
-                  <input
-                    type="number"
-                    min={18}
-                    max={prefData.maxAge || 60}
-                    value={prefData.minAge || 18}
-                    onChange={(e) => updatePrefField('minAge', Number(e.target.value))}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Max Age (Years)</label>
-                  <input
-                    type="number"
-                    min={prefData.minAge || 18}
-                    max={75}
-                    value={prefData.maxAge || 60}
-                    onChange={(e) => updatePrefField('maxAge', Number(e.target.value))}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
-                  />
-                </div>
-              </div>
-
-              {/* Height Range */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Min Height (ft)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="4.0"
-                    max={prefData.maxHeight || '7.0'}
-                    value={prefData.minHeight || '4.5'}
-                    onChange={(e) => updatePrefField('minHeight', e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Max Height (ft)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min={prefData.minHeight || '4.0'}
-                    max="7.5"
-                    value={prefData.maxHeight || '6.5'}
-                    onChange={(e) => updatePrefField('maxHeight', e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-[#d91b5c]"
-                  />
-                </div>
-              </div>
-
-              {/* Marital Status Multi-Select */}
-              <MultiSelectDropdown
-                label="Preferred Marital Status"
-                options={masterData.MARITAL_STATUS || []}
-                selectedIds={prefData.maritalStatusList || []}
-                onChange={(ids) => updatePrefField('maritalStatusList', ids)}
-                placeholder="Any Marital Status"
-              />
-
-              {/* Sect / Maslak Multi-Select */}
-              <MultiSelectDropdown
-                label="Preferred Sect / Maslak"
-                options={masterData.SECTS || []}
-                selectedIds={prefData.sectIds || []}
-                onChange={(ids) => updatePrefField('sectIds', ids)}
-                placeholder="Any Sect / Maslak"
-              />
-
-              {/* Caste Multi-Select */}
-              <MultiSelectDropdown
-                label="Preferred Caste / Community"
-                options={masterData.CASTES || []}
-                selectedIds={prefData.casteIds || []}
-                onChange={(ids) => updatePrefField('casteIds', ids)}
-                placeholder="Any Caste (Caste No Bar)"
-              />
-
-              {/* Mother Tongue Multi-Select */}
-              <MultiSelectDropdown
-                label="Preferred Mother Tongue"
-                options={masterData.MOTHER_TONGUES || []}
-                selectedIds={prefData.languageIds || []}
-                onChange={(ids) => updatePrefField('languageIds', ids)}
-                placeholder="Any Language"
-              />
-
-              {/* Education Multi-Select */}
-              <MultiSelectDropdown
-                label="Preferred Education"
-                options={masterData.EDUCATIONS || []}
-                selectedIds={prefData.educationIds || []}
-                onChange={(ids) => updatePrefField('educationIds', ids)}
-                placeholder="Any Education Level"
-              />
-
-              {/* Occupation Multi-Select */}
-              <MultiSelectDropdown
-                label="Preferred Occupation"
-                options={masterData.OCCUPATIONS || []}
-                selectedIds={prefData.occupationIds || []}
-                onChange={(ids) => updatePrefField('occupationIds', ids)}
-                placeholder="Any Profession"
-              />
-
-              {/* State & City Filter */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Preferred State</label>
-                  <select
-                    value={prefData.stateId || 0}
-                    onChange={(e) => {
-                      updatePrefField('stateId', Number(e.target.value));
-                      updatePrefField('cityId', 0);
+            {/* Divided List Container (Screenshot 4) */}
+            <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs divide-y divide-slate-100 overflow-hidden">
+              {PREFERENCE_ROWS.map((row) => {
+                const summary = getSummaryText(row.id);
+                return (
+                  <div
+                    key={row.id}
+                    onClick={() => {
+                      setSheetSearch('');
+                      setActiveSheet(row.id);
                     }}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[#d91b5c]"
+                    className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-slate-50/70 transition-colors group"
                   >
-                    <option value={0}>Any State / Pan India</option>
-                    {(masterData.STATES || []).map((s) => (
-                      <option key={s.id} value={s.id}>{s.value}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Preferred City</label>
-                  <select
-                    value={prefData.cityId || 0}
-                    disabled={!prefData.stateId}
-                    onChange={(e) => updatePrefField('cityId', Number(e.target.value))}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-[#d91b5c] disabled:opacity-50"
-                  >
-                    <option value={0}>Any City</option>
-                    {(masterData.CITIES || []).map((c) => (
-                      <option key={c.id} value={c.id}>{c.value}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Religious Expectations: Namaz Habits */}
-              <MultiSelectDropdown
-                label="Preferred Namaz Habit"
-                options={PREF_NAMAZ_OPTIONS}
-                selectedIds={prefData.namazHabits || []}
-                onChange={(vals) => updatePrefField('namazHabits', vals)}
-                placeholder="Any / Flexible"
-              />
-
-              {/* Religious Expectations: Hijab / Beard */}
-              <MultiSelectDropdown
-                label="Preferred Hijab / Beard"
-                options={PREF_HIJAB_BEARD_OPTIONS}
-                selectedIds={prefData.hijabOrBeard || []}
-                onChange={(vals) => updatePrefField('hijabOrBeard', vals)}
-                placeholder="Any / Open Minded"
-              />
+                    <span className="text-sm font-bold text-slate-800 group-hover:text-[#d91b5c] transition-colors">
+                      {row.label}
+                    </span>
+                    <div className="flex items-center gap-2 max-w-[55%]">
+                      <span className="text-xs font-semibold text-slate-400 group-hover:text-slate-600 truncate text-right">
+                        {summary}
+                      </span>
+                      <ChevronRight size={18} className="text-slate-400 group-hover:text-[#d91b5c] group-hover:translate-x-0.5 transition-all shrink-0" />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
+            {/* Save Preferences Button */}
             <button 
               type="button" 
               onClick={handleSavePartnerPreferences}
               disabled={savingPref}
-              className="w-full py-3 rounded-2xl bg-[#d91b5c] hover:bg-[#c21852] text-white font-bold text-xs uppercase tracking-wider shadow-sm cursor-pointer flex items-center justify-center gap-2 transition-colors"
+              className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#E21E5B] to-[#C2185B] text-white font-bold text-sm tracking-wide shadow-md hover:opacity-95 active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2 transition"
             >
-              {savingPref ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+              {savingPref ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
               <span>Save Partner Preferences</span>
             </button>
           </motion.div>
@@ -1275,6 +1753,67 @@ function SettingsContent() {
                   </div>
                 </>
               )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 📋 PARTNER PREFERENCE BOTTOM SHEET DIALOG (Matching App Screenshots 1, 2, 3, 4, 5) */}
+      <AnimatePresence>
+        {activeSheet && (
+          <div className="fixed inset-0 z-[10000] flex flex-col justify-end bg-black/60 backdrop-blur-xs">
+            {/* Backdrop click to close */}
+            <div 
+              className="absolute inset-0 -z-10" 
+              onClick={() => setActiveSheet(null)} 
+            />
+
+            {/* Floating Close Button Centered Directly Above Sheet (Screenshots 2, 3, 5) */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className="flex justify-center mb-3 pointer-events-auto"
+            >
+              <button
+                type="button"
+                onClick={() => setActiveSheet(null)}
+                className="w-11 h-11 bg-white rounded-full flex items-center justify-center text-slate-800 shadow-2xl hover:scale-105 active:scale-95 transition cursor-pointer"
+                aria-label="Close"
+              >
+                <X size={20} strokeWidth={2.5} />
+              </button>
+            </motion.div>
+
+            {/* Slide-Up Bottom Sheet */}
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className="bg-white rounded-t-[32px] w-full max-w-lg mx-auto p-5 sm:p-6 shadow-2xl max-h-[82vh] flex flex-col relative z-10"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Sheet Title */}
+              <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-3 shrink-0">
+                {getSheetTitle(activeSheet)}
+              </h3>
+
+              {/* Dynamic Content */}
+              <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+                {renderSheetContent()}
+              </div>
+
+              {/* Full-width Done Button (Pink Pill - Screenshots 2, 3, 5) */}
+              <div className="pt-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setActiveSheet(null)}
+                  className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#E21E5B] to-[#C2185B] text-white font-bold text-sm tracking-wide shadow-md hover:opacity-95 active:scale-[0.99] transition cursor-pointer"
+                >
+                  Done
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
