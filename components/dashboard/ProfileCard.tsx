@@ -166,7 +166,10 @@ export default function ProfileCard({
         <Link 
           href={`/dashboard/profile?userId=${userIdNum}`}
           prefetch={false}
-          onClick={() => onViewProfile(userIdNum)}
+          onClick={(e) => {
+            e.preventDefault();
+            onViewProfile(userIdNum);
+          }}
           className="absolute inset-0 z-10 block cursor-pointer touch-manipulation select-none active:brightness-95 transition-all duration-75"
           aria-label={`View profile of ${displayName}`}
         />

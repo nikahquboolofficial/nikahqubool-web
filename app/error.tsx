@@ -35,6 +35,11 @@ export default function GlobalErrorBoundary({
           <p className="text-xs font-semibold text-slate-400 leading-relaxed max-w-xs mx-auto">
             We encountered an unexpected issue while loading this page. Don't worry, your account data is completely safe.
           </p>
+          {error?.message && (
+            <p className="text-[11px] text-rose-400 font-mono bg-rose-950/50 border border-rose-800/60 p-2 rounded-xl max-w-xs mx-auto overflow-x-auto text-left">
+              {error.message}
+            </p>
+          )}
         </div>
 
         <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">

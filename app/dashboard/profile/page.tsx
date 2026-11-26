@@ -694,6 +694,37 @@ export default function ProfileDetailPage() {
     return traits;
   }, [currentUserData, profileData, sectText]);
 
+  const outsideCardPhoto = useMemo(() => {
+    return profileData?.outsideCardPhoto || profileData?.mainPhotoUrl || profileData?.MainPhotoUrl || 
+           profileData?.photoUrl || profileData?.PhotoUrl || 
+           profileData?.mainPhoto || profileData?.MainPhoto || 
+           profileData?.profilePhoto || profileData?.ProfilePhoto || 
+           profileData?.avatarUrl || profileData?.AvatarUrl || null;
+  }, [profileData]);
+
+  const allPhotos = useMemo(() => {
+    let list: any[] = Array.isArray(gallery) && gallery.length > 0 ? [...gallery] : [];
+
+    const getUrl = (item: any) => item?.photoUrl || item?.PhotoUrl || item?.url || item?.Url || '';
+    const cleanUrl = (u: string) => (u || '').split('?')[0].replace(/^https?:\/\/[^\/]+\//, '').replace(/^\/+/, '').toLowerCase();
+
+    const targetUrl = cleanUrl(outsideCardPhoto || '');
+
+    if (targetUrl) {
+      const matchIndex = list.findIndex(item => cleanUrl(getUrl(item)) === targetUrl);
+      if (matchIndex > -1) {
+        const [matched] = list.splice(matchIndex, 1);
+        list.unshift(matched);
+      } else {
+        list.unshift({ photoUrl: outsideCardPhoto, isMain: true });
+      }
+    } else if (list.length === 0) {
+      list = [{ photoUrl: DEFAULT_FEMALE_AVATAR, isMain: true }];
+    }
+
+    return list;
+  }, [gallery, outsideCardPhoto]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white p-4 md:p-6 max-w-3xl mx-auto space-y-6 animate-pulse pt-6">
@@ -725,36 +756,7 @@ export default function ProfileDetailPage() {
     );
   }
 
-  const outsideCardPhoto = useMemo(() => {
-    return profileData?.outsideCardPhoto || profileData?.mainPhotoUrl || profileData?.MainPhotoUrl || 
-           profileData?.photoUrl || profileData?.PhotoUrl || 
-           profileData?.mainPhoto || profileData?.MainPhoto || 
-           profileData?.profilePhoto || profileData?.ProfilePhoto || 
-           profileData?.avatarUrl || profileData?.AvatarUrl || null;
-  }, [profileData]);
 
-  const allPhotos = useMemo(() => {
-    let list: any[] = Array.isArray(gallery) && gallery.length > 0 ? [...gallery] : [];
-
-    const getUrl = (item: any) => item?.photoUrl || item?.PhotoUrl || item?.url || item?.Url || '';
-    const cleanUrl = (u: string) => (u || '').split('?')[0].replace(/^https?:\/\/[^\/]+\//, '').replace(/^\/+/, '').toLowerCase();
-
-    const targetUrl = cleanUrl(outsideCardPhoto || '');
-
-    if (targetUrl) {
-      const matchIndex = list.findIndex(item => cleanUrl(getUrl(item)) === targetUrl);
-      if (matchIndex > -1) {
-        const [matched] = list.splice(matchIndex, 1);
-        list.unshift(matched);
-      } else {
-        list.unshift({ photoUrl: outsideCardPhoto, isMain: true });
-      }
-    } else if (list.length === 0) {
-      list = [{ photoUrl: DEFAULT_FEMALE_AVATAR, isMain: true }];
-    }
-
-    return list;
-  }, [gallery, outsideCardPhoto]);
   const interestStatus = profileData.interestStatus || profileData.InterestStatus || 'None';
   const rawPrivacy = profileData.photoPrivacy || profileData.PhotoPrivacy || 'All Members';
   const privacyClean = String(rawPrivacy).toLowerCase().replace(/\s+/g, '');
