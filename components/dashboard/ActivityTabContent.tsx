@@ -232,7 +232,11 @@ export default function ActivityTabContent({
     }
   };
 
+  const isNavigatingRef = useRef(false);
   const handleViewProfile = (userId: number) => {
+    if (isNavigatingRef.current) return;
+    isNavigatingRef.current = true;
+    setTimeout(() => { isNavigatingRef.current = false; }, 1200);
     const token = getToken();
     const targetProfile = profiles.find((p) => Number(p.userId || p.UserId) === userId);
     const dataToStore = targetProfile ? { ...targetProfile, userId } : { userId };

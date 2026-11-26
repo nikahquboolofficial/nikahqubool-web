@@ -32,7 +32,13 @@ class ChatErrorBoundary extends Component<{ children: ReactNode; onReset?: () =>
         if (key) {
           sessionStorage.removeItem(`cached_chat_history_${key}`);
         }
+        sessionStorage.removeItem('active_chat_target');
       } catch (e) {}
+      // If chunk script or initialization mismatch, perform clean reload to hydrate latest build
+      if (this.state.error?.name === 'ReferenceError' || String(this.state.error?.message).includes('initialization')) {
+        window.location.reload();
+        return;
+      }
     }
     this.setState({ hasError: false, error: null });
     if (this.props.onReset) this.props.onReset();

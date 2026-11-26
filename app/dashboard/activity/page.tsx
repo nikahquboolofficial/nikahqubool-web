@@ -367,7 +367,11 @@ function ActivityContent() {
     }
   };
 
+  const isNavigatingRef = useRef(false);
   const openProfileView = (user: any) => {
+    if (isNavigatingRef.current) return;
+    isNavigatingRef.current = true;
+    setTimeout(() => { isNavigatingRef.current = false; }, 1200);
     const uId = user.userId || user.UserId;
     if (typeof window !== "undefined") {
       sessionStorage.setItem("last_browse_page", `/dashboard/activity?cat=${activeMainTab}&tab=${activeSubTab}`);
@@ -650,7 +654,7 @@ function ActivityContent() {
                       onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_FEMALE_AVATAR; }}
                     />
                     <div className="leading-tight">
-                      <div className="text-xs font-extrabold text-slate-900">
+                      <div onClick={() => openProfileView(user)} className="text-xs font-extrabold text-slate-900 cursor-pointer hover:underline hover:text-[#E21E5B] transition-colors">
                         {headlineText}
                       </div>
                       <div className="text-[10px] font-medium text-slate-400">

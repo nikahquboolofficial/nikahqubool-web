@@ -537,7 +537,11 @@ export default function FindMatchPage() {
     }
   };
 
+  const isNavigatingRef = useRef(false);
   const openProfileDetail = (user: any) => {
+    if (isNavigatingRef.current) return;
+    isNavigatingRef.current = true;
+    setTimeout(() => { isNavigatingRef.current = false; }, 1200);
     const uId = user.userId || user.UserId;
     if (typeof window !== "undefined") {
       sessionStorage.setItem("last_browse_page", "/dashboard/find-match");

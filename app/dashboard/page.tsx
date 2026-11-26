@@ -297,7 +297,11 @@ export default function VIPCleanDashboardPage() {
     }
   };
 
+  const isNavigatingRef = useRef(false);
   const handleViewProfile = (userId: number) => {
+    if (isNavigatingRef.current) return;
+    isNavigatingRef.current = true;
+    setTimeout(() => { isNavigatingRef.current = false; }, 1200);
     if (typeof window !== "undefined") {
       sessionStorage.setItem("last_browse_page", "/dashboard");
     }

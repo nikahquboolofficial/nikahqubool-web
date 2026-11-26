@@ -259,7 +259,8 @@ export default function ProfileCard({
         <div className="absolute bottom-0 inset-x-0 p-4 pb-5 z-20 flex flex-col justify-end text-white space-y-3 pointer-events-auto">
           
           {/* NAME, AGE & METADATA (EXACT NIKAH FOREVER FORMAT) */}
-          <div className="space-y-1 text-left pointer-events-none">
+          <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); onViewProfile(userIdNum); }} className="space-y-1 text-left pointer-events-auto cursor-pointer group/meta select-none active:opacity-90 transition-opacity" title={`View profile of ${displayName}`}>
+            {/* Name clickable with hover underline */}
             {/* Line 1: Mohd Saif, 26 [Verified Star/Badge] */}
             <h4 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-1.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
               <span>{displayName}, {displayAge}</span>

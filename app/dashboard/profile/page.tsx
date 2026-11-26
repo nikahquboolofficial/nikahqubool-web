@@ -164,8 +164,17 @@ export default function ProfileDetailPage() {
       return;
     }
 
-    if (showFullLoader && !profileData) setLoading(true);
+    if (showFullLoader) setLoading(true);
     const res = await fetchProfileDetailsApi(targetUserId, token);
+
+    // 🛡️ Race-condition guard: Discard response if user has already navigated to a different profile
+    if (typeof window !== "undefined") {
+      const currentUrlParams = new URLSearchParams(window.location.search);
+      const currentUrlId = Number(currentUrlParams.get('userId') || currentUrlParams.get('id') || currentUrlParams.get('targetUserId') || 0);
+      if (currentUrlId && targetUserId !== currentUrlId) {
+        return;
+      }
+    }
 
     if (res.isUnauthorized) {
       toast.dismiss();
@@ -229,6 +238,12 @@ export default function ProfileDetailPage() {
     }
     if (initialLoadDoneRef.current !== urlId) {
       initialLoadDoneRef.current = urlId;
+      // 🛡️ Immediately wipe prior state to prevent double profile flash or stale data ghosting
+      setProfileData(null);
+      setGallery([]);
+      setPreferences(null);
+      setContactData(null);
+      setLoading(true);
       loadProfileDetails(true);
     }
   }, [loadProfileDetails]);

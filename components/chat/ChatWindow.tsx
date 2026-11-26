@@ -25,7 +25,6 @@ import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
 import { getAuthToken } from '@/lib/auth';
 import { toast } from 'sonner';
 import { parseChatUtcDate } from '@/lib/dateUtils';
-export { parseChatUtcDate };
 
 // 🌟 MULTI-CATEGORY EXPANDED EMOJIS (Islamic Greetings, Love, Expressions, Gestures)
 const EMOJI_CATEGORIES = {
