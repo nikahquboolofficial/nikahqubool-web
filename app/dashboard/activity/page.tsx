@@ -98,6 +98,40 @@ function formatRelativeTime(dateInput: any): string {
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
 
+// 🕒 Accurate Epoch Timestamp Parser for Strict Descending Sort (Latest on Top)
+function getActivityTimestamp(item: any): number {
+  if (!item) return 0;
+  const val = item.interactionDate || item.InteractionDate || item.createdAt || item.CreatedAt || item.updatedAt || item.UpdatedAt;
+  if (!val) return 0;
+  if (typeof val === 'number') return val;
+  const str = String(val).trim();
+  if (!str) return 0;
+  if (/^\d{10,13}$/.test(str)) {
+    const num = Number(str);
+    return num < 10000000000 ? num * 1000 : num;
+  }
+  let isoStr = str;
+  if (!isoStr.includes('T') && isoStr.includes(' ')) {
+    isoStr = isoStr.replace(' ', 'T');
+  }
+  if (!isoStr.endsWith('Z') && !isoStr.includes('+') && !/[+-]\d{2}:\d{2}$/.test(isoStr)) {
+    isoStr = `${isoStr}Z`;
+  }
+  const d = new Date(isoStr);
+  return isNaN(d.getTime()) ? 0 : d.getTime();
+}
+
+// ⚡ Order By Latest Descending: jo sabse last me hui wo sabse upar dikhe
+function sortActivitiesDescending(list: any[]): any[] {
+  if (!Array.isArray(list) || list.length <= 1) return list;
+  return [...list].sort((a, b) => {
+    const timeB = getActivityTimestamp(b);
+    const timeA = getActivityTimestamp(a);
+    if (timeB !== timeA) return timeB - timeA;
+    return (Number(b.userId || b.UserId) || 0) - (Number(a.userId || a.UserId) || 0);
+  });
+}
+
 function ActivityContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -188,12 +222,13 @@ function ActivityContent() {
           ? res.data 
           : (res.data?.profiles || res.data?.Profiles || (Array.isArray(res.data?.data) ? res.data.data : []));
 
+        const sorted = sortActivitiesDescending(rawList);
         if (append) {
-          setProfiles(prev => [...prev, ...rawList]);
+          setProfiles(prev => sortActivitiesDescending([...prev, ...sorted]));
         } else {
-          setProfiles(rawList);
+          setProfiles(sorted);
           activityTabCache[tabName] = {
-            profiles: rawList,
+            profiles: sorted,
             timestamp: Date.now()
           };
         }
@@ -207,6 +242,35 @@ function ActivityContent() {
       setFetchingMore(false);
     }
   }, [getToken]);
+
+  // Global Cross-Tab Sync for Instant Shortlist & Activity Updates
+  useEffect(() => {
+    const handleShortlistSync = (e: any) => {
+      const { userId, isShortlisted } = e.detail || {};
+      if (!userId) return;
+      setProfiles(prev => {
+        const found = prev.some(p => Number(p.userId || p.UserId) === Number(userId));
+        if (!found) return prev;
+        const updated = prev.map(p => {
+          if (Number(p.userId || p.UserId) === Number(userId)) {
+            return {
+              ...p,
+              isShortlisted,
+              IsShortlisted: isShortlisted,
+              interactionDate: isShortlisted ? new Date().toISOString() : p.interactionDate
+            };
+          }
+          return p;
+        });
+        return sortActivitiesDescending(updated);
+      });
+      delete activityTabCache['shortlisted-by-me'];
+      delete activityTabCache['shortlist'];
+    };
+
+    window.addEventListener('shortlist_updated', handleShortlistSync);
+    return () => window.removeEventListener('shortlist_updated', handleShortlistSync);
+  }, []);
 
   // Trigger load when tab changes
   useEffect(() => {
@@ -240,24 +304,39 @@ function ActivityContent() {
       if (res && res.success) {
         if (status === 'ACCEPTED') {
           toast.success("Request accepted successfully!");
-          setProfiles(prev => prev.map(p => {
-            if (Number(p.userId || p.UserId) === receiverId) {
-              return { ...p, interestStatus: 'Accepted' };
-            }
-            return p;
-          }));
+          setProfiles(prev => {
+            const updated = prev.map(p => {
+              if (Number(p.userId || p.UserId) === receiverId) {
+                return { 
+                  ...p, 
+                  interestStatus: 'Accepted',
+                  interactionDate: new Date().toISOString()
+                };
+              }
+              return p;
+            });
+            return sortActivitiesDescending(updated);
+          });
         } else if (status === 'DECLINED') {
           toast.info("Request declined.");
           setProfiles(prev => prev.filter(p => Number(p.userId || p.UserId) !== receiverId));
         } else if (type === 'SHORTLIST') {
           // 0ms instant sync without intrusive toast
-          setProfiles(prev => prev.map(p => {
-            if (Number(p.userId || p.UserId) === receiverId) {
-              const nextVal = !Boolean(p.isShortlisted || p.IsShortlisted);
-              return { ...p, isShortlisted: nextVal, IsShortlisted: nextVal };
-            }
-            return p;
-          }));
+          setProfiles(prev => {
+            const updated = prev.map(p => {
+              if (Number(p.userId || p.UserId) === receiverId) {
+                const nextVal = !Boolean(p.isShortlisted || p.IsShortlisted);
+                return { 
+                  ...p, 
+                  isShortlisted: nextVal, 
+                  IsShortlisted: nextVal,
+                  interactionDate: nextVal ? new Date().toISOString() : p.interactionDate
+                };
+              }
+              return p;
+            });
+            return sortActivitiesDescending(updated);
+          });
           delete activityTabCache['shortlisted-by-me'];
           delete activityTabCache['shortlist'];
         }
