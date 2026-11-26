@@ -8,7 +8,7 @@ import { useSignalR } from '@/context/SignalRContext';
 import { fetchChatInboxApi, markChatReadApi, blockUserApiCall } from '@/lib/api';
 import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
 import { getAuthToken } from '@/lib/auth';
-import { parseChatUtcDate } from './ChatWindow';
+import { parseChatUtcDate } from '@/lib/dateUtils';
 
 // ⚡ Module-level memory cache to eliminate blank flickers and protect inbox data
 let memoryInboxCache: any[] | null = null;
