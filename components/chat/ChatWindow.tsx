@@ -101,6 +101,15 @@ export default function ChatWindow({
   const [proposalLoading, setProposalLoading] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // 📜 Professional Keyset/Paged Loading States (WhatsApp / Instagram / Shaadi.com standard)
+  const [page, setPage] = useState(1);
+  const [hasMoreOlder, setHasMoreOlder] = useState(true);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [unreadWhileScrolled, setUnreadWhileScrolled] = useState(0);
+  const pageRef = useRef(1);
+  const hasMoreOlderRef = useRef(true);
+  const loadingOlderRef = useRef(false);
+
   // 🛡️ Resolve User Identity Defensively
   const [resolvedName, setResolvedName] = useState<string>(userName || '');
   const [resolvedPhoto, setResolvedPhoto] = useState<string>(photoUrl || '');
@@ -231,9 +240,17 @@ export default function ChatWindow({
 
     let isMounted = true;
 
+    // Reset pagination state for newly opened conversation
+    pageRef.current = 1;
+    setPage(1);
+    hasMoreOlderRef.current = true;
+    setHasMoreOlder(true);
+    loadingOlderRef.current = false;
+    setLoadingOlder(false);
+
     const fetchHistoryWithRetry = async (attempt = 1): Promise<any[]> => {
       try {
-        const res = await fetchChatHistoryApi(receiverId, 1, 100, token);
+        const res = await fetchChatHistoryApi(receiverId, 1, 40, token);
         const rawData = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.data?.data) ? res.data.data : []);
         if (rawData.length > 0 || attempt >= 2) {
           return rawData;
@@ -251,65 +268,57 @@ export default function ChatWindow({
       setLoading(true);
       const rawData = await fetchHistoryWithRetry();
 
-      if (isMounted && rawData.length > 0) {
-        const formatted = rawData.map((m: any, idx: number) => {
-          const rawText = m.messageText ?? m.MessageText ?? m.text ?? m.Text ?? m.message ?? m.Message ?? "";
-          return {
-            uniqueKey: `hist-${m.messageId ?? m.MessageId ?? idx}`,
-            messageId: m.messageId ?? m.MessageId,
-            senderId: m.senderId ?? m.SenderId, 
-            text: typeof rawText === 'string' ? rawText : (rawText != null ? String(rawText) : ""), 
-            timestamp: parseUtcDate(m.sentAt ?? m.SentAt ?? Date.now()),
-            isRead: (m.isRead === 1 || m.isRead === true || m.IsRead === 1 || m.IsRead === true) ? 1 : 0
-          };
-        });
+      if (isMounted) {
+        if (rawData.length < 40) {
+          hasMoreOlderRef.current = false;
+          setHasMoreOlder(false);
+        } else {
+          hasMoreOlderRef.current = true;
+          setHasMoreOlder(true);
+        }
 
-        setMessages(prev => {
-          // formatted is authoritative from server
-          const merged = [...formatted];
-
-          // Only keep genuine recent in-flight pending messages that haven't landed yet
-          prev.forEach(p => {
-            const isTemp = String(p.messageId).startsWith('temp-') || String(p.uniqueKey).startsWith('temp-');
-            const exists = merged.some(m => {
-              if (m.messageId && String(m.messageId) === String(p.messageId)) return true;
-              if (m.uniqueKey && m.uniqueKey === p.uniqueKey) return true;
-              if (isTemp && m.text === p.text && (p.senderId === 'me' || String(m.senderId) !== String(receiverId))) return true;
-              return false;
-            });
-
-            if (!exists && isTemp && (p.isPending || p.isError)) {
-              const age = Date.now() - new Date(p.timestamp).getTime();
-              if (age < 30000) {
-                merged.push(p);
-              }
-            }
+        if (rawData.length > 0) {
+          const formatted = rawData.map((m: any, idx: number) => {
+            const rawText = m.messageText ?? m.MessageText ?? m.text ?? m.Text ?? m.message ?? m.Message ?? "";
+            return {
+              uniqueKey: `hist-${m.messageId ?? m.MessageId ?? idx}`,
+              messageId: m.messageId ?? m.MessageId,
+              senderId: m.senderId ?? m.SenderId, 
+              text: typeof rawText === 'string' ? rawText : (rawText != null ? String(rawText) : ""), 
+              timestamp: parseUtcDate(m.sentAt ?? m.SentAt ?? Date.now()),
+              isRead: (m.isRead === 1 || m.isRead === true || m.IsRead === 1 || m.IsRead === true) ? 1 : 0
+            };
           });
 
-          // Deduplicate by messageId or uniqueKey
-          const seen = new Set();
-          const cleanMerged: any[] = [];
-          for (const m of merged) {
-            const key = m.messageId ? `id-${m.messageId}` : m.uniqueKey;
-            if (!seen.has(key)) {
-              seen.add(key);
-              cleanMerged.push(m);
+          setMessages(prev => {
+            // Merge formatted server messages with any cached or in-flight messages
+            const combined = [...prev, ...formatted];
+
+            // Deduplicate by messageId or uniqueKey
+            const seen = new Set();
+            const cleanMerged: any[] = [];
+            for (const m of combined) {
+              const key = m.messageId ? `id-${m.messageId}` : m.uniqueKey;
+              if (!seen.has(key)) {
+                seen.add(key);
+                cleanMerged.push(m);
+              }
             }
-          }
 
-          cleanMerged.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+            cleanMerged.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
-          globalChatHistoryCache[String(receiverId)] = cleanMerged;
-          if (typeof window !== "undefined") {
-            try {
-              sessionStorage.setItem(`cached_chat_history_${receiverId}`, JSON.stringify(cleanMerged));
-            } catch (e) {}
-          }
+            globalChatHistoryCache[String(receiverId)] = cleanMerged.slice(-150);
+            if (typeof window !== "undefined") {
+              try {
+                sessionStorage.setItem(`cached_chat_history_${receiverId}`, JSON.stringify(cleanMerged.slice(-150)));
+              } catch (e) {}
+            }
 
-          return cleanMerged;
-        });
+            return cleanMerged;
+          });
 
-        scrollToBottom("auto");
+          scrollToBottom("auto");
+        }
       }
 
       try {
@@ -336,6 +345,83 @@ export default function ChatWindow({
       isMounted = false;
     };
   }, [receiverId]);
+
+  // 🔄 REVERSE INFINITE SCROLL: Load older historical messages seamlessly when scrolling to top
+  const loadOlderMessages = async () => {
+    if (loadingOlderRef.current || !hasMoreOlderRef.current || !receiverId) return;
+    const token = getToken();
+    if (!token) return;
+
+    loadingOlderRef.current = true;
+    setLoadingOlder(true);
+
+    const prevScrollHeight = scrollRef.current?.scrollHeight || 0;
+    const prevScrollTop = scrollRef.current?.scrollTop || 0;
+    const nextPage = pageRef.current + 1;
+
+    try {
+      const res = await fetchChatHistoryApi(Number(receiverId), nextPage, 40, token);
+      const rawData = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.data?.data) ? res.data.data : []);
+
+      if (rawData.length < 40) {
+        hasMoreOlderRef.current = false;
+        setHasMoreOlder(false);
+      }
+
+      if (rawData.length > 0) {
+        const formattedOlder = rawData.map((m: any, idx: number) => {
+          const rawText = m.messageText ?? m.MessageText ?? m.text ?? m.Text ?? m.message ?? m.Message ?? "";
+          return {
+            uniqueKey: `hist-${m.messageId ?? m.MessageId ?? `p${nextPage}-${idx}`}`,
+            messageId: m.messageId ?? m.MessageId,
+            senderId: m.senderId ?? m.SenderId,
+            text: typeof rawText === 'string' ? rawText : (rawText != null ? String(rawText) : ""),
+            timestamp: parseUtcDate(m.sentAt ?? m.SentAt ?? Date.now()),
+            isRead: (m.isRead === 1 || m.isRead === true || m.IsRead === 1 || m.IsRead === true) ? 1 : 0
+          };
+        });
+
+        setMessages(prev => {
+          const combined = [...formattedOlder, ...prev];
+          const seen = new Set();
+          const cleanMerged: any[] = [];
+          for (const m of combined) {
+            const key = m.messageId ? `id-${m.messageId}` : m.uniqueKey;
+            if (!seen.has(key)) {
+              seen.add(key);
+              cleanMerged.push(m);
+            }
+          }
+          cleanMerged.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+          globalChatHistoryCache[String(receiverId)] = cleanMerged.slice(-150);
+          if (typeof window !== "undefined") {
+            try {
+              sessionStorage.setItem(`cached_chat_history_${receiverId}`, JSON.stringify(cleanMerged.slice(-150)));
+            } catch (e) {}
+          }
+
+          return cleanMerged;
+        });
+
+        pageRef.current = nextPage;
+        setPage(nextPage);
+
+        // ⚓ Maintain exact scroll anchor so view doesn't jump
+        requestAnimationFrame(() => {
+          if (scrollRef.current) {
+            const newScrollHeight = scrollRef.current.scrollHeight;
+            scrollRef.current.scrollTop = newScrollHeight - prevScrollHeight + prevScrollTop;
+          }
+        });
+      }
+    } catch (e) {
+      // network hiccup guard
+    } finally {
+      loadingOlderRef.current = false;
+      setLoadingOlder(false);
+    }
+  };
 
   // 🔔 REAL-TIME LIVE MESSAGE RECEPTION (DIRECT SIGNALR + GLOBAL EVENT BUS)
   useEffect(() => {
@@ -367,7 +453,18 @@ export default function ChatWindow({
 
         playMessageChime();
         markChatReadApi(incomingSenderId, getToken()).catch(() => {});
-        scrollToBottom("smooth");
+
+        // If user is already near bottom, auto-scroll to latest; otherwise alert with unread badge on floating down arrow
+        if (scrollRef.current) {
+          const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+          if (scrollHeight - scrollTop - clientHeight < 250) {
+            scrollToBottom("smooth");
+          } else {
+            setUnreadWhileScrolled(c => c + 1);
+          }
+        } else {
+          scrollToBottom("smooth");
+        }
       }
     };
 
@@ -399,6 +496,7 @@ export default function ChatWindow({
   }, [connection, receiverId]);
 
   const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+    setUnreadWhileScrolled(0);
     try {
       if (scrollRef.current) {
         if (typeof scrollRef.current.scrollTo === 'function') {
@@ -457,7 +555,16 @@ export default function ChatWindow({
   const handleScroll = () => {
     if (!scrollRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-    setShowScrollBottom(scrollHeight - scrollTop - clientHeight > 250);
+    const isScrolledUp = scrollHeight - scrollTop - clientHeight > 250;
+    setShowScrollBottom(isScrolledUp);
+    if (!isScrolledUp) {
+      setUnreadWhileScrolled(0);
+    }
+
+    // 🔄 Auto-trigger reverse infinite scroll when scrolled near top (< 80px)
+    if (scrollTop < 80 && hasMoreOlderRef.current && !loadingOlderRef.current) {
+      loadOlderMessages();
+    }
   };
 
   // 🚀 NON-BLOCKING RAPID DISPATCH (WHATSAPP-STYLE RAPID ENTER SAFE + RAPID QUEUE)
@@ -879,6 +986,22 @@ export default function ChatWindow({
           </div>
         ) : null}
 
+        {/* 🔄 TOP REVERSE PAGINATION LOADER */}
+        {loadingOlder && (
+          <div className="py-2.5 flex items-center justify-center gap-2 text-xs font-semibold text-slate-500 animate-in fade-in duration-200">
+            <Loader2 size={16} className="animate-spin text-[#E21E5B]" />
+            <span>Loading previous messages...</span>
+          </div>
+        )}
+
+        {!hasMoreOlder && messages.length >= 40 && (
+          <div className="py-2 text-center select-none">
+            <span className="text-[11px] font-medium text-slate-400 bg-white/80 px-3.5 py-1 rounded-full border border-slate-200/60 shadow-2xs inline-flex items-center gap-1.5">
+              <span>Beginning of conversation</span>
+            </span>
+          </div>
+        )}
+
         {Object.keys(groupedMessages).map(dateKey => (
           <div key={dateKey} className="space-y-3">
             <div className="flex justify-center my-3 sticky top-2 z-10 pointer-events-none">
@@ -951,10 +1074,15 @@ export default function ChatWindow({
       {showScrollBottom && (
         <button 
           onClick={() => scrollToBottom("smooth")}
-          className="absolute bottom-20 right-5 bg-white text-slate-700 hover:text-[#E21E5B] p-2.5 rounded-full shadow-lg hover:shadow-xl active:scale-95 transition-all z-30 border border-slate-200 cursor-pointer"
+          className="absolute bottom-20 right-5 bg-white text-slate-700 hover:text-[#E21E5B] p-2.5 rounded-full shadow-lg hover:shadow-xl active:scale-95 transition-all z-30 border border-slate-200 cursor-pointer flex items-center gap-1.5 animate-in fade-in"
           aria-label="Scroll to bottom"
         >
           <ChevronDown size={18} />
+          {unreadWhileScrolled > 0 && (
+            <span className="bg-[#E21E5B] text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-xs leading-none">
+              {unreadWhileScrolled}
+            </span>
+          )}
         </button>
       )}
 
