@@ -1447,83 +1447,94 @@ function SettingsContent() {
           </motion.div>
         )}
 
-        {/* ⚙️ 5. MANAGE ACCOUNT SUB-SCREEN (VIP HIGH-LEVEL) */}
+        {/* ⚙️ 5. MANAGE ACCOUNT SUB-SCREEN (Clean App-Style Grouped Card) */}
         {activeTab === 'manage' && (
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-3 pt-1">
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 pt-1">
             
-            {/* PAUSE ACCOUNT CARD - SOBER ELEGANT */}
-            <div className="p-4 bg-white rounded-3xl border border-slate-100 shadow-sm space-y-2">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center shrink-0">
-                    <PauseCircle size={18} />
+            {/* Informational Header Note */}
+            <p className="text-xs text-slate-500 font-medium px-1">
+              Control your account visibility or permanently remove your profile from Nikah Qubool.
+            </p>
+
+            {/* Divided App-Style List Container */}
+            <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs divide-y divide-slate-100 overflow-hidden">
+              
+              {/* ROW 1: PAUSE / REACTIVATE PROFILE */}
+              <div
+                onClick={() => {
+                  if (isAccountPaused) {
+                    handleReactivateAccount();
+                  } else {
+                    setShowPauseModal(true);
+                  }
+                }}
+                className="p-4 sm:p-5 flex items-center justify-between gap-3 hover:bg-slate-50/70 cursor-pointer transition-colors group"
+              >
+                <div className="flex items-center gap-3.5">
+                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${
+                    isAccountPaused
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : 'bg-amber-50 text-amber-600 border border-amber-200/80'
+                  }`}>
+                    <PauseCircle size={22} />
                   </div>
-                  <div>
-                    <h4 className="font-bold text-xs text-slate-900">
-                      Temporarily Pause Profile
-                    </h4>
-                    <p className="text-[11px] font-medium text-slate-500 mt-0.5">
-                      Hide your profile from searches and daily recommendations.
+                  <div className="text-left">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-bold text-slate-900 group-hover:text-amber-700 transition-colors">
+                        Temporarily Pause Profile
+                      </h4>
+                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                        isAccountPaused 
+                          ? 'bg-amber-100 text-amber-800 border-amber-300' 
+                          : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      }`}>
+                        {isAccountPaused ? 'Paused' : 'Active'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                      {isAccountPaused 
+                        ? 'Profile is currently hidden. Click to reactivate.' 
+                        : 'Temporarily hide from searches & daily recommendations'}
                     </p>
                   </div>
                 </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {pausingLoading && <Loader2 size={16} className="animate-spin text-amber-600" />}
+                  <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 group-hover:text-amber-600 transition-all" />
+                </div>
               </div>
 
-              <div className="pt-2 flex justify-end">
-                <button 
-                  type="button" 
-                  onClick={() => {
-                    if (isAccountPaused) {
-                      handleReactivateAccount();
-                    } else {
-                      setShowPauseModal(true);
-                    }
-                  }} 
-                  disabled={pausingLoading}
-                  className={`px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-wider cursor-pointer shadow-xs transition-all ${
-                    isAccountPaused
-                      ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                      : 'bg-amber-600 hover:bg-amber-700 text-white'
-                  }`}
-                >
-                  {pausingLoading ? <Loader2 size={13} className="animate-spin" /> : null}
-                  <span>{isAccountPaused ? 'Reactivate Profile' : 'Pause Profile'}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* DELETE ACCOUNT CARD - SOBER ELEGANT */}
-            <div className="p-4 bg-white rounded-3xl border border-rose-100 shadow-sm space-y-2">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 flex items-center justify-center shrink-0">
-                    <Trash2 size={18} />
+              {/* ROW 2: PERMANENTLY DELETE ACCOUNT */}
+              <div
+                onClick={() => {
+                  setDeleteStep(1);
+                  setDeleteConfirmedCheck(false);
+                  setDeleteKeyword("");
+                  setShowDeleteModal(true);
+                }}
+                className="p-4 sm:p-5 flex items-center justify-between gap-3 hover:bg-rose-50/40 cursor-pointer transition-colors group"
+              >
+                <div className="flex items-center gap-3.5">
+                  <div className="w-11 h-11 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200/80 flex items-center justify-center shrink-0 transition-transform group-hover:scale-105">
+                    <Trash2 size={20} />
                   </div>
-                  <div>
-                    <h4 className="font-bold text-xs text-rose-950">
+                  <div className="text-left">
+                    <h4 className="text-sm font-bold text-slate-900 group-hover:text-rose-700 transition-colors">
                       Permanently Delete Account
                     </h4>
-                    <p className="text-[11px] font-medium text-slate-500 mt-0.5">
-                      Permanently delete your profile data, verified photos, and match history.
+                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                      Irreversible removal of matches, verified photos & profile data
                     </p>
                   </div>
                 </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-[11px] font-bold text-rose-600 hidden sm:inline">Delete</span>
+                  <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 group-hover:text-rose-600 transition-all" />
+                </div>
               </div>
 
-              <div className="pt-2 flex justify-end">
-                <button 
-                  type="button" 
-                  onClick={() => {
-                    setDeleteStep(1);
-                    setDeleteConfirmedCheck(false);
-                    setDeleteKeyword("");
-                    setShowDeleteModal(true);
-                  }} 
-                  className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl uppercase tracking-wider cursor-pointer border border-rose-200 transition-all"
-                >
-                  Request Account Deletion
-                </button>
-              </div>
             </div>
 
           </motion.div>
