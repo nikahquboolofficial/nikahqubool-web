@@ -4,9 +4,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
-  Edit2, CheckCircle2, ChevronRight, Crown, Settings, 
+  Edit3, CheckCircle2, ChevronRight, Crown, Settings, 
   ShieldCheck, CreditCard, HelpCircle, Camera, Lock,
-  LogOut, Loader2, Sparkles, AlertCircle, Check, Eye
+  LogOut, Loader2, Sparkles, Check, Eye, Copy,
+  SlidersHorizontal, FileText, Image as ImageIcon,
+  ArrowUpRight, Phone, MessageSquare, Shield, Award
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
@@ -18,17 +20,15 @@ import {
 import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
 import { getAuthToken, getStoredUserPhoto } from '@/lib/auth';
 
-// 🧮 100% REAL PROFILE COMPLETION CALCULATION (Unified with SQL sp_GetProfileDetails & edit-profile)
+// 🧮 100% REAL PROFILE COMPLETION CALCULATION
 export const calculateRealProfileCompletion = (p: any): number => {
   if (!p) return 50;
 
-  // 1. If backend API already calculated ProfileCompletionScore from DB, prioritize it!
   const apiScore = Number(p.profileCompletionScore ?? p.ProfileCompletionScore ?? 0);
   if (apiScore > 0) {
     return Math.min(100, Math.max(50, apiScore));
   }
 
-  // 2. Base Onboarding Score = 50% (Name, Age, Gender, Sect, Caste, Height, Education, Occupation, City, State)
   let score = 50;
 
   // 1. Photos (+20%)
@@ -99,7 +99,7 @@ export default function MyProfilePage() {
   const [isPhotoLoaded, setIsPhotoLoaded] = useState<boolean>(false);
 
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
-  const [selectedPrivacy, setSelectedPrivacy] = useState<string>('All Members');
+  const [selectedPrivacy, setSelectedPrivacy] = useState<string>('Visible to All');
   const [savingPrivacy, setSavingPrivacy] = useState(false);
 
   const getToken = useCallback(() => getAuthToken(), []);
@@ -145,7 +145,6 @@ export default function MyProfilePage() {
       }
     }
 
-    // Only show skeleton if we have zero cached data
     if (!profileData && typeof window !== "undefined" && !localStorage.getItem("cached_profile_details") && !localStorage.getItem("user_details")) {
       setLoading(true);
     }
@@ -159,7 +158,12 @@ export default function MyProfilePage() {
       if (profileRes.success && profileRes.data) {
         const p = profileRes.data.profile || profileRes.data.Profile || profileRes.data;
         setProfileData(p);
-        setSelectedPrivacy(p.photoPrivacy || p.PhotoPrivacy || 'All Members');
+        const privacyVal = p.photoPrivacy || p.PhotoPrivacy || 'Visible to All';
+        setSelectedPrivacy(
+          privacyVal === 'All Members' ? 'Visible to All' :
+          privacyVal === 'Premium Only' ? 'VIP Only' :
+          privacyVal === 'Only Approved' ? 'Parda Mode' : privacyVal
+        );
         if (typeof window !== "undefined") {
           localStorage.setItem("cached_profile_details", JSON.stringify(p));
         }
@@ -173,7 +177,7 @@ export default function MyProfilePage() {
     } finally {
       setLoading(false);
     }
-  }, [getToken, router]);
+  }, [getToken, router, profileData]);
 
   useEffect(() => {
     loadMyProfile();
@@ -213,11 +217,18 @@ export default function MyProfilePage() {
     const token = getToken();
     if (!token) return;
     setSavingPrivacy(true);
-    const res = await updatePhotoPrivacyApiCall(privacyOption, token);
+    
+    // Map to API recognized value
+    const apiVal = 
+      privacyOption === 'Visible to All' ? 'All Members' :
+      privacyOption === 'VIP Only' ? 'Premium Only' :
+      privacyOption === 'Parda Mode' ? 'Only Approved' : privacyOption;
+
+    const res = await updatePhotoPrivacyApiCall(apiVal, token);
     setSavingPrivacy(false);
     if (res.success) {
       setSelectedPrivacy(privacyOption);
-      toast.success("Profile privacy updated successfully!");
+      toast.success("Photo privacy updated successfully!");
       setIsPrivacyModalOpen(false);
       loadMyProfile();
     } else {
@@ -232,22 +243,24 @@ export default function MyProfilePage() {
       localStorage.removeItem("user_details");
       document.cookie = "user_token=; path=/; max-age=0;";
     }
-    // Logged out quietly without toast
     router.push('/');
+  };
+
+  const handleCopyMemberId = (id: string) => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(id);
+      toast.success(`Member ID #${id} copied!`);
+    }
   };
 
   // Calculations
   const rawPhoto = profileData?.mainPhotoUrl || profileData?.photoUrl || profileData?.PhotoUrl || profileData?.mainPhoto || profileData?.photo;
   const hasRealPhoto = Boolean(rawPhoto && rawPhoto !== '/placeholder.png' && !String(rawPhoto).includes('default') && !String(rawPhoto).startsWith('data:image'));
   const photo = hasRealPhoto ? getOptimizedImageUrl(rawPhoto, profileData?.userId || 1, profileData?.gender) : getStoredUserPhoto();
-  const fullName = profileData?.fullName || 'Member Profile';
+  const fullName = profileData?.fullName || 'Valued Candidate';
   const isVerified = Boolean(profileData?.isVerified ?? profileData?.IsVerified ?? false);
-  
-  // Real percentage calculation
   const profileCompletion = calculateRealProfileCompletion(profileData);
-  const isIncomplete = profileCompletion < 100;
 
-  // Member ID generation
   const userIdNum = Number(profileData?.userId || profileData?.UserId || 1);
   const memberId = profileData?.memberId || profileData?.MemberId || `NQ${(8800000 + userIdNum).toString()}`;
 
@@ -267,8 +280,10 @@ export default function MyProfilePage() {
     profileData?.isPremium ?? profileData?.IsPremium ??
     (rawPlanName && !rawPlanName.toLowerCase().includes('free'))
   );
-  const planName = rawPlanName || (isPaid ? "VIP Member" : "Free Member");
+  const planName = rawPlanName || (isPaid ? "VIP Membership" : "Free Member");
   
+  const remainingContacts = activePlan?.remainingContacts ?? activePlan?.RemainingContacts ?? profileData?.remainingContactsAllowed ?? 0;
+
   const formatExpiry = (exp: any) => {
     if (!exp) return "";
     try {
@@ -281,331 +296,411 @@ export default function MyProfilePage() {
   };
   const displayExpiry = formatExpiry(rawExpiry);
 
-  if (loading && !profileData) {
-    return (
-      <div className="min-h-screen bg-white text-slate-900 pb-28 pt-4 sm:pt-6">
-        <div className="max-w-xl mx-auto px-4 sm:px-6 space-y-4">
-          <div className="flex items-center justify-between py-1">
-            <div className="w-36 h-7 bg-slate-200 rounded-lg shimmer-luxury" />
-            <div className="w-28 h-5 bg-slate-200 rounded-md shimmer-luxury" />
-          </div>
-          <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-slate-100 text-center space-y-4 relative overflow-hidden">
-            <div className="w-28 h-28 mx-auto rounded-full bg-slate-200 shimmer-luxury" />
-            <div className="w-48 h-6 mx-auto bg-slate-200 rounded-lg shimmer-luxury" />
-            <div className="w-32 h-4 mx-auto bg-slate-100 rounded-md shimmer-luxury" />
-            <div className="w-full h-12 bg-rose-50/60 rounded-2xl shimmer-luxury" />
-          </div>
-          <div className="space-y-3">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-white rounded-2xl p-4 border border-slate-100 h-16 shimmer-luxury" />
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // SVG circular completion calculation
-  const radius = 54;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (profileCompletion / 100) * circumference;
+  const quickMeta = [
+    profileData?.age ? `${profileData.age} yrs` : '',
+    profileData?.height ? `${profileData.height}ft` : '',
+    profileData?.cityName || profileData?.city || profileData?.stateName || '',
+    profileData?.profession || profileData?.occupation || ''
+  ].filter(Boolean).join(" • ");
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 pb-28 pt-4 sm:pt-6 selection:bg-[#E21E5B] selection:text-white">
+    <div className="min-h-screen bg-white font-sans text-slate-900 pb-28 pt-0 selection:bg-[#E21E5B] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
-      <div className="max-w-xl mx-auto px-4 sm:px-6 space-y-4">
-        
-        {/* 🏷️ TOP BAR: "My Profile" on left, "Member ID: NQ-XXXXX" on right */}
-        <div className="flex items-center justify-between py-1">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            My Profile
+      {/* 🏷️ TOP BAR (STICKY HEADER) */}
+      <div className="sticky top-0 lg:top-20 z-30 bg-white/95 backdrop-blur-md py-3 px-4 sm:px-6 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+        <div className="max-w-xl mx-auto flex items-center justify-between">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+            My Profile Hub
           </h1>
-          <span className="text-xs sm:text-sm font-semibold text-slate-500 tracking-wide">
-            Member ID: <strong className="text-slate-800 font-bold">{memberId}</strong>
-          </span>
-        </div>
-
-                {/* 🎴 MAIN PROFILE SUMMARY CARD (EXACT TARGET SCREENSHOT DESIGN) */}
-        <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-slate-100 text-center space-y-4 relative overflow-hidden">
           
-          {/* AVATAR WITH CIRCULAR COMPLETION RING & BADGE */}
-          <div className="relative w-32 h-32 mx-auto flex items-center justify-center">
-            
-            {/* SVG Progress Ring */}
-            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
-              <circle
-                cx="60"
-                cy="60"
-                r={radius}
-                className="stroke-slate-100"
-                strokeWidth="5"
-                fill="transparent"
-              />
-              <circle
-                cx="60"
-                cy="60"
-                r={radius}
-                className="stroke-[#E21E5B] transition-all duration-1000 ease-out"
-                strokeWidth="5"
-                strokeDasharray={circumference}
-                strokeDashoffset={strokeDashoffset}
-                strokeLinecap="round"
-                fill="transparent"
-              />
-            </svg>
+          <button
+            type="button"
+            onClick={() => handleCopyMemberId(memberId)}
+            className="flex items-center gap-1.5 px-3 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-200/90 rounded-full text-xs font-bold text-slate-700 active:scale-95 transition-all cursor-pointer shadow-2xs"
+            title="Click to copy Member ID"
+          >
+            <span>ID: <strong className="text-slate-900 font-extrabold">{memberId}</strong></span>
+            <Copy size={12} className="text-slate-500" />
+          </button>
+        </div>
+      </div>
 
-            {/* Photo inside Ring - Opens Gallery Directly */}
-            <div 
-              className="absolute inset-2 rounded-full overflow-hidden cursor-pointer group bg-slate-100"
-              onClick={() => {
-                if (typeof window !== "undefined") {
-                  sessionStorage.setItem('gallery_return_url', '/dashboard/my-profile');
-                }
-                router.push('/dashboard/gallery');
-              }}
-              title="Click to manage photos"
-            >
-              {hasRealPhoto && !isPhotoLoaded && (
-                <div className="absolute inset-0 bg-slate-200 animate-pulse flex items-center justify-center z-10">
-                  <Loader2 size={24} className="animate-spin text-slate-400" />
-                </div>
-              )}
-              <img 
-                src={photo} 
-                alt={fullName} 
-                onLoad={() => setIsPhotoLoaded(true)}
-                className={`w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-105 ${hasRealPhoto && !isPhotoLoaded ? 'opacity-0' : 'opacity-100'}`}
-                onError={(e) => { 
-                  (e.target as HTMLImageElement).src = DEFAULT_FEMALE_AVATAR;
-                  setIsPhotoLoaded(true);
-                }}
-              />
-            </div>
-
-            {/* Camera Overlay Icon on Avatar - Opens Gallery Directly */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (typeof window !== "undefined") {
-                  sessionStorage.setItem('gallery_return_url', '/dashboard/my-profile');
-                }
-                router.push('/dashboard/gallery');
-              }}
-              className="absolute top-1 right-1 w-7 h-7 rounded-full bg-white border border-rose-200 text-[#E21E5B] shadow-sm flex items-center justify-center hover:bg-rose-50 transition-all cursor-pointer z-20"
-              title="Manage Photos"
-            >
-              <Camera size={13} />
-            </button>
-
-            {/* Percentage Badge - Opens Gallery Directly */}
-            <div 
-              onClick={(e) => {
-                e.stopPropagation();
-                if (typeof window !== "undefined") {
-                  sessionStorage.setItem('gallery_return_url', '/dashboard/my-profile');
-                }
-                router.push('/dashboard/gallery');
-              }}
-              className="absolute -bottom-1 inset-x-0 mx-auto w-fit px-3 py-0.5 rounded-full bg-[#E21E5B] text-white text-[11px] font-black shadow-sm border-2 border-white z-20 cursor-pointer hover:scale-105 transition-transform"
-              title="Click to view photo gallery"
-            >
-              {profileCompletion}%
-            </div>
-          </div>
-
-          {/* STATUS PILL BADGE */}
-          <div className="pt-1">
-            {isIncomplete ? (
-              <span 
-                onClick={() => router.push('/dashboard/edit-profile')}
-                className="inline-flex items-center px-4 py-1 rounded-full bg-rose-50 text-[#E21E5B] text-xs font-bold cursor-pointer hover:bg-rose-100 transition-colors"
-              >
-                Incomplete Profile &bull; Click to Edit
-              </span>
-            ) : (
-              <span 
+      <div className="max-w-xl mx-auto px-4 sm:px-6 pt-4 space-y-4 sm:space-y-5">
+        
+        {/* 🎴 1. BESPOKE VIP IDENTITY HERO CARD (MODERN BENTO STYLE) */}
+        <div className="bg-gradient-to-br from-white via-white to-slate-50/60 rounded-3xl p-5 sm:p-6 shadow-[0_4px_25px_rgba(0,0,0,0.03)] border border-slate-200/90 space-y-4 relative overflow-hidden">
+          
+          {/* TOP ROW: AVATAR & IDENTITY DETAILS */}
+          <div className="flex items-center gap-4 sm:gap-5">
+            {/* AVATAR CONTAINER */}
+            <div className="relative shrink-0">
+              <div 
                 onClick={() => {
                   if (typeof window !== "undefined") {
                     sessionStorage.setItem('gallery_return_url', '/dashboard/my-profile');
                   }
                   router.push('/dashboard/gallery');
                 }}
-                className="inline-flex items-center px-4 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold cursor-pointer hover:bg-emerald-100 transition-colors"
-                title="Profile Completed • Click to manage photos"
+                className="w-20 h-20 sm:w-22 sm:h-22 rounded-2xl overflow-hidden bg-slate-100 border-2 border-white shadow-md relative cursor-pointer group"
+                title="Manage Photo Album"
               >
-                Profile Completed
+                {hasRealPhoto && !isPhotoLoaded && (
+                  <div className="absolute inset-0 bg-slate-200 animate-pulse flex items-center justify-center z-10">
+                    <Loader2 size={20} className="animate-spin text-slate-400" />
+                  </div>
+                )}
+                <img 
+                  src={photo} 
+                  alt={fullName} 
+                  onLoad={() => setIsPhotoLoaded(true)}
+                  className={`w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-105 ${hasRealPhoto && !isPhotoLoaded ? 'opacity-0' : 'opacity-100'}`}
+                  onError={(e) => { 
+                    (e.target as HTMLImageElement).src = DEFAULT_FEMALE_AVATAR;
+                    setIsPhotoLoaded(true);
+                  }}
+                />
+              </div>
+
+              {/* Mini Camera Edit Pill */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    sessionStorage.setItem('gallery_return_url', '/dashboard/my-profile');
+                  }
+                  router.push('/dashboard/gallery');
+                }}
+                className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white border border-slate-200 text-slate-700 shadow-sm flex items-center justify-center hover:bg-rose-50 hover:text-[#d91b5c] transition-all cursor-pointer z-20 active:scale-90"
+                title="Upload Photo"
+              >
+                <Camera size={13} className="stroke-[2.2]" />
+              </button>
+            </div>
+
+            {/* CANDIDATE INFO */}
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight truncate">
+                  {fullName}
+                </h2>
+                {isVerified && (
+                  <span title="Verified Matrimonial Candidate">
+                    <CheckCircle2 size={17} className="fill-[#0284C7] text-white shrink-0" />
+                  </span>
+                )}
+                {isPaid && (
+                  <span title="VIP Member">
+                    <Crown size={15} className="fill-amber-400 text-amber-500 shrink-0" />
+                  </span>
+                )}
+              </div>
+
+              {quickMeta && (
+                <p className="text-xs font-semibold text-slate-500 truncate">
+                  {quickMeta}
+                </p>
+              )}
+
+              {/* Status Badge */}
+              <div className="pt-0.5">
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                  isPaid 
+                    ? 'bg-amber-50 text-amber-800 border border-amber-200/80'
+                    : 'bg-slate-100 text-slate-700 border border-slate-200'
+                }`}>
+                  {isPaid ? <Crown size={11} className="fill-amber-400 text-amber-600" /> : <Award size={11} className="text-slate-500" />}
+                  <span>{planName}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* PROFILE COMPLETION PROGRESS BAR */}
+          <div className="bg-slate-50/80 rounded-2xl p-3 border border-slate-200/70 space-y-2">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+              <span className="flex items-center gap-1.5">
+                <Sparkles size={14} className="text-[#d91b5c]" />
+                <span>Biodata Strength</span>
               </span>
+              <span className="font-extrabold text-[#d91b5c]">{profileCompletion}%</span>
+            </div>
+
+            {/* Track */}
+            <div className="w-full h-2 bg-slate-200/80 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-[#d91b5c] to-rose-500 rounded-full transition-all duration-700 ease-out"
+                style={{ width: `${profileCompletion}%` }}
+              />
+            </div>
+
+            {profileCompletion < 100 && (
+              <p className="text-[11px] font-medium text-slate-500">
+                100% complete profiles get up to 5X more marriage proposals.
+              </p>
             )}
           </div>
 
-          {/* NAME, VERIFIED BADGE & VIP CROWN */}
-          <div className="space-y-1">
-            <h2 
+          {/* TWO PRIMARY QUICK ACTION BUTTONS */}
+          <div className="grid grid-cols-2 gap-2.5 pt-1">
+            <button
+              type="button"
               onClick={() => router.push('/dashboard/edit-profile')}
-              className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center justify-center gap-1.5 cursor-pointer hover:text-[#E21E5B] transition-colors"
-              title="Click to edit profile"
+              className="py-2.5 px-3 rounded-2xl bg-[#0f172a] hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 active:scale-98 cursor-pointer"
             >
-              <span>{fullName}</span>
-              {isVerified && (
-                <span title="Verified Member">
-                  <CheckCircle2 size={18} className="fill-[#0284C7] text-white" />
-                </span>
-              )}
-              {isPaid && (
-                <span title="VIP Member">
-                  <Crown size={16} className="fill-amber-400 text-amber-500" />
-                </span>
-              )}
-            </h2>
+              <Edit3 size={14} />
+              <span>Edit Biodata</span>
+            </button>
 
-            {/* ACTIVE PLAN & EXPIRY DETAILS */}
-            <div className="text-xs sm:text-sm font-semibold text-slate-700 flex items-center justify-center gap-1.5 pt-0.5">
-              {isPaid ? (
-                <>
-                  <Crown size={15} className="fill-amber-400 text-amber-500" />
-                  <span className="font-bold text-slate-900">{planName}</span>
-                  {displayExpiry && (
-                    <>
-                      <span className="text-slate-400">•</span>
-                      <span className="text-slate-500 font-medium">{displayExpiry}</span>
-                    </>
-                  )}
-                </>
-              ) : isExpired ? (
-                <>
-                  <span className="text-rose-600 font-bold">
-                    Plan Expired {displayExpiry ? `(${displayExpiry})` : ''}
-                  </span>
-                  <span className="text-slate-300">•</span>
-                  <Link prefetch={false} href="/dashboard/membership" className="text-[#E21E5B] font-extrabold hover:underline">
-                    Renew Plan
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <span className="text-slate-500 font-medium">Free Member</span>
-                  <span className="text-slate-300">•</span>
-                  <Link prefetch={false} href="/dashboard/membership" className="text-[#E21E5B] font-bold hover:underline">
-                    Upgrade to VIP
-                  </Link>
-                </>
-              )}
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                sessionStorage.setItem('last_browse_page', '/dashboard/my-profile');
+                router.push(`/dashboard/profile?userId=${userIdNum}`);
+              }}
+              className="py-2.5 px-3 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-1.5 active:scale-98 cursor-pointer"
+            >
+              <Eye size={14} className="text-slate-600" />
+              <span>Public Preview</span>
+            </button>
           </div>
-
         </div>
 
-        {/* 👑 SECOND CARD: UPGRADE BANNER (MATCHING TARGET SCREENSHOT) */}
-        <Link prefetch={false} href="/dashboard/membership"
-          className="bg-[#FFFBF2] hover:bg-[#FFF7E6] border border-[#FDE68A] rounded-2xl p-4 sm:p-4.5 flex items-center justify-between text-slate-900 transition-all shadow-xs group cursor-pointer block"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-amber-400/20 text-amber-600 flex items-center justify-center shrink-0">
-              <Crown size={18} className="fill-amber-400 text-amber-600" />
+        {/* 👑 2. MEMBERSHIP BENTO STATUS CARD */}
+        {isPaid ? (
+          <div className="bg-gradient-to-r from-emerald-50 via-teal-50/60 to-emerald-50 border border-emerald-200/80 rounded-3xl p-4 sm:p-5 flex items-center justify-between shadow-xs">
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-xs font-black uppercase text-emerald-800 tracking-wide">
+                <Sparkles size={14} className="text-emerald-600" />
+                <span>Active VIP Membership</span>
+              </div>
+              <h3 className="text-sm sm:text-base font-extrabold text-slate-900">{planName}</h3>
+              <p className="text-[11px] font-semibold text-emerald-700">{displayExpiry}</p>
             </div>
-            <span className="text-xs sm:text-sm font-bold text-slate-900">
-              Upgrade to advanced plan with more benefits.
-            </span>
-          </div>
-          <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform shrink-0" />
-        </Link>
 
-        {/* 📋 STACKED MENU OPTIONS CARD (EXACT SCREENSHOT LAYOUT) */}
-        <div className="bg-white rounded-3xl shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-slate-100 overflow-hidden divide-y divide-slate-100">
-          
-          {/* 1. Edit my profile */}
-          <Link prefetch={false} href="/dashboard/edit-profile"
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer"
-          >
-            <div className="flex items-center gap-3.5">
-              <Edit2 size={18} className="text-slate-600 group-hover:text-[#E21E5B] transition-colors" />
-              <span className="text-sm font-semibold text-slate-800">Edit my profile</span>
-            </div>
-            <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
-          </Link>
-
-          {/* 2. Profile Privacy */}
-          <button
-            type="button"
-            onClick={() => setIsPrivacyModalOpen(true)}
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer text-left"
-          >
-            <div className="flex items-center gap-3.5">
-              <Lock size={18} className="text-slate-600 group-hover:text-[#E21E5B] transition-colors" />
+            <div className="text-right space-y-1.5 shrink-0">
+              <span className="inline-block bg-emerald-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-2xs">
+                {remainingContacts} Contacts Left
+              </span>
               <div>
-                <span className="text-sm font-semibold text-slate-800 block">Profile Privacy</span>
-                <span className="text-[11px] text-slate-400 block font-medium">Currently: {selectedPrivacy}</span>
+                <Link
+                  href="/dashboard/membership"
+                  className="text-xs font-bold text-emerald-800 hover:underline block"
+                >
+                  Manage Plan &rarr;
+                </Link>
               </div>
             </div>
-            <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
-          </button>
-
-
-
-          {/* 3. Explore Plans */}
-          <Link prefetch={false} href="/dashboard/membership"
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer"
+          </div>
+        ) : (
+          <Link
+            href="/dashboard/membership"
+            className="bg-gradient-to-r from-amber-50/90 via-rose-50/40 to-amber-50/90 hover:from-amber-100/90 hover:to-amber-100/90 border border-amber-200/80 rounded-3xl p-4 sm:p-5 flex items-center justify-between text-slate-900 transition-all shadow-xs group cursor-pointer block"
           >
             <div className="flex items-center gap-3.5">
-              <Crown size={18} className="text-slate-600 group-hover:text-amber-500 transition-colors" />
-              <span className="text-sm font-semibold text-slate-800">Explore Plans</span>
+              <div className="w-11 h-11 rounded-2xl bg-amber-400/20 text-amber-700 flex items-center justify-center shrink-0 border border-amber-300/40">
+                <Crown size={22} className="fill-amber-400 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-sm sm:text-base font-extrabold text-slate-900 group-hover:text-[#d91b5c] transition-colors">
+                  Upgrade to VIP Membership
+                </h3>
+                <p className="text-xs text-slate-600 font-medium">
+                  Unlock verified phone numbers, direct messaging & top ranking
+                </p>
+              </div>
             </div>
-            <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
-          </Link>
 
-          {/* 4. Payment Info */}
-          <Link prefetch={false} href="/dashboard/payment-info"
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer"
-          >
-            <div className="flex items-center gap-3.5">
-              <CreditCard size={18} className="text-slate-600 group-hover:text-[#E21E5B] transition-colors" />
-              <span className="text-sm font-semibold text-slate-800">Payment Info</span>
+            <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-700 group-hover:bg-[#d91b5c] group-hover:text-white group-hover:border-[#d91b5c] transition-all shrink-0 ml-2 shadow-2xs">
+              <ChevronRight size={16} />
             </div>
-            <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
           </Link>
+        )}
 
-          {/* 6. Help & Support */}
-          <Link prefetch={false} href="/dashboard/support"
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer"
-          >
-            <div className="flex items-center gap-3.5">
-              <HelpCircle size={18} className="text-slate-600 group-hover:text-[#E21E5B] transition-colors" />
-              <span className="text-sm font-semibold text-slate-800">Help & Support</span>
-            </div>
-            <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
-          </Link>
+        {/* 📋 3. SECTION 1: MATRIMONIAL BIODATA & ALBUM HUB */}
+        <div className="space-y-2">
+          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 pl-1">
+            Matrimonial Biodata & Album
+          </h3>
 
-          {/* 7. Account Settings */}
-          <Link prefetch={false} href="/dashboard/settings"
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer"
-          >
-            <div className="flex items-center gap-3.5">
-              <Settings size={18} className="text-slate-600 group-hover:text-[#E21E5B] transition-colors" />
-              <span className="text-sm font-semibold text-slate-800">Account Settings</span>
-            </div>
-            <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
-          </Link>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {/* Card 1: Manage Biodata */}
+            <Link
+              href="/dashboard/edit-profile"
+              className="p-4 rounded-3xl bg-white hover:bg-slate-50 border border-slate-200/90 shadow-xs transition-all flex items-start gap-3.5 group cursor-pointer"
+            >
+              <div className="w-10 h-10 rounded-2xl bg-rose-50 text-[#d91b5c] border border-rose-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <FileText size={18} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h4 className="text-sm font-bold text-slate-900 group-hover:text-[#d91b5c] transition-colors">
+                  Personal & Family Details
+                </h4>
+                <p className="text-xs text-slate-500 font-medium leading-relaxed mt-0.5">
+                  Bio, Education, Profession, Sect & Deen values
+                </p>
+              </div>
+            </Link>
 
-          {/* 8. Logout */}
+            {/* Card 2: Photo Gallery */}
+            <Link
+              href="/dashboard/gallery"
+              className="p-4 rounded-3xl bg-white hover:bg-slate-50 border border-slate-200/90 shadow-xs transition-all flex items-start gap-3.5 group cursor-pointer"
+            >
+              <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <ImageIcon size={18} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                  Photo Gallery & Album
+                </h4>
+                <p className="text-xs text-slate-500 font-medium leading-relaxed mt-0.5">
+                  Manage up to 4 solo photos with AI face verification
+                </p>
+              </div>
+            </Link>
+          </div>
+        </div>
+
+        {/* 🔒 4. SECTION 2: MATCHMAKING FILTERS & PRIVACY */}
+        <div className="space-y-2">
+          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 pl-1">
+            Privacy & Match Criteria
+          </h3>
+
+          <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs divide-y divide-slate-100 overflow-hidden">
+            {/* Parda & Photo Privacy */}
+            <button
+              type="button"
+              onClick={() => setIsPrivacyModalOpen(true)}
+              className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer text-left"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+                  <ShieldCheck size={18} />
+                </div>
+                <div>
+                  <span className="text-sm font-bold text-slate-800 block group-hover:text-[#d91b5c] transition-colors">
+                    Parda & Photo Visibility
+                  </span>
+                  <span className="text-xs text-slate-500 font-medium block">
+                    Mode: <strong className="text-slate-800">{selectedPrivacy}</strong>
+                  </span>
+                </div>
+              </div>
+              <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
+            </button>
+
+            {/* Partner Match Criteria */}
+            <Link
+              href="/dashboard/settings"
+              className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
+                  <SlidersHorizontal size={18} />
+                </div>
+                <div>
+                  <span className="text-sm font-bold text-slate-800 block group-hover:text-[#d91b5c] transition-colors">
+                    Partner Match Criteria
+                  </span>
+                  <span className="text-xs text-slate-500 font-medium block">
+                    Preferred Age, Height, Sect, Caste & Location
+                  </span>
+                </div>
+              </div>
+              <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
+        </div>
+
+        {/* 💳 5. SECTION 3: MEMBERSHIP & ASSISTANCE */}
+        <div className="space-y-2">
+          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 pl-1">
+            Membership, Billing & Support
+          </h3>
+
+          <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs divide-y divide-slate-100 overflow-hidden">
+            {/* VIP Matchmaking Packages */}
+            <Link
+              href="/dashboard/membership"
+              className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                  <Crown size={18} />
+                </div>
+                <div>
+                  <span className="text-sm font-bold text-slate-800 block group-hover:text-amber-600 transition-colors">
+                    VIP Matchmaking Packages
+                  </span>
+                  <span className="text-xs text-slate-500 font-medium block">
+                    View Silver, Gold & Diamond subscription plans
+                  </span>
+                </div>
+              </div>
+              <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
+            </Link>
+
+            {/* Billing & Tax Invoices */}
+            <Link
+              href="/dashboard/payment-info"
+              className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                  <CreditCard size={18} />
+                </div>
+                <div>
+                  <span className="text-sm font-bold text-slate-800 block group-hover:text-emerald-700 transition-colors">
+                    Billing & Tax Invoices
+                  </span>
+                  <span className="text-xs text-slate-500 font-medium block">
+                    Order history, GST invoices & contact quota status
+                  </span>
+                </div>
+              </div>
+              <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
+            </Link>
+
+            {/* 24x7 Counselor Helpdesk */}
+            <Link
+              href="/dashboard/support"
+              className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-9 h-9 rounded-xl bg-rose-50 text-[#d91b5c] flex items-center justify-center shrink-0">
+                  <HelpCircle size={18} />
+                </div>
+                <div>
+                  <span className="text-sm font-bold text-slate-800 block group-hover:text-[#d91b5c] transition-colors">
+                    24x7 Relationship Advisory
+                  </span>
+                  <span className="text-xs text-slate-500 font-medium block">
+                    Direct WhatsApp help & customer support desk
+                  </span>
+                </div>
+              </div>
+              <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
+        </div>
+
+        {/* 🚪 6. SECTION 4: SIGN OUT BUTTON */}
+        <div className="pt-1">
           <button
             type="button"
             onClick={handleLogout}
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-rose-50/50 transition-colors group cursor-pointer text-left"
+            className="w-full p-4 rounded-3xl bg-white hover:bg-rose-50/50 border border-rose-100 flex items-center justify-center gap-2 text-rose-600 hover:text-rose-700 transition-all font-bold text-sm cursor-pointer shadow-xs active:scale-98"
           >
-            <div className="flex items-center gap-3.5 text-rose-600">
-              <LogOut size={18} />
-              <span className="text-sm font-semibold">Logout Account</span>
-            </div>
-            <ChevronRight size={18} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
+            <LogOut size={16} />
+            <span>Secure Sign Out</span>
           </button>
-
         </div>
 
       </div>
 
-      {/* 🔒 PROFILE PRIVACY MODAL / BOTTOM SHEET */}
+      {/* 🔒 PHOTO & PROFILE PRIVACY MODAL */}
       <AnimatePresence>
         {isPrivacyModalOpen && (
           <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs">
@@ -625,15 +720,15 @@ export default function MyProfilePage() {
               <div className="w-12 h-1.5 rounded-full bg-slate-200 mx-auto sm:hidden mb-2" />
               
               <div className="text-left space-y-1">
-                <h3 className="text-lg font-bold text-slate-900">Photo & Profile Privacy</h3>
-                <p className="text-xs text-slate-500">Control who can view your photos and profile details.</p>
+                <h3 className="text-lg font-bold text-slate-900">Parda & Photo Visibility</h3>
+                <p className="text-xs text-slate-500">Choose who can view your photo gallery on Nikah Qubool.</p>
               </div>
 
               <div className="space-y-2 pt-2">
                 {[
-                  { value: 'All Members', title: 'All Members', desc: 'Visible to all registered members (Recommended for fastest proposals)' },
-                  { value: 'Premium Only', title: 'Premium Only', desc: 'Visible only to verified paid VIP subscribers' },
-                  { value: 'Only Approved', title: 'Only Approved', desc: 'Photos blurred until you accept photo request' }
+                  { value: 'Visible to All', title: 'Visible to All', desc: 'Visible to all verified members (Recommended for fastest proposals)' },
+                  { value: 'VIP Only', title: 'VIP Members Only', desc: 'Visible only to verified paid VIP subscribers' },
+                  { value: 'Parda Mode', title: 'Parda Mode (Locked)', desc: 'Photos blurred with halal parda until you approve photo request' }
                 ].map((item) => {
                   const isSelected = selectedPrivacy === item.value;
                   return (
