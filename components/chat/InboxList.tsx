@@ -350,28 +350,28 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
   const filteredChats = safeChatList.filter(c => (c.fullName ?? c.FullName ?? "").toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="flex flex-col h-full bg-white border-r border-rose-100/80 selection:bg-[#d91b5c] selection:text-white">
-      <div className="p-4 border-b border-rose-100/80 bg-white/90 backdrop-blur-xl">
+    <div className="flex flex-col h-full bg-white border-r border-slate-100 selection:bg-[#E21E5B] selection:text-white">
+      <div className="p-4 border-b border-slate-100 bg-white/95 backdrop-blur-xl">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-serif font-black uppercase tracking-tight text-slate-900">Messages</h2>
+            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Messages</h2>
             {safeChatList.length > 0 && (
-              <span className="text-[10px] font-black bg-rose-50 text-[#d91b5c] px-2 py-0.5 rounded-full border border-rose-200/60">
+              <span className="text-[10px] font-bold bg-rose-50 text-[#E21E5B] px-2 py-0.5 rounded-full border border-rose-100">
                 {safeChatList.length}
               </span>
             )}
           </div>
-          <div className="bg-rose-50 p-2 rounded-2xl text-[#d91b5c] border border-rose-200/60 shadow-xs">
-            <MessageSquare size={18} />
+          <div className="bg-rose-50 p-2 rounded-2xl text-[#E21E5B] border border-rose-100 shadow-2xs">
+            <MessageSquare size={17} />
           </div>
         </div>
         <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
           <input 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search chat..." 
-            className="w-full bg-rose-50/40 border border-rose-100/80 py-2.5 pl-10 pr-4 rounded-2xl text-xs font-bold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-[#d91b5c]/20 focus:border-[#d91b5c] transition-all placeholder-slate-400" 
+            placeholder="Search conversations..." 
+            className="w-full bg-slate-50 border border-slate-200/90 py-2.5 pl-10 pr-4 rounded-2xl text-xs font-medium text-slate-800 outline-none focus:bg-white focus:ring-1 focus:ring-[#E21E5B] focus:border-[#E21E5B] transition-all placeholder-slate-400 shadow-2xs" 
           />
         </div>
       </div>
@@ -394,11 +394,11 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
           </div>
         ) : filteredChats.length === 0 ? (
           <div className="text-center py-12 px-4 space-y-2">
-            <div className="w-12 h-12 rounded-full bg-rose-50 text-[#d91b5c] flex items-center justify-center mx-auto">
+            <div className="w-12 h-12 rounded-full bg-rose-50 text-[#E21E5B] flex items-center justify-center mx-auto">
               <MessageSquare size={20} />
             </div>
-            <p className="text-xs font-bold text-slate-500">No conversations yet</p>
-            <p className="text-[11px] text-slate-400 max-w-[200px] mx-auto">Send a proposal or message from Find Match to start chatting</p>
+            <p className="text-xs font-bold text-slate-700">No conversations yet</p>
+            <p className="text-[11px] text-slate-400 max-w-[200px] mx-auto">Send a proposal or message to begin conversation</p>
           </div>
         ) : (
           filteredChats.map((chat) => {
@@ -455,43 +455,43 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
                 onClick={() => handleChatClick(chat)}
                 className={`flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all ${
                   isSelected 
-                    ? 'bg-rose-50/90 border border-rose-200/90 shadow-xs ring-1 ring-[#d91b5c]/15' 
-                    : 'hover:bg-rose-50/40 border border-transparent hover:border-rose-100/60'
+                    ? 'bg-rose-50/70 border border-rose-200/80 shadow-xs ring-1 ring-[#E21E5B]/15' 
+                    : 'hover:bg-slate-50/80 border border-transparent'
                 }`}
               >
-                <div className="relative flex-shrink-0 w-12 h-12">
+                <div className="relative flex-shrink-0 w-11 h-11 sm:w-12 sm:h-12">
                   <img 
                     src={pUrl} 
-                    className="w-12 h-12 rounded-full object-cover object-top border-2 border-[#d91b5c]/25 shadow-xs flex-shrink-0" 
-                    alt="avatar"
+                    className="w-11 h-11 sm:w-12 sm:h-12 rounded-full object-cover object-top border border-slate-200 shadow-2xs flex-shrink-0" 
+                    alt={fName}
                     onError={(e) => { 
-                    const target = e.target as HTMLImageElement;
-                    target.onerror = null;
-                    target.src = DEFAULT_FEMALE_AVATAR; 
-                  }}
+                      const target = e.target as HTMLImageElement;
+                      target.onerror = null;
+                      target.src = DEFAULT_FEMALE_AVATAR; 
+                    }}
                   />
                   {isUserOnline && (
-                    <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full shadow-xs ring-1 ring-emerald-300 z-10" />
+                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full shadow-xs ring-1 ring-emerald-300 z-10" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <h4 className="text-xs font-serif font-black uppercase text-slate-900 truncate">{fName}</h4>
+                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate">{fName}</h4>
                       {!isDeleted && !isDeactive && !isAdminBlocked && <ProfileStatusIcons profile={chat} size={15} />}
                     </div>
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
+                    <span className="text-[10px] font-semibold text-slate-400">
                       {formatChatTime(lastTime)}
                     </span>
                   </div>
                   
-                  <div className="flex items-center justify-between mt-1 gap-2">
-                    <p className={`text-[11px] truncate flex-1 ${
+                  <div className="flex items-center justify-between mt-0.5 gap-2">
+                    <p className={`text-xs truncate flex-1 ${
                       isUserTyping
-                        ? "text-emerald-600 font-black animate-pulse"
+                        ? "text-[#E21E5B] font-bold animate-pulse"
                         : (isBlockedByMe || isBlockedByOther || isBlocked)
-                          ? "text-rose-500 font-bold italic"
-                          : unread > 0 ? "text-[#d91b5c] font-black" : "text-slate-500 font-semibold"
+                          ? "text-rose-500 font-medium italic"
+                          : unread > 0 ? "text-[#E21E5B] font-bold" : "text-slate-500 font-normal"
                     }`}>
                       {displayPreview}
                     </p>
@@ -501,14 +501,14 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
                       <button 
                         type="button"
                         onClick={(e) => handleUnblockUser(e, chat)}
-                        className="text-[10px] font-black text-[#d91b5c] bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2 py-0.5 rounded-full transition-all flex items-center gap-1 cursor-pointer shrink-0 shadow-2xs"
+                        className="text-[10px] font-bold text-[#E21E5B] bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2 py-0.5 rounded-full transition-all flex items-center gap-1 cursor-pointer shrink-0 shadow-2xs"
                       >
                         <UserX size={11} /> Unblock
                       </button>
                     )}
 
                     {unread > 0 && !isBlockedByMe && !isBlockedByOther && !isBlocked && (
-                      <span className="bg-gradient-to-r from-[#d91b5c] to-rose-600 text-white text-[10px] font-black h-5 min-w-[20px] px-1.5 rounded-full flex items-center justify-center shadow-xs shrink-0">
+                      <span className="bg-[#E21E5B] text-white text-[10px] font-bold h-4.5 min-w-[18px] px-1.5 rounded-full flex items-center justify-center shadow-xs shrink-0">
                         {unread}
                       </span>
                     )}

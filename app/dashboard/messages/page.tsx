@@ -108,10 +108,10 @@ function MessagesContainer() {
   }, [selectedChat]);
 
   return (
-    <div className="flex h-[100dvh] md:h-[calc(100vh-80px)] w-full max-w-7xl mx-auto bg-white md:shadow-2xl md:rounded-3xl overflow-hidden my-0 md:my-3 border-0 md:border-2 border-rose-100 selection:bg-[#d91b5c] selection:text-white fixed inset-0 md:static z-[99]">
+    <div className="flex h-[100dvh] md:h-[calc(100vh-80px)] w-full max-w-7xl mx-auto bg-white md:shadow-xl md:rounded-3xl overflow-hidden my-0 md:my-3 border-0 md:border border-slate-200/90 selection:bg-[#E21E5B] selection:text-white fixed inset-0 md:static z-[99]">
       
       {/* SIDEBAR INBOX */}
-      <div className={`w-full md:w-[360px] lg:w-[420px] h-full flex-shrink-0 border-r-2 border-rose-100 bg-white ${selectedChat ? 'hidden md:block' : 'block'}`}>
+      <div className={`w-full md:w-[360px] lg:w-[420px] h-full flex-shrink-0 border-r border-slate-100 bg-white ${selectedChat ? 'hidden md:block' : 'block'}`}>
         <InboxList 
           selectedId={selectedChat?.userId ?? selectedChat?.UserId} 
           onSelectUser={(chat: any) => setSelectedChat(chat)} 
@@ -119,7 +119,7 @@ function MessagesContainer() {
       </div>
 
       {/* CHAT WINDOW */}
-      <div className={`flex-1 h-full min-w-0 bg-[#FAF8F5] flex flex-col ${!selectedChat ? 'hidden md:flex' : 'flex'}`}>
+      <div className={`flex-1 h-full min-w-0 bg-[#F8FAFC] flex flex-col ${!selectedChat ? 'hidden md:flex' : 'flex'}`}>
         {selectedChat ? (
           <ChatErrorBoundary 
             resetKey={selectedChat.userId ?? selectedChat.UserId}
@@ -139,24 +139,24 @@ function MessagesContainer() {
             />
           </ChatErrorBoundary>
         ) : (
-          <div className="hidden md:flex flex-col items-center justify-center h-full text-center p-8 bg-gradient-to-b from-[#FAF8F5] via-white to-[#FAF8F5] space-y-4">
+          <div className="hidden md:flex flex-col items-center justify-center h-full text-center p-8 bg-gradient-to-b from-slate-50 via-white to-slate-50 space-y-4">
             <motion.div 
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ duration: 0.4 }}
-              className="w-20 h-20 bg-rose-50 text-[#d91b5c] rounded-full flex items-center justify-center border-2 border-rose-200 shadow-xl"
+              className="w-18 h-18 bg-rose-50 text-[#E21E5B] rounded-full flex items-center justify-center border border-rose-100 shadow-md"
             >
-              <MessageSquare size={36} className="text-[#d91b5c]" />
+              <MessageSquare size={32} className="text-[#E21E5B]" />
             </motion.div>
             
-            <div>
-              <h3 className="text-xl font-serif font-extrabold text-slate-900 uppercase tracking-tight">Select a Conversation</h3>
-              <p className="text-xs font-semibold text-slate-500 max-w-sm mt-1 leading-relaxed">
-                Choose a soulmate proposal from your left inbox list to start private end-to-end encrypted messaging.
+            <div className="space-y-1">
+              <h3 className="text-lg font-bold text-slate-900 tracking-tight">Select a Conversation</h3>
+              <p className="text-xs font-medium text-slate-500 max-w-sm mx-auto leading-relaxed">
+                Choose a matched proposal from your left inbox list to begin respectful halal messaging.
               </p>
             </div>
 
-            <div className="px-5 py-2 rounded-full bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white text-[10px] font-black uppercase tracking-widest shadow-md flex items-center gap-1.5 border border-rose-300/30">
+            <div className="px-4 py-1.5 rounded-full bg-gradient-to-r from-[#E21E5B] to-[#C2185B] text-white text-[11px] font-bold shadow-xs flex items-center gap-1.5">
               <Sparkles size={13} className="text-amber-300" /> Direct Messaging Unlocked
             </div>
           </div>

@@ -5,7 +5,7 @@ import { ProfileStatusIcons } from '@/components/common/ProfileBadges';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Crown,
-  Send, ArrowLeft, MoreVertical, CheckCheck, Heart, 
+  Send, ArrowLeft, ChevronLeft, MoreVertical, CheckCheck, Heart, 
   ShieldAlert, UserX, Smile, ChevronDown, Loader2, 
   CheckCircle2, ShieldCheck, Sparkles, MessageCircle, X
 } from 'lucide-react';
@@ -182,6 +182,7 @@ export default function ChatWindow({
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Dynamic Presence Status (From Ultra-Fast In-Memory SignalR Store)
   const currentPresence = onlineUsers[Number(receiverId)];
@@ -421,18 +422,32 @@ export default function ChatWindow({
   }, [connection, receiverId]);
 
   const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
-    if (scrollRef.current) {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior, block: 'end' });
+    } else if (scrollRef.current) {
       scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior });
     }
   };
 
-  useEffect(() => { scrollToBottom("auto"); }, [receiverId]);
+  useEffect(() => { 
+    scrollToBottom("auto"); 
+  }, [receiverId]);
 
+  // 🚀 Ultra-Smooth Auto Scroll when new message arrives or typing changes
   useEffect(() => {
-    if (!scrollRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-    if (scrollHeight - scrollTop - clientHeight < 150) scrollToBottom("smooth");
-  }, [messages]);
+    scrollToBottom("smooth");
+  }, [messages, isUserTyping]);
+
+  // 📱 Mobile Viewport auto-scroll when soft keyboard opens
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.visualViewport) {
+      const handleViewportResize = () => {
+        scrollToBottom("smooth");
+      };
+      window.visualViewport.addEventListener("resize", handleViewportResize);
+      return () => window.visualViewport?.removeEventListener("resize", handleViewportResize);
+    }
+  }, []);
 
   const handleScroll = () => {
     if (!scrollRef.current) return;
@@ -704,68 +719,95 @@ export default function ChatWindow({
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-[#fbf8f5] relative overflow-hidden overscroll-none select-none md:select-auto selection:bg-[#d91b5c] selection:text-white">
+    <div className="flex flex-col h-full w-full bg-[#F8FAFC] relative overflow-hidden overscroll-none select-none md:select-auto selection:bg-[#E21E5B] selection:text-white">
       
-      {/* 📌 WHATSAPP-STYLE STICKY TOP HEADER */}
-      <div className="shrink-0 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] px-3 py-2.5 sm:px-4 sm:py-3 flex items-center gap-3 text-white shadow-md z-30 border-b border-rose-900/20">
-        <button onClick={handleBackSafe} className="p-2 hover:bg-white/15 rounded-2xl transition-colors cursor-pointer md:hidden">
-          <ArrowLeft size={20} />
-        </button>
+      {/* 🏷️ PURE WHITE GLOSSY VIP HEADER */}
+      <div className="shrink-0 bg-white/95 backdrop-blur-md px-3 py-2.5 sm:px-4 sm:py-3 flex items-center justify-between gap-3 text-slate-900 shadow-[0_1px_3px_rgba(0,0,0,0.03)] z-30 border-b border-slate-100">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+          <button 
+            type="button" 
+            onClick={handleBackSafe} 
+            className="w-9 h-9 rounded-full bg-white border border-slate-200/80 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-all shadow-xs cursor-pointer md:hidden shrink-0"
+            aria-label="Back"
+          >
+            <ChevronLeft size={20} className="stroke-[2.5]" />
+          </button>
 
-        <div onClick={handleViewProfile} className={`flex items-center gap-3 group ${(isDeletedUser || isDeactiveUser || isAdminBlockedUser) ? 'cursor-default' : 'cursor-pointer'}`}>
-          <div className="relative shrink-0 w-10 h-10 md:w-11 md:h-11">
-            <img 
-              src={displayAvatar} 
-              className="w-10 h-10 md:w-11 md:h-11 rounded-full shadow-sm border-2 border-white/40 object-cover object-top shrink-0" 
-              alt="avatar"
-              onError={(e) => { 
-                const target = e.target as HTMLImageElement;
-                target.onerror = null;
-                target.src = DEFAULT_FEMALE_AVATAR; 
-              }}
-            />
-            {isOnline && !isDeletedUser && !isDeactiveUser && !isAdminBlockedUser && (
-              <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-400 border-2 border-[#d91b5c] rounded-full z-20 shadow-sm animate-pulse" />
-            )}
-          </div>
-
-          <div className="flex flex-col">
-            <h3 className={`font-serif font-extrabold text-sm md:text-base leading-tight uppercase tracking-tight flex items-center gap-1.5 text-white ${(isDeletedUser || isDeactiveUser || isAdminBlockedUser) ? '' : 'group-hover:underline'}`}>
-              <span>{displayName}</span>
-              {(!isDeletedUser && !isDeactiveUser && !isAdminBlockedUser) && (
-                <ProfileStatusIcons profile={targetProfile} size={16} />
+          <div 
+            onClick={handleViewProfile} 
+            className={`flex items-center gap-3 group min-w-0 ${(isDeletedUser || isDeactiveUser || isAdminBlockedUser) ? 'cursor-default' : 'cursor-pointer'}`}
+          >
+            <div className="relative shrink-0 w-10 h-10 md:w-11 md:h-11">
+              <img 
+                src={displayAvatar} 
+                className="w-10 h-10 md:w-11 md:h-11 rounded-full shadow-2xs border border-slate-200/90 object-cover object-top shrink-0 group-hover:scale-102 transition-transform" 
+                alt={displayName}
+                onError={(e) => { 
+                  const target = e.target as HTMLImageElement;
+                  target.onerror = null;
+                  target.src = DEFAULT_FEMALE_AVATAR; 
+                }}
+              />
+              {isOnline && !isDeletedUser && !isDeactiveUser && !isAdminBlockedUser && (
+                <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full z-20 shadow-xs ring-1 ring-emerald-500/20" />
               )}
-            </h3>
-            <span className={`text-[10px] font-black uppercase tracking-widest mt-0.5 ${
-              isUserTyping ? "text-amber-200 animate-pulse font-bold" : (isOnline ? "text-emerald-200" : "text-rose-100")
-            }`}>
-              {displayStatus}
-            </span>
+            </div>
+
+            <div className="flex flex-col min-w-0">
+              <h3 className={`font-bold text-sm md:text-base leading-tight text-slate-900 tracking-tight flex items-center gap-1.5 truncate ${(isDeletedUser || isDeactiveUser || isAdminBlockedUser) ? '' : 'group-hover:text-[#E21E5B] transition-colors'}`}>
+                <span className="truncate">{displayName}</span>
+                {(!isDeletedUser && !isDeactiveUser && !isAdminBlockedUser) && (
+                  <ProfileStatusIcons profile={targetProfile} size={15} />
+                )}
+              </h3>
+              <div className="flex items-center gap-1.5 text-[11px] mt-0.5 truncate">
+                {isUserTyping ? (
+                  <span className="text-[#E21E5B] font-bold flex items-center gap-1">
+                    <span className="flex items-center gap-0.5">
+                      <span className="w-1 h-1 rounded-full bg-[#E21E5B] animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-1 h-1 rounded-full bg-[#E21E5B] animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-1 h-1 rounded-full bg-[#E21E5B] animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </span>
+                    <span>typing...</span>
+                  </span>
+                ) : isOnline && !isDeletedUser && !isDeactiveUser && !isAdminBlockedUser ? (
+                  <span className="text-emerald-600 font-semibold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Online</span>
+                  </span>
+                ) : (
+                  <span className="text-slate-400 font-medium">
+                    {displayStatus}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="ml-auto relative">
+        <div className="relative shrink-0">
           <button 
             type="button"
             onClick={() => setShowMenu(!showMenu)} 
-            className="p-2 rounded-2xl hover:bg-white/15 transition-colors cursor-pointer text-white"
+            className="w-9 h-9 rounded-full bg-white hover:bg-slate-50 border border-slate-200/80 flex items-center justify-center text-slate-600 shadow-xs cursor-pointer transition active:scale-95"
+            aria-label="More options"
           >
-            <MoreVertical size={20} />
+            <MoreVertical size={18} />
           </button>
 
           {showMenu && (
-            <div className="absolute right-0 top-12 w-52 bg-white rounded-3xl shadow-2xl border-2 border-rose-100 py-2 z-50 text-slate-800">
+            <div className="absolute right-0 top-11 w-52 bg-white rounded-2xl shadow-xl border border-slate-100 py-1.5 z-50 text-slate-800 animate-in fade-in zoom-in-95">
               <button 
                 type="button"
                 onClick={handleToggleBlock}
-                className="w-full px-4 py-2.5 text-left text-xs font-black flex items-center gap-2.5 hover:bg-rose-50 text-rose-700 transition-colors cursor-pointer"
+                className="w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-2.5 hover:bg-rose-50 text-rose-700 transition-colors cursor-pointer"
               >
                 <UserX size={16} /> {blockStatus.isBlockedByMe ? "Unblock User" : "Block User"}
               </button>
               <button 
                 type="button"
                 onClick={() => { alert(`User ${displayName} reported.`); setShowMenu(false); }}
-                className="w-full px-4 py-2.5 text-left text-xs font-black flex items-center gap-2.5 hover:bg-slate-50 text-slate-700 transition-colors cursor-pointer"
+                className="w-full px-4 py-2.5 text-left text-xs font-bold flex items-center gap-2.5 hover:bg-slate-50 text-slate-700 transition-colors cursor-pointer"
               >
                 <ShieldAlert size={16} className="text-amber-500" /> Report Profile
               </button>
@@ -778,24 +820,24 @@ export default function ChatWindow({
       <div 
         ref={scrollRef} 
         onScroll={handleScroll}
-        className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 space-y-4 bg-[#fbf8f5] scroll-smooth overscroll-contain"
+        className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-5 md:p-6 space-y-3.5 bg-[#F8FAFC] scroll-smooth overscroll-contain"
       >
         {/* 💌 PROPOSAL BANNER */}
         {proposalState === 'PENDING' && !isDeletedUser && !isDeactiveUser && !isAdminBlockedUser && (
-          <div className="bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] p-5 rounded-3xl text-white shadow-xl border-2 border-rose-300/40 text-center space-y-3 my-2">
-            <div className="flex items-center justify-center gap-2 text-amber-300">
-              <Heart size={22} className="fill-amber-300" />
-              <h4 className="text-base font-serif font-black tracking-tight">Nikah Proposal Request Received</h4>
+          <div className="bg-gradient-to-r from-rose-500 to-[#E21E5B] p-4 sm:p-5 rounded-3xl text-white shadow-lg border border-rose-300/30 text-center space-y-2.5 my-2 max-w-lg mx-auto">
+            <div className="flex items-center justify-center gap-2 text-white">
+              <Heart size={20} className="fill-white" />
+              <h4 className="text-sm sm:text-base font-bold tracking-tight">Nikah Proposal Request Received</h4>
             </div>
             <p className="text-xs text-rose-100 font-medium">
-              {displayName} has sent you a soulmate proposal request. Accept proposal to start private messaging!
+              {displayName} has sent you a rishta proposal. Accept proposal to begin halal conversation!
             </p>
-            <div className="flex justify-center gap-3 pt-1">
+            <div className="flex justify-center gap-2.5 pt-1">
               <button
                 type="button"
                 onClick={() => handleProposalAction('DECLINE')}
                 disabled={proposalLoading}
-                className="px-5 py-2 bg-slate-900 text-rose-200 font-bold text-xs uppercase rounded-xl border border-rose-300/20 cursor-pointer"
+                className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white font-bold text-xs rounded-full border border-white/30 cursor-pointer transition"
               >
                 Decline
               </button>
@@ -803,9 +845,9 @@ export default function ChatWindow({
                 type="button"
                 onClick={() => handleProposalAction('ACCEPT')}
                 disabled={proposalLoading}
-                className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase rounded-xl shadow-md cursor-pointer flex items-center gap-1.5"
+                className="px-5 py-2 bg-white text-[#E21E5B] font-bold text-xs rounded-full shadow-sm hover:bg-rose-50 cursor-pointer flex items-center gap-1.5 transition active:scale-95"
               >
-                {proposalLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                {proposalLoading ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
                 <span>Accept Proposal</span>
               </button>
             </div>
@@ -813,16 +855,16 @@ export default function ChatWindow({
         )}
 
         {loading && messages.length === 0 ? (
-          <div className="text-center py-10 space-y-2">
-            <Loader2 size={24} className="animate-spin text-[#d91b5c] mx-auto" />
-            <p className="text-xs font-bold text-slate-400">Loading messages...</p>
+          <div className="text-center py-12 space-y-2">
+            <Loader2 size={24} className="animate-spin text-[#E21E5B] mx-auto" />
+            <p className="text-xs font-semibold text-slate-400">Loading conversation...</p>
           </div>
         ) : null}
 
         {Object.keys(groupedMessages).map(dateKey => (
           <div key={dateKey} className="space-y-3">
-            <div className="flex justify-center my-2 sticky top-2 z-10">
-              <span className="bg-white/95 backdrop-blur-xs text-slate-600 text-[10px] font-black uppercase tracking-wider px-3.5 py-1 rounded-full shadow-xs border border-rose-100">
+            <div className="flex justify-center my-3 sticky top-2 z-10 pointer-events-none">
+              <span className="bg-white/95 backdrop-blur-md text-slate-500 text-[10px] font-bold uppercase tracking-wider px-3.5 py-1 rounded-full shadow-2xs border border-slate-200/80">
                 {formatDateLabel(dateKey)}
               </span>
             </div>
@@ -833,19 +875,19 @@ export default function ChatWindow({
 
               return (
                 <div key={m.uniqueKey} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] md:max-w-[65%] p-3 px-4 rounded-2xl text-xs md:text-sm shadow-sm relative transition-all ${
+                  <div className={`max-w-[85%] md:max-w-[65%] p-3 px-4 text-xs sm:text-sm shadow-2xs relative transition-all ${
                     isMe 
-                    ? 'bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white rounded-br-none shadow-rose-950/10 border border-rose-300/30' 
-                    : 'bg-white text-slate-900 rounded-bl-none border border-rose-100 shadow-xs font-medium'
+                    ? 'bg-gradient-to-r from-[#E21E5B] to-[#C2185B] text-white rounded-2xl rounded-tr-xs shadow-[0_2px_8px_rgba(226,30,91,0.20)] border border-rose-400/20' 
+                    : 'bg-white text-slate-900 rounded-2xl rounded-tl-xs border border-slate-200/90 shadow-2xs font-normal'
                   }`}>
-                    <p className="font-semibold leading-relaxed tracking-wide break-words">{m.text}</p>
+                    <p className="font-medium leading-relaxed tracking-normal break-words">{m.text}</p>
                     
                     <div className="flex items-center gap-1.5 mt-1 justify-end text-[9px]">
-                      <span className={`font-black uppercase tracking-wider ${isMe ? 'text-rose-100' : 'text-slate-400'}`}>
+                      <span className={`font-semibold tracking-wider ${isMe ? 'text-white/80' : 'text-slate-400'}`}>
                         {formatMsgTime(m.timestamp)}
                       </span>
                       
-                      {/* 🎯 DOUBLE TICKS: CYAN IF READ, WHITE IF DELIVERED */}
+                      {/* 🎯 DOUBLE TICKS: CYAN IF READ, WHITE/70 IF DELIVERED */}
                       {isMe && (
                         <span>
                           {isMessageRead ? (
@@ -863,25 +905,34 @@ export default function ChatWindow({
           </div>
         ))}
 
-        {/* ✍️ REAL-TIME VIP TYPING INDICATOR BUBBLE */}
+        {/* ✍️ REAL-TIME VIP TYPING INDICATOR BUBBLE WITH CANDIDATE NAME & SMOOTH BOUNCE */}
         {isUserTyping && (
-          <div className="flex justify-start">
-            <div className="bg-white border border-rose-200 rounded-2xl rounded-bl-none px-4 py-2 shadow-xs flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase text-[#d91b5c] tracking-wider">typing</span>
+          <div className="flex items-end gap-2 justify-start animate-in fade-in slide-in-from-bottom-2 duration-200">
+            <img
+              src={displayAvatar}
+              alt={displayName}
+              className="w-6 h-6 rounded-full object-cover object-top border border-slate-200 shrink-0 mb-0.5"
+            />
+            <div className="bg-white border border-slate-200/90 rounded-2xl rounded-tl-xs px-3.5 py-2 shadow-2xs flex items-center gap-2">
+              <span className="text-[11px] font-bold text-slate-700">{displayName} is typing</span>
               <span className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#d91b5c] animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1.5 h-1.5 rounded-full bg-[#d91b5c] animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1.5 h-1.5 rounded-full bg-[#d91b5c] animate-bounce" style={{ animationDelay: '300ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#E21E5B] animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#E21E5B] animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#E21E5B] animate-bounce" style={{ animationDelay: '300ms' }} />
               </span>
             </div>
           </div>
         )}
+
+        {/* Scroll anchor to guarantee perfect bottom view */}
+        <div ref={messagesEndRef} className="h-1" />
       </div>
 
       {showScrollBottom && (
         <button 
           onClick={() => scrollToBottom("smooth")}
-          className="absolute bottom-24 right-5 bg-[#d91b5c] text-white p-2.5 rounded-full shadow-xl hover:scale-110 active:scale-95 transition-all z-30 border border-rose-200 cursor-pointer"
+          className="absolute bottom-20 right-5 bg-white text-slate-700 hover:text-[#E21E5B] p-2.5 rounded-full shadow-lg hover:shadow-xl active:scale-95 transition-all z-30 border border-slate-200 cursor-pointer"
+          aria-label="Scroll to bottom"
         >
           <ChevronDown size={18} />
         </button>
@@ -889,16 +940,16 @@ export default function ChatWindow({
 
       {/* 🌟 EXPANDED RICH EMOJI PICKER WITH CATEGORIES */}
       {showEmojiPicker && (
-        <div className="absolute bottom-28 left-4 right-4 sm:right-auto sm:w-80 bg-white border-2 border-rose-100 shadow-2xl rounded-3xl p-3 z-50 animate-in fade-in zoom-in-95">
-          <div className="flex items-center justify-between border-b border-rose-100 pb-2 mb-2">
-            <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+        <div className="absolute bottom-20 left-3 right-3 sm:left-4 sm:right-auto sm:w-80 bg-white border border-slate-200 shadow-2xl rounded-3xl p-3 z-50 animate-in fade-in zoom-in-95">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
               {(Object.keys(EMOJI_CATEGORIES) as Array<keyof typeof EMOJI_CATEGORIES>).map(cat => (
                 <button
                   key={cat}
                   type="button"
                   onClick={() => setSelectedEmojiCategory(cat)}
-                  className={`text-[10px] font-black px-2.5 py-1 rounded-full whitespace-nowrap transition-all cursor-pointer ${
-                    selectedEmojiCategory === cat ? 'bg-[#d91b5c] text-white' : 'bg-rose-50 text-slate-700 hover:bg-rose-100'
+                  className={`text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap transition-all cursor-pointer ${
+                    selectedEmojiCategory === cat ? 'bg-[#E21E5B] text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
                   {cat}
@@ -908,9 +959,9 @@ export default function ChatWindow({
             <button 
               type="button" 
               onClick={() => setShowEmojiPicker(false)}
-              className="text-slate-400 hover:text-slate-700 p-1"
+              className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
             >
-              <X size={14} />
+              <X size={15} />
             </button>
           </div>
 
@@ -924,7 +975,7 @@ export default function ChatWindow({
                   setMsg(prev => prev + emoji);
                   requestAnimationFrame(() => inputRef.current?.focus());
                 }}
-                className="text-xl p-2 hover:bg-rose-50 rounded-2xl transition-all hover:scale-125 cursor-pointer text-center"
+                className="text-xl p-2 hover:bg-slate-100 rounded-2xl transition-all hover:scale-125 cursor-pointer text-center"
               >
                 {emoji}
               </button>
@@ -933,30 +984,30 @@ export default function ChatWindow({
         </div>
       )}
 
-      {/* 📌 WHATSAPP-STYLE STICKY BOTTOM INPUT PANEL */}
-      <div className="shrink-0 bg-white/95 backdrop-blur-md border-t border-rose-100 z-30 shadow-lg p-2.5 sm:p-3 space-y-2 pb-[max(env(safe-area-inset-bottom,0px),10px)]">
+      {/* 📌 WHATSAPP-STYLE DOCKED INPUT PANEL */}
+      <div className="shrink-0 bg-white/95 backdrop-blur-md border-t border-slate-100 z-30 shadow-[0_-2px_10px_rgba(0,0,0,0.03)] p-2.5 sm:p-3 space-y-2 pb-[max(env(safe-area-inset-bottom,0px),10px)]">
         
         {isBlocked ? (
-          <div className="p-3 bg-rose-50 rounded-2xl text-center border border-rose-200">
-            <p className="text-xs font-extrabold text-slate-600 uppercase tracking-wide">
+          <div className="p-3 bg-slate-50 rounded-2xl text-center border border-slate-200">
+            <p className="text-xs font-bold text-slate-600 tracking-wide">
               {getBlockNoticeMessage()}
             </p>
             {blockStatus.isBlockedByMe && !isDeletedUser && !isDeactiveUser && !isAdminBlockedUser && (
-              <button type="button" onClick={handleToggleBlock} className="text-xs font-black text-[#d91b5c] underline mt-1 cursor-pointer">
+              <button type="button" onClick={handleToggleBlock} className="text-xs font-bold text-[#E21E5B] underline mt-1 cursor-pointer">
                 Unblock User
               </button>
             )}
           </div>
         ) : (
-          <div className="max-w-4xl mx-auto bg-slate-50 p-1.5 pl-3 rounded-full border-2 border-rose-100 flex items-center gap-2 focus-within:ring-2 focus-within:ring-[#d91b5c]/20 focus-within:bg-white transition-all shadow-xs">
+          <div className="max-w-4xl mx-auto bg-slate-50 focus-within:bg-white p-1.5 pl-3 rounded-full border border-slate-200/90 focus-within:border-[#E21E5B] focus-within:ring-2 focus-within:ring-[#E21E5B]/15 flex items-center gap-2 transition-all shadow-2xs">
             <button 
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setShowEmojiPicker(!showEmojiPicker)} 
-              className="p-2 text-slate-400 hover:text-[#d91b5c] rounded-full transition-colors cursor-pointer"
+              className="p-1.5 text-slate-400 hover:text-[#E21E5B] rounded-full transition-colors cursor-pointer active:scale-95"
               title="Add Emoji"
             >
-              <Smile size={22} />
+              <Smile size={21} />
             </button>
             <input 
               ref={inputRef}
@@ -964,6 +1015,9 @@ export default function ChatWindow({
               enterKeyHint="send"
               autoComplete="off"
               autoCorrect="off"
+              onFocus={() => {
+                setTimeout(() => scrollToBottom("smooth"), 150);
+              }}
               onChange={(e) => {
                 setMsg(e.target.value);
                 sendTyping(Number(receiverId), true);
@@ -979,20 +1033,23 @@ export default function ChatWindow({
                 }
               }}
               placeholder="Type a message..." 
-              className="flex-1 py-2 text-xs sm:text-sm outline-none font-bold text-slate-800 bg-transparent placeholder-slate-400"
+              className="flex-1 py-1.5 text-xs sm:text-sm font-medium text-slate-800 bg-transparent placeholder-slate-400 outline-none"
             />
             <button 
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={handleSend} 
-              className="h-10 w-10 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] hover:brightness-110 rounded-full flex items-center justify-center text-white shadow-md active:scale-90 transition-all flex-shrink-0 cursor-pointer border border-rose-300/30 touch-manipulation"
+              className="h-9 w-9 sm:h-10 sm:w-10 bg-gradient-to-r from-[#E21E5B] to-[#C2185B] hover:brightness-105 active:scale-90 rounded-full flex items-center justify-center text-white shadow-xs transition-transform flex-shrink-0 cursor-pointer touch-manipulation"
               title="Send Message"
             >
-              <Send size={16} className="ml-0.5 text-amber-300" />
+              <Send size={15} className="ml-0.5 text-white" />
             </button>
           </div>
         )}
       </div>
+
+    </div>
+  );
 
     </div>
   );
