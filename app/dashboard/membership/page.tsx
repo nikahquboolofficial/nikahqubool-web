@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Check, ArrowLeft, ChevronDown, ChevronUp, HelpCircle, 
+  Check, ArrowLeft, ChevronLeft, ChevronDown, ChevronUp, HelpCircle, 
   Tag, Loader2, X, FileText, Printer, History, Sparkles,
   Phone, MessageSquare, CheckCircle, AlertCircle
 } from 'lucide-react';
@@ -321,26 +321,39 @@ export default function MembershipPage() {
         )}
       </AnimatePresence>
 
-      <div className="max-w-2xl mx-auto px-4 pt-4 pb-6 space-y-4">
+      <div className="max-w-2xl mx-auto px-4 pt-3 pb-36 sm:pb-32 space-y-4">
         
-        {/* HEADER: < Premium Plans ... Need Help? */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        {/* HEADER: < Explore Plans ... Need Help? */}
+        <div className="flex items-center justify-between gap-2 py-1 border-b border-slate-100">
+          <div className="flex items-center gap-2.5 min-w-0">
             <button 
               type="button" 
-              onClick={() => router.back()} 
-              className="p-1.5 -ml-1.5 hover:bg-slate-200 text-slate-800 rounded-full transition-colors cursor-pointer"
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  const last = sessionStorage.getItem('last_browse_page');
+                  if (last && last !== '/dashboard/membership') {
+                    router.push(last);
+                    return;
+                  }
+                  if (window.history.length > 1) {
+                    router.back();
+                    return;
+                  }
+                }
+                router.push('/dashboard/my-profile');
+              }} 
+              className="w-9 h-9 rounded-full bg-white border border-slate-200/80 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-all shadow-xs shrink-0 cursor-pointer"
               aria-label="Back"
             >
-              <ArrowLeft size={22} className="stroke-[2.5]" />
+              <ChevronLeft size={20} className="stroke-[2.5]" />
             </button>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Premium Plans</h1>
+            <h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight truncate">Explore Plans</h1>
           </div>
 
           <button 
             type="button"
             onClick={() => setShowHelpModal(true)}
-            className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-[#E21E5B] bg-white border border-slate-200 hover:border-rose-200 px-3 py-1.5 rounded-full shadow-2xs transition-all cursor-pointer"
+            className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-[#E21E5B] bg-white border border-slate-200 hover:border-rose-200 px-3 py-1.5 rounded-full shadow-2xs transition-all cursor-pointer shrink-0"
           >
             <span>Need Help?</span>
             <HelpCircle size={15} className="text-slate-500" />
@@ -361,7 +374,7 @@ export default function MembershipPage() {
         )}
 
         {/* DURATION SELECTOR TABS DYNAMIC FROM DATABASE */}
-        <div className="flex items-center gap-2.5 pt-1 overflow-x-auto pb-1">
+        <div className="flex items-center gap-2 pt-1 overflow-x-auto pb-1 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           {availableDurations.map((dur) => {
             const isSelected = selectedDuration === dur;
             return (
@@ -369,10 +382,10 @@ export default function MembershipPage() {
                 key={dur}
                 type="button"
                 onClick={() => handleDurationChange(dur)}
-                className={`flex-1 min-w-[90px] py-2 px-3 rounded-full text-xs font-bold transition-all text-center cursor-pointer shadow-2xs whitespace-nowrap ${
+                className={`shrink-0 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap border ${
                   isSelected
-                    ? "bg-[#1C2024] text-white border border-[#1C2024]"
-                    : "bg-white text-slate-700 border border-slate-300 hover:border-slate-400"
+                    ? "bg-[#0f0f0f] text-white border-[#0f0f0f] shadow-xs"
+                    : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 font-medium"
                 }`}
               >
                 {dur}
@@ -643,7 +656,7 @@ export default function MembershipPage() {
 
       {/* STICKY BOTTOM CHECKOUT BUTTON: Get {Plan} {Duration} • ₹{Price} */}
       {activePlan && (
-        <div className="fixed bottom-0 inset-x-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 py-3 shadow-[0_-4px_25px_rgba(0,0,0,0.06)]">
+        <div className="fixed bottom-0 inset-x-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 pt-3 pb-[max(env(safe-area-inset-bottom,0px),16px)] shadow-[0_-4px_25px_rgba(0,0,0,0.06)]">
           <div className="max-w-2xl mx-auto">
             <button
               type="button"

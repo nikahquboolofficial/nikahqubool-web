@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Crown, CheckCircle2, AlertCircle, CreditCard, RefreshCw, Calendar, Eye, Loader2, Sparkles, Download, FileText } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, Crown, CheckCircle2, AlertCircle, CreditCard, RefreshCw, Calendar, Eye, Loader2, Sparkles, Download, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import { fetchActiveSubscriptionApi, fetchSubscriptionHistoryApi } from '@/lib/api';
@@ -176,28 +176,41 @@ export default function PaymentInfoPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         
         {/* HEADER BAR */}
-        <div className="flex items-center justify-between py-2 border-b border-rose-100">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between py-2 border-b border-slate-100 gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
             <button 
               type="button" 
-              onClick={() => router.back()} 
-              className="flex p-2 hover:bg-rose-50 text-[#d91b5c] rounded-full transition-colors cursor-pointer"
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  const last = sessionStorage.getItem('last_browse_page');
+                  if (last && last !== '/dashboard/payment-info') {
+                    router.push(last);
+                    return;
+                  }
+                  if (window.history.length > 1) {
+                    router.back();
+                    return;
+                  }
+                }
+                router.push('/dashboard/my-profile');
+              }} 
+              className="w-9 h-9 rounded-full bg-white border border-slate-200/80 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-all shadow-xs shrink-0 cursor-pointer"
               aria-label="Back"
               title="Go Back"
             >
-              <ArrowLeft size={22} className="stroke-[2.5]" />
+              <ChevronLeft size={20} className="stroke-[2.5]" />
             </button>
-            <h1 className="text-xl font-extrabold tracking-tight text-slate-900">
-              Payment & Subscription Info
+            <h1 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 truncate">
+              Payment Info
             </h1>
           </div>
 
           <button 
             type="button"
             onClick={() => router.push('/dashboard/membership')}
-            className="px-4 py-2 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white text-xs font-black uppercase rounded-full shadow-md flex items-center gap-1.5 cursor-pointer hover:brightness-110 shrink-0"
+            className="px-3.5 py-1.5 bg-gradient-to-r from-[#d91b5c] via-[#e11d48] to-[#d91b5c] text-white text-[11px] sm:text-xs font-black uppercase rounded-full shadow-xs flex items-center gap-1.5 cursor-pointer hover:brightness-110 shrink-0"
           >
-            <Crown size={15} className="text-amber-300 fill-amber-300" />
+            <Crown size={14} className="text-amber-300 fill-amber-300" />
             <span>Upgrade VIP</span>
           </button>
         </div>

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Plus, Lock, Trash2, Loader2, Sparkles, Star, RefreshCw, X, Info, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, Plus, Lock, Trash2, Loader2, Sparkles, Star, RefreshCw, X, Info, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import {
@@ -431,8 +431,8 @@ export default function GalleryManagementPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         
         {/* HEADER */}
-        <div className="flex items-center justify-between py-2 border-b border-rose-100">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between py-2 border-b border-slate-100 gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
             <button 
               type="button" 
               onClick={() => {
@@ -444,36 +444,38 @@ export default function GalleryManagementPage() {
                     router.push(returnUrl);
                     return;
                   }
+                  const last = sessionStorage.getItem('last_browse_page');
+                  if (last && last !== '/dashboard/gallery') {
+                    router.push(last);
+                    return;
+                  }
+                  if (window.history.length > 1) {
+                    router.back();
+                    return;
+                  }
                 }
-                if (typeof window !== "undefined" && window.history.length > 1) {
-                  router.back();
-                } else {
-                  router.push('/dashboard/edit-profile');
-                }
+                router.push('/dashboard/my-profile');
               }} 
-              className="flex p-2 hover:bg-rose-50 text-[#d91b5c] rounded-full transition-colors cursor-pointer"
+              className="w-9 h-9 rounded-full bg-white border border-slate-200/80 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-all shadow-xs shrink-0 cursor-pointer"
               aria-label="Back"
               title="Go Back"
             >
-              <ArrowLeft size={22} className="stroke-[2.5]" />
+              <ChevronLeft size={20} className="stroke-[2.5]" />
             </button>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-serif font-extrabold tracking-tight text-slate-900">
-                Gallery & Photo Privacy
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 truncate">
+                Photo Gallery
               </h1>
-              <p className="text-xs font-semibold text-slate-500">
-                AI Face-Verified Gallery &bull; Up to 4 Solo Photos Allowed
-              </p>
             </div>
           </div>
 
           <button
             type="button"
             onClick={() => setGuidelinesOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-white border border-rose-200 text-[#d91b5c] text-xs font-extrabold shadow-xs hover:bg-rose-50 transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-700 text-xs font-bold shadow-2xs hover:bg-slate-50 transition cursor-pointer shrink-0"
           >
-            <Info size={15} />
-            <span>Photo Guidelines</span>
+            <Info size={14} className="text-[#d91b5c]" />
+            <span>Guidelines</span>
           </button>
         </div>
 

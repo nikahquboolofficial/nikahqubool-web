@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { 
-  Bell, Heart, ArrowLeft, Check, Save, 
+  Bell, Heart, ArrowLeft, ChevronLeft, Check, Save, 
   PauseCircle, Trash2, Power, Loader2, ChevronRight, 
   LogOut, AlertTriangle, Eye, UserX, Unlock, Shield,
   SlidersHorizontal, CheckCircle2, Info, Sparkles
@@ -426,29 +426,37 @@ function SettingsContent() {
       <div className="max-w-xl mx-auto px-4 sm:px-6 space-y-4">
         
         {/* 🏷️ TOP NAVIGATION BAR */}
-        <div className="flex items-center gap-3 py-1 border-b border-rose-100/70">
+        <div className="flex items-center gap-2.5 py-1 border-b border-slate-100">
           <button 
             type="button" 
             onClick={() => {
               if (activeTab !== 'menu') {
                 setActiveTab('menu');
               } else {
+                if (typeof window !== "undefined") {
+                  const last = sessionStorage.getItem('last_browse_page');
+                  if (last && last !== '/dashboard/settings') {
+                    router.push(last);
+                    return;
+                  }
+                  if (window.history.length > 1) {
+                    router.back();
+                    return;
+                  }
+                }
                 router.push('/dashboard/my-profile');
               }
             }} 
-            className="flex p-2 hover:bg-rose-50 text-[#d91b5c] rounded-full transition-colors cursor-pointer"
+            className="w-9 h-9 rounded-full bg-white border border-slate-200/80 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-all shadow-xs shrink-0 cursor-pointer"
             aria-label="Back"
             title="Go Back"
           >
-            <ArrowLeft size={20} className="stroke-[2.5]" />
+            <ChevronLeft size={20} className="stroke-[2.5]" />
           </button>
-          <div>
-            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900">
+          <div className="min-w-0">
+            <h1 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 truncate">
               {getSubTitle()}
             </h1>
-            <p className="text-[11px] font-semibold text-slate-500">
-              Manage your notifications, match preferences and account privacy
-            </p>
           </div>
         </div>
 

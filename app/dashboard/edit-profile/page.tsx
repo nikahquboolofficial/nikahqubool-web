@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  X, Eye, Shield, CheckCircle2, ChevronRight, Search, 
+  X, Eye, Shield, CheckCircle2, ChevronLeft, ChevronRight, Search, 
   Camera, Plus, Trash2, Lock, Sparkles, AlertCircle, 
   ArrowLeft, Upload, FileText, Check, Loader2, Star,
   GraduationCap, Briefcase, Heart, Home, Moon, User,
@@ -1967,16 +1967,29 @@ export default function EditMyProfilePage() {
       {/* 🌟 1. ELEVATED FLOATING APP BAR */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 px-4 py-3 shadow-xs">
         <div className="max-w-lg mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
             <button 
               type="button" 
-              onClick={() => router.push('/dashboard/my-profile')}
-              className="w-9 h-9 rounded-full hover:bg-slate-100 text-slate-800 flex items-center justify-center transition-colors cursor-pointer"
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  const last = sessionStorage.getItem('last_browse_page');
+                  if (last && last !== '/dashboard/edit-profile') {
+                    router.push(last);
+                    return;
+                  }
+                  if (window.history.length > 1) {
+                    router.back();
+                    return;
+                  }
+                }
+                router.push('/dashboard/my-profile');
+              }}
+              className="w-9 h-9 rounded-full bg-white border border-slate-200/80 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-all shadow-xs shrink-0 cursor-pointer"
               aria-label="Back to profile"
             >
-              <X size={20} className="stroke-[2.2]" />
+              <ChevronLeft size={20} className="stroke-[2.5]" />
             </button>
-            <h1 className="text-base font-black tracking-tight text-slate-900">
+            <h1 className="text-base font-bold tracking-tight text-slate-900 truncate">
               Edit Profile
             </h1>
           </div>

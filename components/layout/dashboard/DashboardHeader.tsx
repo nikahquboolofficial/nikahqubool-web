@@ -155,7 +155,7 @@ export default function DashboardHeader({
   }, [pathname]);
 
   return (
-    <header className="h-16 md:h-20 bg-white/90 backdrop-blur-2xl border-b border-rose-100/80 sticky top-0 z-[100] px-4 md:px-8 flex items-center justify-between shadow-[0_4px_20px_-4px_rgba(217,27,92,0.06)] text-slate-900 selection:bg-[#d91b5c] selection:text-white">
+    <header className="h-16 md:h-20 bg-white sticky top-0 z-[100] px-4 md:px-8 flex items-center justify-between border-b border-slate-100 shadow-none text-slate-900 selection:bg-[#d91b5c] selection:text-white">
       
       {/* 👑 BRAND LOGO IMAGE */}
       <div className="flex items-center gap-3">

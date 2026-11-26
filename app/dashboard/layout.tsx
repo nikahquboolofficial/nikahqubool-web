@@ -127,43 +127,21 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   });
 
   // 📱 MOBILE BOTTOM NAV & MAIN HEADER VISIBILITY RULES
+  // 📱 MOBILE BOTTOM NAV VISIBILITY RULES:
+  // Visible ONLY on main feed tabs: /dashboard, /dashboard/activity, /dashboard/my-profile, and /dashboard/messages (inbox list only).
+  // HIDDEN on: /dashboard/find-match, and all sub-pages (edit-profile, gallery, settings, membership, payment-info, support, profile details).
   const isMobileBottomNavVisible = 
     pathname === '/dashboard' ||
     pathname === '/dashboard/activity' ||
-    pathname === '/dashboard/find-match' ||
-    pathname === '/dashboard/interests-received' ||
-    pathname === '/dashboard/interests-sent' ||
-    pathname === '/dashboard/viewed-my-profile' ||
-    pathname === '/dashboard/profiles-viewed' ||
-    pathname === '/dashboard/shortlisted-by-me' ||
-    pathname === '/dashboard/shortlisted-me' ||
     pathname === '/dashboard/my-profile' ||
     (pathname.startsWith('/dashboard/messages') && !isChatOpenOnMobile);
 
-  const isMainHeaderVisibleOnMobile = 
-    (pathname === '/dashboard' ||
-    pathname === '/dashboard/activity' ||
-    pathname === '/dashboard/find-match' ||
-    pathname === '/dashboard/interests-received' ||
-    pathname === '/dashboard/interests-sent' ||
-    pathname === '/dashboard/viewed-my-profile' ||
-    pathname === '/dashboard/profiles-viewed' ||
-    pathname === '/dashboard/shortlisted-by-me' ||
-    pathname === '/dashboard/shortlisted-me') &&
-    !pathname.startsWith('/dashboard/messages') &&
-    (pathname as string) !== '/dashboard/my-profile';
+  // 📱 MOBILE MAIN HEADER VISIBILITY RULES:
+  // Visible ONLY on /dashboard (home feed).
+  // HIDDEN on: /dashboard/activity, /dashboard/find-match, /dashboard/my-profile, messages, and all sub-pages.
+  const isMainHeaderVisibleOnMobile = pathname === '/dashboard';
 
-  const isStandaloneBackVisibleOnMobile = 
-    !isMobileBottomNavVisible && 
-    !pathname.startsWith('/dashboard/messages') &&
-    !pathname.startsWith('/dashboard/profile') &&
-    !pathname.startsWith('/dashboard/edit-profile') &&
-    !pathname.startsWith('/dashboard/gallery') &&
-    !pathname.startsWith('/dashboard/settings') &&
-    !pathname.startsWith('/dashboard/membership') &&
-    !pathname.startsWith('/dashboard/payment-info') &&
-    !pathname.startsWith('/dashboard/support') &&
-    pathname !== '/dashboard/my-profile';
+  const isStandaloneBackVisibleOnMobile = false;
 
   useEffect(() => {
     try {

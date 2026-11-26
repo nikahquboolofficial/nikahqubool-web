@@ -854,10 +854,10 @@ export default function ProfileDetailPage() {
             <button
               type="button"
               onClick={handleBack}
-              className="w-11 h-11 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-md text-white flex items-center justify-center border border-white/20 shadow-lg cursor-pointer transition-transform duration-100 active:scale-90 touch-manipulation select-none"
+              className="w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md text-white flex items-center justify-center border border-white/20 shadow-md cursor-pointer transition-transform duration-100 active:scale-95 touch-manipulation select-none"
               aria-label="Back"
             >
-              <ArrowLeft size={20} />
+              <ChevronLeft size={20} className="stroke-[2.5]" />
             </button>
 
             <div className="flex items-center gap-2">

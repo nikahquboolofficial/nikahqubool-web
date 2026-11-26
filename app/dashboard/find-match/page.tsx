@@ -585,8 +585,22 @@ export default function FindMatchPage() {
           {/* Top Bar */}
           <div className="flex items-center gap-3">
             <button 
-              onClick={() => router.back()} 
-              className="w-9 h-9 rounded-full bg-white border border-slate-200/80 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-all shadow-xs"
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  const last = sessionStorage.getItem('last_browse_page');
+                  if (last && last !== '/dashboard/find-match') {
+                    router.push(last);
+                    return;
+                  }
+                  if (window.history.length > 1) {
+                    router.back();
+                    return;
+                  }
+                }
+                router.push('/dashboard');
+              }} 
+              className="w-9 h-9 rounded-full bg-white border border-slate-200/80 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-all shadow-xs shrink-0 cursor-pointer"
+              aria-label="Back"
             >
               <ChevronLeft size={20} className="stroke-[2.5]" />
             </button>

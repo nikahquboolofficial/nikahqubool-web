@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Phone, Mail, MessageSquare, HelpCircle, Send, CheckCircle2, Shield, Clock } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, Phone, Mail, MessageSquare, HelpCircle, Send, CheckCircle2, Shield, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 
@@ -34,23 +34,33 @@ export default function HelpAndSupportPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         
         {/* HEADER BAR */}
-        <div className="flex items-center gap-3 py-2 border-b border-rose-100">
+        <div className="flex items-center gap-2.5 py-2 border-b border-slate-100">
           <button 
             type="button" 
-            onClick={() => router.back()} 
-            className="flex p-2 hover:bg-rose-50 text-[#d91b5c] rounded-full transition-colors cursor-pointer"
+            onClick={() => {
+              if (typeof window !== "undefined") {
+                const last = sessionStorage.getItem('last_browse_page');
+                if (last && last !== '/dashboard/support') {
+                  router.push(last);
+                  return;
+                }
+                if (window.history.length > 1) {
+                  router.back();
+                  return;
+                }
+              }
+              router.push('/dashboard/my-profile');
+            }} 
+            className="w-9 h-9 rounded-full bg-white border border-slate-200/80 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-all shadow-xs shrink-0 cursor-pointer"
             aria-label="Back"
             title="Go Back"
           >
-            <ArrowLeft size={22} className="stroke-[2.5]" />
+            <ChevronLeft size={20} className="stroke-[2.5]" />
           </button>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-serif font-extrabold tracking-tight text-slate-900">
-              Help & Customer Support
+          <div className="min-w-0">
+            <h1 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 truncate">
+              Help & Support
             </h1>
-            <p className="text-xs font-semibold text-slate-500">
-              Reach our matrimonial advisory team anytime
-            </p>
           </div>
         </div>
 
