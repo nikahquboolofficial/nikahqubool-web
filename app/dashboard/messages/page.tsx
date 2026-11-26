@@ -25,26 +25,41 @@ class ChatErrorBoundary extends Component<{ children: ReactNode; onReset?: () =>
     console.error("Chat Window Error caught by ChatErrorBoundary:", error, errorInfo);
   }
 
+  handleReset = () => {
+    if (typeof window !== "undefined") {
+      try {
+        const key = this.props.resetKey;
+        if (key) {
+          sessionStorage.removeItem(`cached_chat_history_${key}`);
+        }
+      } catch (e) {}
+    }
+    this.setState({ hasError: false, error: null });
+    if (this.props.onReset) this.props.onReset();
+  };
+
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col items-center justify-center h-full p-6 text-center space-y-4 bg-rose-50/40">
-          <div className="w-16 h-16 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 shadow-md">
-            <AlertTriangle size={30} />
+        <div className="flex flex-col items-center justify-center h-full p-6 text-center space-y-4 bg-white">
+          <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-[#E21E5B] shadow-sm border border-rose-100">
+            <AlertTriangle size={28} />
           </div>
           <div className="space-y-1">
             <h3 className="text-base font-bold text-slate-800">Chat Window Reconnected</h3>
             <p className="text-xs text-slate-500 max-w-xs">
               Chat session refreshed. Click below to continue uninterrupted.
             </p>
+            {this.state.error && (
+              <p className="text-[10px] text-rose-500 font-mono bg-rose-50/70 p-2 rounded-xl max-w-xs overflow-x-auto text-left mx-auto border border-rose-100">
+                {this.state.error.message || String(this.state.error)}
+              </p>
+            )}
           </div>
           <button
             type="button"
-            onClick={() => {
-              this.setState({ hasError: false, error: null });
-              if (this.props.onReset) this.props.onReset();
-            }}
-            className="px-5 py-2.5 rounded-full bg-[#d91b5c] hover:bg-[#b01348] text-white text-xs font-bold shadow-md flex items-center gap-2 cursor-pointer transition-all"
+            onClick={this.handleReset}
+            className="px-6 py-2.5 rounded-full bg-gradient-to-r from-[#E21E5B] to-[#C2185B] text-white text-xs font-bold shadow-md flex items-center gap-2 cursor-pointer transition active:scale-95"
           >
             <RefreshCw size={14} /> Open Chat
           </button>
@@ -57,6 +72,7 @@ class ChatErrorBoundary extends Component<{ children: ReactNode; onReset?: () =>
 
 function MessagesContainer() {
   const [selectedChat, setSelectedChat] = useState<any>(null);
+  const [chatNonce, setChatNonce] = useState(0);
 
   useEffect(() => {
     const savedTarget = sessionStorage.getItem('active_chat_target');
@@ -122,11 +138,14 @@ function MessagesContainer() {
       <div className={`flex-1 h-full min-w-0 bg-[#F8FAFC] flex flex-col ${!selectedChat ? 'hidden md:flex' : 'flex'}`}>
         {selectedChat ? (
           <ChatErrorBoundary 
-            resetKey={selectedChat.userId ?? selectedChat.UserId}
-            onReset={() => setSelectedChat({ ...selectedChat })}
+            resetKey={`${selectedChat.userId ?? selectedChat.UserId}-${chatNonce}`}
+            onReset={() => {
+              setChatNonce(prev => prev + 1);
+              setSelectedChat({ ...selectedChat });
+            }}
           >
             <ChatWindow 
-              key={`chat-win-${selectedChat.userId ?? selectedChat.UserId}`}
+              key={`chat-win-${selectedChat.userId ?? selectedChat.UserId}-${chatNonce}`}
               receiverId={selectedChat.userId ?? selectedChat.UserId} 
               userName={selectedChat.fullName ?? selectedChat.FullName} 
               photoUrl={selectedChat.photoUrl ?? selectedChat.PhotoUrl ?? selectedChat.mainPhotoUrl ?? selectedChat.MainPhotoUrl}

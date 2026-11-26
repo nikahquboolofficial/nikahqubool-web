@@ -92,8 +92,10 @@ export default function ChatWindow({
         if (cached) {
           const parsed = JSON.parse(cached);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            const initial = parsed.map((m: any) => ({
+            const initial = parsed.filter(m => m && typeof m === 'object').map((m: any, idx: number) => ({
               ...m,
+              text: typeof m.text === 'string' ? m.text : (typeof m.messageText === 'string' ? m.messageText : (typeof m.message === 'string' ? m.message : String(m.text || ''))),
+              uniqueKey: m.uniqueKey || (m.messageId ? `m-${m.messageId}` : `msg-cache-${idx}`),
               timestamp: parseChatUtcDate(m.timestamp)
             }));
             globalChatHistoryCache[String(receiverId)] = initial;
@@ -243,8 +245,10 @@ export default function ChatWindow({
         if (cached) {
           const parsed = JSON.parse(cached);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            const list = parsed.map((m: any) => ({
+            const list = parsed.filter(m => m && typeof m === 'object').map((m: any, idx: number) => ({
               ...m,
+              text: typeof m.text === 'string' ? m.text : (typeof m.messageText === 'string' ? m.messageText : (typeof m.message === 'string' ? m.message : String(m.text || ''))),
+              uniqueKey: m.uniqueKey || (m.messageId ? `m-${m.messageId}` : `msg-cache-${idx}`),
               timestamp: parseUtcDate(m.timestamp)
             }));
             globalChatHistoryCache[String(receiverId)] = list;
@@ -277,14 +281,17 @@ export default function ChatWindow({
       const rawData = await fetchHistoryWithRetry();
 
       if (isMounted && rawData.length > 0) {
-        const formatted = rawData.map((m: any, idx: number) => ({
-          uniqueKey: `hist-${m.messageId ?? m.MessageId ?? idx}`,
-          messageId: m.messageId ?? m.MessageId,
-          senderId: m.senderId ?? m.SenderId, 
-          text: m.messageText ?? m.MessageText ?? m.text ?? m.Text ?? m.message ?? m.Message ?? "", 
-          timestamp: parseUtcDate(m.sentAt ?? m.SentAt ?? Date.now()),
-          isRead: (m.isRead === 1 || m.isRead === true || m.IsRead === 1 || m.IsRead === true) ? 1 : 0
-        }));
+        const formatted = rawData.map((m: any, idx: number) => {
+          const rawText = m.messageText ?? m.MessageText ?? m.text ?? m.Text ?? m.message ?? m.Message ?? "";
+          return {
+            uniqueKey: `hist-${m.messageId ?? m.MessageId ?? idx}`,
+            messageId: m.messageId ?? m.MessageId,
+            senderId: m.senderId ?? m.SenderId, 
+            text: typeof rawText === 'string' ? rawText : (rawText != null ? String(rawText) : ""), 
+            timestamp: parseUtcDate(m.sentAt ?? m.SentAt ?? Date.now()),
+            isRead: (m.isRead === 1 || m.isRead === true || m.IsRead === 1 || m.IsRead === true) ? 1 : 0
+          };
+        });
 
         setMessages(prev => {
           // formatted is authoritative from server
@@ -374,7 +381,7 @@ export default function ChatWindow({
             uniqueKey: `sig-${newMsgId}-${Math.random().toString(36).substring(2, 7)}`,
             messageId: newMsgId,
             senderId: incomingSenderId, 
-            text: messageText, 
+            text: typeof messageText === 'string' ? messageText : (messageText != null ? String(messageText) : ''), 
             timestamp: sentAt ? parseUtcDate(sentAt) : new Date(), 
             isRead: 1 
           }];
@@ -439,35 +446,41 @@ export default function ChatWindow({
   };
 
   useEffect(() => { 
-    scrollToBottom("auto"); 
+    try {
+      scrollToBottom("auto"); 
+    } catch {}
   }, [receiverId]);
 
   // 🚀 Ultra-Smooth Auto Scroll when new message arrives or typing changes
   useEffect(() => {
-    if (!scrollRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-    if (scrollHeight - scrollTop - clientHeight < 300) {
-      scrollToBottom("smooth");
-    }
+    try {
+      if (!scrollRef.current) return;
+      const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+      if (scrollHeight - scrollTop - clientHeight < 300) {
+        scrollToBottom("smooth");
+      }
+    } catch {}
   }, [messages, isUserTyping]);
 
   // 📱 Mobile Viewport auto-scroll when soft keyboard opens
   useEffect(() => {
-    if (typeof window !== "undefined" && window.visualViewport) {
-      try {
-        const handleViewportResize = () => {
+    if (typeof window === "undefined" || !window.visualViewport) return;
+    try {
+      const handleViewportResize = () => {
+        try {
           scrollToBottom("smooth");
+        } catch {}
+      };
+      const vv = window.visualViewport;
+      if (vv && typeof vv.addEventListener === 'function') {
+        vv.addEventListener("resize", handleViewportResize);
+        return () => {
+          try {
+            vv.removeEventListener("resize", handleViewportResize);
+          } catch {}
         };
-        if (typeof window.visualViewport.addEventListener === 'function') {
-          window.visualViewport.addEventListener("resize", handleViewportResize);
-          return () => {
-            try {
-              window.visualViewport?.removeEventListener("resize", handleViewportResize);
-            } catch {}
-          };
-        }
-      } catch {}
-    }
+      }
+    } catch {}
   }, []);
 
   const handleScroll = () => {
@@ -660,17 +673,32 @@ export default function ChatWindow({
     const groups: { [dateStr: string]: any[] } = {};
     if (!Array.isArray(messages)) return groups;
 
-    messages.forEach(m => {
-      if (!m) return;
+    messages.forEach((m, idx) => {
+      if (!m || typeof m !== 'object') return;
       try {
         const dateObj = m.timestamp ? parseUtcDate(m.timestamp) : new Date();
         const dateKey = !isNaN(dateObj.getTime()) ? dateObj.toDateString() : new Date().toDateString();
         if (!groups[dateKey]) groups[dateKey] = [];
-        groups[dateKey].push(m);
+        const safeText = typeof m.text === 'string' 
+          ? m.text 
+          : (typeof m.messageText === 'string' 
+            ? m.messageText 
+            : (typeof m.message === 'string' 
+              ? m.message 
+              : (m.text != null ? String(m.text) : '')));
+        groups[dateKey].push({
+          ...m,
+          text: safeText,
+          uniqueKey: m.uniqueKey || (m.messageId ? `m-${m.messageId}` : `msg-${idx}-${dateKey}`)
+        });
       } catch {
         const fallbackKey = new Date().toDateString();
         if (!groups[fallbackKey]) groups[fallbackKey] = [];
-        groups[fallbackKey].push(m);
+        groups[fallbackKey].push({
+          ...m,
+          text: typeof m.text === 'string' ? m.text : '',
+          uniqueKey: m.uniqueKey || `fallback-${idx}`
+        });
       }
     });
     return groups;
@@ -711,7 +739,7 @@ export default function ChatWindow({
 
   const displayAvatar = (isDeletedUser || isDeactiveUser || isAdminBlockedUser) 
     ? DEFAULT_FEMALE_AVATAR 
-    : (resolvedPhoto ? getOptimizedImageUrl(resolvedPhoto) : `https://ui-avatars.com/api/?name=${encodeURIComponent(resolvedName || 'User')}&background=FFF0F3&color=870c3f&bold=true`);
+    : (resolvedPhoto ? getOptimizedImageUrl(resolvedPhoto) : `https://ui-avatars.com/api/?name=${encodeURIComponent(String(resolvedName || 'User'))}&background=FFF0F3&color=870c3f&bold=true`);
 
   const displayName = isDeletedUser 
     ? "Deleted User" 
@@ -719,7 +747,7 @@ export default function ChatWindow({
       ? "Deactivated User" 
       : (isAdminBlockedUser 
         ? "User Unavailable" 
-        : (resolvedName || 'Member')));
+        : (typeof resolvedName === 'string' && resolvedName ? resolvedName : 'Member')));
 
   const isUserTyping = Boolean(typingUsers && typeof typingUsers === 'object' && typingUsers[Number(receiverId)]);
 
@@ -751,7 +779,7 @@ export default function ChatWindow({
             className="w-9 h-9 rounded-full bg-white border border-slate-200/80 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-all shadow-xs cursor-pointer md:hidden shrink-0"
             aria-label="Back"
           >
-            <ChevronLeft size={20} className="stroke-[2.5]" />
+            <ChevronLeft size={20} strokeWidth={2.5} />
           </button>
 
           <div 
@@ -890,18 +918,21 @@ export default function ChatWindow({
               </span>
             </div>
 
-            {groupedMessages[dateKey].map((m) => {
-              const isMe = Number(m.senderId) !== Number(receiverId);
-              const isMessageRead = m.isRead === 1;
+            {groupedMessages[dateKey].map((m, mIdx) => {
+              if (!m) return null;
+              const isMe = String(m.senderId) === 'me' || (m.senderId && Number(m.senderId) !== Number(receiverId));
+              const isMessageRead = m.isRead === 1 || m.isRead === true;
+              const msgKey = m.uniqueKey || `msg-${dateKey}-${mIdx}`;
+              const textContent = typeof m.text === 'string' ? m.text : (m.text != null ? String(m.text) : '');
 
               return (
-                <div key={m.uniqueKey} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                <div key={msgKey} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[85%] md:max-w-[65%] p-3 px-4 text-xs sm:text-sm shadow-2xs relative transition-all ${
                     isMe 
                     ? 'bg-gradient-to-r from-[#E21E5B] to-[#C2185B] text-white rounded-2xl rounded-tr-xs shadow-[0_2px_8px_rgba(226,30,91,0.20)] border border-rose-400/20' 
                     : 'bg-white text-slate-900 rounded-2xl rounded-tl-xs border border-slate-200/90 shadow-2xs font-normal'
                   }`}>
-                    <p className="font-medium leading-relaxed tracking-normal break-words">{m.text}</p>
+                    <p className="font-medium leading-relaxed tracking-normal break-words">{textContent}</p>
                     
                     <div className="flex items-center gap-1.5 mt-1 justify-end text-[9px]">
                       <span className={`font-semibold tracking-wider ${isMe ? 'text-white/80' : 'text-slate-400'}`}>
@@ -912,9 +943,9 @@ export default function ChatWindow({
                       {isMe && (
                         <span>
                           {isMessageRead ? (
-                            <CheckCheck size={14} className="text-cyan-300 stroke-[3]" />
+                            <CheckCheck size={14} className="text-cyan-300" strokeWidth={2.5} />
                           ) : (
-                            <CheckCheck size={14} className="text-white/70 stroke-[2.5]" />
+                            <CheckCheck size={14} className="text-white/70" strokeWidth={2} />
                           )}
                         </span>
                       )}
@@ -931,11 +962,11 @@ export default function ChatWindow({
           <div className="flex items-end gap-2 justify-start animate-in fade-in slide-in-from-bottom-2 duration-200">
             <img
               src={displayAvatar}
-              alt={displayName}
+              alt={String(displayName)}
               className="w-6 h-6 rounded-full object-cover object-top border border-slate-200 shrink-0 mb-0.5"
             />
             <div className="bg-white border border-slate-200/90 rounded-2xl rounded-tl-xs px-3.5 py-2 shadow-2xs flex items-center gap-2">
-              <span className="text-[11px] font-bold text-slate-700">{displayName} is typing</span>
+              <span className="text-[11px] font-bold text-slate-700">{String(displayName)} is typing</span>
               <span className="flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#E21E5B] animate-bounce" style={{ animationDelay: '0ms' }} />
                 <span className="w-1.5 h-1.5 rounded-full bg-[#E21E5B] animate-bounce" style={{ animationDelay: '150ms' }} />
