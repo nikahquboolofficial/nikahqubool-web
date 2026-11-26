@@ -2,7 +2,7 @@
 
 import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
 import { getClientSubscriptionStatus } from '@/lib/subscriptionUtils';
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useRef,  useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Sparkles, Flame, RefreshCw, Crown, Lock, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
