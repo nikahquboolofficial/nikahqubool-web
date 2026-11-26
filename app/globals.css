@@ -2,12 +2,12 @@
 
 
 :root {
-  /* 🤍 Luxury Soft Ivory & Warm Cream Canvas */
-  --bg-page: #FAF8F5;
+  /* 🤍 Pure Clean White Canvas Across Entire Website */
+  --bg-page: #FFFFFF;
   --bg-card: #FFFFFF;
-  --bg-subtle: #FFF5F7;
-  --bg-cream: #FDFBF7;
-  --bg-showcase: #FDE8ED;
+  --bg-subtle: #FFFFFF;
+  --bg-cream: #FFFFFF;
+  --bg-showcase: #FFFFFF;
 
   /* 💖 Nikah Forever Signature Crimson Rose Accents */
   --color-primary: #E21E5B;       /* Deep Vibrant Rose */
@@ -39,8 +39,8 @@
 }
 
 body {
-  /* 🤍 Soft Luxury Ivory/Cream Background */
-  background: #FAF8F5;
+  /* 🤍 Pure White Canvas */
+  background: #FFFFFF;
   color: var(--text-main);
 }
 

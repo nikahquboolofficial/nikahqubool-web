@@ -354,8 +354,8 @@ export default function VIPCleanDashboardPage() {
         .no-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
 
-      {/* 🌟 NIKAH FILTER TABS ROW (STICKY UNDER HEADER) */}
-      <div className="sticky top-16 md:top-20 z-30 bg-white/95 backdrop-blur-md py-2.5 px-3 sm:px-6 lg:px-8 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+      {/* 🌟 NIKAH FILTER TABS ROW (100% FIXED UNDER FIXED HEADER) */}
+      <div className="fixed top-16 md:top-20 inset-x-0 z-40 bg-white py-2.5 px-3 sm:px-6 lg:px-8 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
         <div className="max-w-7xl mx-auto flex items-center justify-center gap-2 overflow-x-auto no-scrollbar">
           {tabs.map((t) => {
             const isActive = activeTab === t.id;
@@ -397,7 +397,7 @@ export default function VIPCleanDashboardPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 space-y-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-[120px] md:pt-[140px] space-y-4">
         {/* PROFILES GRID */}
         {loading ? (
           <div className="py-10 sm:py-16 flex items-center justify-center">

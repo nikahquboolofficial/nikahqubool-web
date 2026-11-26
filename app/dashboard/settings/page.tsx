@@ -423,10 +423,9 @@ function SettingsContent() {
     <div className="min-h-screen bg-white font-sans text-slate-900 pb-28 pt-3 sm:pt-5 selection:bg-[#d91b5c] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
-      <div className="max-w-xl mx-auto px-4 sm:px-6 space-y-4 pt-0">
-        
-        {/* 🏷️ TOP NAVIGATION BAR (STICKY) */}
-        <div className="sticky top-0 lg:top-20 z-30 bg-white/95 backdrop-blur-md flex items-center gap-2.5 py-2.5 -mx-4 sm:-mx-6 px-4 sm:px-6 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+      {/* 🏷️ TOP NAVIGATION BAR (100% FIXED AT TOP) */}
+      <div className="fixed top-0 lg:top-20 inset-x-0 z-40 bg-white py-2.5 px-4 sm:px-6 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+        <div className="max-w-xl mx-auto flex items-center gap-2.5">
           <button 
             type="button" 
             onClick={() => {
@@ -459,6 +458,9 @@ function SettingsContent() {
             </h1>
           </div>
         </div>
+      </div>
+
+      <div className="max-w-xl mx-auto px-4 sm:px-6 space-y-4 pt-16 lg:pt-28">
 
         {/* 📱 1. MAIN MENU SCREEN */}
         {activeTab === 'menu' && (

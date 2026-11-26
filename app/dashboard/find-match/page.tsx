@@ -581,33 +581,37 @@ export default function FindMatchPage() {
       {/* 🧭 VIEW 1: SEARCH PROFILES (SCREENSHOTS 1, 3, 4)                           */}
       {/* ========================================================================= */}
       {viewMode === 'form' && (
-        <div className="max-w-md mx-auto px-4 pt-0 pb-4 space-y-5">
-          {/* Top Bar (Sticky) */}
-          <div className="sticky top-0 lg:top-20 z-30 bg-white/95 backdrop-blur-md py-3 -mx-4 px-4 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex items-center gap-3">
-            <button 
-              onClick={() => {
-                if (typeof window !== "undefined") {
-                  const last = sessionStorage.getItem('last_browse_page');
-                  if (last && last !== '/dashboard/find-match') {
-                    router.push(last);
-                    return;
+        <>
+          {/* Top Bar (Fixed) */}
+          <div className="fixed top-0 lg:top-20 inset-x-0 z-40 bg-white py-3 px-4 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+            <div className="max-w-md mx-auto flex items-center gap-3">
+              <button 
+                onClick={() => {
+                  if (typeof window !== "undefined") {
+                    const last = sessionStorage.getItem('last_browse_page');
+                    if (last && last !== '/dashboard/find-match') {
+                      router.push(last);
+                      return;
+                    }
+                    if (window.history.length > 1) {
+                      router.back();
+                      return;
+                    }
                   }
-                  if (window.history.length > 1) {
-                    router.back();
-                    return;
-                  }
-                }
-                router.push('/dashboard');
-              }} 
-              className="w-9 h-9 rounded-full bg-white border border-slate-200/80 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-all shadow-xs shrink-0 cursor-pointer"
-              aria-label="Back"
-            >
-              <ChevronLeft size={20} className="stroke-[2.5]" />
-            </button>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">
-              Search Profiles
-            </h1>
+                  router.push('/dashboard');
+                }} 
+                className="w-9 h-9 rounded-full bg-white border border-slate-200/80 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-all shadow-xs shrink-0 cursor-pointer"
+                aria-label="Back"
+              >
+                <ChevronLeft size={20} className="stroke-[2.5]" />
+              </button>
+              <h1 className="text-xl font-bold tracking-tight text-slate-900">
+                Search Profiles
+              </h1>
+            </div>
           </div>
+
+          <div className="max-w-md mx-auto px-4 pt-16 lg:pt-28 pb-32 space-y-5">
 
           {/* 🌟 SECTION 1: BASIC DETAILS */}
           <div className="space-y-3">
@@ -926,46 +930,51 @@ export default function FindMatchPage() {
             </div>
           </div>
 
-          {/* 🔍 SEARCH PROFILES BOTTOM CTA BUTTON */}
-          <div className="pt-4 sticky bottom-16 z-20">
-            <button
-              onClick={handleExecuteSearch}
-              className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#E21E5B] via-[#E91E63] to-[#C2185B] text-white font-bold text-sm shadow-md hover:shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Search size={18} className="stroke-[2.5]" />
-              <span>Search Profiles</span>
-            </button>
           </div>
-        </div>
+
+          {/* 🔍 SEARCH PROFILES BOTTOM CTA BUTTON (100% FIXED AT BOTTOM) */}
+          <div className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 pt-3 pb-[max(env(safe-area-inset-bottom,0px),16px)] shadow-[0_-4px_25px_rgba(0,0,0,0.08)]">
+            <div className="max-w-md mx-auto">
+              <button
+                onClick={handleExecuteSearch}
+                className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#E21E5B] via-[#E91E63] to-[#C2185B] text-white font-bold text-sm shadow-md hover:shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Search size={18} className="stroke-[2.5]" />
+                <span>Search Profiles</span>
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       {/* ========================================================================= */}
       {/* 📸 VIEW 2: SEARCH RESULTS (SCREENSHOT 5)                                  */}
       {/* ========================================================================= */}
       {viewMode === 'results' && (
-        <div className="max-w-md mx-auto px-4 pt-0 pb-4 space-y-4">
-          {/* 🌟 STICKY RESULTS TOP BAR & QUICK-FILTERS (FIXED WHILE SCROLLING) */}
-          <div className="sticky top-0 lg:top-20 z-30 bg-white/95 backdrop-blur-md pt-2.5 pb-2 -mx-4 px-4 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-2">
-            {/* Results Top Header */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <button 
-                  onClick={() => setViewMode('form')} 
-                  className="w-9 h-9 rounded-full bg-white border border-slate-200/80 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-all shadow-xs shrink-0 cursor-pointer"
-                >
-                  <ChevronLeft size={20} className="stroke-[2.5]" />
-                </button>
-                <h1 className="text-lg font-bold tracking-tight text-slate-900">
-                  Search Results
-                </h1>
+        <>
+          {/* 🌟 100% FIXED RESULTS TOP BAR & QUICK-FILTERS */}
+          <div className="fixed top-0 lg:top-20 inset-x-0 z-40 bg-white pt-2.5 pb-2 px-4 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+            <div className="max-w-md mx-auto space-y-2">
+              {/* Results Top Header */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <button 
+                    onClick={() => setViewMode('form')} 
+                    className="w-9 h-9 rounded-full bg-white border border-slate-200/80 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-all shadow-xs shrink-0 cursor-pointer"
+                  >
+                    <ChevronLeft size={20} className="stroke-[2.5]" />
+                  </button>
+                  <h1 className="text-lg font-bold tracking-tight text-slate-900">
+                    Search Results
+                  </h1>
+                </div>
+                <span className="text-xs font-semibold text-slate-500">
+                  {profiles.length} found
+                </span>
               </div>
-              <span className="text-xs font-semibold text-slate-500">
-                {profiles.length} found
-              </span>
-            </div>
 
-            {/* ⚡ HORIZONTAL QUICK-FILTER CHIPS BAR */}
-            <div className="flex items-center gap-2 overflow-x-auto scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden py-0.5">
+              {/* ⚡ HORIZONTAL QUICK-FILTER CHIPS BAR */}
+              <div className="flex items-center gap-2 overflow-x-auto scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden py-0.5">
             {/* 1. All Filters Drawer Button */}
             <button
               onClick={() => setShowFiltersModal(true)}
@@ -1024,8 +1033,10 @@ export default function FindMatchPage() {
             </button>
           </div>
         </div>
+      </div>
 
-          {/* 🌟 PROFILES CARD FEED (SCREENSHOT 5) */}
+      <div className="max-w-md mx-auto px-4 pt-24 lg:pt-36 pb-28 space-y-4">
+        {/* 🌟 PROFILES CARD FEED (SCREENSHOT 5) */}
           {loading ? (
             <div className="space-y-4 pt-2">
               {[1, 2].map((i) => (
@@ -1176,6 +1187,7 @@ export default function FindMatchPage() {
             </div>
           )}
         </div>
+      </>
       )}
 
       {/* ========================================================================= */}

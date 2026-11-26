@@ -307,8 +307,8 @@ export default function MyProfilePage() {
     <div className="min-h-screen bg-white font-sans text-slate-900 pb-28 pt-0 selection:bg-[#E21E5B] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
-      {/* 🏷️ TOP BAR (STICKY HEADER) */}
-      <div className="sticky top-0 lg:top-20 z-30 bg-white/95 backdrop-blur-md py-3 px-4 sm:px-6 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+      {/* 🏷️ TOP BAR (100% FIXED HEADER) */}
+      <div className="fixed top-0 lg:top-20 inset-x-0 z-40 bg-white py-3 px-4 sm:px-6 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
         <div className="max-w-xl mx-auto flex items-center justify-between">
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
             My Profile Hub
@@ -326,7 +326,7 @@ export default function MyProfilePage() {
         </div>
       </div>
 
-      <div className="max-w-xl mx-auto px-4 sm:px-6 pt-4 space-y-4 sm:space-y-5">
+      <div className="max-w-xl mx-auto px-4 sm:px-6 pt-16 lg:pt-28 space-y-4 sm:space-y-5">
         
         {/* 🎴 1. BESPOKE VIP IDENTITY HERO CARD (MODERN BENTO STYLE) */}
         <div className="bg-gradient-to-br from-white via-white to-slate-50/60 rounded-3xl p-5 sm:p-6 shadow-[0_4px_25px_rgba(0,0,0,0.03)] border border-slate-200/90 space-y-4 relative overflow-hidden">

@@ -31,10 +31,9 @@ export default function HelpAndSupportPage() {
     <div className="min-h-screen bg-white font-sans text-slate-900 pb-28 pt-4 selection:bg-[#d91b5c] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 pt-0">
-        
-        {/* HEADER BAR (STICKY) */}
-        <div className="sticky top-0 lg:top-20 z-30 bg-white/95 backdrop-blur-md flex items-center gap-2.5 py-2.5 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+      {/* HEADER BAR (100% FIXED AT TOP) */}
+      <div className="fixed top-0 lg:top-20 inset-x-0 z-40 bg-white py-2.5 px-4 sm:px-6 lg:px-8 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+        <div className="max-w-4xl mx-auto flex items-center gap-2.5">
           <button 
             type="button" 
             onClick={() => {
@@ -63,6 +62,9 @@ export default function HelpAndSupportPage() {
             </h1>
           </div>
         </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 pt-16 lg:pt-28">
 
         {/* 📞 DIRECT CONTACT CARDS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

@@ -1964,8 +1964,8 @@ export default function EditMyProfilePage() {
     <div className="min-h-screen bg-white text-slate-900 pb-28 font-sans selection:bg-[#d91b5c] selection:text-white">
       <Toaster position="top-center" richColors />
 
-      {/* 🌟 1. ELEVATED FLOATING APP BAR */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 px-4 py-3 shadow-xs">
+      {/* 🌟 1. 100% FIXED APP BAR AT TOP */}
+      <header className="fixed top-0 inset-x-0 z-40 bg-white border-b border-slate-100 px-4 py-3 shadow-2xs">
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5 min-w-0">
             <button 
@@ -2006,7 +2006,7 @@ export default function EditMyProfilePage() {
       </header>
 
       {/* 🌟 MAIN CONTAINER */}
-      <main className="max-w-lg mx-auto px-4 pt-3 space-y-4">
+      <main className="max-w-lg mx-auto px-4 pt-16 pb-28 space-y-4">
 
         {/* 🌟 100% COMPLETE PROFILE BADGE PROMPT (Matching Screenshot 6) */}
         <div className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-white border border-amber-200/60 shadow-xs">

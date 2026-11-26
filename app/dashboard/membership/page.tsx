@@ -321,10 +321,9 @@ export default function MembershipPage() {
         )}
       </AnimatePresence>
 
-      <div className="max-w-2xl mx-auto px-4 pt-0 pb-36 sm:pb-32 space-y-4">
-        
-        {/* HEADER: < Explore Plans ... Need Help? (STICKY) */}
-        <div className="sticky top-0 lg:top-20 z-30 bg-white/95 backdrop-blur-md flex items-center justify-between gap-2 py-2.5 -mx-4 px-4 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+      {/* HEADER: < Explore Plans ... Need Help? (100% FIXED AT TOP) */}
+      <div className="fixed top-0 lg:top-20 inset-x-0 z-40 bg-white py-2.5 px-4 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+        <div className="max-w-2xl mx-auto flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
             <button 
               type="button" 
@@ -359,6 +358,9 @@ export default function MembershipPage() {
             <HelpCircle size={15} className="text-slate-500" />
           </button>
         </div>
+      </div>
+
+      <div className="max-w-2xl mx-auto px-4 pt-16 lg:pt-28 pb-36 sm:pb-32 space-y-4">
 
         {/* ACTIVE SUBSCRIPTION BADGE (IF ANY) */}
         {activeSub && (

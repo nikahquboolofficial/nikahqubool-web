@@ -296,9 +296,9 @@ function ActivityContent() {
     <div className="min-h-screen bg-white font-sans text-slate-900 pb-24 selection:bg-[#E21E5B] selection:text-white">
       <Toaster position="top-center" richColors />
 
-      <div className="max-w-md mx-auto px-4 pt-0 pb-4 space-y-3">
-        {/* 🌟 1 & 2. STICKY TABS HEADER (FIXED WHILE SCROLLING) */}
-        <div className="sticky top-0 lg:top-20 z-30 bg-white/95 backdrop-blur-md pt-2 pb-2.5 -mx-4 px-4 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-2">
+      {/* 🌟 1 & 2. 100% FIXED TABS HEADER (STAYS STATIONARY WHILE SCROLLING) */}
+      <div className="fixed top-0 lg:top-20 inset-x-0 z-40 bg-white pt-2 pb-2.5 px-4 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+        <div className="max-w-md mx-auto space-y-2">
           {/* MAIN TAB BAR */}
           <div className="flex items-center gap-6 overflow-x-auto border-b border-slate-100 pb-1 pt-0.5 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {[
@@ -360,6 +360,9 @@ function ActivityContent() {
             </div>
           )}
         </div>
+      </div>
+
+      <div className="max-w-md mx-auto px-4 pt-[96px] lg:pt-[176px] pb-28 space-y-3">
 
         {/* 🌟 3. TOP INTERESTS MINI-CAROUSEL (SCREENSHOT 2) */}
         {activeMainTab === 'interests' && activeSubTab === 'requests' && profiles.length > 0 && (
