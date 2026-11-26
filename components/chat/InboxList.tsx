@@ -2,7 +2,7 @@
 
 import { ProfileStatusIcons } from '@/components/common/ProfileBadges';
 import { useEffect, useState, useRef } from 'react';
-import { Search, MessageSquare, UserX } from 'lucide-react';
+import { Search, MessageSquare, UserX, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useSignalR } from '@/context/SignalRContext';
 import { fetchChatInboxApi, markChatReadApi, blockUserApiCall } from '@/lib/api';
@@ -42,10 +42,18 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
   const selectedIdRef = useRef(selectedId); 
   const isFetchingInboxRef = useRef(false);
 
+  // 📜 Keyset/Paged Loading for Inbox (20 conversations per batch)
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [fetchingMore, setFetchingMore] = useState(false);
+  const pageRef = useRef(1);
+  const hasMoreRef = useRef(true);
+  const isFetchingMoreRef = useRef(false);
+
   useEffect(() => {
     // When user closes active chat (onBack) or selectedId becomes null/undefined, refresh inbox
     if (!selectedId && selectedIdRef.current) {
-      fetchInbox();
+      fetchInbox(1, false);
     }
     selectedIdRef.current = selectedId;
   }, [selectedId]);
@@ -101,36 +109,75 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
     return messageDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
-  const fetchInbox = async () => {
+  const fetchInbox = async (pageNum: number = 1, append: boolean = false) => {
     const token = getToken();
     if (!token) {
       setLoading(false);
       return;
     }
-    // Concurrency guard: avoid duplicate simultaneous calls racing and causing empty states
-    if (isFetchingInboxRef.current) return;
-    isFetchingInboxRef.current = true;
+
+    if (append) {
+      if (isFetchingMoreRef.current || !hasMoreRef.current) return;
+      isFetchingMoreRef.current = true;
+      setFetchingMore(true);
+    } else {
+      if (isFetchingInboxRef.current) return;
+      isFetchingInboxRef.current = true;
+    }
 
     try {
-      const res = await fetchChatInboxApi(1, 50, token);
+      // 📜 Paging 20 conversations per batch
+      const res = await fetchChatInboxApi(pageNum, 20, token);
       if (res && res.success) {
         const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.data?.data) ? res.data.data : []);
-        memoryInboxCache = list;
-        setChats(list);
-        if (typeof window !== "undefined") {
-          try { sessionStorage.setItem("cached_chat_inbox", JSON.stringify(list)); } catch (e) {}
+        
+        if (list.length < 20) {
+          hasMoreRef.current = false;
+          setHasMore(false);
+        } else {
+          hasMoreRef.current = true;
+          setHasMore(true);
+        }
+
+        setChats((prev) => {
+          let updated: any[];
+          if (append) {
+            const existingIds = new Set(prev.map(c => Number(c.userId ?? c.UserId)));
+            const newAdditions = list.filter((c: any) => !existingIds.has(Number(c.userId ?? c.UserId)));
+            updated = [...prev, ...newAdditions];
+          } else {
+            updated = list;
+          }
+          memoryInboxCache = updated;
+          if (typeof window !== "undefined") {
+            try { sessionStorage.setItem("cached_chat_inbox", JSON.stringify(updated)); } catch (e) {}
+          }
+          return updated;
+        });
+
+        if (append) {
+          pageRef.current = pageNum;
+          setPage(pageNum);
+        } else {
+          pageRef.current = 1;
+          setPage(1);
         }
       }
     } catch {
       // keep existing if any - never wipe out conversations
     } finally {
-      isFetchingInboxRef.current = false;
-      setLoading(false);
+      if (append) {
+        isFetchingMoreRef.current = false;
+        setFetchingMore(false);
+      } else {
+        isFetchingInboxRef.current = false;
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => { 
-    fetchInbox();
+    fetchInbox(1, false);
   }, []);
 
   // 🔔 REAL-TIME MESSAGE RECEPTION (DIRECT SINGLE GLOBAL EVENT BUS WITH DEDUPLICATION)
@@ -349,6 +396,15 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
   const safeChatList = Array.isArray(chats) ? chats : [];
   const filteredChats = safeChatList.filter(c => (c.fullName ?? c.FullName ?? "").toLowerCase().includes(searchTerm.toLowerCase()));
 
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollTop + clientHeight >= scrollHeight - 80) {
+      if (hasMoreRef.current && !isFetchingMoreRef.current && !isFetchingInboxRef.current) {
+        fetchInbox(pageRef.current + 1, true);
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-white border-r border-slate-100 selection:bg-[#E21E5B] selection:text-white">
       <div className="p-4 border-b border-slate-100 bg-white/95 backdrop-blur-xl">
@@ -376,7 +432,7 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto p-2.5 space-y-1.5 bg-white pb-24 md:pb-4">
+      <div onScroll={handleScroll} className="flex-1 min-h-0 overflow-y-auto p-2.5 space-y-1.5 bg-white pb-24 md:pb-4 overscroll-contain">
         {loading && safeChatList.length === 0 ? (
           <div className="space-y-2 p-1">
             {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -517,6 +573,13 @@ export default function InboxList({ onSelectUser, selectedId }: any) {
               </div>
             );
           })
+        )}
+
+        {fetchingMore && (
+          <div className="py-3 flex items-center justify-center gap-2 text-xs font-semibold text-slate-500 animate-in fade-in">
+            <Loader2 size={16} className="animate-spin text-[#E21E5B]" />
+            <span>Loading more conversations...</span>
+          </div>
         )}
       </div>
     </div>

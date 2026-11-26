@@ -123,7 +123,7 @@ export default function ActivityTabContent({
           setProfiles(list);
         }
 
-        setHasMore(list.length >= 12);
+        setHasMore(list.length >= 20);
       } else {
         toast.error(res.message || "Failed to load activity profiles.");
       }
@@ -140,12 +140,22 @@ export default function ActivityTabContent({
     loadData(1, false);
   }, [loadData]);
 
-  const handleLoadMore = () => {
-    if (!hasMore || fetchingMore) return;
-    const nextPage = page + 1;
-    setPage(nextPage);
-    loadData(nextPage, true);
-  };
+  // 🚀 AUTOMATIC INFINITE SCROLL (20 PER BATCH, SMOOTH SCROLL)
+  useEffect(() => {
+    const handleScroll = () => {
+      if (loading || fetchingMore || !hasMore) return;
+      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 400) {
+        setPage(prev => {
+          const nextPage = prev + 1;
+          loadData(nextPage, true);
+          return nextPage;
+        });
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [loading, fetchingMore, hasMore, loadData]);
 
   const triggerFlyingHearts = () => {
     const newHearts: FlyingHeart[] = Array.from({ length: 7 }).map((_, i) => ({

@@ -4,7 +4,19 @@ export interface DailyLimitState {
   count: number;
 }
 
-export const DAILY_FREE_PROFILE_LIMIT = 15;
+export const DAILY_FREE_PROFILE_LIMIT = 20;
+
+// 🕒 Standard Indian Matrimonial (Asia/Kolkata) Midnight 24h Reset
+// Synchronized seamlessly across all devices, mobile apps, and browsers!
+export function getRemainingTimeUntilMidnight(): number {
+  const now = new Date();
+  const kolkataTimeStr = now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+  const kolkataNow = new Date(kolkataTimeStr);
+  const nextMidnight = new Date(kolkataNow);
+  nextMidnight.setHours(24, 0, 0, 0);
+  const diff = nextMidnight.getTime() - kolkataNow.getTime();
+  return Math.max(0, diff);
+}
 
 export function checkDailyViewLimit(
   newLoadedCount: number, 
@@ -15,53 +27,40 @@ export function checkDailyViewLimit(
     return { isLimitReached: false, remainingMs: 0, count: 0 };
   }
 
+  const remainingMs = getRemainingTimeUntilMidnight();
+
   try {
-    const now = Date.now();
     const storageKey = `daily_profile_views_tracker_${tab}`;
+    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
     const stored = localStorage.getItem(storageKey);
 
-    let record = { timestamp: now, count: 0 };
+    let record = { date: todayStr, count: 0 };
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        if (now - parsed.timestamp < 86400000) {
+        if (parsed.date === todayStr) {
           record = parsed;
         }
       } catch (e) {}
     }
 
     const totalCount = Math.max(record.count, newLoadedCount);
-    const timeElapsed = now - record.timestamp;
-
-    if (timeElapsed >= 86400000) {
-      // 24 hours passed, reset window
-      record = { timestamp: now, count: newLoadedCount };
-      localStorage.setItem(storageKey, JSON.stringify(record));
-      return { isLimitReached: false, remainingMs: 0, count: newLoadedCount };
-    }
-
-    localStorage.setItem(storageKey, JSON.stringify({ timestamp: record.timestamp, count: totalCount }));
+    localStorage.setItem(storageKey, JSON.stringify({ date: todayStr, count: totalCount }));
 
     if (totalCount >= DAILY_FREE_PROFILE_LIMIT) {
-      const remainingMs = Math.max(0, 86400000 - timeElapsed);
       return { isLimitReached: true, remainingMs, count: totalCount };
     }
   } catch (e) {}
 
-  return { isLimitReached: false, remainingMs: 0, count: newLoadedCount };
+  if (newLoadedCount >= DAILY_FREE_PROFILE_LIMIT) {
+    return { isLimitReached: true, remainingMs, count: newLoadedCount };
+  }
+
+  return { isLimitReached: false, remainingMs, count: newLoadedCount };
 }
 
 export function getRemainingTimeForTab(tab: string = 'best-matches'): number {
-  try {
-    const storageKey = `daily_profile_views_tracker_${tab}`;
-    const stored = localStorage.getItem(storageKey);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      const remaining = 86400000 - (Date.now() - parsed.timestamp);
-      return Math.max(0, remaining);
-    }
-  } catch (e) {}
-  return 86400000;
+  return getRemainingTimeUntilMidnight();
 }
 
 export function formatTimeRemaining(ms: number): string {

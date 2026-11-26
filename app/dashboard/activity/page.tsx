@@ -233,7 +233,7 @@ function ActivityContent() {
           };
         }
 
-        setHasMore(rawList.length >= 10);
+        setHasMore(rawList.length >= 20);
       }
     } catch (err) {
       console.error("Error loading activity:", err);
@@ -242,6 +242,23 @@ function ActivityContent() {
       setFetchingMore(false);
     }
   }, [getToken]);
+
+  // 🚀 AUTOMATIC INFINITE SCROLL (20 PER BATCH, SMOOTH SCROLL)
+  useEffect(() => {
+    const handleScroll = () => {
+      if (loading || fetchingMore || !hasMore) return;
+      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 400) {
+        setPage(prev => {
+          const nextPage = prev + 1;
+          loadData(activeSubTab, nextPage, true);
+          return nextPage;
+        });
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [loading, fetchingMore, hasMore, activeSubTab, loadData]);
 
   // Global Cross-Tab Sync for Instant Shortlist & Activity Updates
   useEffect(() => {
@@ -766,6 +783,14 @@ function ActivityContent() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* 🔄 INFINITE SCROLL LOADER (20 PROFILES PER BATCH) */}
+        {fetchingMore && (
+          <div className="py-6 flex items-center justify-center gap-2 text-xs font-semibold text-slate-500 animate-in fade-in">
+            <Loader2 size={20} className="animate-spin text-[#E21E5B]" />
+            <span>Loading more activities...</span>
           </div>
         )}
       </div>

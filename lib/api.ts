@@ -411,7 +411,7 @@ export const fetchDashboardApi = async (activeTab: string, pageNumber: number, t
   if (!token) return { success: false, isUnauthorized: true, message: "Unauthorized token" };
 
   try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/Dashboard/get-dashboard?activeTab=${activeTab}&pageNumber=${pageNumber}&pageSize=12`, {
+    const res = await fetchWithTimeout(`${API_BASE_URL}/Dashboard/get-dashboard?activeTab=${activeTab}&pageNumber=${pageNumber}&pageSize=20`, {
       method: "GET",
       headers: {
         "Authorization": `Bearer ${token}`,

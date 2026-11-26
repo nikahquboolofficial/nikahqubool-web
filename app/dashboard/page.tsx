@@ -8,7 +8,7 @@ import { Loader2, Sparkles, Flame, RefreshCw, Crown, Lock, ArrowRight } from 'lu
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import { fetchDashboardApi, handleInteractionApiCall, fetchActiveSubscriptionApi, handleSilentSessionExpiry } from '@/lib/api';
-import { checkDailyViewLimit, formatTimeRemaining, DAILY_FREE_PROFILE_LIMIT } from '@/lib/limitUtils';
+import { checkDailyViewLimit, formatTimeRemaining, DAILY_FREE_PROFILE_LIMIT, getRemainingTimeUntilMidnight } from '@/lib/limitUtils';
 import { getAuthToken } from '@/lib/auth';
 import ProfileCard from '@/components/dashboard/ProfileCard';
 import ProfileCardSkeleton from '@/components/dashboard/ProfileCardSkeleton';
@@ -34,15 +34,8 @@ function LiveCountdownDisplay({ tab = 'best-matches' }: { tab?: string }) {
 
   useEffect(() => {
     const updateTimer = () => {
-      const storageKey = `daily_profile_views_tracker_${tab}`;
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          const remaining = Math.max(0, 86400000 - (Date.now() - parsed.timestamp));
-          setTimeText(formatTimeRemaining(remaining));
-        } catch (e) {}
-      }
+      const remaining = getRemainingTimeUntilMidnight();
+      setTimeText(formatTimeRemaining(remaining));
     };
     updateTimer();
     const interval = setInterval(updateTimer, 1000);
@@ -178,7 +171,7 @@ export default function VIPCleanDashboardPage() {
         setProfiles(updatedList);
       }
 
-      const nextHasMore = list.length >= 12 && (!limitState.isLimitReached || userPaid);
+      const nextHasMore = list.length >= 20 && (!limitState.isLimitReached || userPaid);
       setHasMore(nextHasMore);
 
       // Save to client-side tab cache and persistent sessionStorage
@@ -482,41 +475,42 @@ export default function VIPCleanDashboardPage() {
               })}
             </div>
 
-            {/* 🔒 24-HOUR DAILY 15 PROFILES VIEW LIMIT CARD (FOR FREE UNPAID USERS) */}
-            {dailyLimitReached && !isCurrentUserPaid && (
+            {/* 🔒 24-HOUR DAILY 20 PROFILES VIEW LIMIT CARD (CHAMPAGNE GOLD & GLOSSY PURE WHITE VIP THEME) */}
+            {(!isCurrentUserPaid && (dailyLimitReached || profiles.length >= DAILY_FREE_PROFILE_LIMIT)) && (
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-gradient-to-br from-[#1b0811] via-[#2c0b1a] to-[#120309] text-white rounded-3xl p-6 sm:p-8 border-2 border-amber-400/50 shadow-2xl text-center max-w-xl mx-auto space-y-4 relative overflow-hidden my-4"
+                className="bg-gradient-to-b from-white via-[#FFFDF5] to-white text-slate-900 rounded-3xl p-6 sm:p-9 border-2 border-amber-300 shadow-[0_12px_45px_rgba(217,119,6,0.12)] text-center max-w-xl mx-auto space-y-5 relative overflow-hidden my-6 backdrop-blur-md"
               >
-                {/* Glowing Background Accent */}
-                <div className="absolute -top-12 -right-12 w-36 h-36 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-                <div className="absolute -bottom-12 -left-12 w-36 h-36 bg-[#d91b5c]/20 rounded-full blur-3xl pointer-events-none" />
+                {/* Glowing Glossy Gold Background Accents */}
+                <div className="absolute -top-16 -right-16 w-44 h-44 bg-amber-400/20 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute -bottom-16 -left-16 w-44 h-44 bg-[#E21E5B]/10 rounded-full blur-3xl pointer-events-none" />
 
                 <div className="relative">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-400/20 to-amber-600/30 text-amber-300 border-2 border-amber-400/60 flex items-center justify-center mx-auto shadow-lg shadow-amber-950/40">
-                    <Lock size={30} className="text-amber-300" />
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 via-amber-300 to-yellow-500 text-slate-950 border-2 border-white flex items-center justify-center mx-auto shadow-lg shadow-amber-400/30">
+                    <Lock size={28} className="text-slate-950 stroke-[2.5]" />
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <span className="inline-block bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 text-[10px] font-black uppercase px-3.5 py-1 rounded-full tracking-widest shadow-sm">
-                    👑 VIP Daily Limit Reached
+                <div className="space-y-2">
+                  <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-900 border border-amber-300/80 text-[11px] font-black uppercase px-4 py-1.5 rounded-full tracking-wider shadow-xs">
+                    <Crown size={13} className="text-amber-600 fill-amber-600" />
+                    <span>VIP Daily Limit Reached</span>
                   </span>
-                  <h3 className="text-xl sm:text-2xl font-serif font-extrabold uppercase mt-2 text-white tracking-wide">
-                    {activeTab === 'online' ? '15 / 15 Online Members Viewed Today' : '15 / 15 Free Profiles Viewed Today'}
+                  <h3 className="text-2xl sm:text-3xl font-serif font-black text-slate-900 tracking-tight mt-1">
+                    {activeTab === 'online' ? '20 / 20 Online Members Viewed Today' : '20 / 20 Free Profiles Viewed Today'}
                   </h3>
-                  <p className="text-rose-100/80 text-xs sm:text-sm font-medium max-w-md mx-auto leading-relaxed">
-                    Aapne aaj ke 15 muft rishte dekh liye hain. Naye rishte unlock hone me baaki hain, ya abhi VIP ban kar <span className="text-amber-300 font-bold">Unlimited Profiles</span> unlock karein!
+                  <p className="text-slate-600 text-xs sm:text-sm font-medium max-w-md mx-auto leading-relaxed">
+                    Aapne aaj ke 20 muft rishte dekh liye hain. Naye rishte kal 12:00 AM unlock honge, ya abhi VIP ban kar <span className="text-[#E21E5B] font-bold">Unlimited Profiles</span> unlock karein!
                   </p>
                 </div>
                 
-                {/* 🕒 LIVE TICKING COUNTDOWN TIMER */}
-                <div className="bg-slate-950/80 p-3.5 rounded-2xl border border-amber-400/40 max-w-xs mx-auto text-center space-y-1.5 shadow-inner">
-                  <span className="text-[10px] uppercase font-black tracking-widest text-amber-300/90 block">
+                {/* 🕒 LIVE TICKING COUNTDOWN TIMER BOX (GLOSSY GOLD DIGITAL) */}
+                <div className="bg-gradient-to-br from-amber-500/10 via-yellow-500/15 to-amber-500/5 p-4 rounded-2xl border-2 border-amber-300/70 max-w-xs mx-auto text-center space-y-1.5 shadow-sm backdrop-blur-xs">
+                  <span className="text-[10px] uppercase font-black tracking-widest text-amber-800 block">
                     Daily Limit Resetting In
                   </span>
-                  <div className="flex items-center justify-center gap-2 text-amber-300 font-mono font-bold text-xl sm:text-2xl tracking-wider">
+                  <div className="flex items-center justify-center gap-2 text-amber-700 font-mono font-black text-2xl sm:text-3xl tracking-widest">
                     <LiveCountdownDisplay tab={activeTab} />
                   </div>
                 </div>
@@ -525,10 +519,10 @@ export default function VIPCleanDashboardPage() {
                   <button 
                     type="button"
                     onClick={() => setShowSubscriptionModal(true)}
-                    className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 mx-auto cursor-pointer border border-amber-200"
+                    className="w-full sm:w-auto px-9 py-4 rounded-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-500 hover:to-yellow-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-xl shadow-amber-500/25 hover:shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-2 mx-auto cursor-pointer border border-amber-200"
                   >
                     <Crown size={18} className="fill-slate-950" />
-                    <span>Upgrade to VIP Premium</span>
+                    <span>Upgrade to VIP & Unlock All</span>
                     <ArrowRight size={16} />
                   </button>
                 </div>

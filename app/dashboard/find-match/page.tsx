@@ -450,7 +450,7 @@ export default function FindMatchPage() {
         return [...prev, ...newAdditions];
       });
 
-      setHasMore(list.length >= 10);
+      setHasMore(list.length >= 20);
     } catch (err) {
       console.error("Error searching matches:", err);
     } finally {
@@ -458,6 +458,24 @@ export default function FindMatchPage() {
       setFetchingMore(false);
     }
   }, [getToken, filters, isUserPaid]);
+
+  // 🚀 AUTOMATIC INFINITE SCROLL (20 PROFILES PER PAGE, SMOOTH SCROLL)
+  useEffect(() => {
+    if (viewMode !== 'results') return;
+    const handleScroll = () => {
+      if (loading || fetchingMore || !hasMore) return;
+      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 400) {
+        setPage(prev => {
+          const nextPage = prev + 1;
+          loadMatches(nextPage, true);
+          return nextPage;
+        });
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [viewMode, loading, fetchingMore, hasMore, loadMatches]);
 
   // Execute Search from Form
   const handleExecuteSearch = () => {
@@ -1210,6 +1228,14 @@ export default function FindMatchPage() {
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* 🔄 INFINITE SCROLL LOADER (20 PER BATCH) */}
+          {fetchingMore && (
+            <div className="py-6 flex items-center justify-center gap-2 text-xs font-semibold text-slate-500 animate-in fade-in">
+              <Loader2 size={20} className="animate-spin text-[#E21E5B]" />
+              <span>Loading more matches...</span>
             </div>
           )}
         </div>
