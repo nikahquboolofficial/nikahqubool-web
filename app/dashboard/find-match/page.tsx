@@ -581,9 +581,9 @@ export default function FindMatchPage() {
       {/* 🧭 VIEW 1: SEARCH PROFILES (SCREENSHOTS 1, 3, 4)                           */}
       {/* ========================================================================= */}
       {viewMode === 'form' && (
-        <div className="max-w-md mx-auto px-4 py-4 space-y-5">
-          {/* Top Bar */}
-          <div className="flex items-center gap-3">
+        <div className="max-w-md mx-auto px-4 pt-0 pb-4 space-y-5">
+          {/* Top Bar (Sticky) */}
+          <div className="sticky top-0 lg:top-20 z-30 bg-white/95 backdrop-blur-md py-3 -mx-4 px-4 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex items-center gap-3">
             <button 
               onClick={() => {
                 if (typeof window !== "undefined") {
@@ -943,27 +943,29 @@ export default function FindMatchPage() {
       {/* 📸 VIEW 2: SEARCH RESULTS (SCREENSHOT 5)                                  */}
       {/* ========================================================================= */}
       {viewMode === 'results' && (
-        <div className="max-w-md mx-auto px-4 py-3 space-y-4">
-          {/* Results Top Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <button 
-                onClick={() => setViewMode('form')} 
-                className="w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-all shadow-xs"
-              >
-                <ChevronLeft size={20} className="stroke-[2.5]" />
-              </button>
-              <h1 className="text-lg font-bold tracking-tight text-slate-900">
-                Search Results
-              </h1>
+        <div className="max-w-md mx-auto px-4 pt-0 pb-4 space-y-4">
+          {/* 🌟 STICKY RESULTS TOP BAR & QUICK-FILTERS (FIXED WHILE SCROLLING) */}
+          <div className="sticky top-0 lg:top-20 z-30 bg-white/95 backdrop-blur-md pt-2.5 pb-2 -mx-4 px-4 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-2">
+            {/* Results Top Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <button 
+                  onClick={() => setViewMode('form')} 
+                  className="w-9 h-9 rounded-full bg-white border border-slate-200/80 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-all shadow-xs shrink-0 cursor-pointer"
+                >
+                  <ChevronLeft size={20} className="stroke-[2.5]" />
+                </button>
+                <h1 className="text-lg font-bold tracking-tight text-slate-900">
+                  Search Results
+                </h1>
+              </div>
+              <span className="text-xs font-semibold text-slate-500">
+                {profiles.length} found
+              </span>
             </div>
-            <span className="text-xs font-semibold text-slate-500">
-              {profiles.length} found
-            </span>
-          </div>
 
-          {/* ⚡ HORIZONTAL QUICK-FILTER CHIPS BAR */}
-          <div className="flex items-center gap-2 overflow-x-auto scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden py-1">
+            {/* ⚡ HORIZONTAL QUICK-FILTER CHIPS BAR */}
+            <div className="flex items-center gap-2 overflow-x-auto scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden py-0.5">
             {/* 1. All Filters Drawer Button */}
             <button
               onClick={() => setShowFiltersModal(true)}
@@ -1021,6 +1023,7 @@ export default function FindMatchPage() {
               <span>VIP Members</span>
             </button>
           </div>
+        </div>
 
           {/* 🌟 PROFILES CARD FEED (SCREENSHOT 5) */}
           {loading ? (

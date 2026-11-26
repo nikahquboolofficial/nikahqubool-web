@@ -321,10 +321,10 @@ export default function MembershipPage() {
         )}
       </AnimatePresence>
 
-      <div className="max-w-2xl mx-auto px-4 pt-3 pb-36 sm:pb-32 space-y-4">
+      <div className="max-w-2xl mx-auto px-4 pt-0 pb-36 sm:pb-32 space-y-4">
         
-        {/* HEADER: < Explore Plans ... Need Help? */}
-        <div className="flex items-center justify-between gap-2 py-1 border-b border-slate-100">
+        {/* HEADER: < Explore Plans ... Need Help? (STICKY) */}
+        <div className="sticky top-0 lg:top-20 z-30 bg-white/95 backdrop-blur-md flex items-center justify-between gap-2 py-2.5 -mx-4 px-4 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
           <div className="flex items-center gap-2.5 min-w-0">
             <button 
               type="button" 

@@ -428,10 +428,10 @@ export default function GalleryManagementPage() {
     <div className="min-h-screen bg-white font-sans text-slate-900 pb-28 pt-4 selection:bg-[#d91b5c] selection:text-white">
       <Toaster position="top-center" richColors duration={2500} />
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 pt-0">
         
-        {/* HEADER */}
-        <div className="flex items-center justify-between py-2 border-b border-slate-100 gap-2">
+        {/* HEADER (STICKY) */}
+        <div className="sticky top-0 lg:top-20 z-30 bg-white/95 backdrop-blur-md flex items-center justify-between py-2.5 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)] gap-2">
           <div className="flex items-center gap-2.5 min-w-0">
             <button 
               type="button" 

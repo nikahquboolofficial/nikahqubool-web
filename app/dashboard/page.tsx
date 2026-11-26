@@ -347,17 +347,16 @@ export default function VIPCleanDashboardPage() {
   }, [profiles, activeTab, onlineUsers]);
 
   return (
-    <div className="min-h-screen bg-white font-sans text-slate-900 pb-28 pt-2 sm:pt-4 selection:bg-[#e21e5b] selection:text-white">
+    <div className="min-h-screen bg-white font-sans text-slate-900 pb-28 pt-0 selection:bg-[#e21e5b] selection:text-white">
       <Toaster position="top-center" richColors duration={2000} />
 
       <style jsx global>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 space-y-3 sm:space-y-5">
-        
-        {/* 🌟 NIKAH FILTER TABS ROW */}
-        <div className="flex items-center justify-center gap-2 overflow-x-auto py-1 no-scrollbar">
+      {/* 🌟 NIKAH FILTER TABS ROW (STICKY UNDER HEADER) */}
+      <div className="sticky top-16 md:top-20 z-30 bg-white/95 backdrop-blur-md py-2.5 px-3 sm:px-6 lg:px-8 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+        <div className="max-w-7xl mx-auto flex items-center justify-center gap-2 overflow-x-auto no-scrollbar">
           {tabs.map((t) => {
             const isActive = activeTab === t.id;
             return (
@@ -396,7 +395,9 @@ export default function VIPCleanDashboardPage() {
             );
           })}
         </div>
+      </div>
 
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 space-y-4">
         {/* PROFILES GRID */}
         {loading ? (
           <div className="py-10 sm:py-16 flex items-center justify-center">

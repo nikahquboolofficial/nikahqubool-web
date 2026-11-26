@@ -296,67 +296,70 @@ function ActivityContent() {
     <div className="min-h-screen bg-white font-sans text-slate-900 pb-24 selection:bg-[#E21E5B] selection:text-white">
       <Toaster position="top-center" richColors />
 
-      <div className="max-w-md mx-auto px-4 pt-1 pb-4 space-y-3">
-        {/* 🌟 1. MAIN TAB BAR (HORIZONTALLY SCROLLABLE, ZERO-SCROLLBAR, AUTO-SCROLL TO ACTIVE) */}
-        <div className="flex items-center gap-6 overflow-x-auto border-b border-slate-200/80 pb-1 pt-0.5 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-          {[
-            { id: 'all' as MainTab, label: 'All' },
-            { id: 'interests' as MainTab, label: 'Proposals' },
-            { id: 'visitors' as MainTab, label: 'Visitors' },
-            { id: 'contacts' as MainTab, label: 'Contacts' },
-            { id: 'gallery' as MainTab, label: 'Photo Access' },
-            { id: 'shortlist' as MainTab, label: 'Shortlist' },
-          ].map((tab) => {
-            const isActive = activeMainTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                ref={(el) => { tabRefs.current[tab.id] = el; }}
-                onClick={(e) => {
-                  e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                  handleMainTabChange(tab.id);
-                }}
-                className={`shrink-0 pb-2 text-sm transition-all relative font-bold cursor-pointer select-none ${
-                  isActive ? 'text-slate-950 font-black' : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <span>{tab.label}</span>
-                {isActive && (
-                  <motion.div
-                    layoutId="mainTabIndicator"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-950 rounded-full"
-                  />
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* 🌟 2. SUB-TAB PILLS BAR (HORIZONTALLY SCROLLABLE, ZERO-SCROLLBAR) */}
-        {SUBTABS_CONFIG[activeMainTab].length > 0 && (
-          <div className="flex items-center gap-2 overflow-x-auto py-0.5 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            {SUBTABS_CONFIG[activeMainTab].map((subTab) => {
-              const isSelected = activeSubTab === subTab.id;
+      <div className="max-w-md mx-auto px-4 pt-0 pb-4 space-y-3">
+        {/* 🌟 1 & 2. STICKY TABS HEADER (FIXED WHILE SCROLLING) */}
+        <div className="sticky top-0 lg:top-20 z-30 bg-white/95 backdrop-blur-md pt-2 pb-2.5 -mx-4 px-4 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-2">
+          {/* MAIN TAB BAR */}
+          <div className="flex items-center gap-6 overflow-x-auto border-b border-slate-100 pb-1 pt-0.5 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            {[
+              { id: 'all' as MainTab, label: 'All' },
+              { id: 'interests' as MainTab, label: 'Proposals' },
+              { id: 'visitors' as MainTab, label: 'Visitors' },
+              { id: 'contacts' as MainTab, label: 'Contacts' },
+              { id: 'gallery' as MainTab, label: 'Photo Access' },
+              { id: 'shortlist' as MainTab, label: 'Shortlist' },
+            ].map((tab) => {
+              const isActive = activeMainTab === tab.id;
               return (
                 <button
-                  key={subTab.id}
-                  ref={(el) => { subTabRefs.current[subTab.id] = el; }}
+                  key={tab.id}
+                  ref={(el) => { tabRefs.current[tab.id] = el; }}
                   onClick={(e) => {
                     e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                    handleSubTabChange(subTab.id);
+                    handleMainTabChange(tab.id);
                   }}
-                  className={`shrink-0 px-4 py-1.5 rounded-full text-xs transition-all shadow-xs font-bold cursor-pointer select-none ${
-                    isSelected
-                      ? 'bg-[#1e293b] text-white border border-[#1e293b]'
-                      : 'bg-white text-slate-700 border border-slate-200/90 hover:border-slate-300'
+                  className={`shrink-0 pb-2 text-sm transition-all relative font-bold cursor-pointer select-none ${
+                    isActive ? 'text-slate-950 font-black' : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
-                  {subTab.label}
+                  <span>{tab.label}</span>
+                  {isActive && (
+                    <motion.div
+                      layoutId="mainTabIndicator"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-950 rounded-full"
+                    />
+                  )}
                 </button>
               );
             })}
           </div>
-        )}
+
+          {/* SUB-TAB PILLS BAR */}
+          {SUBTABS_CONFIG[activeMainTab].length > 0 && (
+            <div className="flex items-center gap-2 overflow-x-auto py-0.5 scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              {SUBTABS_CONFIG[activeMainTab].map((subTab) => {
+                const isSelected = activeSubTab === subTab.id;
+                return (
+                  <button
+                    key={subTab.id}
+                    ref={(el) => { subTabRefs.current[subTab.id] = el; }}
+                    onClick={(e) => {
+                      e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                      handleSubTabChange(subTab.id);
+                    }}
+                    className={`shrink-0 px-4 py-1.5 rounded-full text-xs transition-all shadow-xs font-bold cursor-pointer select-none ${
+                      isSelected
+                        ? 'bg-[#1e293b] text-white border border-[#1e293b]'
+                        : 'bg-white text-slate-700 border border-slate-200/90 hover:border-slate-300'
+                    }`}
+                  >
+                    {subTab.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         {/* 🌟 3. TOP INTERESTS MINI-CAROUSEL (SCREENSHOT 2) */}
         {activeMainTab === 'interests' && activeSubTab === 'requests' && profiles.length > 0 && (
