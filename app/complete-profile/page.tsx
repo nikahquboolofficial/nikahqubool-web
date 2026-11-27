@@ -686,7 +686,6 @@ export default function CompleteProfilePage() {
 
     const slotIdx = activeSlotIndex;
     setValidatingSlotIndex(slotIdx);
-    toast.loading('AI scanning face...', { id: 'compress-toast' });
 
     try {
       const compressed = await compressPhoto(file);
@@ -697,7 +696,6 @@ export default function CompleteProfilePage() {
       const faceResult = await clientValidateSingleFace(dataUrl);
 
       if (!faceResult.isValid) {
-        toast.dismiss('compress-toast');
         setValidatingSlotIndex(null);
         setRejectedModal({
           open: true,
@@ -709,7 +707,6 @@ export default function CompleteProfilePage() {
         return;
       }
 
-      toast.dismiss('compress-toast');
       setValidatingSlotIndex(null);
 
       setPhotoSlots((prev) => {
@@ -727,9 +724,8 @@ export default function CompleteProfilePage() {
         return compacted;
       });
 
-      toast.success(slotIdx === 0 ? 'Main photo face verified!' : `Photo #${slotIdx + 1} verified!`);
+      toast.success(slotIdx === 0 ? 'Main photo added!' : `Photo #${slotIdx + 1} added!`);
     } catch (err) {
-      toast.dismiss('compress-toast');
       setValidatingSlotIndex(null);
       toast.error('Unable to verify photo. Please try another image.');
     }

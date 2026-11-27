@@ -317,7 +317,7 @@ export default function GalleryManagementPage() {
           updateSessionPhoto(returnedPhotoUrl);
         }
 
-        toast.success(replacePhotoId ? "Verified photo replaced successfully!" : "Verified photo uploaded to gallery!");
+        toast.success(replacePhotoId ? "Photo replaced successfully!" : "Photo uploaded successfully!");
         setSelectedPhoto(null);
         setPendingUpload(null);
         await loadGalleryData();
@@ -372,7 +372,6 @@ export default function GalleryManagementPage() {
     }
 
     setUploadingSlot(slotIdx);
-    toast.loading("AI scanning face...", { id: "face-scan" });
 
     try {
       // ⚡ Fast client-side image compression downscales large phone photos in 50ms
@@ -382,7 +381,6 @@ export default function GalleryManagementPage() {
 
       // 1. Run In-Browser Client Face Check on compressed lightweight image
       const faceResult = await clientValidateSingleFace(dataUrl);
-      toast.dismiss("face-scan");
 
       if (!faceResult.isValid) {
         setUploadingSlot(null);
@@ -399,8 +397,7 @@ export default function GalleryManagementPage() {
       // Valid solo face confirmed! Upload immediately.
       await executeGalleryUpload(compressedFile, isReplacing ? oldPhotoId : null, isMainReplace, slotIdx);
     } catch (err) {
-      toast.dismiss("face-scan");
-      toast.error("Unable to verify photo. Please try again.");
+      toast.error("Unable to upload photo. Please try again.");
     } finally {
       setUploadingSlot(null);
     }

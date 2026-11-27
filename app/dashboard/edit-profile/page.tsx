@@ -1700,7 +1700,6 @@ export default function EditMyProfilePage() {
     if (!token) return;
 
     setUploadingPhotoSlot(slotIdx);
-    toast.loading("Verifying human face...", { id: "face-scan" });
 
     try {
       // ⚡ Fast client-side image compression downscales large phone photos in 50ms
@@ -1751,7 +1750,6 @@ export default function EditMyProfilePage() {
       });
 
       const faceResult = await clientValidateSingleFace(dataUrl);
-      toast.dismiss("face-scan");
 
       if (!faceResult.isValid) {
         toast.error(faceResult.message || "Please upload a clear solo photo of yourself. Screenshots and scenery are not allowed.");
@@ -1799,7 +1797,6 @@ export default function EditMyProfilePage() {
         toast.error(res.message || "Failed to upload photo.");
       }
     } catch {
-      toast.dismiss("face-scan");
       toast.error("Photo verification failed. Please try another image.");
     } finally {
       setUploadingPhotoSlot(null);
