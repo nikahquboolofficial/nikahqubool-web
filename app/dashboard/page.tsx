@@ -544,18 +544,11 @@ export default function VIPCleanDashboardPage() {
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-[104px] md:pt-[114px] space-y-4">
         {/* PROFILES GRID */}
         {loading ? (
-          <div className="relative w-full">
-            {/* 🌟 3D ELEVATED FLOATING LOADER CARD */}
-            <div className="py-6 sm:py-10 flex items-center justify-center z-10 relative">
-              <ProfileAvatarLoader 
-                message="Finding Best Matches For You" 
-                subMessage="Connecting with verified halal matrimonial profiles..." 
-              />
-            </div>
-            {/* 🌟 AMBIENT LUXURY SHIMMER CARDS (SCREEN NEVER LOOKS EMPTY) */}
-            <div className="opacity-35 blur-[1.5px] pointer-events-none select-none -mt-4">
-              <ProfileCardSkeleton count={4} />
-            </div>
+          <div className="py-10 sm:py-16 flex items-center justify-center">
+            <ProfileAvatarLoader 
+              message="Finding Best Matches For You" 
+              subMessage="Connecting with verified halal matrimonial profiles..." 
+            />
           </div>
         ) : displayedProfiles.length === 0 ? (
           <div className="py-16 px-4 text-center max-w-md mx-auto space-y-4">
