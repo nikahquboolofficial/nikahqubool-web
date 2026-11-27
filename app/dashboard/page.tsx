@@ -56,13 +56,15 @@ const getInitialFeed = (tabName: string = 'best-matches'): any[] => {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed.profiles && Array.isArray(parsed.profiles) && parsed.profiles.length > 0 && Date.now() - parsed.timestamp < 300000) {
-          globalFeedCache[tabName] = parsed;
-          return parsed.profiles;
+          const applied = applyPersistedInteractions(parsed.profiles);
+          globalFeedCache[tabName] = { ...parsed, profiles: applied };
+          return applied;
         }
       }
     } catch (e) {}
   }
-  return globalFeedCache[tabName]?.profiles || [];
+  const fallback = globalFeedCache[tabName]?.profiles || [];
+  return applyPersistedInteractions(fallback);
 };
 
 export default function VIPCleanDashboardPage() {
@@ -297,7 +299,10 @@ export default function VIPCleanDashboardPage() {
               const updated = { ...p };
               if (isInterest) {
                 updated.isInterestSent = true;
+                updated.IsInterestSent = true;
+                updated.hasSentInterest = true;
                 updated.interestStatus = 'Sent';
+                updated.InterestStatus = 'Sent';
               } else if (isShortlist) {
                 updated.isShortlisted = nextShort;
                 updated.IsShortlisted = nextShort;
@@ -306,6 +311,11 @@ export default function VIPCleanDashboardPage() {
             }
             return p;
           });
+          if (typeof window !== "undefined") {
+            try {
+              sessionStorage.setItem(`cached_dashboard_feed_${tabKey}`, JSON.stringify(globalFeedCache[tabKey]));
+            } catch (e) {}
+          }
         }
       });
     }
@@ -441,10 +451,22 @@ export default function VIPCleanDashboardPage() {
         if (globalFeedCache[tabKey]?.profiles) {
           globalFeedCache[tabKey].profiles = globalFeedCache[tabKey].profiles.map((p) => {
             if (Number(p.userId || p.UserId || 0) === targetNum) {
-              return { ...p, isInterestSent: true, interestStatus: 'Sent' };
+              return { 
+                ...p, 
+                isInterestSent: true, 
+                IsInterestSent: true, 
+                hasSentInterest: true, 
+                interestStatus: 'Sent', 
+                InterestStatus: 'Sent' 
+              };
             }
             return p;
           });
+          if (typeof window !== "undefined") {
+            try {
+              sessionStorage.setItem(`cached_dashboard_feed_${tabKey}`, JSON.stringify(globalFeedCache[tabKey]));
+            } catch (e) {}
+          }
         }
       });
     };

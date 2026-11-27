@@ -16,7 +16,7 @@ import {
 } from '@/lib/api';
 import { getAuthToken } from '@/lib/auth';
 import { getClientSubscriptionStatus } from '@/lib/subscriptionUtils';
-import { applyPersistedInteractions } from '@/lib/interactionStore';
+import { applyPersistedInteractions, saveShortlistState, saveInterestSentState } from '@/lib/interactionStore';
 import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
 import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
 
@@ -514,18 +514,27 @@ export default function FindMatchPage() {
       if (res && res.success) {
         if (type === 'INTEREST') {
           toast.success("Interest sent successfully!");
+          saveInterestSentState(receiverId);
           // Mark interest sent in local state
           setProfiles(prev => prev.map(p => {
             if (Number(p.userId || p.UserId) === receiverId) {
-              return { ...p, hasSentInterest: true };
+              return { 
+                ...p, 
+                hasSentInterest: true, 
+                isInterestSent: true, 
+                IsInterestSent: true, 
+                interestStatus: 'Sent', 
+                InterestStatus: 'Sent' 
+              };
             }
             return p;
           }));
         } else if (type === 'SHORTLIST') {
           // 0ms instant sync without intrusive toast
+          const nextVal = !Boolean(isCurShort);
+          saveShortlistState(receiverId, nextVal);
           setProfiles(prev => prev.map(p => {
             if (Number(p.userId || p.UserId) === receiverId) {
-              const nextVal = !Boolean(p.isShortlisted || p.IsShortlisted);
               return { ...p, isShortlisted: nextVal, IsShortlisted: nextVal };
             }
             return p;

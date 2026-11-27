@@ -3,6 +3,7 @@
 import { ProfileStatusIcons, checkIsVerified, checkIsPremium } from '@/components/common/ProfileBadges';
 
 import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
+import { applyPersistedInteractions, saveShortlistState, saveInterestSentState } from '@/lib/interactionStore';
 
 import { getClientSubscriptionStatus } from '@/lib/subscriptionUtils';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -65,6 +66,8 @@ export default function ProfileDetailPage() {
   const [contactData, setContactData] = useState<{ mobile: string; email: string } | null>(null);
   const [contactQuota, setContactQuota] = useState<{ total: number; used: number; remaining: number } | null>(null);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [subscriptionModalTitle, setSubscriptionModalTitle] = useState("VIP Subscription Required");
+  const [subscriptionModalSubtitle, setSubscriptionModalSubtitle] = useState("Direct messaging & contact view are exclusive features for VIP Premium members.");
   const [showBiodataModal, setShowBiodataModal] = useState(false);
   const [showCompatibilityModal, setShowCompatibilityModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -184,7 +187,8 @@ export default function ProfileDetailPage() {
     }
 
     if (res.success && res.data) {
-      const p = res.data.profile || res.data.Profile || res.data;
+      const rawP = res.data.profile || res.data.Profile || res.data;
+      const p = applyPersistedInteractions([rawP])[0];
       setProfileData(p);
       setGallery(res.data.gallery || res.data.Gallery || []);
       setPreferences(res.data.preferences || res.data.Preferences || null);
@@ -253,7 +257,18 @@ export default function ProfileDetailPage() {
     
     const isUserPaid = checkIsUserPaid(profileData);
 
+    // 🔒 1. UNPAID FREE USER: SHOW POPUP ONLY — STRICTLY NO RED ERROR TOAST!
     if (!isUserPaid) {
+      setSubscriptionModalTitle("VIP Membership Required");
+      setSubscriptionModalSubtitle("Viewing verified candidate and family contact details is exclusive to VIP Premium members. Upgrade now to connect instantly.");
+      setShowSubscriptionModal(true);
+      return;
+    }
+
+    // 🔒 2. CHECK IF PAID USER HAS ALREADY EXHAUSTED THEIR CONTACT VIEWS QUOTA
+    if (remainingContactsCount <= 0) {
+      setSubscriptionModalTitle("Contact View Limit Reached");
+      setSubscriptionModalSubtitle("You have used all available contact views included in your current subscription. Please upgrade your package to unlock more verified contact numbers.");
       setShowSubscriptionModal(true);
       return;
     }
@@ -291,8 +306,11 @@ export default function ProfileDetailPage() {
       toast.success("Contact details unlocked successfully!");
       handleInteractionApiCall(targetId, 'CONTACT_VIEW', 'VIEWED', token).catch(() => {});
     } else {
-      if (res.message && (res.message.toLowerCase().includes('quota') || res.message.toLowerCase().includes('limit') || res.message.toLowerCase().includes('contact'))) {
-        toast.error(res.message);
+      const msg = String(res.message || '').toLowerCase();
+      // If server returned quota exhausted / limit reached: strictly no red toast error, show modal popup
+      if (msg.includes('quota') || msg.includes('limit') || msg.includes('contact') || msg.includes('exhaust') || msg.includes('upgrade') || msg.includes('subscription')) {
+        setSubscriptionModalTitle("Contact View Limit Reached");
+        setSubscriptionModalSubtitle("You have used all available contact views included in your current subscription. Please upgrade your package to unlock more verified contact numbers.");
         setShowSubscriptionModal(true);
       } else {
         toast.error(res.message || "Failed to unlock contact details.");
@@ -312,6 +330,8 @@ export default function ProfileDetailPage() {
       }));
       router.push('/dashboard/messages');
     } else {
+      setSubscriptionModalTitle("VIP Subscription Required");
+      setSubscriptionModalSubtitle("Direct messaging & chat are exclusive features for VIP Premium members.");
       setShowSubscriptionModal(true);
     }
   };
@@ -339,14 +359,19 @@ export default function ProfileDetailPage() {
     setShowThreeDotMenu(false);
 
     if (res.success) {
+      const targetId = Number(profileData?.userId || profileData?.UserId || 0);
       if (type === 'INTEREST') {
+        saveInterestSentState(targetId);
         setProfileData((prev: any) => ({
           ...prev,
+          isInterestSent: true,
+          hasSentInterest: true,
           interestStatus: status === 'ACCEPTED' ? 'Accepted' : status === 'DECLINED' ? 'Declined' : 'SentPending'
         }));
         if (status !== "ACCEPTED" && status !== "DECLINED") { toast.success("Interest sent successfully!"); }
       } else if (type === 'SHORTLIST') {
         const nextShort = (status === 'SHORTLISTED' || status === 'ACTIVE');
+        saveShortlistState(targetId, nextShort);
         setProfileData((prev: any) => ({
           ...prev,
           isShortlisted: nextShort,
@@ -1310,7 +1335,11 @@ export default function ProfileDetailPage() {
                         Upgrade to Premium to view contact details
                       </p>
                       <button
-                        onClick={() => router.push('/dashboard/membership')}
+                        onClick={() => {
+                          setSubscriptionModalTitle("VIP Membership Required");
+                          setSubscriptionModalSubtitle("Upgrade to a VIP plan to view verified candidate and family contact details.");
+                          setShowSubscriptionModal(true);
+                        }}
                         className="w-full max-w-xs mx-auto py-2.5 px-6 rounded-full bg-gradient-to-r from-amber-500 via-[#E21E5B] to-rose-600 hover:brightness-110 text-white font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
                       >
                         <Crown size={14} className="text-amber-200 fill-amber-200" />
@@ -1916,7 +1945,9 @@ export default function ProfileDetailPage() {
       {showSubscriptionModal && (
         <SubscriptionModal 
           isOpen={showSubscriptionModal} 
-          onClose={() => setShowSubscriptionModal(false)} 
+          onClose={() => setShowSubscriptionModal(false)}
+          title={subscriptionModalTitle}
+          subtitle={subscriptionModalSubtitle}
         />
       )}
 

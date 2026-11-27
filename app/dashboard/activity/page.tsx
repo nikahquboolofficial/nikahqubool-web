@@ -344,6 +344,7 @@ function ActivityContent() {
             const updated = prev.map(p => {
               if (Number(p.userId || p.UserId) === receiverId) {
                 const nextVal = !Boolean(p.isShortlisted || p.IsShortlisted);
+                saveShortlistState(receiverId, nextVal);
                 return { 
                   ...p, 
                   isShortlisted: nextVal, 
