@@ -175,32 +175,88 @@ export const getCachedMasterValues = (type: string): string[] => {
   return getCachedMasterOptions(type).map(o => o.value).filter(Boolean);
 };
 
-// 🔓 Public: Master Data Fetcher (No Token Needed, Instant Cached)
-export const fetchMasterDataApi = async (type: string): Promise<MasterOption[]> => {
+// 🔓 Public: Master Data Fetcher (No Token Needed, Instant Cached with Stale-While-Revalidate)
+export const fetchMasterDataApi = async (type: string, forceFresh: boolean = false): Promise<MasterOption[]> => {
   const cacheKey = `cache_master_${type.toUpperCase()}`;
+  const cacheTimeKey = `cache_master_${type.toUpperCase()}_time`;
+  const now = Date.now();
+  const TTL_MS = 15 * 60 * 1000; // 15 minutes TTL for background DB sync
+
+  const fetchFresh = async (): Promise<MasterOption[]> => {
+    try {
+      const res = await fetchWithTimeout(`${API_BASE_URL}/Master/${type}`);
+      const json = await res.json();
+      const rawList = Array.isArray(json) ? json : (json.data || json.Data || json.result || []);
+      if (Array.isArray(rawList) && rawList.length > 0) {
+        const list: MasterOption[] = rawList.map((item: any) => ({
+          id: item.id ?? item.Id ?? item.masterId ?? item.value ?? item.Value,
+          value: item.value ?? item.Value ?? item.name ?? item.Name ?? item.text ?? item.Text ?? String(item.id || item.Id || '')
+        }));
+        masterCategoryCache[cacheKey] = list;
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem(cacheKey, JSON.stringify(list));
+          localStorage.setItem(cacheKey, JSON.stringify(list));
+          localStorage.setItem(cacheTimeKey, String(now));
+        }
+        return list;
+      }
+    } catch (e) {}
+    return [];
+  };
+
+  if (forceFresh) {
+    return await fetchFresh();
+  }
+
+  // 1. In-memory check
   if (masterCategoryCache[cacheKey] && masterCategoryCache[cacheKey].length > 0) {
+    if (typeof window !== "undefined") {
+      const savedTime = Number(localStorage.getItem(cacheTimeKey) || 0);
+      if (now - savedTime > TTL_MS) {
+        fetchFresh().catch(() => {});
+      }
+    }
     return masterCategoryCache[cacheKey];
   }
 
+  // 2. Storage check (instant 0ms render)
   if (typeof window !== "undefined") {
     const local = sessionStorage.getItem(cacheKey) || localStorage.getItem(cacheKey);
+    const savedTime = Number(localStorage.getItem(cacheTimeKey) || 0);
     if (local) {
       try {
         const parsed = JSON.parse(local);
         if (Array.isArray(parsed) && parsed.length > 0) {
           masterCategoryCache[cacheKey] = parsed;
+          if (now - savedTime > TTL_MS) {
+            fetchFresh().catch(() => {});
+          }
           return parsed;
         }
       } catch (e) {}
     }
   }
 
-  try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/Master/${type}`);
-    const json = await res.json();
-    const rawList = Array.isArray(json) ? json : (json.data || json.Data || json.result || []);
-    if (Array.isArray(rawList) && rawList.length > 0) {
-      const list: MasterOption[] = rawList.map((item: any) => ({
+  return await fetchFresh();
+};
+
+// 🔓 Public: Cities Fetcher (No Token Needed, Instant Cached per State with Stale-While-Revalidate)
+export const fetchCitiesApi = async (stateId: number | string, forceFresh: boolean = false): Promise<MasterOption[]> => {
+  if (stateId === null || stateId === undefined || stateId === '') return [];
+  const numericStateId = Number(stateId);
+  if (isNaN(numericStateId) || numericStateId < 0) return [];
+
+  const cacheKey = `cache_cities_${numericStateId}`;
+  const cacheTimeKey = `cache_cities_${numericStateId}_time`;
+  const now = Date.now();
+  const TTL_MS = 30 * 60 * 1000; // 30 minutes TTL
+
+  const fetchFreshCities = async (): Promise<MasterOption[]> => {
+    try {
+      const res = await fetchWithTimeout(`${API_BASE_URL}/Master/CITIES?parentId=${numericStateId}`);
+      const json = await res.json();
+      const rawList = Array.isArray(json) ? json : (json.data || json.Data || json.result || []);
+      const list: MasterOption[] = (Array.isArray(rawList) ? rawList : []).map((item: any) => ({
         id: item.id ?? item.Id ?? item.masterId ?? item.value ?? item.Value,
         value: item.value ?? item.Value ?? item.name ?? item.Name ?? item.text ?? item.Text ?? String(item.id || item.Id || '')
       }));
@@ -208,55 +264,48 @@ export const fetchMasterDataApi = async (type: string): Promise<MasterOption[]> 
       if (typeof window !== "undefined") {
         sessionStorage.setItem(cacheKey, JSON.stringify(list));
         localStorage.setItem(cacheKey, JSON.stringify(list));
+        localStorage.setItem(cacheTimeKey, String(now));
       }
       return list;
+    } catch (e) {
+      return [];
     }
-  } catch (e) {}
+  };
 
-  return [];
-};
+  if (forceFresh) {
+    return await fetchFreshCities();
+  }
 
-// 🔓 Public: Cities Fetcher (No Token Needed, Instant Cached per State)
-export const fetchCitiesApi = async (stateId: number | string): Promise<MasterOption[]> => {
-  if (stateId === null || stateId === undefined || stateId === '') return [];
-  const numericStateId = Number(stateId);
-  if (isNaN(numericStateId) || numericStateId < 0) return [];
-
-  const cacheKey = `cache_cities_${numericStateId}`;
+  // 1. In-memory check
   if (masterCategoryCache[cacheKey] && masterCategoryCache[cacheKey].length > 0) {
+    if (typeof window !== "undefined") {
+      const savedTime = Number(localStorage.getItem(cacheTimeKey) || 0);
+      if (now - savedTime > TTL_MS) {
+        fetchFreshCities().catch(() => {});
+      }
+    }
     return masterCategoryCache[cacheKey];
   }
 
+  // 2. Storage check
   if (typeof window !== "undefined") {
     const local = sessionStorage.getItem(cacheKey) || localStorage.getItem(cacheKey);
+    const savedTime = Number(localStorage.getItem(cacheTimeKey) || 0);
     if (local) {
       try {
         const parsed = JSON.parse(local);
         if (Array.isArray(parsed) && parsed.length > 0) {
           masterCategoryCache[cacheKey] = parsed;
+          if (now - savedTime > TTL_MS) {
+            fetchFreshCities().catch(() => {});
+          }
           return parsed;
         }
       } catch (e) {}
     }
   }
 
-  try {
-    const res = await fetchWithTimeout(`${API_BASE_URL}/Master/CITIES?parentId=${numericStateId}`);
-    const json = await res.json();
-    const rawList = Array.isArray(json) ? json : (json.data || json.Data || json.result || []);
-    const list: MasterOption[] = (Array.isArray(rawList) ? rawList : []).map((item: any) => ({
-      id: item.id ?? item.Id ?? item.masterId ?? item.value ?? item.Value,
-      value: item.value ?? item.Value ?? item.name ?? item.Name ?? item.text ?? item.Text ?? String(item.id || item.Id || '')
-    }));
-    masterCategoryCache[cacheKey] = list;
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem(cacheKey, JSON.stringify(list));
-      localStorage.setItem(cacheKey, JSON.stringify(list));
-    }
-    return list;
-  } catch (e) {
-    return [];
-  }
+  return await fetchFreshCities();
 };
 
 // 🔓 Public: Send OTP (No Token Needed)

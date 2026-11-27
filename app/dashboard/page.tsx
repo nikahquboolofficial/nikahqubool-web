@@ -129,10 +129,9 @@ export default function VIPCleanDashboardPage() {
     if (res.success && res.data) {
       const rawList = res.data.profiles || res.data.Profiles || [];
       const list = applyPersistedInteractions(rawList);
-      const userPaid = Boolean(
-        res.data.isCurrentUserPaid ?? res.data.IsCurrentUserPaid ?? 
-        getClientSubscriptionStatus().isPaid
-      );
+      const clientSub = getClientSubscriptionStatus();
+      const serverPaid = Boolean(res.data.isCurrentUserPaid || res.data.IsCurrentUserPaid);
+      const userPaid = serverPaid || clientSub.isPaid;
       
       setIsCurrentUserPaid(userPaid);
 
@@ -147,12 +146,19 @@ export default function VIPCleanDashboardPage() {
             if (res.data.currentUserPlanName) {
               parsed.planName = res.data.currentUserPlanName;
               parsed.membershipType = res.data.currentUserPlanName;
+            } else if (clientSub.isPaid && clientSub.planName) {
+              parsed.planName = clientSub.planName;
+              parsed.membershipType = clientSub.planName;
             }
             if (res.data.currentUserPlanExpiry) {
               parsed.planExpiryDate = res.data.currentUserPlanExpiry;
+            } else if (clientSub.isPaid && clientSub.expiryDate) {
+              parsed.planExpiryDate = clientSub.expiryDate;
             }
             if (res.data.remainingContactsAllowed !== undefined) {
               parsed.remainingContacts = res.data.remainingContactsAllowed;
+            } else if (clientSub.isPaid && clientSub.remainingContacts > 0) {
+              parsed.remainingContacts = clientSub.remainingContacts;
             }
             localStorage.setItem("user_details", JSON.stringify(parsed));
             window.dispatchEvent(new Event("user_details_updated"));

@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import { fetchDashboardApi, handleInteractionApiCall } from '@/lib/api';
 import ProfileCard from '@/components/dashboard/ProfileCard';
+import { getAuthToken } from '@/lib/auth';
 export type IconType = 'send' | 'inbox' | 'bookmark' | 'heart' | 'lock' | 'sparkles' | 'eye' | 'flame';
 
 interface ActivityTabContentProps {
@@ -75,7 +76,7 @@ export default function ActivityTabContent({
     return null;
   };
 
-  const getToken = useCallback((): string | null => getCookie("user_token"), []);
+  const getToken = useCallback((): string | null => getAuthToken(), []);
 
   const loadData = useCallback(async (pageNum: number, append: boolean = false) => {
     const token = getToken();
