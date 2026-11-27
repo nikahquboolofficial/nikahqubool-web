@@ -18,7 +18,22 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
-import { fetchProfileDetailsApi, viewContactDetailsApi, handleInteractionApiCall, blockUserApiCall, reportUserApiCall, formatLastSeen } from '@/lib/api';
+import { 
+  fetchProfileDetailsApi, 
+  viewContactDetailsApi, 
+  handleInteractionApiCall, 
+  blockUserApiCall, 
+  reportUserApiCall, 
+  formatLastSeen,
+  fetchMasterDataApi,
+  fetchCitiesApi
+} from '@/lib/api';
+import { 
+  resolveMasterText, 
+  resolveMultiMasterList, 
+  formatHeightPreference, 
+  formatAgePreference 
+} from '@/lib/masterResolver';
 import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
 import { useSignalR } from '@/context/SignalRContext';
 import IslamicBiodataModal from '@/components/dashboard/IslamicBiodataModal';
@@ -46,6 +61,89 @@ export default function ProfileDetailPage() {
   });
   const [gallery, setGallery] = useState<any[]>([]);
   const [preferences, setPreferences] = useState<any>(null);
+  const [masterStates, setMasterStates] = useState<any[]>([]);
+  const [masterCities, setMasterCities] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetchMasterDataApi('STATES').then(res => {
+      if (Array.isArray(res) && res.length > 0) setMasterStates(res);
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const sId = Number(preferences?.preferredStateID || preferences?.preferredState || 0);
+    if (sId > 0) {
+      fetchCitiesApi(sId).then(res => {
+        if (Array.isArray(res) && res.length > 0) setMasterCities(res);
+      }).catch(() => {});
+    }
+  }, [preferences?.preferredStateID, preferences?.preferredState]);
+
+  // 🌟 Clean Human-Readable Partner Preferences & Expectations (Zero Numeric IDs)
+  const expectationsNote = profileData?.partnerExpectations || profileData?.PartnerExpectations || preferences?.partnerExpectations;
+
+  const prefAgeText = useMemo(() => {
+    return formatAgePreference(preferences?.minAge, preferences?.maxAge);
+  }, [preferences?.minAge, preferences?.maxAge]);
+
+  const prefHeightText = useMemo(() => {
+    return formatHeightPreference(preferences?.minHeight, preferences?.maxHeight);
+  }, [preferences?.minHeight, preferences?.maxHeight]);
+
+  const prefMaritalStatusList = useMemo(() => {
+    return resolveMultiMasterList('MARITAL_STATUS', preferences?.preferredMaritalStatus || preferences?.maritalStatus);
+  }, [preferences?.preferredMaritalStatus, preferences?.maritalStatus]);
+
+  const prefSectList = useMemo(() => {
+    return resolveMultiMasterList('SECTS', preferences?.preferredSect || preferences?.sect);
+  }, [preferences?.preferredSect, preferences?.sect]);
+
+  const prefCasteList = useMemo(() => {
+    return resolveMultiMasterList('CASTES', preferences?.preferredCaste || preferences?.caste);
+  }, [preferences?.preferredCaste, preferences?.caste]);
+
+  const prefEducationList = useMemo(() => {
+    return resolveMultiMasterList('EDUCATIONS', preferences?.preferredEducation || preferences?.education);
+  }, [preferences?.preferredEducation, preferences?.education]);
+
+  const prefOccupationList = useMemo(() => {
+    return resolveMultiMasterList('OCCUPATIONS', preferences?.preferredOccupation || preferences?.occupation || preferences?.profession);
+  }, [preferences?.preferredOccupation, preferences?.occupation, preferences?.profession]);
+
+  const prefMotherTongueList = useMemo(() => {
+    return resolveMultiMasterList('MOTHER_TONGUES', preferences?.preferredMotherTongue || preferences?.motherTongue || preferences?.languageIds);
+  }, [preferences?.preferredMotherTongue, preferences?.motherTongue, preferences?.languageIds]);
+
+  const prefNamazList = useMemo(() => {
+    return resolveMultiMasterList('NAMAZ_HABITS', preferences?.preferredNamazHabit || preferences?.namazHabit);
+  }, [preferences?.preferredNamazHabit, preferences?.namazHabit]);
+
+  const prefHijabBeardList = useMemo(() => {
+    return resolveMultiMasterList('HIJAB_BEARD', preferences?.preferredHijabOrBeard || preferences?.hijabOrBeard);
+  }, [preferences?.preferredHijabOrBeard, preferences?.hijabOrBeard]);
+
+  const prefLocationText = useMemo(() => {
+    const sId = preferences?.preferredStateID || preferences?.preferredState;
+    const cId = preferences?.preferredCityID || preferences?.preferredCity;
+    const sName = preferences?.preferredStateName || preferences?.stateName || (sId ? resolveMasterText('STATES', sId, masterStates) : '');
+    const cName = preferences?.preferredCityName || preferences?.cityName || (cId ? resolveMasterText('CITIES', cId, masterCities) : '');
+    return [cName, sName].filter(Boolean).join(', ');
+  }, [preferences, masterStates, masterCities]);
+
+  const hasAnyPreference = Boolean(
+    expectationsNote ||
+    prefAgeText ||
+    prefHeightText ||
+    prefMaritalStatusList.length > 0 ||
+    prefSectList.length > 0 ||
+    prefCasteList.length > 0 ||
+    prefEducationList.length > 0 ||
+    prefOccupationList.length > 0 ||
+    prefLocationText ||
+    prefMotherTongueList.length > 0 ||
+    prefNamazList.length > 0 ||
+    prefHijabBeardList.length > 0
+  );
   const [loading, setLoading] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
     try {
@@ -629,14 +727,10 @@ export default function ProfileDetailPage() {
     if (hasLifestyle) tabs.push({ id: 'section-lifestyle', label: 'Lifestyle' });
 
     // Expectations: only if partner preferences or expectations exist
-    const hasPreferences = Boolean(
-      (preferences && (preferences.minAge || preferences.minHeight || preferences.preferredMaritalStatus || preferences.preferredSect || preferences.preferredEducation || preferences.preferredOccupation || preferences.preferredState)) ||
-      (profileData.partnerExpectations || profileData.PartnerExpectations)
-    );
-    if (hasPreferences) tabs.push({ id: 'section-preferences', label: 'Expectations' });
+    if (hasAnyPreference) tabs.push({ id: 'section-preferences', label: 'Expectations' });
 
     return tabs;
-  }, [profileData, preferences, sectText, maslakText]);
+  }, [profileData, preferences, sectText, maslakText, hasAnyPreference]);
 
   // Scroll to section handler with responsive offset
   const scrollToSection = (id: string) => {
@@ -1756,26 +1850,196 @@ export default function ProfileDetailPage() {
             </section>
           )}
 
-          {/* 9. 🎯 PARTNER EXPECTATIONS */}
-          {preferences && (preferences.minAge || preferences.minHeight || preferences.preferredMaritalStatus || preferences.preferredSect || preferences.preferredEducation || preferences.preferredOccupation || preferences.preferredState || profileData.partnerExpectations || profileData.PartnerExpectations) && (
-            <section id="section-preferences" className="bg-white rounded-3xl p-5 md:p-6 shadow-xs border border-slate-200/80 space-y-4 scroll-mt-20">
-              <h3 className="font-serif font-extrabold text-base md:text-lg text-slate-900">Partner Expectations</h3>
+          {/* 9. 🎯 PARTNER EXPECTATIONS (EXACT MATCHING LUXURY DESIGN OF UPPER SECTIONS) */}
+          {hasAnyPreference && (
+            <section id="section-preferences" className="bg-white rounded-3xl p-5 md:p-6 shadow-xs border border-slate-200/80 space-y-5 scroll-mt-20">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center text-[#E21E5B]">
+                  <Sparkles size={16} />
+                </div>
+                <h3 className="font-serif font-extrabold text-base md:text-lg text-slate-900">Partner Expectations</h3>
+              </div>
 
-              {(profileData.partnerExpectations || profileData.PartnerExpectations) && (
-                <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3.5 rounded-2xl border border-slate-100 italic">
-                  &ldquo;{profileData.partnerExpectations || profileData.PartnerExpectations}&rdquo;
-                </p>
+              {/* Note / Message from user */}
+              {expectationsNote && (
+                <div className="relative p-4 rounded-2xl bg-rose-50/50 border border-rose-100/80">
+                  <span className="text-[10px] font-bold text-rose-500 uppercase tracking-wider block mb-1">In Their Own Words</span>
+                  <p className="text-xs sm:text-sm text-slate-700 italic leading-relaxed font-medium">
+                    &ldquo;{expectationsNote}&rdquo;
+                  </p>
+                </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <CardInfoItem label="Preferred Age" value={preferences?.minAge ? `${preferences.minAge} to ${preferences.maxAge} Years` : null} />
-                <CardInfoItem label="Preferred Height" value={preferences?.minHeight ? `${preferences.minHeight} - ${preferences.maxHeight}` : null} />
-                <CardInfoItem label="Preferred Marital Status" value={preferences?.preferredMaritalStatus || preferences?.maritalStatus} />
-                <CardInfoItem label="Preferred Sect" value={preferences?.preferredSect || preferences?.sect} />
-                <CardInfoItem label="Preferred Caste" value={preferences?.preferredCaste || preferences?.caste} />
-                <CardInfoItem label="Preferred Education" value={preferences?.preferredEducation || preferences?.education} />
-                <CardInfoItem label="Preferred Profession" value={preferences?.preferredOccupation || preferences?.occupation} />
-                <CardInfoItem label="Preferred Location" value={preferences?.preferredState || preferences?.state} />
+              {/* Consistent Section Layout with Icons and High Quality Typography */}
+              <div className="space-y-4 pt-1">
+                {/* 1. Preferred Age */}
+                {prefAgeText && (
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-10 h-10 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0 shadow-xs">
+                      <Calendar size={18} />
+                    </div>
+                    <div className="min-w-0 pt-0.5">
+                      <span className="text-[11px] text-slate-400 font-bold block uppercase tracking-wider">Preferred Age</span>
+                      <span className="text-sm font-extrabold text-slate-900 block mt-0.5">
+                        {prefAgeText}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. Preferred Height */}
+                {prefHeightText && (
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-10 h-10 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0 shadow-xs">
+                      <Ruler size={18} />
+                    </div>
+                    <div className="min-w-0 pt-0.5">
+                      <span className="text-[11px] text-slate-400 font-bold block uppercase tracking-wider">Preferred Height</span>
+                      <span className="text-sm font-extrabold text-slate-900 block mt-0.5">
+                        {prefHeightText}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. Preferred Marital Status */}
+                {prefMaritalStatusList.length > 0 && (
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-10 h-10 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0 shadow-xs">
+                      <Heart size={18} />
+                    </div>
+                    <div className="min-w-0 pt-0.5">
+                      <span className="text-[11px] text-slate-400 font-bold block uppercase tracking-wider">Preferred Marital Status</span>
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {prefMaritalStatusList.map((item, idx) => (
+                          <span key={idx} className="px-3 py-1 rounded-full bg-slate-100 text-slate-800 font-bold text-xs border border-slate-200/60">
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. Preferred Sect & Caste */}
+                {(prefSectList.length > 0 || prefCasteList.length > 0) && (
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-10 h-10 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0 shadow-xs">
+                      <Compass size={18} />
+                    </div>
+                    <div className="min-w-0 pt-0.5">
+                      <span className="text-[11px] text-slate-400 font-bold block uppercase tracking-wider">Community & Sect</span>
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {prefSectList.map((s, idx) => (
+                          <span key={`sect-${idx}`} className="px-3 py-1 rounded-full bg-rose-50 text-[#E21E5B] font-bold text-xs border border-rose-100">
+                            {s}
+                          </span>
+                        ))}
+                        {prefCasteList.map((c, idx) => (
+                          <span key={`caste-${idx}`} className="px-3 py-1 rounded-full bg-slate-100 text-slate-800 font-bold text-xs border border-slate-200/60">
+                            {c}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 5. Preferred Education */}
+                {prefEducationList.length > 0 && (
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-10 h-10 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0 shadow-xs">
+                      <GraduationCap size={18} />
+                    </div>
+                    <div className="min-w-0 pt-0.5">
+                      <span className="text-[11px] text-slate-400 font-bold block uppercase tracking-wider">Preferred Education</span>
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {prefEducationList.map((edu, idx) => (
+                          <span key={idx} className="px-3 py-1 rounded-full bg-slate-100 text-slate-800 font-bold text-xs border border-slate-200/60">
+                            {edu}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 6. Preferred Profession */}
+                {prefOccupationList.length > 0 && (
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-10 h-10 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0 shadow-xs">
+                      <Briefcase size={18} />
+                    </div>
+                    <div className="min-w-0 pt-0.5">
+                      <span className="text-[11px] text-slate-400 font-bold block uppercase tracking-wider">Preferred Profession</span>
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {prefOccupationList.map((occ, idx) => (
+                          <span key={idx} className="px-3 py-1 rounded-full bg-slate-100 text-slate-800 font-bold text-xs border border-slate-200/60">
+                            {occ}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 7. Preferred Location */}
+                {prefLocationText && (
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-10 h-10 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0 shadow-xs">
+                      <MapPin size={18} />
+                    </div>
+                    <div className="min-w-0 pt-0.5">
+                      <span className="text-[11px] text-slate-400 font-bold block uppercase tracking-wider">Preferred Location</span>
+                      <span className="text-sm font-extrabold text-slate-900 block mt-0.5">
+                        {prefLocationText}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* 8. Preferred Mother Tongue */}
+                {prefMotherTongueList.length > 0 && (
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-10 h-10 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0 shadow-xs">
+                      <Globe size={18} />
+                    </div>
+                    <div className="min-w-0 pt-0.5">
+                      <span className="text-[11px] text-slate-400 font-bold block uppercase tracking-wider">Preferred Mother Tongue</span>
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {prefMotherTongueList.map((lang, idx) => (
+                          <span key={idx} className="px-3 py-1 rounded-full bg-slate-100 text-slate-800 font-bold text-xs border border-slate-200/60">
+                            {lang}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 9. Religious Practices */}
+                {(prefNamazList.length > 0 || prefHijabBeardList.length > 0) && (
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-10 h-10 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600 shrink-0 shadow-xs">
+                      <Moon size={18} />
+                    </div>
+                    <div className="min-w-0 pt-0.5">
+                      <span className="text-[11px] text-slate-400 font-bold block uppercase tracking-wider">Religious Practices</span>
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {prefNamazList.map((item, idx) => (
+                          <span key={`namaz-${idx}`} className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 font-bold text-xs border border-emerald-100">
+                            🕌 {item}
+                          </span>
+                        ))}
+                        {prefHijabBeardList.map((item, idx) => (
+                          <span key={`hijab-${idx}`} className="px-3 py-1 rounded-full bg-slate-100 text-slate-800 font-bold text-xs border border-slate-200/60">
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
           )}
@@ -2039,33 +2303,6 @@ export default function ProfileDetailPage() {
         />
       )}
 
-    </div>
-  );
-}
-
-// 📦 Reusable Detail Card Info Item
-function CardInfoItem({ label, value, highlight = false }: { label: string; value: any; highlight?: boolean }) {
-  if (
-    value === null || 
-    value === undefined || 
-    value === '' || 
-    value === 0 || 
-    value === '0' || 
-    value === 'N/A' || 
-    value === 'Not Disclosed' || 
-    String(value).trim() === ''
-  ) {
-    return null;
-  }
-
-  return (
-    <div className={`p-3 rounded-xl border transition-all ${
-      highlight 
-        ? 'bg-rose-50/70 border-rose-200 text-[#E21E5B]' 
-        : 'bg-slate-50/70 border-slate-100 text-slate-800'
-    }`}>
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block mb-0.5">{label}</span>
-      <span className={`text-xs font-bold block ${highlight ? 'text-[#E21E5B]' : 'text-slate-800'}`}>{String(value)}</span>
     </div>
   );
 }

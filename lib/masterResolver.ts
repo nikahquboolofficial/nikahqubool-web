@@ -357,3 +357,88 @@ export function resolveMasterText(category: string, rawVal: any, dynamicOptions?
   // NEVER return raw numeric ID like "1" or "14"
   return '';
 }
+
+/**
+ * Resolves a comma-separated or array of IDs/strings into clean human-readable labels.
+ * e.g. "1,2" for EDUCATIONS -> ["B.Tech / B.E.", "M.Tech / M.E."]
+ */
+export function resolveMultiMasterList(
+  category: string, 
+  rawVal: any, 
+  dynamicOptions?: Array<{ id?: any; value: string }>
+): string[] {
+  if (rawVal === null || rawVal === undefined || rawVal === '') return [];
+  
+  let tokens: string[] = [];
+  if (Array.isArray(rawVal)) {
+    tokens = rawVal.map(v => String(v).trim()).filter(Boolean);
+  } else if (typeof rawVal === 'string' || typeof rawVal === 'number') {
+    tokens = String(rawVal).split(',').map(s => s.trim()).filter(Boolean);
+  }
+  
+  const results: string[] = [];
+  for (const token of tokens) {
+    if (token === '0' || token.toLowerCase() === 'null' || token.toLowerCase() === 'undefined') continue;
+    const resolved = resolveMasterText(category, token, dynamicOptions);
+    if (resolved && resolved.trim().length > 0 && !/^\d+$/.test(resolved.trim())) {
+      results.push(resolved.trim());
+    } else if (!/^\d+$/.test(token) && token.trim().length > 0) {
+      results.push(token.trim());
+    }
+  }
+  return results;
+}
+
+/**
+ * Formats partner height range professionally e.g. "4ft 6in (137 cm) - 6ft 10in (208 cm)"
+ */
+export function formatHeightPreference(minH: any, maxH: any): string | null {
+  if (!minH && !maxH) return null;
+  
+  const formatSingle = (val: any) => {
+    if (!val) return '';
+    const num = parseFloat(String(val));
+    if (isNaN(num) || num <= 0) return String(val);
+    
+    // Check if in centimeters (> 100 cm)
+    if (num > 100) {
+      const totalInches = Math.round(num / 2.54);
+      const ft = Math.floor(totalInches / 12);
+      const inch = totalInches % 12;
+      return `${ft}ft ${inch}in (${Math.round(num)} cm)`;
+    }
+    
+    // Decimal feet (e.g. 4.5, 6.8)
+    const totalInches = Math.round(num * 12);
+    const ft = Math.floor(totalInches / 12);
+    const inch = totalInches % 12;
+    const cm = Math.round(totalInches * 2.54);
+    return `${ft}ft ${inch}in (${cm} cm)`;
+  };
+
+  const minFormatted = formatSingle(minH);
+  const maxFormatted = formatSingle(maxH);
+
+  if (minFormatted && maxFormatted) {
+    if (minFormatted === maxFormatted) return minFormatted;
+    return `${minFormatted} - ${maxFormatted}`;
+  }
+  if (minFormatted) return `Min ${minFormatted}`;
+  if (maxFormatted) return `Up to ${maxFormatted}`;
+  return null;
+}
+
+/**
+ * Formats age range professionally e.g. "18 to 70 Years"
+ */
+export function formatAgePreference(minA: any, maxA: any): string | null {
+  const min = Number(minA);
+  const max = Number(maxA);
+  if (min > 0 && max > 0) {
+    if (min === max) return `${min} Years`;
+    return `${min} to ${max} Years`;
+  }
+  if (min > 0) return `${min}+ Years`;
+  if (max > 0) return `Up to ${max} Years`;
+  return null;
+}
