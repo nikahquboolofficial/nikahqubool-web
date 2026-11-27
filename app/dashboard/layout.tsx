@@ -14,6 +14,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import DashboardHeader from '@/components/layout/dashboard/DashboardHeader';
 import DashboardBottomNav from '@/components/layout/dashboard/DashboardBottomNav';
+import InterestLimitModal from '@/components/dashboard/InterestLimitModal';
 import { fetchDashboardApi, fetchNotificationCountsApi, handleInteractionApiCall, fetchActiveSubscriptionApi } from '@/lib/api';
 import { syncSubscriptionToStorage } from '@/lib/subscriptionUtils';
 import { DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
@@ -567,6 +568,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           </>
         )}
       </AnimatePresence>
+
+      {/* 🔒 20 DAILY INTEREST LIMIT POPUP FOR FREE MEMBERS (CROSS-PLATFORM DYNAMIC SYNC) */}
+      <InterestLimitModal />
 
     </div>
   );

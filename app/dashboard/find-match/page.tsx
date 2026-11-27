@@ -628,7 +628,7 @@ export default function FindMatchPage() {
       {viewMode === 'form' && (
         <>
           {/* Top Bar (Fixed) */}
-          <div className="fixed top-0 lg:top-20 inset-x-0 z-40 bg-white py-3 px-4 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+          <div className="fixed top-0 lg:top-15 inset-x-0 z-40 bg-white py-3 px-4 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
             <div className="max-w-md mx-auto flex items-center gap-3">
               <button 
                 onClick={() => {
@@ -656,7 +656,7 @@ export default function FindMatchPage() {
             </div>
           </div>
 
-          <div className="max-w-md mx-auto px-4 pt-16 lg:pt-28 pb-32 space-y-5">
+          <div className="max-w-md mx-auto px-4 pt-14 lg:pt-22 pb-32 space-y-5">
 
           {/* 🌟 SECTION 1: BASIC DETAILS */}
           <div className="space-y-3">
@@ -998,7 +998,7 @@ export default function FindMatchPage() {
       {viewMode === 'results' && (
         <>
           {/* 🌟 100% FIXED RESULTS TOP BAR & QUICK-FILTERS */}
-          <div className="fixed top-0 lg:top-20 inset-x-0 z-40 bg-white pt-2.5 pb-2 px-4 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+          <div className="fixed top-0 lg:top-15 inset-x-0 z-40 bg-white pt-2.5 pb-2 px-4 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
             <div className="max-w-md mx-auto space-y-2">
               {/* Results Top Header */}
               <div className="flex items-center justify-between">
@@ -1080,7 +1080,7 @@ export default function FindMatchPage() {
         </div>
       </div>
 
-      <div className="max-w-md mx-auto px-4 pt-24 lg:pt-36 pb-28 space-y-4">
+      <div className="max-w-md mx-auto px-4 pt-20 lg:pt-30 pb-28 space-y-4">
         {/* 🌟 PROFILES CARD FEED (SCREENSHOT 5) */}
           {loading ? (
             <div className="space-y-4 pt-2">

@@ -370,7 +370,7 @@ export default function HelpAndSupportPage() {
         </div>
       </div>
 
-      <div className="max-w-xl mx-auto px-4 sm:px-6 pt-16 lg:pt-28 space-y-6">
+      <div className="max-w-xl mx-auto px-4 sm:px-6 pt-14 lg:pt-20 space-y-6">
 
         {/* 🔍 SEARCH BAR */}
         {!selectedCategory && (

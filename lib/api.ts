@@ -544,6 +544,12 @@ export const handleInteractionApiCall = async (receiverUserId: number, interacti
     }
     const data = await res.json();
     const isSuccess = Boolean(data.success || data.Success);
+    const msg = String(data.message || data.Message || '');
+    const isLimitReached = msg.includes('DAILY_INTEREST_LIMIT') || msg.includes('limit of 20');
+
+    if (isLimitReached && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent('interest_limit_reached', { detail: { message: msg } }));
+    }
 
     // ⚡ Dispatch global event so all open views (Dashboard, Activity, Find Match, Profile) sync instantly
     if (isSuccess && typeof window !== "undefined") {
@@ -557,7 +563,12 @@ export const handleInteractionApiCall = async (receiverUserId: number, interacti
       }
     }
 
-    return { success: isSuccess, message: data.message || data.Message, details: data.details || data.Details };
+    return { 
+      success: isSuccess, 
+      message: data.message || data.Message, 
+      details: data.details || data.Details,
+      isLimitReached: isLimitReached
+    };
   } catch (error) {
     return { success: false, message: "Network error during action execution." };
   }

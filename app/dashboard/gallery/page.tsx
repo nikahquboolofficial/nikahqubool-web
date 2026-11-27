@@ -479,7 +479,7 @@ export default function GalleryManagementPage() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 pt-16 lg:pt-28">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 pt-14 lg:pt-20">
 
         {/* TITLE BANNER */}
         <div className="bg-white p-6 rounded-3xl border border-rose-100/80 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">

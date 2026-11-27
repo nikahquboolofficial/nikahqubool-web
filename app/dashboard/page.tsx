@@ -77,8 +77,13 @@ export default function VIPCleanDashboardPage() {
   const [actionState, setActionState] = useState<{ [key: number]: boolean }>({});
   const [actionTypeState, setActionTypeState] = useState<{ [key: number]: string | null }>({});
 
-  // 🔒 24-HOUR / 15 PROFILE VIEW LIMIT STATE FOR FREE USERS
-  const [isCurrentUserPaid, setIsCurrentUserPaid] = useState<boolean>(false);
+  // 🔒 24-HOUR / 20 PROFILE VIEW LIMIT STATE FOR FREE USERS
+  const [isCurrentUserPaid, setIsCurrentUserPaid] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return getClientSubscriptionStatus().isPaid;
+    }
+    return false;
+  });
   const [dailyLimitReached, setDailyLimitReached] = useState<boolean>(false);
 
   const getToken = useCallback((): string | null => getAuthToken(), []);
@@ -284,6 +289,18 @@ export default function VIPCleanDashboardPage() {
           toast.dismiss();
           toast.error("Session expired.");
           router.push('/');
+        } else if (response && !response.success) {
+          // 🔄 Revert optimistic state if interest limit reached or request rejected
+          if (type.toUpperCase() === 'INTEREST') {
+            setProfiles((prevProfiles) =>
+              prevProfiles.map((p) => {
+                if (Number(p.userId || p.UserId || 0) === targetId) {
+                  return { ...p, isInterestSent: false, interestStatus: '' };
+                }
+                return p;
+              })
+            );
+          }
         }
       } catch (e) {
         console.error("Optimistic interaction sync failed:", e);
@@ -387,8 +404,8 @@ export default function VIPCleanDashboardPage() {
         .no-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
 
-      {/* 🌟 NIKAH FILTER TABS ROW (100% FIXED UNDER FIXED HEADER) */}
-      <div className="fixed top-16 md:top-20 inset-x-0 z-40 bg-white py-2.5 px-3 sm:px-6 lg:px-8 border-b border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+      {/* 🌟 NIKAH FILTER TABS ROW (100% FIXED UNDER FIXED SLIM HEADER) */}
+      <div className="fixed top-14 md:top-15 inset-x-0 z-40 bg-white py-2 px-3 sm:px-6 lg:px-8 border-b border-slate-100 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
         <div className="max-w-7xl mx-auto flex items-center justify-center gap-2 overflow-x-auto no-scrollbar">
           {tabs.map((t) => {
             const isActive = activeTab === t.id;
@@ -430,7 +447,7 @@ export default function VIPCleanDashboardPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-[120px] md:pt-[140px] space-y-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-[104px] md:pt-[114px] space-y-4">
         {/* PROFILES GRID */}
         {loading ? (
           <div className="py-10 sm:py-16 flex items-center justify-center">
@@ -480,7 +497,7 @@ export default function VIPCleanDashboardPage() {
             </div>
 
             {/* 🔒 24-HOUR DAILY 20 PROFILES VIEW LIMIT CARD (CHAMPAGNE GOLD & GLOSSY PURE WHITE VIP THEME) */}
-            {(!isCurrentUserPaid && (dailyLimitReached || profiles.length >= DAILY_FREE_PROFILE_LIMIT)) && (
+            {(!loading && !isCurrentUserPaid && dailyLimitReached) && (
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

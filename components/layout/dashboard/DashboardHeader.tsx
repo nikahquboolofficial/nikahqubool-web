@@ -155,15 +155,15 @@ export default function DashboardHeader({
   }, [pathname]);
 
   return (
-    <header className="h-16 md:h-20 bg-white fixed top-0 inset-x-0 z-50 px-4 md:px-8 flex items-center justify-between border-b border-slate-100 shadow-none text-slate-900 selection:bg-[#d91b5c] selection:text-white">
+    <header className="h-14 md:h-15 bg-white fixed top-0 inset-x-0 z-50 px-3 sm:px-4 md:px-8 flex items-center justify-between border-b border-slate-100 shadow-[0_1px_2px_rgba(0,0,0,0.02)] text-slate-900 selection:bg-[#d91b5c] selection:text-white">
       
-      {/* 👑 BRAND LOGO IMAGE */}
-      <div className="flex items-center gap-3">
+      {/* 👑 BRAND LOGO IMAGE - SLIM & SLEEK MOBILE-APP STYLE */}
+      <div className="flex items-center gap-2">
         <Link prefetch={false} href="/dashboard" className="flex items-center gap-2 group">
           <img
             src="/nikah-qubool-logo.png"
             alt="Nikah Qubool Logo"
-            className="h-10 sm:h-12 md:h-13 w-auto max-w-[190px] sm:max-w-[250px] object-contain object-left transition-transform duration-200 group-hover:scale-105"
+            className="h-7 sm:h-8 md:h-8.5 w-auto max-w-[125px] sm:max-w-[160px] object-contain object-left transition-transform duration-200 group-hover:scale-105"
           />
         </Link>
       </div>

@@ -360,7 +360,7 @@ export default function MembershipPage() {
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 pt-16 lg:pt-28 pb-36 sm:pb-32 space-y-4">
+      <div className="max-w-2xl mx-auto px-4 pt-14 lg:pt-20 pb-36 sm:pb-32 space-y-4">
 
         {/* ACTIVE SUBSCRIPTION BADGE (IF ANY) */}
         {activeSub && (

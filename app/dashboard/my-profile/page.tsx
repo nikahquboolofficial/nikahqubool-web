@@ -313,7 +313,7 @@ export default function MyProfilePage() {
         </div>
       </div>
 
-      <div className="max-w-xl mx-auto px-4 sm:px-6 pt-16 lg:pt-28 space-y-4">
+      <div className="max-w-xl mx-auto px-4 sm:px-6 pt-14 lg:pt-20 space-y-4">
         
         {/* 🎴 1. MAIN PROFILE SUMMARY CARD (CIRCULAR RING AVATAR & STATS) */}
         <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-slate-100 text-center space-y-4 relative overflow-hidden">

@@ -1073,7 +1073,7 @@ function SettingsContent() {
         </div>
       </div>
 
-      <div className="max-w-xl mx-auto px-4 sm:px-6 space-y-4 pt-16 lg:pt-28">
+      <div className="max-w-xl mx-auto px-4 sm:px-6 space-y-4 pt-14 lg:pt-20">
 
         {/* 📱 1. MAIN MENU SCREEN */}
         {activeTab === 'menu' && (
