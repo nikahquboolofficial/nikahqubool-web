@@ -419,6 +419,20 @@ function ActivityContent() {
             }
           });
           delete activityTabCache['declined'];
+        } else if (type === 'INTEREST' && status === 'PENDING') {
+          toast.success("Interest sent successfully!");
+          saveInterestSentState(receiverId, 'SENT');
+          setProfiles(prev => prev.map(p => {
+            if (Number(p.userId || p.UserId) === receiverId) {
+              return {
+                ...p,
+                isInterestSent: true,
+                hasSentInterest: true,
+                interestStatus: 'SentPending'
+              };
+            }
+            return p;
+          }));
         } else if (type === 'SHORTLIST') {
           // 0ms instant sync without intrusive toast
           setProfiles(prev => {
@@ -746,6 +760,12 @@ function ActivityContent() {
               const profession = user.profession || user.Profession || user.education || user.Education || 'Professional';
               const photoUrl = getOptimizedImageUrl(user.photoUrl || user.PhotoUrl);
               const isShortlisted = Boolean(user.isShortlisted);
+              const isInterestSent = Boolean(
+                user.isInterestSent || user.IsInterestSent ||
+                user.interestStatus === 'SentPending' || user.interestStatus === 'Sent' || user.interestStatus === 'SENT' ||
+                (user.interactionDirection === 'SENT' && user.interactionType === 'INTEREST')
+              );
+              const isConnected = user.interestStatus === 'Accepted' || user.interestStatus === 'ACCEPTED' || Boolean(user.isCanChat ?? user.IsCanChat);
               const isPendingReceived = (activeMainTab === 'interests' && activeSubTab === 'requests') || 
                                         user.interestStatus === 'ReceivedPending' || 
                                         user.isInterestReceived ||
@@ -885,11 +905,41 @@ function ActivityContent() {
                               <button
                                 type="button"
                                 onClick={() => startChat(user)}
-                                className="w-12 h-12 rounded-full bg-[#E5B54F] text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform cursor-pointer"
+                                className="w-11 h-11 rounded-full bg-[#E5B54F] text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform cursor-pointer"
                               >
-                                <MessageCircle size={20} className="fill-white stroke-none" />
+                                <MessageCircle size={19} className="fill-white stroke-none" />
                               </button>
                               <span className="text-[10px] font-semibold text-white/90">Chat</span>
+                            </div>
+
+                            {/* Interest Button (Heart in Circle) */}
+                            <div className="flex flex-col items-center gap-1">
+                              <button
+                                type="button"
+                                disabled={actionInProgress[uId] || isInterestSent || isConnected}
+                                onClick={() => {
+                                  if (!isInterestSent && !isConnected) {
+                                    handleInteraction(uId, 'INTEREST', 'PENDING');
+                                  }
+                                }}
+                                className={`w-11 h-11 rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-all cursor-pointer ${
+                                  isInterestSent || isConnected
+                                    ? 'bg-white/90 text-[#E21E5B] border border-[#E21E5B]/60 shadow-md'
+                                    : 'bg-[#E21E5B] hover:bg-[#CE1B53] text-white border border-rose-300/40 shadow-rose-900/30'
+                                }`}
+                              >
+                                {actionInProgress[uId] ? (
+                                  <Loader2 size={18} className="animate-spin text-white" />
+                                ) : (
+                                  <Heart 
+                                    size={19} 
+                                    className={isInterestSent || isConnected ? 'fill-[#E21E5B] stroke-[2]' : 'fill-white stroke-none'} 
+                                  />
+                                )}
+                              </button>
+                              <span className={`text-[10px] font-semibold ${isInterestSent || isConnected ? 'text-rose-300 font-bold' : 'text-white/90'}`}>
+                                {isInterestSent ? 'Sent' : isConnected ? 'Connected' : 'Interest'}
+                              </span>
                             </div>
                           </>
                         )}
