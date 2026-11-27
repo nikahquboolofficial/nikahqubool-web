@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, Suspense, Component, ErrorInfo, ReactNode } from 'react';
+import { useSearchParams } from 'next/navigation';
 import InboxList from '@/components/chat/InboxList';
 import ChatWindow from '@/components/chat/ChatWindow';
 import { MessageSquare, Sparkles, Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
@@ -79,19 +80,36 @@ class ChatErrorBoundary extends Component<{ children: ReactNode; onReset?: () =>
 function MessagesContainer() {
   const [selectedChat, setSelectedChat] = useState<any>(null);
   const [chatNonce, setChatNonce] = useState(0);
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     const savedTarget = sessionStorage.getItem('active_chat_target');
     if (savedTarget) {
       try {
         const parsedTarget = JSON.parse(savedTarget);
-        setSelectedChat(parsedTarget);
-        sessionStorage.removeItem('active_chat_target');
+        if (parsedTarget && (parsedTarget.userId || parsedTarget.UserId)) {
+          setSelectedChat(parsedTarget);
+          sessionStorage.removeItem('active_chat_target');
+          return;
+        }
       } catch (e) {
         console.error("Error parsing target chat:", e);
       }
     }
-  }, []);
+
+    // Direct URL search param fallback from Activity/Find Match
+    const paramUserId = searchParams.get('targetUserId') || searchParams.get('userId');
+    if (paramUserId) {
+      const name = searchParams.get('targetName') || searchParams.get('name') || 'Member';
+      const photo = searchParams.get('targetPhoto') || searchParams.get('photo') || '';
+      setSelectedChat({
+        userId: Number(paramUserId),
+        fullName: name,
+        name: name,
+        photoUrl: photo
+      });
+    }
+  }, [searchParams]);
 
   // 🔔 Handle direct conversation switch from incoming notification banner
   useEffect(() => {
@@ -153,7 +171,7 @@ function MessagesContainer() {
             <ChatWindow 
               key={`chat-win-${selectedChat.userId ?? selectedChat.UserId}-${chatNonce}`}
               receiverId={selectedChat.userId ?? selectedChat.UserId} 
-              userName={selectedChat.fullName ?? selectedChat.FullName} 
+              userName={selectedChat.fullName ?? selectedChat.FullName ?? selectedChat.name ?? selectedChat.Name ?? 'Member'} 
               photoUrl={selectedChat.photoUrl ?? selectedChat.PhotoUrl ?? selectedChat.mainPhotoUrl ?? selectedChat.MainPhotoUrl}
               initialIsOnline={selectedChat.isOnline ?? selectedChat.IsOnline}
               initialLastSeen={selectedChat.lastSeen ?? selectedChat.LastSeen}

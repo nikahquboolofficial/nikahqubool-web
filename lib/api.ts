@@ -1,3 +1,5 @@
+import { saveShortlistState, saveInterestSentState } from '@/lib/interactionStore';
+
 export const API_BASE_URL = 
   (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"))
     ? (process.env.NEXT_PUBLIC_API_URL || "https://api.nikahqubool.in/api")
@@ -551,13 +553,23 @@ export const handleInteractionApiCall = async (receiverUserId: number, interacti
       window.dispatchEvent(new CustomEvent('interest_limit_reached', { detail: { message: msg } }));
     }
 
-    // ⚡ Dispatch global event so all open views (Dashboard, Activity, Find Match, Profile) sync instantly
+    // ⚡ Persist & dispatch global event so all open views (Dashboard, Activity, Find Match, Profile) sync instantly
     if (isSuccess && typeof window !== "undefined") {
+      const targetNum = Number(receiverUserId);
       if (finalType === 'SHORTLIST') {
+        const isShort = finalStatus === 'SHORTLISTED';
+        saveShortlistState(targetNum, isShort);
         window.dispatchEvent(new CustomEvent('shortlist_updated', {
           detail: {
-            userId: Number(receiverUserId),
-            isShortlisted: finalStatus === 'SHORTLISTED'
+            userId: targetNum,
+            isShortlisted: isShort
+          }
+        }));
+      } else if (finalType === 'INTEREST') {
+        saveInterestSentState(targetNum);
+        window.dispatchEvent(new CustomEvent('interest_sent_updated', {
+          detail: {
+            userId: targetNum
           }
         }));
       }

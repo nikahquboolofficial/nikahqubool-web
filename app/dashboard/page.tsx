@@ -2,6 +2,7 @@
 
 import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
 import { getClientSubscriptionStatus } from '@/lib/subscriptionUtils';
+import { applyPersistedInteractions, saveShortlistState, saveInterestSentState } from '@/lib/interactionStore';
 import React, { useRef,  useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Sparkles, Flame, RefreshCw, Crown, Lock, ArrowRight } from 'lucide-react';
@@ -98,7 +99,7 @@ export default function VIPCleanDashboardPage() {
     // ⚡ 0MS INSTANT TAB CACHE HIT
     if (pageNum === 1 && !append && globalFeedCache[tabName] && globalFeedCache[tabName].profiles.length > 0) {
       const cached = globalFeedCache[tabName];
-      setProfiles(cached.profiles);
+      setProfiles(applyPersistedInteractions(cached.profiles));
       setHasMore(cached.hasMore);
       setLoading(false);
 
@@ -124,7 +125,8 @@ export default function VIPCleanDashboardPage() {
     }
 
     if (res.success && res.data) {
-      const list = res.data.profiles || res.data.Profiles || [];
+      const rawList = res.data.profiles || res.data.Profiles || [];
+      const list = applyPersistedInteractions(rawList);
       const userPaid = Boolean(
         res.data.isCurrentUserPaid ?? res.data.IsCurrentUserPaid ?? 
         getClientSubscriptionStatus().isPaid
@@ -260,15 +262,24 @@ export default function VIPCleanDashboardPage() {
         );
       }
     } else {
+      const isInterest = type.toUpperCase() === 'INTEREST';
+      const isShortlist = type.toUpperCase() === 'SHORTLIST';
+      const nextShort = isShortlist ? (status === 'SHORTLISTED' || status === 'ACTIVE') : false;
+
+      if (isInterest) {
+        saveInterestSentState(targetId);
+      } else if (isShortlist) {
+        saveShortlistState(targetId, nextShort);
+      }
+
       setProfiles((prevProfiles) =>
         prevProfiles.map((p) => {
           if (Number(p.userId || p.UserId || 0) === targetId) {
             const updated = { ...p };
-            if (type.toUpperCase() === 'INTEREST') {
+            if (isInterest) {
               updated.isInterestSent = true;
               updated.interestStatus = 'Sent';
-            } else if (type.toUpperCase() === 'SHORTLIST') {
-              const nextShort = (status === 'SHORTLISTED' || status === 'ACTIVE');
+            } else if (isShortlist) {
               updated.isShortlisted = nextShort;
               updated.IsShortlisted = nextShort;
             }
@@ -277,6 +288,26 @@ export default function VIPCleanDashboardPage() {
           return p;
         })
       );
+
+      // ⚡ Synchronize across all cached tabs so tab switching never reverts interaction
+      Object.keys(globalFeedCache).forEach((tabKey) => {
+        if (globalFeedCache[tabKey]?.profiles) {
+          globalFeedCache[tabKey].profiles = globalFeedCache[tabKey].profiles.map((p) => {
+            if (Number(p.userId || p.UserId || 0) === targetId) {
+              const updated = { ...p };
+              if (isInterest) {
+                updated.isInterestSent = true;
+                updated.interestStatus = 'Sent';
+              } else if (isShortlist) {
+                updated.isShortlisted = nextShort;
+                updated.IsShortlisted = nextShort;
+              }
+              return updated;
+            }
+            return p;
+          });
+        }
+      });
     }
 
     setActionState((prev) => ({ ...prev, [targetId]: true }));
@@ -392,9 +423,46 @@ export default function VIPCleanDashboardPage() {
         }
       });
     };
+    const handleInterestSentUpdate = (e: any) => {
+      const { userId } = e.detail || {};
+      if (!userId) return;
+      const targetNum = Number(userId);
+
+      setProfiles((prev) =>
+        prev.map((p) => {
+          if (Number(p.userId || p.UserId || 0) === targetNum) {
+            return { ...p, isInterestSent: true, interestStatus: 'Sent' };
+          }
+          return p;
+        })
+      );
+
+      Object.keys(globalFeedCache).forEach((tabKey) => {
+        if (globalFeedCache[tabKey]?.profiles) {
+          globalFeedCache[tabKey].profiles = globalFeedCache[tabKey].profiles.map((p) => {
+            if (Number(p.userId || p.UserId || 0) === targetNum) {
+              return { ...p, isInterestSent: true, interestStatus: 'Sent' };
+            }
+            return p;
+          });
+        }
+      });
+    };
+
+    const handleNetworkRecovered = () => {
+      loadDashboardData(activeTab, 1, false);
+    };
+
     window.addEventListener('shortlist_updated', handleShortlistUpdate);
-    return () => window.removeEventListener('shortlist_updated', handleShortlistUpdate);
-  }, []);
+    window.addEventListener('interest_sent_updated', handleInterestSentUpdate);
+    window.addEventListener('network_recovered', handleNetworkRecovered);
+
+    return () => {
+      window.removeEventListener('shortlist_updated', handleShortlistUpdate);
+      window.removeEventListener('interest_sent_updated', handleInterestSentUpdate);
+      window.removeEventListener('network_recovered', handleNetworkRecovered);
+    };
+  }, [activeTab, loadDashboardData]);
 
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900 pb-28 pt-0 selection:bg-[#e21e5b] selection:text-white">

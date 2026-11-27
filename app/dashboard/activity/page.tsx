@@ -10,6 +10,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, Toaster } from 'sonner';
 import { fetchDashboardApi, handleInteractionApiCall } from '@/lib/api';
+import { applyPersistedInteractions, saveShortlistState, saveInterestSentState } from '@/lib/interactionStore';
 import { getAuthToken } from '@/lib/auth';
 import { getClientSubscriptionStatus } from '@/lib/subscriptionUtils';
 import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
@@ -201,7 +202,7 @@ function ActivityContent() {
 
     if (pageNum === 1) {
       if (activityTabCache[tabName]?.profiles?.length > 0) {
-        setProfiles(activityTabCache[tabName].profiles);
+        setProfiles(applyPersistedInteractions(activityTabCache[tabName].profiles));
         setLoading(false);
       } else {
         setProfiles([]);
@@ -222,9 +223,9 @@ function ActivityContent() {
           ? res.data 
           : (res.data?.profiles || res.data?.Profiles || (Array.isArray(res.data?.data) ? res.data.data : []));
 
-        const sorted = sortActivitiesDescending(rawList);
+        const sorted = applyPersistedInteractions(sortActivitiesDescending(rawList));
         if (append) {
-          setProfiles(prev => sortActivitiesDescending([...prev, ...sorted]));
+          setProfiles(prev => applyPersistedInteractions(sortActivitiesDescending([...prev, ...sorted])));
         } else {
           setProfiles(sorted);
           activityTabCache[tabName] = {
@@ -387,10 +388,19 @@ function ActivityContent() {
       setShowSubscriptionModal(true);
       return;
     }
-    const uId = user.userId || user.UserId;
-    const name = user.fullName || user.FullName || 'Member';
-    const photo = user.photoUrl || user.PhotoUrl || '';
-    router.push(`/dashboard/messages?targetUserId=${uId}&targetName=${encodeURIComponent(name)}&targetPhoto=${encodeURIComponent(photo)}`);
+    const uId = Number(user.userId || user.UserId);
+    const name = user.fullName || user.FullName || user.name || user.Name || 'Member';
+    const photo = user.photoUrl || user.PhotoUrl || user.mainPhotoUrl || '';
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("last_browse_page", "/dashboard/activity");
+      sessionStorage.setItem('active_chat_target', JSON.stringify({
+        userId: uId,
+        fullName: name,
+        name: name,
+        photoUrl: photo
+      }));
+    }
+    router.push('/dashboard/messages');
   };
 
   // Helper text per tab & item
@@ -467,8 +477,27 @@ function ActivityContent() {
         })
       );
     };
+    const handleInterestSentUpdate = (e: any) => {
+      const { userId } = e.detail || {};
+      if (!userId) return;
+      delete activityTabCache['interests-sent'];
+      delete activityTabCache['interests'];
+      setProfiles((prev) =>
+        prev.map((p) => {
+          if (Number(p.userId || p.UserId || 0) === Number(userId)) {
+            return { ...p, isInterestSent: true, interestStatus: 'Sent' };
+          }
+          return p;
+        })
+      );
+    };
+
     window.addEventListener('shortlist_updated', handleShortlistUpdate);
-    return () => window.removeEventListener('shortlist_updated', handleShortlistUpdate);
+    window.addEventListener('interest_sent_updated', handleInterestSentUpdate);
+    return () => {
+      window.removeEventListener('shortlist_updated', handleShortlistUpdate);
+      window.removeEventListener('interest_sent_updated', handleInterestSentUpdate);
+    };
   }, []);
 
   return (

@@ -16,6 +16,7 @@ import {
 } from '@/lib/api';
 import { getAuthToken } from '@/lib/auth';
 import { getClientSubscriptionStatus } from '@/lib/subscriptionUtils';
+import { applyPersistedInteractions } from '@/lib/interactionStore';
 import { getOptimizedImageUrl, DEFAULT_FEMALE_AVATAR } from '@/lib/imageUtils';
 import SubscriptionModal from '@/components/dashboard/SubscriptionModal';
 
@@ -443,10 +444,11 @@ export default function FindMatchPage() {
 
       setIsUserPaid(Boolean(res?.isUserPaid ?? isUserPaid));
 
+      const persistedList = applyPersistedInteractions(list);
       setProfiles(prev => {
-        if (!append) return list;
+        if (!append) return persistedList;
         const existingIds = new Set(prev.map(p => Number(p.userId || p.UserId)));
-        const newAdditions = list.filter((p: any) => !existingIds.has(Number(p.userId || p.UserId)));
+        const newAdditions = persistedList.filter((p: any) => !existingIds.has(Number(p.userId || p.UserId)));
         return [...prev, ...newAdditions];
       });
 
@@ -558,10 +560,19 @@ export default function FindMatchPage() {
       setShowUpgradeModal(true);
       return;
     }
-    const uId = user.userId || user.UserId;
-    const name = user.fullName || user.FullName || 'Member';
-    const photo = user.photoUrl || user.PhotoUrl || '';
-    router.push(`/dashboard/messages?targetUserId=${uId}&targetName=${encodeURIComponent(name)}&targetPhoto=${encodeURIComponent(photo)}`);
+    const uId = Number(user.userId || user.UserId);
+    const name = user.fullName || user.FullName || user.name || user.Name || 'Member';
+    const photo = user.photoUrl || user.PhotoUrl || user.mainPhotoUrl || '';
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("last_browse_page", "/dashboard/find-match");
+      sessionStorage.setItem('active_chat_target', JSON.stringify({
+        userId: uId,
+        fullName: name,
+        name: name,
+        photoUrl: photo
+      }));
+    }
+    router.push('/dashboard/messages');
   };
 
   // Multi-select Toggle Handler for Form Bottom Sheets
