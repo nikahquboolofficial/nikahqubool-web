@@ -244,8 +244,13 @@ function ActivityContent() {
         const visList = visRes?.success && visRes.data ? (Array.isArray(visRes.data) ? visRes.data : visRes.data.profiles || []) : [];
         visList.forEach((p: any) => {
           const id = Number(p.userId || p.UserId);
-          if (id > 0 && !incomingMap.has(id)) {
-            incomingMap.set(id, { ...p, activityType: 'VISITOR', isVisitor: true });
+          if (id > 0) {
+            if (incomingMap.has(id)) {
+              const existing = incomingMap.get(id);
+              incomingMap.set(id, { ...existing, isVisitor: true, hasVisited: true });
+            } else {
+              incomingMap.set(id, { ...p, activityType: 'VISITOR', isVisitor: true });
+            }
           }
         });
 
@@ -253,8 +258,13 @@ function ActivityContent() {
         const galList = galRes?.success && galRes.data ? (Array.isArray(galRes.data) ? galRes.data : galRes.data.profiles || []) : [];
         galList.forEach((p: any) => {
           const id = Number(p.userId || p.UserId);
-          if (id > 0 && !incomingMap.has(id)) {
-            incomingMap.set(id, { ...p, activityType: 'PHOTO_REQUEST', hasRequestedPhoto: true });
+          if (id > 0) {
+            if (incomingMap.has(id)) {
+              const existing = incomingMap.get(id);
+              incomingMap.set(id, { ...existing, hasRequestedPhoto: true });
+            } else {
+              incomingMap.set(id, { ...p, activityType: 'PHOTO_REQUEST', hasRequestedPhoto: true });
+            }
           }
         });
 
@@ -262,8 +272,13 @@ function ActivityContent() {
         const shortList = shortRes?.success && shortRes.data ? (Array.isArray(shortRes.data) ? shortRes.data : shortRes.data.profiles || []) : [];
         shortList.forEach((p: any) => {
           const id = Number(p.userId || p.UserId);
-          if (id > 0 && !incomingMap.has(id)) {
-            incomingMap.set(id, { ...p, activityType: 'SHORTLIST_RECEIVED', isShortlistedMe: true });
+          if (id > 0) {
+            if (incomingMap.has(id)) {
+              const existing = incomingMap.get(id);
+              incomingMap.set(id, { ...existing, isShortlistedMe: true });
+            } else {
+              incomingMap.set(id, { ...p, activityType: 'SHORTLIST_RECEIVED', isShortlistedMe: true });
+            }
           }
         });
 
@@ -529,23 +544,29 @@ function ActivityContent() {
     const iType = String(user.interactionType || user.activityType || user.type || '').toUpperCase();
     const iStatus = String(user.interestStatus || user.status || '');
     
-    if (user.activityType === 'SHORTLIST_RECEIVED' || user.isShortlistedMe) {
-      return `${name} shortlisted your profile`;
-    }
-    if (user.activityType === 'VISITOR' || user.isVisitor || iType.includes('VISIT') || iType.includes('VIEW')) {
-      return `${name} visited your profile`;
-    }
-    if (user.activityType === 'PHOTO_REQUEST' || user.hasRequestedPhoto || iType.includes('PHOTO')) {
-      return `${name} requested your photo access`;
-    }
-    if (user.activityType === 'CONTACT_VIEW' || iType.includes('CONTACT')) {
-      return `${name} viewed your contact details`;
-    }
+    // 👑 PRIORITY 1: Interest Pending (Requires Accept / Decline action)
     if (iStatus === 'ReceivedPending' || user.isInterestReceived || user.activityType === 'INTEREST') {
       return `${name} sent you an interest request`;
     }
+    // PRIORITY 2: Connected / Accepted
     if (iStatus === 'Accepted' || iType.includes('ACCEPT')) {
       return `You and ${name} are connected`;
+    }
+    // PRIORITY 3: Photo Access Request
+    if (user.activityType === 'PHOTO_REQUEST' || user.hasRequestedPhoto || iType.includes('PHOTO')) {
+      return `${name} requested your photo access`;
+    }
+    // PRIORITY 4: Shortlisted You
+    if (user.activityType === 'SHORTLIST_RECEIVED' || user.isShortlistedMe) {
+      return `${name} shortlisted your profile`;
+    }
+    // PRIORITY 5: Profile Visitor
+    if (user.activityType === 'VISITOR' || user.isVisitor || iType.includes('VISIT') || iType.includes('VIEW')) {
+      return `${name} visited your profile`;
+    }
+    // PRIORITY 6: Contact View
+    if (user.activityType === 'CONTACT_VIEW' || iType.includes('CONTACT')) {
+      return `${name} viewed your contact details`;
     }
     if (user.notificationMessage) {
       return user.notificationMessage;
@@ -789,8 +810,20 @@ function ActivityContent() {
                       <div onClick={() => openProfileView(user)} className="text-xs font-extrabold text-slate-900 cursor-pointer hover:underline hover:text-[#E21E5B] transition-colors">
                         {headlineText}
                       </div>
-                      <div className="text-[10px] font-medium text-slate-400">
-                        {relativeTime}
+                      <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                        <span className="text-[10px] font-medium text-slate-400">
+                          {relativeTime}
+                        </span>
+                        {/* 🌟 Multiple Activities Indicator Chips */}
+                        {isPendingReceived && (user.isShortlistedMe || user.isVisitor || user.hasRequestedPhoto) && (
+                          <span className="text-[9px] font-bold text-[#E21E5B] bg-rose-50 px-1.5 py-0.2 rounded-full border border-rose-200/80">
+                            {[
+                              user.isShortlistedMe ? '★ Shortlisted you' : null,
+                              user.isVisitor ? 'Visited' : null,
+                              user.hasRequestedPhoto ? 'Requested photo' : null
+                            ].filter(Boolean).join(' • ')}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
