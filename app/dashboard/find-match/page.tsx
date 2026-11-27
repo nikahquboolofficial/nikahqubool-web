@@ -268,8 +268,16 @@ export default function FindMatchPage() {
 
   const getToken = useCallback(() => getAuthToken(), []);
 
-  // 1. Load Saved Filters from localStorage on Mount
+  // 1. Load Saved Filters from localStorage on Mount & Prefetch common routes
   useEffect(() => {
+    try {
+      router.prefetch('/dashboard/profile');
+      router.prefetch('/dashboard');
+      router.prefetch('/dashboard/activity');
+      router.prefetch('/dashboard/messages');
+      router.prefetch('/dashboard/my-profile');
+    } catch {}
+
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {

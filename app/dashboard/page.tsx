@@ -200,12 +200,7 @@ export default function VIPCleanDashboardPage() {
         // ⚡ PRELOAD PROFILE CARD IMAGES FOR INSTANT LOAD WITH ZERO BLANK PHOTOS
         if (finalProfiles.length > 0) {
           const photoUrls = finalProfiles.map((p: any) => p.photoUrl || p.mainPhotoUrl || p.PhotoUrl).filter(Boolean);
-          await preloadCardImages(photoUrls);
-
-          const elapsed = Date.now() - startTime;
-          if (elapsed < 650) {
-            await new Promise((r) => setTimeout(r, 650 - elapsed));
-          }
+          preloadCardImages(photoUrls);
         }
       }
     } else {
@@ -217,9 +212,18 @@ export default function VIPCleanDashboardPage() {
   }, [getToken, router]);
 
   useEffect(() => {
+    // ⚡ PROACTIVE ROUTE PREFETCHING FOR 0-MS INSTANT SUB-PAGE SWITCHING
+    try {
+      router.prefetch('/dashboard/profile');
+      router.prefetch('/dashboard/activity');
+      router.prefetch('/dashboard/find-match');
+      router.prefetch('/dashboard/messages');
+      router.prefetch('/dashboard/my-profile');
+    } catch {}
+
     setPage(1);
     loadDashboardData(activeTab, 1, false);
-  }, [activeTab, loadDashboardData]);
+  }, [activeTab, loadDashboardData, router]);
 
   // ⚡ PURE REAL-TIME VERIFICATION: Query Redis to ensure only truly active users show green dots
   useEffect(() => {
@@ -540,11 +544,18 @@ export default function VIPCleanDashboardPage() {
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-[104px] md:pt-[114px] space-y-4">
         {/* PROFILES GRID */}
         {loading ? (
-          <div className="py-10 sm:py-16 flex items-center justify-center">
-            <ProfileAvatarLoader 
-              message="Finding Best Matches For You" 
-              subMessage="Connecting with verified halal matrimonial profiles..." 
-            />
+          <div className="relative w-full">
+            {/* 🌟 3D ELEVATED FLOATING LOADER CARD */}
+            <div className="py-6 sm:py-10 flex items-center justify-center z-10 relative">
+              <ProfileAvatarLoader 
+                message="Finding Best Matches For You" 
+                subMessage="Connecting with verified halal matrimonial profiles..." 
+              />
+            </div>
+            {/* 🌟 AMBIENT LUXURY SHIMMER CARDS (SCREEN NEVER LOOKS EMPTY) */}
+            <div className="opacity-35 blur-[1.5px] pointer-events-none select-none -mt-4">
+              <ProfileCardSkeleton count={4} />
+            </div>
           </div>
         ) : displayedProfiles.length === 0 ? (
           <div className="py-16 px-4 text-center max-w-md mx-auto space-y-4">

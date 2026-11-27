@@ -290,11 +290,19 @@ function ActivityContent() {
     return () => window.removeEventListener('shortlist_updated', handleShortlistSync);
   }, []);
 
-  // Trigger load when tab changes
+  // Trigger load when tab changes & prefetch routes
   useEffect(() => {
+    try {
+      router.prefetch('/dashboard/profile');
+      router.prefetch('/dashboard');
+      router.prefetch('/dashboard/find-match');
+      router.prefetch('/dashboard/messages');
+      router.prefetch('/dashboard/my-profile');
+    } catch {}
+
     setPage(1);
     loadData(activeSubTab, 1, false);
-  }, [activeSubTab, loadData]);
+  }, [activeSubTab, loadData, router]);
 
   // Handle Main Tab Switch
   const handleMainTabChange = (mainTab: MainTab) => {

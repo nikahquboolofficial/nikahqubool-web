@@ -162,10 +162,10 @@ export default function ProfileCard({
     >
       {/* 🖼️ CARD MEDIA CONTAINER */}
       <div className="relative w-full h-[min(540px,calc(100svh-175px))] sm:h-[500px] md:h-[515px] overflow-hidden select-none">
-        {/* 🔗 FULL CARD LINK (Opens profile with TopLoader progress bar) */}
+        {/* 🔗 FULL CARD LINK (Opens profile instantly with prefetching) */}
         <Link 
           href={`/dashboard/profile?userId=${userIdNum}`}
-          prefetch={false}
+          prefetch={true}
           onClick={(e) => {
             e.preventDefault();
             onViewProfile(userIdNum);

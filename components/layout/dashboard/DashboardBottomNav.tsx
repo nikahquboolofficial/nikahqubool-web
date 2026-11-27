@@ -75,7 +75,7 @@ export default function DashboardBottomNav({
         {/* 1. HOME */}
         <Link 
           href="/dashboard"
-          prefetch={false}
+          prefetch={true}
           onClick={() => {
             setActiveTabOverride('home');
             recordBrowseLocation('/dashboard');
@@ -100,7 +100,7 @@ export default function DashboardBottomNav({
         {/* 2. ACTIVITY */}
         <Link 
           href="/dashboard/activity" 
-          prefetch={false}
+          prefetch={true}
           onClick={() => {
             setActiveTabOverride('activity');
             recordBrowseLocation('/dashboard/activity');
@@ -130,7 +130,7 @@ export default function DashboardBottomNav({
         {/* 3. SEARCH */}
         <Link 
           href="/dashboard/find-match" 
-          prefetch={false}
+          prefetch={true}
           onClick={() => {
             setActiveTabOverride('search');
             recordBrowseLocation('/dashboard/find-match');
@@ -155,7 +155,7 @@ export default function DashboardBottomNav({
         {/* 4. CHAT */}
         <Link 
           href="/dashboard/messages" 
-          prefetch={false}
+          prefetch={true}
           onClick={() => {
             setActiveTabOverride('chat');
             recordBrowseLocation('/dashboard/messages');
@@ -185,7 +185,7 @@ export default function DashboardBottomNav({
         {/* 5. PROFILE */}
         <Link 
           href="/dashboard/my-profile" 
-          prefetch={false}
+          prefetch={true}
           onClick={() => {
             setActiveTabOverride('profile');
             recordBrowseLocation('/dashboard/my-profile');

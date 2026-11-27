@@ -752,11 +752,24 @@ export default function ProfileDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white p-4 md:p-6 max-w-3xl mx-auto space-y-6 animate-pulse pt-6">
-        <div className="w-full aspect-[4/5] md:aspect-[16/9] rounded-3xl bg-slate-200" />
-        <div className="h-10 bg-slate-200 rounded-xl" />
-        <div className="h-40 bg-slate-200 rounded-3xl" />
-        <div className="h-40 bg-slate-200 rounded-3xl" />
+      <div className="min-h-screen bg-[#FAF8F5] pb-20 selection:bg-[#d91b5c] selection:text-white">
+        {/* Sticky Header Skeleton */}
+        <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 py-3 flex items-center justify-between shadow-2xs">
+          <div className="w-9 h-9 rounded-full bg-slate-200 animate-pulse" />
+          <div className="w-32 h-5 bg-slate-200 rounded-full animate-pulse" />
+          <div className="w-9 h-9 rounded-full bg-slate-200 animate-pulse" />
+        </div>
+        <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-5 animate-pulse pt-4">
+          <div className="w-full aspect-[4/5] md:aspect-[16/9] rounded-3xl bg-gradient-to-b from-slate-200 to-slate-300 shadow-sm" />
+          <div className="h-12 bg-white rounded-2xl border border-slate-200/60 p-3 flex items-center gap-3">
+            <div className="w-2/3 h-5 bg-slate-200 rounded-md" />
+          </div>
+          <div className="h-44 bg-white rounded-3xl border border-slate-200/60 p-5 space-y-3 shadow-xs">
+            <div className="w-1/3 h-5 bg-slate-200 rounded-md" />
+            <div className="w-full h-4 bg-slate-200/80 rounded" />
+            <div className="w-3/4 h-4 bg-slate-200/80 rounded" />
+          </div>
+        </div>
       </div>
     );
   }
