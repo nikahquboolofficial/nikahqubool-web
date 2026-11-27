@@ -361,14 +361,20 @@ export default function ProfileDetailPage() {
     if (res.success) {
       const targetId = Number(profileData?.userId || profileData?.UserId || 0);
       if (type === 'INTEREST') {
-        saveInterestSentState(targetId);
+        saveInterestSentState(targetId, status === 'ACCEPTED' ? 'ACCEPTED' : status === 'DECLINED' ? 'DECLINED' : 'SENT');
         setProfileData((prev: any) => ({
           ...prev,
-          isInterestSent: true,
-          hasSentInterest: true,
+          isInterestSent: status !== 'ACCEPTED' && status !== 'DECLINED',
+          isInterestReceived: false,
           interestStatus: status === 'ACCEPTED' ? 'Accepted' : status === 'DECLINED' ? 'Declined' : 'SentPending'
         }));
-        if (status !== "ACCEPTED" && status !== "DECLINED") { toast.success("Interest sent successfully!"); }
+        if (status === "ACCEPTED") {
+          toast.success("Request accepted! You are now connected.");
+        } else if (status === "DECLINED") {
+          toast.info("Request declined.");
+        } else {
+          toast.success("Interest sent successfully!");
+        }
       } else if (type === 'SHORTLIST') {
         const nextShort = (status === 'SHORTLISTED' || status === 'ACTIVE');
         saveShortlistState(targetId, nextShort);
@@ -892,6 +898,11 @@ export default function ProfileDetailPage() {
     profileData.isInterestSent || profileData.IsInterestSent || 
     interestStatus === 'SentPending' || interestStatus.includes('Sent') ||
     interestStatus === 'SENT' || interestStatus === 'PENDING' || interestStatus === 'Sent'
+  );
+  const isInterestReceived = Boolean(
+    profileData.isInterestReceived || profileData.IsInterestReceived ||
+    interestStatus === 'ReceivedPending' || interestStatus.includes('Received') ||
+    interestStatus === 'RECEIVED'
   );
   const isConnected = interestStatus === 'Accepted' || interestStatus === 'ACCEPTED' || Boolean(profileData.isCanChat ?? profileData.IsCanChat);
   const isShortlisted = Boolean(profileData.isShortlisted || profileData.IsShortlisted);
@@ -1840,38 +1851,78 @@ export default function ProfileDetailPage() {
                 <span className="text-xs font-bold text-slate-600">Message</span>
               </div>
 
-              {/* 3. Interest */}
-              <div className="flex flex-col items-center gap-1.5 min-w-[64px]">
-                <motion.button
-                  type="button"
-                  whileHover={(isInterestSent || isConnected) ? {} : { scale: 1.08 }}
-                  whileTap={(isInterestSent || isConnected) ? {} : { scale: 0.92 }}
-                  onClick={(e) => {
-                    if (!isInterestSent && !isConnected) {
-                      handleInteraction(e, 'INTEREST', 'PENDING');
-                    }
-                  }}
-                  disabled={actionLoading || isInterestSent || isConnected}
-                  className={`w-13 h-13 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all ${
-                    isInterestSent || isConnected
-                      ? 'bg-rose-50 text-[#E21E5B] border-2 border-[#E21E5B] cursor-default shadow-md'
-                      : 'bg-[#E21E5B] hover:bg-[#CE1B53] text-white shadow-lg shadow-rose-500/35 cursor-pointer'
-                  }`}
-                  aria-label={isInterestSent ? 'Sent' : isConnected ? 'Connected' : 'Interest'}
-                >
-                  {actionLoading && actionLoadingType === 'INTEREST' ? (
-                    <Loader2 size={22} className="animate-spin text-white" />
-                  ) : (
-                    <Heart
-                      size={24}
-                      className={isInterestSent || isConnected ? 'fill-[#E21E5B] stroke-[2]' : 'fill-white text-white stroke-[0]'}
-                    />
-                  )}
-                </motion.button>
-                <span className={`text-xs font-bold ${isInterestSent || isConnected ? 'text-[#E21E5B]' : 'text-slate-600'}`}>
-                  {isInterestSent ? 'Sent' : isConnected ? 'Connected' : 'Interest'}
-                </span>
-              </div>
+              {/* 3. Interest or Accept/Decline */}
+              {isInterestReceived ? (
+                <div className="flex items-center gap-3">
+                  <div className="flex flex-col items-center gap-1">
+                    <motion.button
+                      type="button"
+                      whileTap={{ scale: 0.92 }}
+                      onClick={(e) => handleInteraction(e, 'INTEREST', 'DECLINED')}
+                      disabled={actionLoading}
+                      className="w-12 h-12 rounded-full bg-slate-700 hover:bg-slate-800 text-white flex items-center justify-center shadow-md cursor-pointer active:scale-90 transition-all"
+                      aria-label="Decline"
+                    >
+                      {actionLoading && actionLoadingType === 'DECLINED' ? (
+                        <Loader2 size={18} className="animate-spin text-white" />
+                      ) : (
+                        <X size={20} className="stroke-[2.5]" />
+                      )}
+                    </motion.button>
+                    <span className="text-[11px] font-bold text-slate-600">Decline</span>
+                  </div>
+
+                  <div className="flex flex-col items-center gap-1">
+                    <motion.button
+                      type="button"
+                      whileTap={{ scale: 0.92 }}
+                      onClick={(e) => handleInteraction(e, 'INTEREST', 'ACCEPTED')}
+                      disabled={actionLoading}
+                      className="w-12 h-12 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-md cursor-pointer shadow-emerald-500/25 active:scale-90 transition-all"
+                      aria-label="Accept"
+                    >
+                      {actionLoading && actionLoadingType === 'ACCEPTED' ? (
+                        <Loader2 size={18} className="animate-spin text-white" />
+                      ) : (
+                        <Check size={22} className="stroke-[3]" />
+                      )}
+                    </motion.button>
+                    <span className="text-[11px] font-bold text-emerald-600">Accept</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-1.5 min-w-[64px]">
+                  <motion.button
+                    type="button"
+                    whileHover={(isInterestSent || isConnected) ? {} : { scale: 1.08 }}
+                    whileTap={(isInterestSent || isConnected) ? {} : { scale: 0.92 }}
+                    onClick={(e) => {
+                      if (!isInterestSent && !isConnected) {
+                        handleInteraction(e, 'INTEREST', 'PENDING');
+                      }
+                    }}
+                    disabled={actionLoading || isInterestSent || isConnected}
+                    className={`w-13 h-13 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all ${
+                      isInterestSent || isConnected
+                        ? 'bg-rose-50 text-[#E21E5B] border-2 border-[#E21E5B] cursor-default shadow-md'
+                        : 'bg-[#E21E5B] hover:bg-[#CE1B53] text-white shadow-lg shadow-rose-500/35 cursor-pointer'
+                    }`}
+                    aria-label={isInterestSent ? 'Sent' : isConnected ? 'Connected' : 'Interest'}
+                  >
+                    {actionLoading && actionLoadingType === 'INTEREST' ? (
+                      <Loader2 size={22} className="animate-spin text-white" />
+                    ) : (
+                      <Heart
+                        size={24}
+                        className={isInterestSent || isConnected ? 'fill-[#E21E5B] stroke-[2]' : 'fill-white text-white stroke-[0]'}
+                      />
+                    )}
+                  </motion.button>
+                  <span className={`text-xs font-bold ${isInterestSent || isConnected ? 'text-[#E21E5B]' : 'text-slate-600'}`}>
+                    {isInterestSent ? 'Sent' : isConnected ? 'Connected' : 'Interest'}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
