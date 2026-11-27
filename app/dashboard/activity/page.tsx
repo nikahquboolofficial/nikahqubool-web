@@ -213,6 +213,70 @@ function ActivityContent() {
     }
 
     try {
+      // 🌟 SPECIAL LOGIC FOR 'ALL ACTIVITY': COMBINED INCOMING-ONLY FEED (ACTIONS FROM OTHERS ON CURRENT USER)
+      if (tabName === 'all') {
+        const [reqRes, visRes, galRes, shortRes] = await Promise.all([
+          fetchDashboardApi('requests', 1, token),
+          fetchDashboardApi('visitors', 1, token),
+          fetchDashboardApi('gallery-requests-received', 1, token),
+          fetchDashboardApi('shortlisted-me', 1, token)
+        ]);
+
+        if (activeSubTabRef.current !== 'all') return;
+
+        const incomingMap = new Map<number, any>();
+
+        // 1. Incoming Interests (highest priority)
+        const reqList = reqRes?.success && reqRes.data ? (Array.isArray(reqRes.data) ? reqRes.data : reqRes.data.profiles || []) : [];
+        reqList.forEach((p: any) => {
+          const id = Number(p.userId || p.UserId);
+          if (id > 0) {
+            incomingMap.set(id, { 
+              ...p, 
+              activityType: 'INTEREST', 
+              interestStatus: 'ReceivedPending',
+              isInterestReceived: true
+            });
+          }
+        });
+
+        // 2. Profile Visitors
+        const visList = visRes?.success && visRes.data ? (Array.isArray(visRes.data) ? visRes.data : visRes.data.profiles || []) : [];
+        visList.forEach((p: any) => {
+          const id = Number(p.userId || p.UserId);
+          if (id > 0 && !incomingMap.has(id)) {
+            incomingMap.set(id, { ...p, activityType: 'VISITOR', isVisitor: true });
+          }
+        });
+
+        // 3. Photo Access Requests
+        const galList = galRes?.success && galRes.data ? (Array.isArray(galRes.data) ? galRes.data : galRes.data.profiles || []) : [];
+        galList.forEach((p: any) => {
+          const id = Number(p.userId || p.UserId);
+          if (id > 0 && !incomingMap.has(id)) {
+            incomingMap.set(id, { ...p, activityType: 'PHOTO_REQUEST', hasRequestedPhoto: true });
+          }
+        });
+
+        // 4. Shortlisted By Other Members
+        const shortList = shortRes?.success && shortRes.data ? (Array.isArray(shortRes.data) ? shortRes.data : shortRes.data.profiles || []) : [];
+        shortList.forEach((p: any) => {
+          const id = Number(p.userId || p.UserId);
+          if (id > 0 && !incomingMap.has(id)) {
+            incomingMap.set(id, { ...p, activityType: 'SHORTLIST_RECEIVED', isShortlistedMe: true });
+          }
+        });
+
+        const merged = applyPersistedInteractions(sortActivitiesDescending(Array.from(incomingMap.values())));
+        setProfiles(merged);
+        activityTabCache['all'] = {
+          profiles: merged,
+          timestamp: Date.now()
+        };
+        setHasMore(false);
+        return;
+      }
+
       const res = await fetchDashboardApi(tabName, pageNum, token);
 
       // Race condition check
@@ -330,22 +394,31 @@ function ActivityContent() {
       if (res && res.success) {
         if (status === 'ACCEPTED') {
           toast.success("Request accepted successfully!");
-          setProfiles(prev => {
-            const updated = prev.map(p => {
-              if (Number(p.userId || p.UserId) === receiverId) {
-                return { 
-                  ...p, 
-                  interestStatus: 'Accepted',
-                  interactionDate: new Date().toISOString()
-                };
-              }
-              return p;
-            });
-            return sortActivitiesDescending(updated);
+          // ⚡ INSTANT OPTIMISTIC REMOVAL: Profile immediately vanishes so user cannot double-click
+          setProfiles(prev => prev.filter(p => Number(p.userId || p.UserId) !== receiverId));
+          saveInterestSentState(receiverId, 'ACCEPTED');
+
+          // Purge cached tabs so it disappears immediately across all tabs
+          ['all', 'requests', 'interests'].forEach(k => {
+            if (activityTabCache[k]) {
+              activityTabCache[k].profiles = activityTabCache[k].profiles.filter(p => Number(p.userId || p.UserId) !== receiverId);
+            }
           });
+          // Invalidate accepted tab so next time it loads fresh
+          delete activityTabCache['accepted'];
         } else if (status === 'DECLINED') {
           toast.info("Request declined.");
+          // ⚡ INSTANT OPTIMISTIC REMOVAL: Profile immediately vanishes
           setProfiles(prev => prev.filter(p => Number(p.userId || p.UserId) !== receiverId));
+          saveInterestSentState(receiverId, 'DECLINED');
+
+          // Purge cached tabs so it disappears immediately across all tabs
+          ['all', 'requests', 'interests'].forEach(k => {
+            if (activityTabCache[k]) {
+              activityTabCache[k].profiles = activityTabCache[k].profiles.filter(p => Number(p.userId || p.UserId) !== receiverId);
+            }
+          });
+          delete activityTabCache['declined'];
         } else if (type === 'SHORTLIST') {
           // 0ms instant sync without intrusive toast
           setProfiles(prev => {
@@ -438,33 +511,33 @@ function ActivityContent() {
       if (activeSubTab === 'gallery-requests-accepted') return `Photo access unlocked with ${name}`;
     }
 
-    // Dynamic item identification for All Activity tab & mixed feeds
+    // Dynamic item identification for All Activity tab & mixed feeds (Incoming-Only Priority)
     const iType = String(user.interactionType || user.activityType || user.type || '').toUpperCase();
     const iStatus = String(user.interestStatus || user.status || '');
     
-    if (iType.includes('SHORTLIST') || user.isShortlisted || user.IsShortlisted) {
-      return `You shortlisted ${name}`;
+    if (user.activityType === 'SHORTLIST_RECEIVED' || user.isShortlistedMe) {
+      return `${name} shortlisted your profile`;
+    }
+    if (user.activityType === 'VISITOR' || user.isVisitor || iType.includes('VISIT') || iType.includes('VIEW')) {
+      return `${name} visited your profile`;
+    }
+    if (user.activityType === 'PHOTO_REQUEST' || user.hasRequestedPhoto || iType.includes('PHOTO')) {
+      return `${name} requested your photo access`;
+    }
+    if (user.activityType === 'CONTACT_VIEW' || iType.includes('CONTACT')) {
+      return `${name} viewed your contact details`;
+    }
+    if (iStatus === 'ReceivedPending' || user.isInterestReceived || user.activityType === 'INTEREST') {
+      return `${name} sent you an interest request`;
     }
     if (iStatus === 'Accepted' || iType.includes('ACCEPT')) {
       return `You and ${name} are connected`;
     }
-    if (iStatus === 'ReceivedPending' || user.isInterestReceived) {
-      return `${name} sent you an interest request`;
-    }
-    if (iStatus === 'SentPending' || user.isInterestSent) {
-      return `You sent ${name} an interest request`;
-    }
-    if (iType.includes('PHOTO') || user.hasRequestedPhoto) {
-      return `${name} requested your photo access`;
-    }
-    if (iType.includes('CONTACT')) {
-      return `${name} viewed your contact details`;
-    }
-    if (iType.includes('VISIT') || iType.includes('VIEW') || user.isVisitor) {
-      return `${name} visited your profile`;
-    }
     if (user.notificationMessage) {
       return user.notificationMessage;
+    }
+    if (iType.includes('SHORTLIST') || user.isShortlisted || user.IsShortlisted) {
+      return `You shortlisted ${name}`;
     }
     return `${name} interacted with your profile`;
   };
@@ -675,7 +748,8 @@ function ActivityContent() {
               const isShortlisted = Boolean(user.isShortlisted);
               const isPendingReceived = (activeMainTab === 'interests' && activeSubTab === 'requests') || 
                                         user.interestStatus === 'ReceivedPending' || 
-                                        (activeMainTab === 'all' && user.interestStatus === 'ReceivedPending');
+                                        user.isInterestReceived ||
+                                        (activeMainTab === 'all' && (user.activityType === 'INTEREST' || user.interestStatus === 'ReceivedPending'));
 
               const relativeTime = formatRelativeTime(user.interactionDate || user.createdAt || user.CreatedAt);
               const headlineText = getActivityHeadline(user, name);
