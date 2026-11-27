@@ -53,7 +53,72 @@ export default function GalleryManagementPage() {
     }
     return false;
   });
-  const [uploading, setUploading] = useState(false);
+  const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const uploading = uploadingSlot !== null || actionLoading;
+
+  // Client-side image compression supporting all image types safely
+  const compressPhoto = async (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      try {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const img = new Image();
+            img.onload = () => {
+              try {
+                const canvas = document.createElement("canvas");
+                const MAX_WIDTH = 1200;
+                const MAX_HEIGHT = 1200;
+                let width = img.width;
+                let height = img.height;
+                if (width > height) {
+                  if (width > MAX_WIDTH) {
+                    height = Math.round((height * MAX_WIDTH) / width);
+                    width = MAX_WIDTH;
+                  }
+                } else {
+                  if (height > MAX_HEIGHT) {
+                    width = Math.round((width * MAX_HEIGHT) / height);
+                    height = MAX_HEIGHT;
+                  }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext("2d");
+                ctx?.drawImage(img, 0, 0, width, height);
+                canvas.toBlob(
+                  (blob) => {
+                    if (blob) {
+                      const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
+                        type: "image/jpeg",
+                        lastModified: Date.now()
+                      });
+                      resolve(compressedFile);
+                    } else {
+                      resolve(file);
+                    }
+                  },
+                  "image/jpeg",
+                  0.82
+                );
+              } catch (e) {
+                resolve(file);
+              }
+            };
+            img.onerror = () => resolve(file);
+            img.src = event.target?.result as string;
+          } catch (e) {
+            resolve(file);
+          }
+        };
+        reader.onerror = () => resolve(file);
+        reader.readAsDataURL(file);
+      } catch (e) {
+        resolve(file);
+      }
+    });
+  };
 
   // Photo action & validation state
   const [selectedPhoto, setSelectedPhoto] = useState<any | null>(null);
@@ -185,17 +250,18 @@ export default function GalleryManagementPage() {
   const executeGalleryUpload = async (
     file: File,
     replacePhotoId: number | null,
-    isMainReplace: boolean
+    isMainReplace: boolean,
+    slotIdx: number = 0
   ) => {
     const token = getToken();
-    setUploading(true);
+    setUploadingSlot(slotIdx);
 
     try {
       let res: any;
       if (photos.length === 0 || (isMainReplace && (!replacePhotoId || replacePhotoId <= 1))) {
         let uploadedUrl = "";
         try {
-          const ext = file.name.split('.').pop() || 'jpg';
+          const ext = "jpg";
           const base64Data: string = await new Promise((resolve) => {
             const r = new FileReader();
             r.onload = () => resolve(String(r.result || ""));
@@ -209,7 +275,7 @@ export default function GalleryManagementPage() {
               photoBase64: base64Data,
               userId: getCurrentUserId(),
               ext,
-              mimeType: file.type || "image/jpeg",
+              mimeType: "image/jpeg",
             }),
           });
           const upJson = await upRes.json();
@@ -259,11 +325,11 @@ export default function GalleryManagementPage() {
         toast.error(res.message || "Failed to upload photo.");
       }
     } finally {
-      setUploading(false);
+      setUploadingSlot(null);
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, slotIdx: number = 0) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -291,8 +357,8 @@ export default function GalleryManagementPage() {
       return;
     }
 
-    if (file.size > 15 * 1024 * 1024) {
-      toast.error("File size is too large. Maximum allowed photo size is 15MB.");
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error("File size is too large. Maximum allowed photo size is 25MB.");
       return;
     }
 
@@ -305,19 +371,21 @@ export default function GalleryManagementPage() {
       return;
     }
 
-    setUploading(true);
+    setUploadingSlot(slotIdx);
     toast.loading("AI scanning face...", { id: "face-scan" });
 
     try {
-      const previewUrl = URL.createObjectURL(file);
-      const dataUrl = await fileToDataUrl(file);
+      // ⚡ Fast client-side image compression downscales large phone photos in 50ms
+      const compressedFile = await compressPhoto(file);
+      const previewUrl = URL.createObjectURL(compressedFile);
+      const dataUrl = await fileToDataUrl(compressedFile);
 
-      // 1. Run In-Browser Client Face Check (supports blur, zoom, far away, side pose)
+      // 1. Run In-Browser Client Face Check on compressed lightweight image
       const faceResult = await clientValidateSingleFace(dataUrl);
       toast.dismiss("face-scan");
 
       if (!faceResult.isValid) {
-        setUploading(false);
+        setUploadingSlot(null);
         setSelectedPhoto(null);
         setRejectedModal({
           open: true,
@@ -329,11 +397,12 @@ export default function GalleryManagementPage() {
       }
 
       // Valid solo face confirmed! Upload immediately.
-      await executeGalleryUpload(file, isReplacing ? oldPhotoId : null, isMainReplace);
+      await executeGalleryUpload(compressedFile, isReplacing ? oldPhotoId : null, isMainReplace, slotIdx);
     } catch (err) {
       toast.dismiss("face-scan");
-      setUploading(false);
       toast.error("Unable to verify photo. Please try again.");
+    } finally {
+      setUploadingSlot(null);
     }
   };
 
@@ -354,9 +423,9 @@ export default function GalleryManagementPage() {
     const photoId = photo.photoId || photo.PhotoId;
     if (!photoId) return;
 
-    setUploading(true);
+    setActionLoading(true);
     const res = await setMainPhotoApi(photoId, token);
-    setUploading(false);
+    setActionLoading(false);
 
     if (res.success) {
       toast.success("Selected as Main Profile Photo!");
@@ -378,7 +447,7 @@ export default function GalleryManagementPage() {
     const isMain = Boolean(photo.isMain ?? photo.IsMain);
     const remaining = photos.filter((p: any) => Number(p.photoId || p.PhotoId || 0) !== photoId);
 
-    setUploading(true);
+    setActionLoading(true);
 
     try {
       // If photo to delete is main and other photos exist, promote next photo first
@@ -418,7 +487,7 @@ export default function GalleryManagementPage() {
         updatePhotoPrivacyApi('All Members', token).catch(() => {});
       }
     } finally {
-      setUploading(false);
+      setActionLoading(false);
     }
   };
 
@@ -566,14 +635,14 @@ export default function GalleryManagementPage() {
                     <input 
                       type="file" 
                       accept="image/*,.jpg,.jpeg,.png,.webp,.avif,.heic,.heif,.jfif,.bmp,.gif,.tiff" 
-                      onChange={handleFileUpload} 
-                      disabled={uploading} 
+                      onChange={(e) => handleFileUpload(e, slotIdx)} 
+                      disabled={uploadingSlot !== null || actionLoading} 
                       className="hidden" 
                     />
-                    {uploading ? (
+                    {uploadingSlot === slotIdx ? (
                       <div className="flex flex-col items-center gap-1">
                         <Loader2 size={18} className="animate-spin text-[#d91b5c]" />
-                        <span className="text-[9px] font-bold text-[#d91b5c]">Verifying...</span>
+                        <span className="text-[9px] font-bold text-[#d91b5c]">Scanning...</span>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center gap-1">
@@ -640,14 +709,14 @@ export default function GalleryManagementPage() {
                     <input 
                       type="file" 
                       accept="image/*,.jpg,.jpeg,.png,.webp,.avif,.heic,.heif,.jfif,.bmp,.gif,.tiff" 
-                      onChange={handleFileUpload} 
-                      disabled={uploading} 
+                      onChange={(e) => handleFileUpload(e, slotIdx)} 
+                      disabled={uploadingSlot !== null || actionLoading} 
                       className="hidden" 
                     />
-                    {uploading ? (
+                    {uploadingSlot === slotIdx ? (
                       <div className="flex flex-col items-center gap-1">
                         <Loader2 size={18} className="animate-spin text-[#d91b5c]" />
-                        <span className="text-[9px] font-bold text-[#d91b5c]">Verifying...</span>
+                        <span className="text-[9px] font-bold text-[#d91b5c]">Scanning...</span>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center gap-1">
@@ -733,7 +802,16 @@ export default function GalleryManagementPage() {
                   )}
 
                   <label className="p-3 bg-[#d91b5c] hover:bg-[#b01449] text-white font-black text-xs rounded-2xl flex items-center justify-center gap-1.5 cursor-pointer transition-all shadow-sm">
-                    <input type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.avif,.heic,.heif,.jfif,.bmp,.gif,.tiff" onChange={handleFileUpload} disabled={uploading} className="hidden" />
+                    <input 
+                      type="file" 
+                      accept="image/*,.jpg,.jpeg,.png,.webp,.avif,.heic,.heif,.jfif,.bmp,.gif,.tiff" 
+                      onChange={(e) => {
+                        const idx = photos.findIndex((p: any) => p.photoId === selectedPhoto?.photoId);
+                        handleFileUpload(e, idx >= 0 ? idx : 0);
+                      }} 
+                      disabled={uploading} 
+                      className="hidden" 
+                    />
                     {uploading ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />} 
                     Replace Photo
                   </label>

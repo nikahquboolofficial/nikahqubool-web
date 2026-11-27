@@ -32,18 +32,6 @@ const PREF_INCOME_OPTIONS: MasterOption[] = [
   { id: '₹50 Lakhs & Above', value: '₹50 Lakhs & Above' }
 ];
 
-const PREF_COUNTRY_OPTIONS: MasterOption[] = [
-  { id: 'India', value: 'India' },
-  { id: 'United Arab Emirates', value: 'United Arab Emirates' },
-  { id: 'Saudi Arabia', value: 'Saudi Arabia' },
-  { id: 'United Kingdom', value: 'United Kingdom' },
-  { id: 'United States', value: 'United States' },
-  { id: 'Canada', value: 'Canada' },
-  { id: 'Qatar', value: 'Qatar' },
-  { id: 'Kuwait', value: 'Kuwait' },
-  { id: 'Oman', value: 'Oman' }
-];
-
 interface DualRangeSliderProps {
   min: number;
   max: number;
@@ -262,9 +250,23 @@ function SettingsContent() {
     stateId: 0,
     cityId: 0,
     incomeLabel: 'Any Income',
-    country: 'India',
     namazHabits: [],
     hijabOrBeard: []
+  });
+
+  const [hasUserPhoto, setHasUserPhoto] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("cached_profile_details") || localStorage.getItem("user_details");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          const p = parsed.profile || parsed.Profile || parsed;
+          const g = parsed.gallery || parsed.Gallery || p?.userPhotos || p?.UserPhotos || [];
+          return (Array.isArray(g) && g.length > 0) || Boolean(p?.mainPhotoUrl || p?.photoUrl);
+        }
+      } catch {}
+    }
+    return false;
   });
 
   const [masterData, setMasterData] = useState<{ [key: string]: MasterOption[] }>({});
@@ -340,8 +342,6 @@ function SettingsContent() {
       }
       case 'height':
         return `${prefData.minHeight || '4.5'} - ${prefData.maxHeight || '6.5'} ft`;
-      case 'country':
-        return prefData.country || 'India';
       case 'state': {
         if (!prefData.stateId) return 'Any State';
         const s = (masterData.STATES || []).find(x => Number(x.id) === Number(prefData.stateId));
@@ -407,7 +407,7 @@ function SettingsContent() {
     router.prefetch('/dashboard/my-profile');
     router.prefetch('/dashboard/membership');
     const tabParam = searchParams.get('tab');
-    if (tabParam) setActiveTab(tabParam);
+    setActiveTab(tabParam || 'menu');
   }, [searchParams, router]);
 
   // Load Master Data & Existing Partner Preferences when tab is opened
@@ -416,7 +416,7 @@ function SettingsContent() {
     let isMounted = true;
 
     const loadMastersAndPref = async () => {
-      const types = ['MARITAL_STATUS', 'SECTS', 'MOTHER_TONGUES', 'EDUCATIONS', 'OCCUPATIONS', 'CASTES', 'STATES'];
+      const types = ['MARITAL_STATUS', 'SECTS', 'MOTHER_TONGUES', 'EDUCATIONS', 'OCCUPATIONS', 'CASTES', 'STATES', 'PHOTO_PRIVACY'];
       try {
         const results = await Promise.all(types.map(t => fetchMasterDataApi(t)));
         if (!isMounted) return;
@@ -435,6 +435,13 @@ function SettingsContent() {
             if (p) {
               setPhotoPrivacy(p.photoPrivacy || p.PhotoPrivacy || 'All Members');
               setIsAccountPaused(p.accountState === 'Paused' || p.accountState === 'Deactivated');
+              const hasPhotos = Boolean(
+                p.mainPhotoUrl || p.photoUrl || p.PhotoUrl || 
+                (Array.isArray(profileRes.data.gallery) && profileRes.data.gallery.length > 0) ||
+                (Array.isArray(p.userPhotos) && p.userPhotos.length > 0) ||
+                Number(p.photosCount || 0) > 0
+              );
+              setHasUserPhoto(hasPhotos);
             }
 
             const pref = profileRes.data.preferences || profileRes.data.Preferences;
@@ -659,7 +666,6 @@ function SettingsContent() {
     { id: 'sect', label: 'Sect' },
     { id: 'caste', label: 'Caste' },
     { id: 'height', label: 'Height' },
-    { id: 'country', label: 'Country' },
     { id: 'state', label: 'State' },
     { id: 'city', label: 'City' },
     { id: 'namaz', label: 'Namaz Habit' },
@@ -677,7 +683,6 @@ function SettingsContent() {
       case 'sect': return 'Select Sect';
       case 'caste': return 'Select Caste';
       case 'height': return 'Select Height';
-      case 'country': return 'Select Country';
       case 'state': return 'Select State';
       case 'city': return 'Select City';
       case 'namaz': return 'Select Namaz Habit';
@@ -874,37 +879,6 @@ function SettingsContent() {
       case 'caste':
         return renderMultiSelectSheet('casteIds', masterData.CASTES || [], true);
 
-      case 'country': {
-        const currentCountry = prefData.country || 'India';
-        return (
-          <div className="space-y-0.5 divide-y divide-slate-100 max-h-[50vh] overflow-y-auto px-1">
-            {PREF_COUNTRY_OPTIONS.map((opt) => {
-              const isSelected = currentCountry === opt.value;
-              return (
-                <div
-                  key={opt.id}
-                  onClick={() => updatePrefField('country', opt.value)}
-                  className="flex items-center justify-between py-3.5 px-2 cursor-pointer hover:bg-slate-50 rounded-xl transition"
-                >
-                  <span className={`text-sm ${isSelected ? 'font-bold text-slate-900' : 'font-medium text-slate-700'}`}>
-                    {opt.value}
-                  </span>
-                  <div
-                    className={`w-5 h-5 rounded-md flex items-center justify-center transition ${
-                      isSelected
-                        ? 'bg-[#d91b5c] text-white shadow-xs'
-                        : 'border-2 border-slate-300'
-                    }`}
-                  >
-                    {isSelected && <Check size={14} strokeWidth={3} />}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        );
-      }
-
       case 'state': {
         const filteredStates = (masterData.STATES || []).filter((s) =>
           s.value.toLowerCase().includes(sheetSearch.toLowerCase().trim())
@@ -1042,12 +1016,13 @@ function SettingsContent() {
           <button 
             type="button" 
             onClick={() => {
-              if (activeTab !== 'menu') {
+              const urlTab = searchParams.get('tab');
+              if (activeTab !== 'menu' && !urlTab) {
                 setActiveTab('menu');
               } else {
                 if (typeof window !== "undefined") {
                   const last = sessionStorage.getItem('last_browse_page');
-                  if (last && last !== '/dashboard/settings') {
+                  if (last && !last.startsWith('/dashboard/settings')) {
                     router.push(last);
                     return;
                   }
@@ -1323,60 +1298,74 @@ function SettingsContent() {
 
             {/* 📸 SUB-TAB 1: PHOTO PRIVACY */}
             {privacySubTab === 'photo' && (
-              <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm space-y-3">
-                <div className="space-y-2.5">
-                  {[
-                    {
-                      id: "All Members",
-                      title: "Visible to All",
-                      desc: "Sabhi verified members dekh sakte hain (Recommended for faster proposals)."
-                    },
-                    {
-                      id: "Premium Only",
-                      title: "VIP Only",
-                      desc: "Sirf serious active VIP rishte dekh sakte hain."
-                    },
-                    {
-                      id: "Only Approved",
-                      title: "Parda Mode",
-                      desc: "Sirf aapki ijazat ke baad hi photo dikhegi."
-                    }
-                  ].map((option) => (
-                    <div 
-                      key={option.id}
-                      onClick={() => setPhotoPrivacy(option.id)}
-                      className={`flex items-start gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
-                        photoPrivacy === option.id 
-                          ? 'bg-rose-50/50 border-[#d91b5c] ring-1 ring-[#d91b5c]' 
-                          : 'bg-white border-slate-200 hover:border-rose-200'
-                      }`}
-                    >
-                      <input 
-                        type="radio" 
-                        name="photoPrivacy" 
-                        value={option.id} 
-                        checked={photoPrivacy === option.id}
-                        onChange={() => setPhotoPrivacy(option.id)}
-                        className="mt-0.5 w-4 h-4 accent-[#d91b5c] cursor-pointer shrink-0" 
-                      />
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-900">{option.title}</h4>
-                        <p className="text-[11px] font-medium text-slate-500 mt-0.5 leading-relaxed">{option.desc}</p>
-                      </div>
-                    </div>
-                  ))}
+              !hasUserPhoto ? (
+                <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm text-center space-y-3">
+                  <div className="w-12 h-12 rounded-full bg-rose-50 text-[#d91b5c] flex items-center justify-center mx-auto">
+                    <Eye size={22} />
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-900">No Profile Photos Uploaded</h4>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+                    Photo privacy controls will automatically become active once you upload at least one profile photo.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => router.push('/dashboard/gallery')}
+                    className="py-2.5 px-6 rounded-full bg-[#d91b5c] hover:bg-[#c21852] text-white font-bold text-xs uppercase tracking-wider shadow-sm cursor-pointer transition-all"
+                  >
+                    Upload Photo Now
+                  </button>
                 </div>
+              ) : (
+                <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-sm space-y-3">
+                  <div className="space-y-2.5">
+                    {(masterData.PHOTO_PRIVACY && masterData.PHOTO_PRIVACY.length > 0 
+                      ? masterData.PHOTO_PRIVACY.map(opt => ({
+                          id: opt.id || opt.value,
+                          title: opt.value || opt.id,
+                          desc: opt.description || (opt.id === 'All Members' ? 'Sabhi verified members dekh sakte hain.' : opt.id === 'Premium Only' ? 'Sirf serious active VIP rishte dekh sakte hain.' : 'Sirf aapki ijazat ke baad hi photo dikhegi.')
+                        }))
+                      : [
+                          { id: "All Members", title: "Visible to All", desc: "Sabhi verified members dekh sakte hain (Recommended for faster proposals)." },
+                          { id: "Premium Only", title: "VIP Only", desc: "Sirf serious active VIP rishte dekh sakte hain." },
+                          { id: "Only Approved", title: "Parda Mode", desc: "Sirf aapki ijazat ke baad hi photo dikhegi." }
+                        ]
+                    ).map((option) => (
+                      <div 
+                        key={option.id}
+                        onClick={() => setPhotoPrivacy(option.id)}
+                        className={`flex items-start gap-3 p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                          photoPrivacy === option.id 
+                            ? 'bg-rose-50/50 border-[#d91b5c] ring-1 ring-[#d91b5c]' 
+                            : 'bg-white border-slate-200 hover:border-rose-200'
+                        }`}
+                      >
+                        <input 
+                          type="radio" 
+                          name="photoPrivacy" 
+                          value={option.id} 
+                          checked={photoPrivacy === option.id}
+                          onChange={() => setPhotoPrivacy(option.id)}
+                          className="mt-0.5 w-4 h-4 accent-[#d91b5c] cursor-pointer shrink-0" 
+                        />
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-900">{option.title}</h4>
+                          <p className="text-[11px] font-medium text-slate-500 mt-0.5 leading-relaxed">{option.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
 
-                <button 
-                  type="button" 
-                  onClick={handleSavePhotoPrivacy}
-                  disabled={savingPhotoPrivacy}
-                  className="w-full py-3 rounded-2xl bg-[#d91b5c] hover:bg-[#c21852] text-white font-bold text-xs uppercase tracking-wider shadow-sm cursor-pointer flex items-center justify-center gap-2 transition-colors"
-                >
-                  {savingPhotoPrivacy ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-                  <span>Save Photo Privacy</span>
-                </button>
-              </div>
+                  <button 
+                    type="button" 
+                    onClick={handleSavePhotoPrivacy}
+                    disabled={savingPhotoPrivacy}
+                    className="w-full py-3 rounded-2xl bg-[#d91b5c] hover:bg-[#c21852] text-white font-bold text-xs uppercase tracking-wider shadow-sm cursor-pointer flex items-center justify-center gap-2 transition-colors"
+                  >
+                    {savingPhotoPrivacy ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                    <span>Save Photo Privacy</span>
+                  </button>
+                </div>
+              )
             )}
 
             {/* 🚫 SUB-TAB 2: BLOCKED USERS */}

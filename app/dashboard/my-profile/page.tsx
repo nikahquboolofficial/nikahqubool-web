@@ -106,6 +106,7 @@ export default function MyProfilePage() {
   // ⚡ INSTANT 0ms HYDRATION FROM LOCAL CACHE
   useEffect(() => {
     if (typeof window !== "undefined") {
+      sessionStorage.setItem("last_browse_page", "/dashboard/my-profile");
       const cached = localStorage.getItem("cached_profile_details") || localStorage.getItem("user_details");
       if (cached) {
         try {
@@ -529,21 +530,23 @@ export default function MyProfilePage() {
             <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
           </Link>
 
-          {/* 3. Profile Privacy */}
-          <button
-            type="button"
-            onClick={() => setIsPrivacyModalOpen(true)}
-            className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer text-left"
-          >
-            <div className="flex items-center gap-3.5">
-              <Lock size={18} className="text-slate-600 group-hover:text-[#E21E5B] transition-colors" />
-              <div>
-                <span className="text-sm font-semibold text-slate-800 block">Profile Privacy</span>
-                <span className="text-[11px] text-slate-400 block font-medium">Currently: {selectedPrivacy}</span>
+          {/* 3. Profile Privacy - Only visible when user has at least 1 photo */}
+          {Boolean(profileData?.photoUrl || profileData?.mainPhotoUrl || profileData?.MainPhotoUrl || (profileData?.userPhotos && profileData.userPhotos.length > 0)) && (
+            <button
+              type="button"
+              onClick={() => setIsPrivacyModalOpen(true)}
+              className="w-full p-4 sm:p-4.5 flex items-center justify-between hover:bg-slate-50 transition-colors group cursor-pointer text-left"
+            >
+              <div className="flex items-center gap-3.5">
+                <Lock size={18} className="text-slate-600 group-hover:text-[#E21E5B] transition-colors" />
+                <div>
+                  <span className="text-sm font-semibold text-slate-800 block">Profile Privacy</span>
+                  <span className="text-[11px] text-slate-400 block font-medium">Currently: {selectedPrivacy}</span>
+                </div>
               </div>
-            </div>
-            <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
-          </button>
+              <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
+            </button>
+          )}
 
           {/* 4. Explore Plans */}
           <Link prefetch={false} href="/dashboard/membership"

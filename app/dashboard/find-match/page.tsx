@@ -69,7 +69,6 @@ const INITIAL_SEARCH_FILTERS = {
   motherTongue: [] as string[],
   sect: [] as string[],
   caste: [] as string[],
-  country: [] as string[],
   states: [] as string[],
   cities: [] as string[],
   education: [] as string[],
@@ -256,7 +255,6 @@ export default function FindMatchPage() {
       "Malik", "Choudhary", "Mansoori", "Saifi", "Abbasi", "Farooqui", "Usmani", "Alvi"
     ],
     MOTHER_TONGUES: ["Urdu", "Hindi", "English", "Bengali", "Telugu", "Marathi", "Tamil", "Gujarati", "Malayalam", "Kannada", "Kashmiri", "Punjabi"],
-    COUNTRIES: ["India", "United Arab Emirates", "Saudi Arabia", "United Kingdom", "United States", "Canada", "Qatar", "Kuwait", "Oman"],
     STATES: getCachedMasterValues('STATES').length > 0 ? getCachedMasterValues('STATES') : [
       "Uttar Pradesh", "Delhi", "Maharashtra", "Bihar", "Karnataka", "Telangana", "West Bengal", "Gujarat", "Madhya Pradesh", "Rajasthan"
     ],
@@ -809,25 +807,6 @@ export default function FindMatchPage() {
           <div className="space-y-3 pt-1">
             <h2 className="text-sm font-bold text-slate-900 pl-1">Location</h2>
 
-            {/* COUNTRY */}
-            <div 
-              onClick={() => { setSheetSearch(""); setActiveSheet('country'); }}
-              className="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-xs flex items-center justify-between cursor-pointer hover:border-[#E21E5B]/40 active:scale-[0.99] transition-all"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-slate-50 border border-slate-200/60 flex items-center justify-center text-slate-600">
-                  <Globe size={16} />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-slate-900">Country</div>
-                  <div className="text-[11px] font-medium text-slate-500">
-                    {getSummary(filters.country)}
-                  </div>
-                </div>
-              </div>
-              <ChevronDown size={18} className="text-slate-400" />
-            </div>
-
             {/* STATE */}
             <div 
               onClick={() => { setSheetSearch(""); setActiveSheet('states'); }}
@@ -1335,7 +1314,6 @@ export default function FindMatchPage() {
                   else if (activeSheet === 'motherTongue') options = masterOptions.MOTHER_TONGUES;
                   else if (activeSheet === 'sect') options = masterOptions.SECTS;
                   else if (activeSheet === 'caste') options = masterOptions.CASTES;
-                  else if (activeSheet === 'country') options = masterOptions.COUNTRIES;
                   else if (activeSheet === 'states') options = masterOptions.STATES;
                   else if (activeSheet === 'cities') options = availableCities;
                   else if (activeSheet === 'education') options = masterOptions.EDUCATIONS;
@@ -1421,7 +1399,7 @@ export default function FindMatchPage() {
                 {/* LEFT COLUMN: CATEGORIES TAB LIST */}
                 <div className="w-[38%] border-r border-slate-200/80 bg-slate-50 overflow-y-auto py-2">
                   {[
-                    "Age", "Height", "Marital Status", "Sect", "Caste", "Country", 
+                    "Age", "Height", "Marital Status", "Sect", "Caste", 
                     "State", "City", "Verified Profiles", "Education", "Employed In", 
                     "Mother Tongue", "Annual Income", "Premium Profiles", "Online Profiles", 
                     "Profiles With Photos"
@@ -1638,7 +1616,6 @@ export default function FindMatchPage() {
                         let filterKey: keyof typeof filters = 'sect';
 
                         if (modalActiveTab === "Sect") { opts = masterOptions.SECTS; filterKey = 'sect'; }
-                        else if (modalActiveTab === "Country") { opts = masterOptions.COUNTRIES; filterKey = 'country'; }
                         else if (modalActiveTab === "State") { opts = masterOptions.STATES; filterKey = 'states'; }
                         else if (modalActiveTab === "City") { opts = availableCities; filterKey = 'cities'; }
                         else if (modalActiveTab === "Education") { opts = masterOptions.EDUCATIONS; filterKey = 'education'; }
